@@ -1,0 +1,300 @@
+/*
+ * Sistema de diseño Gyro Store — preset shadcn "b2DeDk3s1"
+ * (style Rhea · base Mist · theme Emerald · charts Emerald · Geist).
+ *
+ * Migración nativa: los tokens los define el preset en `:root` / `[data-theme="dark"]`
+ * (más abajo). Este archivo agrega lo único que el preset no trae:
+ *   1. El bloque `@theme inline` que registra `--color-*` → `var(--*)` (sin esto
+ *      Tailwind no genera `bg-background`, `border-border`, etc.).
+ *   2. Tokens semánticos que shadcn no incluye pero la app necesita: whatsapp
+ *      (verde del canal), promo, success / warning / info, y los radios card / pill.
+ *
+ * Regla: cero colores crudos de Tailwind en componentes; todo sale de estos tokens.
+ */
+@import "tailwindcss";
+/* Animaciones enter/exit (animate-in / animate-out) de las primitivas shadcn. */
+@import "tw-animate-css";
+/* Utilidades del preset (variantes data-open/data-closed, no-scrollbar, scroll-fade,
+   shimmer). Los componentes las usan; sin este import quedan sin estilo. */
+@import "shadcn/tailwind.css";
+@import "@fontsource-variable/geist";
+
+/* La variante `dark:` sigue a nuestro data-theme, no al prefers-color-scheme del
+   sistema: el tema lo controla useTheme (doc 05 §7). */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+/* ──────────────────────────────────────────────────────────────
+   Registro de tokens: mapea los `--*` del preset a los `--color-*` que Tailwind
+   usa para generar utilidades. Es el bloque estándar de shadcn v4 + los extras
+   propios de Gyro al final.
+   ────────────────────────────────────────────────────────────── */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: oklch(0.985 0 0);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* ── Extras de Gyro (shadcn no los trae) ── */
+  --color-primary-2: var(--primary-2);
+  --color-whatsapp: var(--whatsapp);
+  --color-promo: var(--promo);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-info: var(--info);
+
+  /* Acentos de las StatCard. No se mapean a --chart-*: en este preset los
+     charts son toda la escala Green, y las tarjetas necesitan tonos distintos
+     entre sí para distinguirse de un vistazo. */
+  --color-tone-indigo: var(--tone-indigo);
+  --color-tone-sky: var(--tone-sky);
+  --color-tone-amber: var(--tone-amber);
+  --color-tone-emerald: var(--tone-emerald);
+  --color-tone-rose: var(--tone-rose);
+  --color-tone-purple: var(--tone-purple);
+  --color-tone-red: var(--tone-red);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-card: 0.75rem;
+  --radius-pill: 9999px;
+
+  /* Tipografía del preset Rhea: Geist en todo (font + heading = geist/inherit).
+     Registrar --font-heading acá es lo que hace que Tailwind genere la clase
+     `font-heading` que ya usan varios componentes. */
+  --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-heading: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Escenario del producto: transparente a propósito — las fotos del catálogo ya
+   traen su propio fondo. Se conserva como gancho de layout. */
+@utility product-stage {
+  background-color: transparent;
+}
+
+/* Curva de salida exponencial: entradas rápidas que desaceleran con elegancia. */
+@utility ease-expo {
+  transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* `color-scheme` tiene que SEGUIR a `data-theme`, no quedar fijo en dark.
+   Fijo, el navegador pintaba scrollbars, `<select>` nativos y el autofill en
+   oscuro incluso con el tema claro activo — controles negros sobre una interfaz
+   blanca. */
+html[data-theme='dark'] {
+  color-scheme: dark;
+}
+
+html[data-theme='light'] {
+  color-scheme: light;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Cifras siempre tabulares (precios, stock, contadores). */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes login-enter-rise { from { opacity: 0; transform: translateY(28px); } }
+@keyframes login-enter-slide { from { opacity: 0; transform: translateX(-48px); } }
+
+.login-enter-slide { animation: login-enter-slide 0.6s cubic-bezier(0.16, 1, 0.3, 1) backwards; }
+.login-enter-rise { animation: login-enter-rise 0.55s cubic-bezier(0.16, 1, 0.3, 1) 0.12s backwards; }
+.login-enter-item { animation: login-enter-rise 0.5s cubic-bezier(0.16, 1, 0.3, 1) backwards; }
+
+/* ──────────────────────────────────────────────────────────────
+   Tokens del preset b2DeDk3s1. Light en :root, dark en [data-theme="dark"].
+   Los 4 extras (whatsapp/success/warning/info) se agregan a ambos.
+   ────────────────────────────────────────────────────────────── */
+:root {
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.148 0.004 228.8);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.148 0.004 228.8);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.148 0.004 228.8);
+  --primary: oklch(0.508 0.118 165.612);
+  --primary-foreground: oklch(0.979 0.021 166.113);
+  --secondary: oklch(0.967 0.001 286.375);
+  --secondary-foreground: oklch(0.21 0.006 285.885);
+  --muted: oklch(0.963 0.002 197.1);
+  --muted-foreground: oklch(0.56 0.021 213.5);
+  --accent: oklch(0.963 0.002 197.1);
+  --accent-foreground: oklch(0.218 0.008 223.9);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.925 0.005 214.3);
+  --input: oklch(0.925 0.005 214.3);
+  --ring: oklch(0.723 0.014 214.4);
+  /* ── Escala de gráficos (CLARO) ──
+     Un solo hue (el primary, ~152) variando lightness, más un neutro para
+     "otros". Dos correcciones sobre lo que había:
+
+     1. Saltos PAREJOS de 0.13 en L. Antes iban de 0.148 a 0.079, así que los
+        dos segmentos más oscuros del donut se confundían entre sí.
+     2. Rango propio por tema. Los cinco valores eran IDÉNTICOS en claro y
+        oscuro, con L de 0.871 a 0.448: sobre fondo blanco el más claro casi no
+        se veía, y sobre fondo oscuro el más oscuro tampoco. Acá el rango baja
+        (0.74 → 0.35) para contrastar contra el blanco. */
+  --chart-1: oklch(0.74 0.14 152);
+  --chart-2: oklch(0.61 0.16 152);
+  --chart-3: oklch(0.48 0.14 152);
+  --chart-4: oklch(0.35 0.10 152);
+  --chart-5: oklch(0.62 0.02 150);
+  --radius: 0.625rem;
+  --sidebar: oklch(0.987 0.002 197.1);
+  --sidebar-foreground: oklch(0.148 0.004 228.8);
+  --sidebar-primary: oklch(0.596 0.145 163.225);
+  --sidebar-primary-foreground: oklch(0.979 0.021 166.113);
+  --sidebar-accent: oklch(0.963 0.002 197.1);
+  --sidebar-accent-foreground: oklch(0.218 0.008 223.9);
+  --sidebar-border: oklch(0.925 0.005 214.3);
+  --sidebar-ring: oklch(0.723 0.014 214.4);
+  /* Extras Gyro. */
+  /* Acento secundario: esmeralda más profunda para textos y hovers sobre fondo
+     claro. La usan nombre de producto en hover, precios y eyebrows (41 sitios),
+     que hasta ahora quedaban sin color porque el token no existía. */
+  --primary-2: oklch(0.432 0.095 166.913);
+  --whatsapp: #128c3e;
+  --promo: oklch(0.585 0.233 292.5);
+  /* Estados semánticos en tema CLARO. Van más oscuros que su par del tema
+     oscuro a propósito: como también se usan de color de TEXTO, tienen que
+     pasar 4.5:1 contra --background (blanco). Los valores anteriores
+     (0.72/0.63/0.6 de L) daban 2.54:1, 3.28:1 y 3.91:1 — todos por debajo del
+     piso de DESIGN.md §9. Medidos: 5.65:1, 5.19:1 y 5.46:1. */
+  --success: oklch(0.52 0.13 150);
+  --warning: oklch(0.52 0.11 70);
+  --info: oklch(0.52 0.13 245);
+  /* Acentos de StatCard (claro). */
+  --tone-indigo: oklch(0.51 0.19 275);
+  --tone-sky: oklch(0.56 0.14 233);
+  --tone-amber: oklch(0.68 0.16 62);
+  --tone-emerald: oklch(0.55 0.13 163);
+  --tone-rose: oklch(0.59 0.2 15);
+  --tone-purple: oklch(0.55 0.22 300);
+  --tone-red: oklch(0.58 0.22 27);
+
+  /* ── Muestras de color de PRODUCTO ──
+     Representan el color físico del artículo (un audífono negro es negro en los
+     dos temas), así que NO se redefinen en [data-theme="dark"]: son los únicos
+     tokens deliberadamente invariantes del sistema.
+     Se consumen vía `var(--swatch-*)` desde lib/productColors.ts, nunca como hex
+     suelto en un componente (DESIGN.md §11.10). El nombre del color siempre va
+     escrito al lado del círculo: el color no es la única señal (§8). */
+  --swatch-black: oklch(0.22 0.005 250);
+  --swatch-white: oklch(0.97 0 0);
+  --swatch-gray: oklch(0.65 0.01 250);
+  --swatch-silver: oklch(0.83 0.005 250);
+  --swatch-blue: oklch(0.58 0.19 258);
+  --swatch-cyan: oklch(0.75 0.13 195);
+  --swatch-green: oklch(0.62 0.17 148);
+  --swatch-red: oklch(0.58 0.22 27);
+  --swatch-pink: oklch(0.68 0.2 350);
+  --swatch-purple: oklch(0.58 0.22 300);
+  --swatch-yellow: oklch(0.82 0.16 92);
+  --swatch-orange: oklch(0.7 0.18 48);
+  --swatch-gold: oklch(0.74 0.13 85);
+  --swatch-brown: oklch(0.45 0.08 55);
+}
+
+[data-theme="dark"] {
+  --background: oklch(0.148 0.004 228.8);
+  --foreground: oklch(0.987 0.002 197.1);
+  --card: oklch(0.218 0.008 223.9);
+  --card-foreground: oklch(0.987 0.002 197.1);
+  --popover: oklch(0.218 0.008 223.9);
+  --popover-foreground: oklch(0.987 0.002 197.1);
+  --primary: oklch(0.432 0.095 166.913);
+  --primary-foreground: oklch(0.979 0.021 166.113);
+  --secondary: oklch(0.274 0.006 286.033);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.275 0.011 216.9);
+  --muted-foreground: oklch(0.723 0.014 214.4);
+  --accent: oklch(0.275 0.011 216.9);
+  --accent-foreground: oklch(0.987 0.002 197.1);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.56 0.021 213.5);
+  /* Escala de gráficos (OSCURO). Mismo hue y mismos saltos de 0.13, pero el
+     rango sube (0.88 → 0.49) para contrastar contra el fondo oscuro. */
+  --chart-1: oklch(0.88 0.13 152);
+  --chart-2: oklch(0.75 0.17 152);
+  --chart-3: oklch(0.62 0.16 152);
+  --chart-4: oklch(0.49 0.12 152);
+  --chart-5: oklch(0.60 0.02 150);
+  --sidebar: oklch(0.218 0.008 223.9);
+  --sidebar-foreground: oklch(0.987 0.002 197.1);
+  --sidebar-primary: oklch(0.696 0.17 162.48);
+  --sidebar-primary-foreground: oklch(0.262 0.051 172.552);
+  --sidebar-accent: oklch(0.275 0.011 216.9);
+  --sidebar-accent-foreground: oklch(0.987 0.002 197.1);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.56 0.021 213.5);
+  /* Extras Gyro (tono para fondo oscuro). */
+  /* Sobre oscuro el acento secundario va al revés: más claro que --primary,
+     para que resalte como highlight (mismo rol que el teal del V1). */
+  --primary-2: oklch(0.696 0.17 162.48);
+  --whatsapp: #25d366;
+  --promo: oklch(0.585 0.233 292.5);
+  /* En oscuro van claros: 9–10:1 contra --background y contra --card. */
+  --success: oklch(0.72 0.16 150);
+  --warning: oklch(0.8 0.16 78);
+  --info: oklch(0.7 0.15 245);
+  /* Acentos de StatCard (oscuro): más claros para contrastar con el fondo. */
+  --tone-indigo: oklch(0.7 0.16 275);
+  --tone-sky: oklch(0.75 0.13 233);
+  --tone-amber: oklch(0.82 0.15 75);
+  --tone-emerald: oklch(0.75 0.15 163);
+  --tone-rose: oklch(0.72 0.17 15);
+  --tone-purple: oklch(0.72 0.18 300);
+  --tone-red: oklch(0.7 0.19 27);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
+}

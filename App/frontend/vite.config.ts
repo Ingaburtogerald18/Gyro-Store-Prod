@@ -1,0 +1,80 @@
+import { config as loadDotenv } from 'dotenv';
+import { vitePlugin as remix } from '@remix-run/dev';
+import { defineConfig } from 'vite';
+import tsconfigPaths from 'vite-tsconfig-paths';
+import tailwindcss from '@tailwindcss/vite';
+import { existsSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// ── Variables de entorno para el SSR de dev ──
+// Los loaders de Remix corren en Node y leen SUPABASE_URL / SUPABASE_ANON_KEY de
+// `process.env` (no de `VITE_*`), así que hay que cargarlas acá.
+//
+// Se usa la MISMA cadena que `server/loadEnv.ts`, empezando por GYRO_ENV_FILE.
+// Antes esto era un `import 'dotenv/config'` que solo miraba `frontend/.env`, lo
+// que obligaba a mantener una segunda copia de esas dos claves: el día que se
+// rote la anon key o se cambie de proyecto Supabase, se actualiza el archivo de
+// secretos y esa copia queda atrás — y el frontend le habla al proyecto viejo sin
+// avisar. Con una sola fuente, ese desfase no puede ocurrir.
+//
+// La lógica está replicada (12 líneas) en vez de importar `server/loadEnv.ts`: un
+// import cruzado de TS desde la config de Vite es frágil de resolver, y si falla
+// no arranca el dev server. En producción no se ejecuta nada de esto — Render
+// inyecta las variables y Express sirve el build.
+for (const candidate of [
+  process.env.GYRO_ENV_FILE?.trim(),
+  path.resolve(dirname, '../.env'), // App/.env
+  path.resolve(dirname, '.env'), // frontend/.env (compatibilidad)
+]) {
+  if (candidate && existsSync(candidate)) {
+    loadDotenv({ path: candidate });
+    break;
+  }
+}
+
+export default defineConfig({
+  plugins: [
+    remix({
+      future: {
+        v3_fetcherPersist: true,
+        v3_relativeSplatPath: true,
+        v3_throwAbortReason: true,
+        v3_singleFetch: true,
+        v3_lazyRouteDiscovery: true,
+      },
+    }),
+    tsconfigPaths(),
+    tailwindcss(),
+  ],
+  resolve: {
+    // Contrato único front/back: los forms extienden shared/schemas.ts (doc 05 §6).
+    alias: {
+      '@shared': path.resolve(dirname, '../shared'),
+      // App/shared vive fuera de esta carpeta y no tiene su propio node_modules,
+      // así que la resolución normal de Node (subiendo desde shared/) no encuentra
+      // 'zod'. Se fuerza a usar la copia ya instalada en frontend/node_modules.
+      zod: path.resolve(dirname, 'node_modules/zod'),
+    },
+  },
+  server: {
+    port: 5173,
+    host: true,
+    // Monolito híbrido (doc 02): en dev el front corre en 5173 y proxya /api al
+    // Express de :3000. En prod Express sirve el build de Remix y no hay proxy.
+    proxy: {
+      '/api': {
+        // `127.0.0.1` y NO `localhost`: en Windows, `localhost` resuelve primero
+        // a `::1` (IPv6), pero el backend escucha en `0.0.0.0`, que es SOLO IPv4
+        // (ver server/index.ts). Con `localhost`, Node prueba ambas y el fallo de
+        // la v6 aparece como un `AggregateError` de `internalConnectMultiple`
+        // —un error opaco que parece "backend caído" incluso cuando está arriba.
+        // Con la IP literal no hay ambigüedad que resolver.
+        target: 'http://127.0.0.1:3000',
+        changeOrigin: true,
+      },
+    },
+  },
+});

@@ -1,0 +1,118 @@
+// Gestión de combos desde el panel. El público solo LEE combos publicados
+// (services/combos.ts); acá va el CRUD, que exige admin (ver routes/adminCombos).
+//
+// El combo tiene un precio PLANO (el del paquete), independiente de sus items:
+// `items` es el contenido (productos del catálogo + cantidad), solo informativo
+// para la ficha y para saber qué entra. El pedido usa `combos.price`, no `items`.
+import { db } from '../supabase';
+import type { AdminCombo, AdminComboInput, ComboItem } from '../../shared/schemas';
+
+const COMBO_COLUMNS = 'id, name, price, items, images, published, sort_order, updated_at';
+
+interface ComboRow {
+  id: string;
+  name: string | null;
+  price: number | null;
+  items: unknown;
+  images: unknown;
+  published: boolean;
+  sort_order: number;
+  updated_at: string;
+}
+
+// `items` es jsonb opaco en la base: se lee tolerante y se descarta cualquier
+// entrada que no tenga la forma esperada, en vez de romper el listado entero.
+function toItems(value: unknown): ComboItem[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((raw) => {
+    if (!raw || typeof raw !== 'object') return [];
+    const it = raw as Record<string, unknown>;
+    if (typeof it.catalogItemId !== 'string' || typeof it.name !== 'string') return [];
+    const qty = Math.floor(Number(it.quantity));
+    return [{ catalogItemId: it.catalogItemId, name: it.name, quantity: qty > 0 ? qty : 1 }];
+  });
+}
+
+function toStringArray(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string') : [];
+}
+
+function toAdminCombo(row: ComboRow): AdminCombo {
+  return {
+    id: row.id,
+    name: row.name ?? '',
+    price: row.price ?? 0,
+    items: toItems(row.items),
+    images: toStringArray(row.images),
+    published: row.published,
+    sortOrder: row.sort_order,
+    updatedAt: row.updated_at,
+  };
+}
+
+function toRow(input: AdminComboInput) {
+  return {
+    name: input.name.trim(),
+    price: input.price,
+    items: input.items,
+    images: input.images,
+    published: input.published,
+    sort_order: input.sortOrder,
+  };
+}
+
+export async function listAdminCombos(): Promise<AdminCombo[]> {
+  const { data, error } = await db
+    .from('combos')
+    .select(COMBO_COLUMNS)
+    .order('sort_order', { ascending: true });
+  if (error) throw error;
+  return ((data ?? []) as unknown as ComboRow[]).map(toAdminCombo);
+}
+
+export async function getAdminCombo(id: string): Promise<AdminCombo | null> {
+  const { data, error } = await db
+    .from('combos')
+    .select(COMBO_COLUMNS)
+    .eq('id', id)
+    .maybeSingle();
+  if (error) throw error;
+  return data ? toAdminCombo(data as unknown as ComboRow) : null;
+}
+
+export async function createAdminCombo(input: AdminComboInput): Promise<AdminCombo> {
+  const { data, error } = await db
+    .from('combos')
+    .insert(toRow(input))
+    .select(COMBO_COLUMNS)
+    .single();
+  if (error) throw error;
+  return toAdminCombo(data as unknown as ComboRow);
+}
+
+export async function updateAdminCombo(
+  id: string,
+  input: AdminComboInput,
+): Promise<AdminCombo | null> {
+  const { data, error } = await db
+    .from('combos')
+    .update(toRow(input))
+    .eq('id', id)
+    .select(COMBO_COLUMNS)
+    .maybeSingle();
+  if (error) throw error;
+  return data ? toAdminCombo(data as unknown as ComboRow) : null;
+}
+
+// Borrado real. Si el combo ya figura en pedidos, Postgres lo rechaza por FK
+// (23503): se traduce a un 400 con mensaje claro, no un 500.
+export async function deleteAdminCombo(id: string): Promise<boolean> {
+  const { error } = await db.from('combos').delete().eq('id', id);
+  if (error) {
+    if ((error as { code?: string }).code === '23503') {
+      throw new Error('No se puede eliminar: ya hay pedidos asociados a este combo.');
+    }
+    throw error;
+  }
+  return true;
+}

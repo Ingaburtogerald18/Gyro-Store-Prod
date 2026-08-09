@@ -1,0 +1,32 @@
+# ── Dependencias ──
+node_modules/
+
+# ── Variables de entorno (NUNCA commitear secretos: SERVICE_ROLE_KEY, etc.) ──
+.env
+.env.*
+!.env.example
+
+# ── Build / compilado ──
+dist/
+build/
+*.tsbuildinfo
+# Caché de Remix/Vite en el frontend.
+.cache/
+
+# ── Logs ──
+logs/
+*.log
+npm-debug.log*
+
+# ── Sistema / temporales ──
+.DS_Store
+*.swp
+*~
+
+# ── Salida de scripts locales ──
+# `npm run spo:pdf` escribe acá los comprobantes que se generan para revisar el
+# layout. Son documentos con datos reales de ventas: no van al repo.
+App/tmp/
+
+# ── Scratch temporal de herramientas de edición (Claude Code / Rhea) ──
+.rhea-tmp/

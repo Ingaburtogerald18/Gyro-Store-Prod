@@ -1,0 +1,42 @@
+services:
+  - type: web
+    name: gyro-store
+    runtime: node
+    rootDir: App
+    plan: free
+    region: oregon
+    # tsx/typescript son devDependencies pero el runtime los necesita (se ejecuta
+    # TS directo con tsx, sin build). Por eso --include=dev. Además compilamos el
+    # frontend (Remix) para que Express lo sirva en el mismo servicio (monolito).
+    # Vite/Remix también son devDeps → --include=dev en el frontend.
+    # --legacy-peer-deps: @remix-run/node declara un peerOptional typescript ^5.1
+    # y acá usamos TS 7 (solo tipos, inofensivo). Sin esto npm aborta el install.
+    buildCommand: npm install --include=dev --legacy-peer-deps && npm --prefix frontend install --include=dev --legacy-peer-deps && npm --prefix frontend run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - { key: NODE_ENV, value: production }
+      - { key: SUPABASE_URL, sync: false }
+      - { key: SUPABASE_SERVICE_ROLE_KEY, sync: false }
+      - { key: SUPABASE_ANON_KEY, sync: false }
+      - { key: SUPABASE_JWT_SECRET, sync: false }
+      - { key: AZURE_TENANT_ID, sync: false }
+      - { key: INTERNAL_DOMAIN, sync: false }
+      - { key: PROTECTED_ADMIN_EMAIL, sync: false }
+
+      # Cloudflare R2 (almacenamiento de imágenes)
+      - { key: R2_ACCOUNT_ID, sync: false }
+      - { key: R2_ACCESS_KEY_ID, sync: false }
+      - { key: R2_SECRET_ACCESS_KEY, sync: false }
+      - { key: R2_BUCKET_NAME, sync: false }
+      - { key: R2_ENDPOINT, sync: false }
+      - { key: R2_PUBLIC_URL, sync: false }
+      # SharePoint Online (archivo de comprobantes de ventas, Docs/17).
+      # OPCIONALES: mientras estén vacías el módulo queda apagado y la app
+      # arranca igual — las ventas se acumulan en `spo_outbox` y se sincronizan
+      # solas al cargarlas. No entran en la validación fail-fast de config.ts.
+      - { key: AZURE_CLIENT_ID, sync: false }
+      - { key: AZURE_CLIENT_SECRET, sync: false }
+      - { key: SPO_SITE_ID, sync: false }
+      - { key: SPO_DRIVE_ID, sync: false }

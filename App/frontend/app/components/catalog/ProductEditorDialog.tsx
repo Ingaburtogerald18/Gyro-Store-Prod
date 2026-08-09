@@ -1,0 +1,816 @@
+// Editor de producto del panel.
+//
+// Layout de dos columnas (el patrón de Shopify/Linear): la columna ancha tiene
+// lo que define el producto —nombre, descripción, fotos, variantes— y la
+// angosta lo que lo clasifica y publica. Antes eran cinco tarjetas idénticas
+// apiladas, todas con el mismo peso visual: nada indicaba qué era importante.
+//
+// Portado de `CatalogEditorDrawer` de v1, con dos diferencias de fondo:
+//   · el molde (plantilla) es COMPARTIDO, así que este editor no lo modifica;
+//   · las variantes se vinculan a LOTES de bodega (`purchases.code`), no a un
+//     SKU compartido — en v2 cada lote tiene su propio código único.
+import { HugeIcon } from '~/components/ui/icon';
+import { Tick01Icon } from '@hugeicons/core-free-icons';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Controller, useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { toast } from 'sonner';
+import { processPendingUploads } from '~/lib/uploadQueue';
+
+import {
+  adminProductInputSchema,
+  type AdminProduct,
+  type AdminProductInput,
+  type Category,
+  type TemplateAxis,
+  type VariantMappings,
+} from '@shared/schemas';
+import { Button } from '~/components/ui/button';
+// Drawer, no modal. El nombre del archivo se conserva para no romper imports;
+// lo que cambió es el contenedor. Un formulario de este largo dentro de un
+// modal de 5xl tapa el catálogo que se está editando — y editar un producto es
+// justo cuando conviene seguir viendo los demás.
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '~/components/ui/dialog';
+import {
+  Field,
+  FieldContent,
+  FieldDescription,
+  FieldError,
+  FieldLabel,
+} from '~/components/ui/field';
+import { Input } from '~/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/components/ui/select';
+import { Spinner } from '~/components/ui/spinner';
+import { Switch } from '~/components/ui/switch';
+import { Textarea } from '~/components/ui/textarea';
+import {
+  useGetInventoryLotsQuery,
+  useGetTemplatesQuery,
+  type InventoryLot,
+} from '~/store/api/catalogAdminApi';
+import { ImageUploader } from './ImageUploader';
+import { ToneDot } from './ToneDot';
+import { buildCombinations, VariantMappingTable } from './VariantMappingTable';
+import { cn } from '~/lib/utils';
+import { formatCordobas } from '~/lib/formatters';
+
+/**
+ * Primer mensaje de error del árbol de `formState.errors`.
+ *
+ * Los errores de react-hook-form son un objeto ANIDADO que espeja la forma del
+ * formulario: un fallo en `variantMappings["Negro / 128GB"].codes` queda a tres
+ * niveles de profundidad. Recorrerlo es la única forma de encontrar el mensaje
+ * sin saber de antemano qué campo falló.
+ */
+function firstErrorMessage(node: unknown): string | null {
+  if (!node || typeof node !== 'object') return null;
+
+  // Hoja: un `FieldError` de RHF trae `message` (y `type`).
+  const message = (node as { message?: unknown }).message;
+  if (typeof message === 'string' && message) return message;
+
+  for (const value of Object.values(node as Record<string, unknown>)) {
+    const found = firstErrorMessage(value);
+    if (found) return found;
+  }
+  return null;
+}
+
+const EMPTY: AdminProductInput = {
+  name: '',
+  description: '',
+  price: 0,
+  basePrice: 0,
+  images: [],
+  colorImages: {},
+  specs: [],
+  categoryId: null,
+  published: false,
+  isPromo: false,
+  sortOrder: 0,
+  spoLink: '',
+  templateId: null,
+  axisOptions: {},
+  variantMappings: {},
+};
+
+export function ProductEditorDialog({
+  open,
+  onOpenChange,
+  product,
+  categories,
+  isSaving,
+  onSave,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  /** null = crear */
+  product: AdminProduct | null;
+  categories: Category[];
+  isSaving: boolean;
+  onSave: (input: AdminProductInput) => Promise<void>;
+}) {
+  const { data: templates = [] } = useGetTemplatesQuery(undefined, { skip: !open });
+  const { data: lots = [], isLoading: loadingLots } = useGetInventoryLotsQuery(undefined, { skip: !open });
+
+  // La regla de la oferta no vive en el backend, pero tampoco se inventa acá:
+  // es la que ya tenía este editor, movida del `handleSubmit` al schema para que
+  // salga como error DEL CAMPO `price` en vez de un toast. El resto del contrato
+  // es `adminProductInputSchema` tal cual.
+  const formSchema = useMemo(
+    () =>
+      adminProductInputSchema.superRefine((values, ctx) => {
+        if (!values.isPromo) return;
+        if (!values.price || values.price <= 0) {
+          ctx.addIssue({ code: 'custom', path: ['price'], message: 'Ingresá un precio de oferta válido.' });
+          return;
+        }
+
+        const tpl = templates.find((t) => t.id === values.templateId);
+        if (!tpl || !(tpl.axes?.length > 0)) return;
+
+        // El precio de venta vive en cada variante: la oferta del producto solo
+        // tiene sentido si queda por debajo de todas las vinculadas.
+        const axes = tpl.axes.map((axis) => ({
+          ...axis,
+          options: values.axisOptions?.[axis.key] ?? axis.options ?? [],
+        }));
+        const mapped = buildCombinations(axes)
+          .map((combo) => values.variantMappings?.[combo])
+          .filter((m): m is NonNullable<typeof m> => Boolean(m?.codes.length));
+
+        if (mapped.length === 0) return;
+        if (mapped.some((m) => !m.price || m.price <= 0)) {
+          ctx.addIssue({
+            code: 'custom',
+            path: ['price'],
+            message: 'Todas las variantes vinculadas necesitan precio propio para validar la oferta.',
+          });
+          return;
+        }
+
+        const minVariantPrice = Math.min(...mapped.map((m) => m.price as number));
+        if (values.price >= minVariantPrice) {
+          ctx.addIssue({
+            code: 'custom',
+            path: ['price'],
+            message: `El precio de oferta (${formatCordobas(values.price)}) debe ser menor al de las variantes (mínimo ${formatCordobas(minVariantPrice)}).`,
+          });
+        }
+      }),
+    [templates],
+  );
+
+  const {
+    control,
+    register,
+    handleSubmit,
+    reset,
+    watch,
+    setValue,
+    getValues,
+    formState: { errors },
+  } = useForm({
+    resolver: zodResolver(formSchema),
+    defaultValues: EMPTY,
+  });
+
+  const form = watch();
+  const template = templates.find((t) => t.id === form.templateId) ?? null;
+
+  // Candado anti doble-envío. Subir las fotos a R2 tarda, y `isSaving` (la
+  // mutación de RTK) recién se pone en true DESPUÉS de esa subida: hasta entonces
+  // el botón seguía activo. Sin este candado, cada clic extra durante la espera
+  // lanzaba otro guardado completo y el producto se creaba varias veces (pasó: 4
+  // clics = 4 productos). El ref bloquea de forma síncrona (una ráfaga de clics
+  // no espera al re-render); el state solo maneja el spinner/disabled.
+  const submittingRef = useRef(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Prefill al abrir. Se depende de `product` y no de `open` a secas para que
+  // reabrir el mismo producto tras cancelar no arrastre lo que se había tipeado.
+  useEffect(() => {
+    if (!open) return;
+    reset(
+      product
+        ? {
+            name: product.name,
+            description: product.description,
+            price: product.price,
+            basePrice: product.basePrice ?? 0,
+            images: product.images,
+            specs: product.specs,
+            categoryId: product.categoryId,
+            published: product.published,
+            isPromo: product.isPromo,
+            sortOrder: product.sortOrder,
+            spoLink: product.spoLink ?? '',
+            templateId: product.templateId,
+            axisOptions: product.axisOptions,
+            variantMappings: product.variantMappings,
+            colorImages: product.colorImages ?? {},
+          }
+        : EMPTY,
+    );
+  }, [open, product, reset]);
+
+  // Ejes con las opciones recortadas a lo que ESTE producto ofrece. Todo lo que
+  // se genera abajo (combinaciones, tabla de mapeo) sale de acá, no del molde
+  // completo: una opción apagada no existe para el cliente.
+  const effectiveAxes: TemplateAxis[] = useMemo(() => {
+    if (!template || !template.axes) return [];
+    return template.axes.map((axis) => ({
+      ...axis,
+      options: form.axisOptions?.[axis.key] ?? axis.options ?? [],
+    }));
+  }, [template, form.axisOptions]);
+
+  const colorAxis = useMemo(() => template?.axes?.find((a) => a.isColor), [template]);
+  const activeColorOptions = useMemo(() => {
+    if (!colorAxis) return [];
+    return form.axisOptions?.[colorAxis.key] ?? colorAxis.options ?? [];
+  }, [colorAxis, form.axisOptions]);
+
+  const filteredTemplates = useMemo(() => {
+    if (!form.categoryId) return templates;
+    // Mostrar solo las plantillas que pertenecen a la categoría elegida
+    return templates.filter((t) => t.categoryId === form.categoryId);
+  }, [templates, form.categoryId]);
+
+  const combos = useMemo(() => buildCombinations(effectiveAxes), [effectiveAxes]);
+  const mappedCount = combos.filter((c) => form.variantMappings?.[c]?.codes.length).length;
+
+  // Al elegir molde: cada eje arranca con TODAS sus opciones activas, pero se
+  // conserva lo que ya estaba elegido y se descartan opciones que el molde ya
+  // no tiene (pasa si alguien editó la plantilla después).
+  useEffect(() => {
+    if (!template) return;
+    const prev = getValues();
+    const next: Record<string, string[]> = {};
+    for (const axis of template.axes || []) {
+      const previous = prev.axisOptions?.[axis.key];
+      next[axis.key] = previous ? (axis.options || []).filter((o) => previous.includes(o)) : (axis.options || []);
+    }
+    setValue('axisOptions', next);
+    // Nombre y descripción del molde son el punto de partida del producto
+    // (mismo gesto que v1). Solo prellenan si están vacíos: nunca pisan.
+    if (!prev.name?.trim()) setValue('name', template.name);
+    if (!prev.description?.trim()) setValue('description', template.description);
+  }, [template, getValues, setValue]);
+
+  function toggleAxisOption(axis: TemplateAxis, option: string) {
+    const current = form.axisOptions?.[axis.key] ?? axis.options;
+    // El último encendido no se puede apagar: en vez de dejar intentarlo y
+    // responder con un toast, la casilla se deshabilita (ver `OptionToggle`).
+    if (current.includes(option) && current.length <= 1) return;
+
+    const nextSet = current.includes(option)
+      ? current.filter((o) => o !== option)
+      : [...current, option];
+    setValue('axisOptions', {
+      ...form.axisOptions,
+      // Se reordena según el molde: el orden define el nombre de la
+      // combinación, que es la llave del mapeo.
+      [axis.key]: axis.options.filter((o) => nextSet.includes(o)),
+    });
+  }
+
+  /**
+   * Qué hacer cuando la validación RECHAZA el formulario.
+   *
+   * Sin esto, `handleSubmit` simplemente no llamaba a `onSubmit` y el botón
+   * «Crear producto» no hacía absolutamente nada: ni toast, ni error visible, ni
+   * pista. Los errores sí quedaban en `formState.errors`, pero este diálogo tiene
+   * secciones plegables y campos que solo se renderizan según el estado (el
+   * precio de oferta, por ejemplo, aparece únicamente con `isPromo` activo), así
+   * que un error en un campo no renderizado era literalmente invisible.
+   *
+   * `shouldFocusError` de react-hook-form tampoco ayuda ahí: solo puede enfocar
+   * un input que exista en el DOM.
+   */
+  function onInvalid(formErrors: typeof errors) {
+    const first = firstErrorMessage(formErrors);
+    toast.error(first ?? 'Revisá los campos marcados en rojo.');
+  }
+
+  // Se llama desde el `onClick` del botón Y desde el `onSubmit` del form (para
+  // el Enter). `preventDefault` acá porque cuando entra por el form hay evento
+  // que frenar, y cuando entra por el botón no hay ninguno.
+  const submitForm = (e?: { preventDefault?: () => void }) => {
+    e?.preventDefault?.();
+    if (submittingRef.current) return;
+    void handleSubmit(onSubmit, onInvalid)();
+  };
+
+  async function onSubmit(values: AdminProductInput) {
+    // Segundo cerrojo (además del de `submitForm`): bloquea envíos que ya pasaron
+    // la validación mientras uno está en curso.
+    if (submittingRef.current) return;
+
+    // Aviso NO bloqueante: una variante sin lote se muestra «Agotado» (estado
+    // válido y editable después, cuando llega el lote). Antes esto era un
+    // `window.confirm`, pero el navegador SUPRIME esos diálogos tras varios
+    // seguidos —pasa al reintentar muchas veces— y entonces devuelve `false` sin
+    // mostrar nada: el guardado se cancelaba en silencio y parecía que «no dejaba
+    // crear» los productos CON variantes (los simples no disparan el confirm). Un
+    // toast informa sin poder bloquear ni ser suprimido.
+    const unmapped = combos.length - mappedCount;
+    if (unmapped > 0) {
+      toast.warning(
+        `${unmapped} de ${combos.length} variantes quedan sin lote: se mostrarán como «Agotado» hasta que les asignes bodega.`,
+      );
+    }
+
+    // Si hay colores, pero el usuario no subió "fotos generales" porque la caja está oculta,
+    // tomamos la primera foto del primer color para que sirva de portada en el catálogo.
+    if (values.images.length === 0 && activeColorOptions.length > 0) {
+      for (const color of activeColorOptions) {
+        if (values.colorImages?.[color]?.length) {
+          values.images = [values.colorImages[color][0]];
+          break;
+        }
+      }
+    }
+
+    submittingRef.current = true;
+    setIsSubmitting(true);
+    try {
+      const processedValues = await processPendingUploads(values, 'catalog');
+      await onSave(processedValues);
+    } catch (err) {
+      console.error("No se pudieron subir las imágenes", err);
+      // El componente padre podría mostrar un toast si lanzamos el error,
+      // pero para estar seguros podemos disparar un alert o toast acá.
+      alert("Hubo un error al subir las fotos. Intente nuevamente.");
+    } finally {
+      // Se libera SIEMPRE: si el guardado falla, el usuario tiene que poder
+      // reintentar sin cerrar y reabrir el diálogo.
+      submittingRef.current = false;
+      setIsSubmitting(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      {/* p-0 + flex + max-h-[90vh]: el cuerpo scrollea solo y el pie queda
+          siempre a la vista. Con el scroll en el contenedor entero, en un
+          formulario largo había que bajar hasta el final para «Guardar». */}
+      <DialogContent className="flex max-h-[90vh] w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl lg:max-w-3xl">
+        <DialogHeader className="shrink-0 border-b border-border px-6 py-4 pr-14">
+          <DialogTitle className="text-lg">
+            {product ? 'Editar producto' : 'Nuevo producto'}
+          </DialogTitle>
+          <DialogDescription>
+            El precio de venta se define en cada variante, junto con el lote de bodega que la surte.
+          </DialogDescription>
+        </DialogHeader>
+
+        {/* El form se conserva para que Enter en un campo también envíe. */}
+        <form onSubmit={submitForm} className="flex min-h-0 flex-1 flex-col">
+          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
+            <div className="mx-auto w-full max-w-3xl space-y-10">
+              
+              <FormSection title="1. Organización" hint="Elegí la plantilla primero para que el producto se autocomplete.">
+                <div className="grid gap-6 sm:grid-cols-2">
+                  <Field data-invalid={!!errors.categoryId}>
+                    <FieldLabel htmlFor="product-category">Categoría</FieldLabel>
+                    <Controller
+                      control={control}
+                      name="categoryId"
+                      render={({ field }) => (
+                        <Select
+                          value={field.value ?? 'none'}
+                          onValueChange={(v) => {
+                            const newCat = v === 'none' ? null : v;
+                            field.onChange(newCat);
+                            const currentTemplateId = getValues('templateId');
+                            if (newCat && currentTemplateId) {
+                              const current = templates.find((t) => t.id === currentTemplateId);
+                              if (current && current.categoryId !== newCat) {
+                                setValue('templateId', null);
+                              }
+                            }
+                          }}
+                        >
+                          <SelectTrigger id="product-category" className="w-full">
+                            <SelectValue placeholder="Sin categoría" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">
+                              <ToneDot />
+                              Sin categoría
+                            </SelectItem>
+                            {categories.map((c) => (
+                              <SelectItem key={c.id} value={c.id}>
+                                <ToneDot toneKey={c.id} />
+                                {c.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                    <FieldError errors={[errors.categoryId]} />
+                  </Field>
+
+                  <Field data-invalid={!!errors.templateId}>
+                    <FieldLabel htmlFor="product-template">Plantilla</FieldLabel>
+                    <Controller
+                      control={control}
+                      name="templateId"
+                      render={({ field }) => (
+                        <Select
+                          value={field.value ?? 'none'}
+                          onValueChange={(v) => field.onChange(v === 'none' ? null : v)}
+                        >
+                          <SelectTrigger id="product-template" className="w-full">
+                            <SelectValue placeholder="Sin plantilla" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">
+                              <ToneDot />
+                              Sin plantilla (producto simple)
+                            </SelectItem>
+                            {filteredTemplates.map((t) => (
+                              <SelectItem key={t.id} value={t.id}>
+                                <ToneDot toneKey={t.categoryId} />
+                                {t.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                    <FieldDescription>
+                      {form.categoryId
+                        ? 'Define las variantes (ej. colores).'
+                        : 'Define las variantes del producto.'}
+                    </FieldDescription>
+                    <FieldError errors={[errors.templateId]} />
+                  </Field>
+                </div>
+              </FormSection>
+
+              <FormSection title="2. Información General">
+                <div className="space-y-6">
+                  <Field data-invalid={!!errors.name}>
+                    <FieldLabel htmlFor="product-name" required>
+                      Nombre del producto
+                    </FieldLabel>
+                    <Input
+                      id="product-name"
+                      placeholder="KZ ZSN Pro X"
+                      className="h-11 text-base font-medium"
+                      aria-required
+                      aria-invalid={!!errors.name}
+                      {...register('name')}
+                    />
+                    <FieldError errors={[errors.name]} />
+                  </Field>
+
+                  <Field data-invalid={!!errors.description}>
+                    <FieldLabel htmlFor="product-description">Descripción</FieldLabel>
+                    <Textarea
+                      id="product-description"
+                      rows={5}
+                      placeholder="Lo que el cliente lee en la ficha del producto…"
+                      aria-invalid={!!errors.description}
+                      {...register('description')}
+                    />
+                    <FieldError errors={[errors.description]} />
+                  </Field>
+
+                  <Field data-invalid={!!errors.spoLink}>
+                    <FieldLabel htmlFor="product-spo-link">Link de SharePoint</FieldLabel>
+                    <Input
+                      id="product-spo-link"
+                      type="url"
+                      placeholder="https://…"
+                      aria-invalid={!!errors.spoLink}
+                      {...register('spoLink')}
+                    />
+                    <FieldDescription>
+                      Biblioteca con fotos y videos del artículo. Solo la ve el staff.
+                    </FieldDescription>
+                    <FieldError errors={[errors.spoLink]} />
+                  </Field>
+                </div>
+              </FormSection>
+
+              {template && (template.axes?.length ?? 0) > 0 && (
+                <FormSection
+                  title="3. Opciones que ofrece"
+                  hint="Lo apagado no existe para el cliente."
+                >
+                  <div className="space-y-4">
+                    {template.axes.map((axis) => {
+                      const included = form.axisOptions?.[axis.key] ?? axis.options ?? [];
+                      return (
+                        <div key={axis.key}>
+                          <p className="mb-2 text-xs font-medium text-muted-foreground">
+                            {axis.label}
+                          </p>
+                          <div className="flex flex-wrap gap-2">
+                            {(axis.options ?? []).map((option) => {
+                              const checked = included.includes(option);
+                              return (
+                                <OptionToggle
+                                  key={option}
+                                  label={option}
+                                  checked={checked}
+                                  disabled={checked && included.length <= 1}
+                                  onToggle={() => toggleAxisOption(axis, option)}
+                                />
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </FormSection>
+              )}
+
+              <FormSection
+                title="4. Variantes y bodega"
+                hint="El precio va acá. El stock se lee de los lotes vinculados, en vivo."
+                aside={
+                  template && combos.length > 0 ? (
+                    <span className="text-xs tabular-nums text-muted-foreground">
+                      {mappedCount}/{combos.length} vinculadas
+                    </span>
+                  ) : null
+                }
+              >
+                {template ? (
+                  <Controller
+                    control={control}
+                    name="variantMappings"
+                    render={({ field }) => (
+                      <VariantMappingTable
+                        axes={effectiveAxes}
+                        variantMappings={field.value ?? {}}
+                        onChange={(variantMappings: VariantMappings) =>
+                          field.onChange(variantMappings)
+                        }
+                        lots={lots as InventoryLot[]}
+                        basePrice={form.price}
+                        isLoading={loadingLots}
+                      />
+                    )}
+                  />
+                ) : (
+                  <p className="rounded-2xl border border-dashed p-6 text-center text-sm text-muted-foreground">
+                    Elegí una plantilla en «Organización» para generar las variantes.
+                  </p>
+                )}
+              </FormSection>
+
+              <FormSection
+                title={activeColorOptions.length > 0 ? "5. Fotos por Variante (Color)" : "5. Fotos"}
+                hint={
+                  activeColorOptions.length > 0
+                    ? "Sube fotos específicas para cada variante de color. Puedes arrastrarlas para reordenar."
+                    : "La primera es la portada. Tamaño recomendado: 1080x1080px. Puedes arrastrarlas para reordenar."
+                }
+              >
+                {activeColorOptions.length > 0 ? (
+                  <div className="space-y-6">
+                    {activeColorOptions.map((color) => (
+                      <div key={color} className="rounded-card border border-border p-4 bg-muted/10">
+                        <h4 className="mb-4 text-sm font-semibold flex items-center gap-2">
+                          <ToneDot toneKey={color} />
+                          {color}
+                        </h4>
+                        <Controller
+                          control={control}
+                          name={`colorImages.${color}`}
+                          // `defaultValue={[]}`: sin esto, la caja de un color al
+                          // que no le subiste fotos se registra en `undefined`, y el
+                          // schema (array) lo rechaza con "expected array, received
+                          // undefined" → no dejaba crear productos con eje de color.
+                          defaultValue={[]}
+                          render={({ field }) => (
+                            <ImageUploader
+                              images={field.value ?? []}
+                              onChange={field.onChange}
+                              disabled={isSaving}
+                            />
+                          )}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <>
+                    <Controller
+                      control={control}
+                      name="images"
+                      render={({ field }) => (
+                        <ImageUploader
+                          images={field.value ?? []}
+                          onChange={field.onChange}
+                          disabled={isSaving}
+                        />
+                      )}
+                    />
+                    <FieldError errors={[errors.images]} />
+                  </>
+                )}
+              </FormSection>
+
+              <FormSection title="6. Estado y Publicación" hint="Configura la visibilidad del producto en la tienda.">
+                <div className="space-y-4 rounded-card border border-border bg-muted/20 p-5">
+                  <Controller
+                    control={control}
+                    name="published"
+                    render={({ field }) => (
+                      <ToggleRow
+                        id="product-published"
+                        label="Publicado"
+                        hint="Visible en la tienda"
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    )}
+                  />
+
+                  <Controller
+                    control={control}
+                    name="isPromo"
+                    render={({ field }) => (
+                      <ToggleRow
+                        id="product-promo"
+                        label="En oferta"
+                        hint="Se destaca en el inicio"
+                        checked={field.value}
+                        onCheckedChange={(c) => {
+                          field.onChange(c);
+                          if (!c) setValue('price', 0);
+                        }}
+                      />
+                    )}
+                  />
+
+                  {form.isPromo && (
+                    <Field className="border-t pt-4 mt-2" data-invalid={!!errors.price}>
+                      <FieldLabel htmlFor="product-offer-price" required>
+                        Precio de oferta (C$)
+                      </FieldLabel>
+                      <Controller
+                        control={control}
+                        name="price"
+                        render={({ field }) => (
+                          <Input
+                            id="product-offer-price"
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            aria-required
+                            aria-invalid={!!errors.price}
+                            value={field.value || ''}
+                            onBlur={field.onBlur}
+                            onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                          />
+                        )}
+                      />
+                      <FieldDescription>Debe ser menor al precio de las variantes.</FieldDescription>
+                      <FieldError errors={[errors.price]} />
+                    </Field>
+                  )}
+                </div>
+              </FormSection>
+            </div>
+          </div>
+
+          <footer className="flex shrink-0 items-center justify-end gap-2 border-t px-6 py-4">
+            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
+              Cancelar
+            </Button>
+            {/* `onClick` directo y NO `type="submit"`: el envío nativo del form
+                dentro del diálogo de Radix no llegaba a dispararse (clic sin
+                efecto, sin error ni petición). `handleSubmit(...)` devuelve una
+                función que se puede llamar a mano, así que no dependemos del
+                evento submit. Es el mismo patrón que ya usa UserDetailDialog. */}
+            <Button type="button" onClick={submitForm} disabled={isSaving || isSubmitting}>
+              {(isSaving || isSubmitting) && <Spinner className="mr-2" />}
+              {product ? 'Guardar cambios' : 'Crear producto'}
+            </Button>
+          </footer>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// Opción que el producto ofrece o no. Es una casilla, no un botón de acción:
+// `role="checkbox"` porque son varias selecciones independientes dentro de un eje.
+//
+// El texto va SIEMPRE a contraste pleno (`foreground` / `muted-foreground`).
+// Antes el estado encendido se pintaba `text-primary` sobre `bg-primary/10`, y
+// en tema oscuro `--primary` es oklch(0.432): verde oscuro sobre verde oscuro,
+// muy por debajo del 4.5:1 que exige DESIGN.md §9. Ahora el estado lo carga la
+// casilla —forma + tilde—, no el color del texto.
+function OptionToggle({
+  label,
+  checked,
+  disabled,
+  onToggle,
+}: {
+  label: string;
+  checked: boolean;
+  disabled?: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="checkbox"
+      aria-checked={checked}
+      aria-disabled={disabled || undefined}
+      disabled={disabled}
+      title={disabled ? 'Cada eje debe ofrecer al menos una opción.' : undefined}
+      onClick={onToggle}
+      className={cn(
+        'inline-flex items-center gap-2 rounded-full border py-1.5 pr-3.5 pl-2 text-xs transition-colors',
+        'focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 focus-visible:outline-none',
+        'motion-reduce:transition-none',
+        'disabled:cursor-not-allowed',
+        checked
+          ? 'border-primary/40 bg-primary/5 text-foreground'
+          : 'border-border text-muted-foreground hover:border-foreground/25 hover:text-foreground',
+      )}
+    >
+      <span
+        aria-hidden
+        className={cn(
+          'grid size-4 shrink-0 place-items-center rounded-[5px] border transition-colors',
+          'motion-reduce:transition-none',
+          checked ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-input/60',
+        )}
+      >
+        {checked && <HugeIcon icon={Tick01Icon} size={12} strokeWidth={2.5} />}
+      </span>
+      <span className="font-medium">{label}</span>
+    </button>
+  );
+}
+
+// Encabezado tipográfico con hairline. Reemplaza a la tarjeta con chip de icono
+// que se repetía en cada sección: cinco marcos idénticos no jerarquizan nada.
+function FormSection({
+  title,
+  hint,
+  aside,
+  children,
+}: {
+  title: string;
+  hint?: string;
+  aside?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="space-y-3">
+      <div className="flex items-baseline justify-between gap-3 border-b pb-2">
+        <div className="min-w-0">
+          <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+          {hint && <p className="mt-0.5 text-xs text-muted-foreground">{hint}</p>}
+        </div>
+        {aside}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function ToggleRow({
+  id,
+  label,
+  hint,
+  checked,
+  onCheckedChange,
+}: {
+  id: string;
+  label: string;
+  hint: string;
+  checked: boolean;
+  onCheckedChange: (checked: boolean) => void;
+}) {
+  return (
+    <Field orientation="horizontal">
+      <FieldContent>
+        <FieldLabel htmlFor={id} className="font-medium">
+          {label}
+        </FieldLabel>
+        <FieldDescription>{hint}</FieldDescription>
+      </FieldContent>
+      <Switch id={id} checked={checked} onCheckedChange={onCheckedChange} />
+    </Field>
+  );
+}
