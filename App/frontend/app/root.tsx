@@ -8,6 +8,8 @@ import {
   Outlet,
   Scripts,
   ScrollRestoration,
+  isRouteErrorResponse,
+  useRouteError,
   useRouteLoaderData,
 } from '@remix-run/react';
 import type { ReactNode } from 'react';
@@ -143,5 +145,35 @@ export default function App() {
         />
       </TooltipProvider>
     </Provider>
+  );
+}
+
+// Red de seguridad global: cualquier error no atrapado en el árbol (un throw en
+// render o en un efecto de un componente montado en root, un loader que revienta,
+// una ruta inexistente) cae acá en vez de tumbar la página en blanco. Remix lo
+// renderiza DENTRO de `Layout`, así que solo devolvemos el contenido, no el <html>.
+export function ErrorBoundary() {
+  const error = useRouteError();
+
+  const title = isRouteErrorResponse(error)
+    ? `${error.status} ${error.statusText}`
+    : 'Algo salió mal';
+  const detail = isRouteErrorResponse(error)
+    ? (typeof error.data === 'string' ? error.data : 'No se pudo cargar esta página.')
+    : 'Ocurrió un error inesperado. Intentá recargar la página.';
+
+  return (
+    <div className="grid min-h-svh place-items-center bg-background px-4 text-center text-foreground">
+      <div className="flex max-w-md flex-col items-center gap-4">
+        <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
+        <p className="text-sm text-muted-foreground">{detail}</p>
+        <a
+          href="/"
+          className="mt-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+        >
+          Volver al inicio
+        </a>
+      </div>
+    </div>
   );
 }
