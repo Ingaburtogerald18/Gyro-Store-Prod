@@ -106,7 +106,7 @@ export function StoreHeader() {
 
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-xl">
-      <div className="mx-auto flex h-16 max-w-6xl items-center gap-3 px-4">
+      <div className="mx-auto flex h-28 max-w-6xl items-center gap-3 px-4">
         {/* Hamburger: solo en móvil, a la IZQUIERDA del logo */}
         {allCategories.length > 0 && (
           <Button
@@ -123,41 +123,53 @@ export function StoreHeader() {
         {/* El logo ahora tiene transición y efecto hover */}
         <Link
           to="/"
-          className="group shrink-0 rounded-xl px-2 py-1 text-left transition-all duration-300 hover:bg-primary/5 active:scale-95"
+          className="group flex shrink-0 items-center gap-3 rounded-xl px-2 py-1 transition-all duration-300 hover:bg-primary/5 active:scale-95"
           aria-label={`Ir al inicio de ${config?.brandName || getBrandName()}`}
         >
-          {config?.images?.logoStatic || config?.images?.logoAnimated ? (
-            !reduceMotion &&
-            (config.images.logoAnimated?.match(/\.(webm|mp4|mov|m4v)($|\?)/i) ||
-              config.images.logoAnimated?.includes('video')) ? (
-              <video
-                src={config.images.logoAnimated}
-                autoPlay
-                loop
-                muted
-                playsInline
-                preload="metadata"
-                aria-hidden
-                className="h-10 w-auto max-w-[120px] shrink-0 object-contain transition-all duration-300 group-hover:brightness-110"
-              />
-            ) : (
-              <img
-                src={config.images.logoStatic || config.images.logoAnimated}
-                alt={config.brandName || getBrandName()}
-                loading="lazy"
-                decoding="async"
-                className="h-10 w-auto max-w-[120px] shrink-0 object-contain transition-all duration-300 group-hover:brightness-110"
-              />
-            )
+          {config?.images?.logoHeader ? (
+            /* Logo horizontal dedicado del header: se muestra SOLO (un banner
+               apaisado ya incluye la marca, así que no repetimos el texto). */
+            <img
+              src={config.images.logoHeader}
+              alt={config.brandName || getBrandName()}
+              loading="lazy"
+              decoding="async"
+              className="h-20 w-auto max-w-[420px] shrink-0 object-contain transition-all duration-300 group-hover:brightness-110"
+            />
           ) : (
-            <div className="text-xl font-bold tracking-tight text-foreground transition-all group-hover:brightness-125">
-              Gyro<span className="text-primary">Store</span>
-            </div>
+            <>
+              {/* Sin logo horizontal: logo cuadrado/animado (si hay) + texto de marca */}
+              {(config?.images?.logoStatic || config?.images?.logoAnimated) &&
+                (!reduceMotion &&
+                (config.images.logoAnimated?.match(/\.(webm|mp4|mov|m4v)($|\?)/i) ||
+                  config.images.logoAnimated?.includes('video')) ? (
+                  <video
+                    src={config.images.logoAnimated}
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                    preload="metadata"
+                    aria-hidden
+                    className="h-24 w-auto max-w-[300px] shrink-0 object-contain transition-all duration-300 group-hover:brightness-110"
+                  />
+                ) : (
+                  <img
+                    src={config.images.logoStatic || config.images.logoAnimated}
+                    alt={config.brandName || getBrandName()}
+                    loading="lazy"
+                    decoding="async"
+                    className="h-24 w-auto max-w-[300px] shrink-0 object-contain transition-all duration-300 group-hover:brightness-110"
+                  />
+                ))}
+
+              {/* Texto de marca al lado del logo */}
+              <span className="whitespace-nowrap text-xl font-bold tracking-tight text-foreground transition-all group-hover:brightness-125">
+                Gyro <span className="text-primary">Store</span>
+              </span>
+            </>
           )}
         </Link>
-
-        {/* Navegación de categorías integrada en el header */}
-        <CategoryNav categories={headerNavCategories} products={products} inline />
 
         {/* Búsqueda alineada a la derecha en escritorio; en móvil baja a su propia fila. */}
         {showSearch && (

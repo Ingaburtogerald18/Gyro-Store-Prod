@@ -156,6 +156,8 @@ export type WholesaleDiscount = z.infer<typeof wholesaleDiscountItemSchema>;
 export const imageResourcesSchema = z.object({
   logoStatic: z.string().url('Debe ser una URL válida').or(z.literal('')).optional(),
   logoAnimated: z.string().url('Debe ser una URL válida').or(z.literal('')).optional(),
+  // Logo horizontal dedicado para el header de la tienda (apaisado, tipo banner).
+  logoHeader: z.string().url('Debe ser una URL válida').or(z.literal('')).optional(),
   favicon: z.string().url('Debe ser una URL válida').or(z.literal('')).optional(),
   posLogo: z.string().url('Debe ser una URL válida').or(z.literal('')).optional(),
 });

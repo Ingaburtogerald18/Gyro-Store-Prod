@@ -46,6 +46,7 @@ export interface StoreConfig {
   images?: {
     logoStatic?: string;
     logoAnimated?: string;
+    logoHeader?: string;
     favicon?: string;
     posLogo?: string;
   };
