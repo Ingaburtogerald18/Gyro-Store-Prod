@@ -13,6 +13,7 @@ import { PassThrough } from 'node:stream';
 import type { AppLoadContext, EntryContext } from '@remix-run/node';
 import { createReadableStreamFromReadable } from '@remix-run/node';
 import { RemixServer } from '@remix-run/react';
+import { isbot } from 'isbot';
 import { renderToPipeableStream } from 'react-dom/server';
 
 const ABORT_DELAY = 5_000;
@@ -31,24 +32,17 @@ export default function handleRequest(
 
   return new Promise((resolve, reject) => {
     let shellRendered = false;
+    const userAgent = request.headers.get('user-agent') ?? '';
+    // Bots: esperar a que TODO el árbol esté listo (SEO). Navegadores: responder
+    // apenas el shell está listo y transmitir el resto.
+    const readyOption: 'onAllReady' | 'onShellReady' =
+      isbot(userAgent) ? 'onAllReady' : 'onShellReady';
 
-    // Usamos `onAllReady` SIEMPRE (antes: `onShellReady` para navegadores).
-    // Motivo: en producción el monolito sirve el SSR a través del adaptador manual
-    // Express↔Fetch de server/serveFrontend.ts, que NO entrega de forma fiable la
-    // "cola" que Remix transmite después del shell. Con `v3_singleFetch` esa cola
-    // incluye el cierre del stream de datos del loader
-    // (`window.__remixContext.streamController.close()`); si se pierde, el cliente
-    // se queda esperando ese cierre y la HIDRATACIÓN NUNCA COMPLETA — los botones y
-    // menús quedan muertos, sin ningún error en consola (un stream colgado no
-    // lanza). `onAllReady` renderiza el documento COMPLETO —incluido ese close—
-    // antes de responder, así el adaptador lo entrega entero. Perdemos el streaming
-    // progresivo, pero los loaders acá son rápidos y la hidratación correcta es lo
-    // que importa. (Con `remix-serve` nativo no pasaba; es específico del adaptador.)
     const { pipe, abort } = renderToPipeableStream(
       <RemixServer context={remixContext} url={request.url} nonce={nonce} />,
       {
         nonce,
-        onAllReady() {
+        [readyOption]() {
           shellRendered = true;
           const body = new PassThrough();
           const stream = createReadableStreamFromReadable(body);
