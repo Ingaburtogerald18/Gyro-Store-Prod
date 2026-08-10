@@ -33,11 +33,9 @@ export function inCategory(p: CatalogProduct, c: StoreCategory) {
 export function CategoryNav({
   categories,
   products,
-  inline = false,
 }: {
   categories: StoreCategory[];
   products: CatalogProduct[];
-  inline?: boolean;
 }) {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
@@ -93,16 +91,10 @@ export function CategoryNav({
   return (
     <nav
       aria-label="Categorías"
-      className={cn(
-        "relative hidden md:block",
-        inline ? "flex-1 px-4" : "border-t border-border"
-      )}
+      className="relative hidden md:block border-t border-border"
       onMouseLeave={scheduleClose}
     >
-      <div className={cn(
-        "flex items-center gap-1 overflow-x-auto scrollbar-hide",
-        inline ? "" : "mx-auto max-w-6xl px-4 py-2"
-      )}>
+      <div className="mx-auto flex max-w-6xl items-center gap-1 overflow-x-auto scrollbar-hide px-4 py-2">
         <NavTab
           selected={activeCategory === null}
           onSelect={() => goToCategory(null)}

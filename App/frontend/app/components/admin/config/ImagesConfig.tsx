@@ -20,6 +20,7 @@ import { useConfigSection } from "./useConfigSection";
 const EMPTY_IMAGES: ImageResources = {
   logoStatic: '',
   logoAnimated: '',
+  logoHeader: '',
   favicon: '',
   posLogo: '',
 };
@@ -37,6 +38,7 @@ export function ImagesConfig() {
     normalize: (raw: Partial<ImageResources> | null) => ({
       logoStatic: raw?.logoStatic || '',
       logoAnimated: raw?.logoAnimated || '',
+      logoHeader: raw?.logoHeader || '',
       favicon: raw?.favicon || '',
       posLogo: raw?.posLogo || '',
     }),
@@ -142,6 +144,7 @@ export function ImagesConfig() {
       <form onSubmit={submit} className="space-y-6">
         <div className="grid gap-6 md:grid-cols-2">
           {renderUploadBox("Logo estático", "Cabeceras y web. Recomendado: 512x512px (PNG transparente)", "logoStatic")}
+          {renderUploadBox("Logo del header (horizontal)", "Barra superior de la tienda. Apaisado tipo banner. Recomendado: ~1200x400px o 1500x500px (PNG transparente)", "logoHeader")}
           {renderUploadBox("Logo animado", "Animación principal. Recomendado: 512x512px (WebM/GIF)", "logoAnimated")}
           {renderUploadBox("Favicon", "Ícono de la pestaña. Recomendado: 32x32px o 64x64px (PNG/ICO)", "favicon")}
           {renderUploadBox("Logo del ticket", "Impresoras térmicas. Recomendado: 300x300px o similar (Blanco y Negro puro)", "posLogo")}
