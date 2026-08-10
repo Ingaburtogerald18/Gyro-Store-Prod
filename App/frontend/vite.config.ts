@@ -54,7 +54,14 @@ export default defineConfig({
         // (Con `remix-serve` nativo sí funcionaba el stream; es específico del
         // adaptador. Verificado comparando el HTML de ambos.)
         v3_singleFetch: false,
-        v3_lazyRouteDiscovery: true,
+        // v3_lazyRouteDiscovery DESACTIVADO por el mismo motivo. Con esta feature,
+        // al navegar el cliente pide `/__manifest?p=…` para "descubrir" la ruta;
+        // pero el adaptador Express↔Fetch de serveFrontend.ts NO responde ese
+        // endpoint (404), así que la navegación a /admin (tras el login) reventaba
+        // con `Error: 404`. En false, Remix incluye TODAS las rutas en el manifest
+        // inicial → el cliente nunca pide `/__manifest` y navega cargando el módulo
+        // de la ruta directo de /assets. Costo despreciable (el manifest es chico).
+        v3_lazyRouteDiscovery: false,
       },
     }),
     tsconfigPaths(),
