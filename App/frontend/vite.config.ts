@@ -42,7 +42,18 @@ export default defineConfig({
         v3_fetcherPersist: true,
         v3_relativeSplatPath: true,
         v3_throwAbortReason: true,
-        v3_singleFetch: true,
+        // v3_singleFetch DESACTIVADO a propósito. Con single-fetch, el SSR entrega
+        // los datos del loader por un stream (`__remixContext.streamController`) que
+        // el cliente espera que se CIERRE para hidratar. En prod servimos el SSR con
+        // el adaptador manual Express↔Fetch de server/serveFrontend.ts (no podemos
+        // usar @remix-run/express porque exige Express 4), y ese adaptador NO emite
+        // la cola del stream (el `.close()`): el cliente se queda esperando y la
+        // HIDRATACIÓN NUNCA COMPLETA — botones/menús muertos, sin error en consola.
+        // Con single-fetch en false, Remix usa el modo clásico: loaderData inline en
+        // `__remixContext`, sin stream que esperar → hidrata bien bajo el adaptador.
+        // (Con `remix-serve` nativo sí funcionaba el stream; es específico del
+        // adaptador. Verificado comparando el HTML de ambos.)
+        v3_singleFetch: false,
         v3_lazyRouteDiscovery: true,
       },
     }),
