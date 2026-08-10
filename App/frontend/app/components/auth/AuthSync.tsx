@@ -15,21 +15,7 @@ export function AuthSync() {
 
   useEffect(() => {
     let active = true;
-
-    // Si Supabase no está disponible (window.ENV incompleto: env var mal
-    // configurada, key rotada o fallo transitorio al montar), NO dejamos que la
-    // excepción se propague: un `throw` dentro de este efecto sube al ErrorBoundary
-    // por defecto de Remix y reemplaza TODA la app (header, carrito, catálogo) por
-    // la pantalla de error. Un visitante anónimo no depende de la sesión, así que
-    // lo tratamos como deslogueado y el storefront sigue funcional.
-    let supabase: ReturnType<typeof getSupabaseClient>;
-    try {
-      supabase = getSupabaseClient();
-    } catch (err) {
-      console.error('[AuthSync] No se pudo inicializar Supabase; se continúa como anónimo.', err);
-      dispatch(signedOut());
-      return;
-    }
+    const supabase = getSupabaseClient();
 
     // 1. Check initial session
     supabase.auth.getSession().then(({ data }) => {
