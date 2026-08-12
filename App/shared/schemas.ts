@@ -146,6 +146,7 @@ export const catalogVariantSchema = z.object({
 export const catalogDetailSchema = catalogProductSchema.extend({
   axes: z.array(catalogAxisSchema),
   variants: z.array(catalogVariantSchema),
+  colorImages: z.record(z.string(), z.array(z.string())).optional(),
 });
 
 export type CatalogVariant = z.infer<typeof catalogVariantSchema>;
@@ -156,8 +157,6 @@ export type WholesaleDiscount = z.infer<typeof wholesaleDiscountItemSchema>;
 export const imageResourcesSchema = z.object({
   logoStatic: z.string().url('Debe ser una URL válida').or(z.literal('')).optional(),
   logoAnimated: z.string().url('Debe ser una URL válida').or(z.literal('')).optional(),
-  // Logo horizontal dedicado para el header de la tienda (apaisado, tipo banner).
-  logoHeader: z.string().url('Debe ser una URL válida').or(z.literal('')).optional(),
   favicon: z.string().url('Debe ser una URL válida').or(z.literal('')).optional(),
   posLogo: z.string().url('Debe ser una URL válida').or(z.literal('')).optional(),
 });
@@ -196,7 +195,13 @@ export const businessInfoSchema = z
     whatsapp: z.string().min(1, 'El WhatsApp es obligatorio.').max(30),
     contactEmail: z.string().email('Correo inválido.').or(z.literal('')),
     address: z.string().max(200),
+    locationUrl: z.string().url().or(z.literal('')).optional().default(''),
     currency: z.string().min(1, 'La moneda es obligatoria.').max(10),
+    socialLinks: z.object({
+      instagram: z.string().max(300).optional().default(''),
+      facebook: z.string().max(300).optional().default(''),
+      tiktok: z.string().max(300).optional().default(''),
+    }).optional().default({}),
     bankAccounts: z.array(storeBankAccountSchema).optional().default([]),
   })
   // El banco vacío se permite MIENTRAS se llena el formulario (ver
@@ -377,6 +382,8 @@ export const landingConfigSchema = z.object({
   // en su orden natural (los nombres salen del catálogo, no de aquí).
   headerCategories: z.array(z.string().max(64)).max(50),
   heroSlides: z.array(heroSlideSchema).max(MAX_HERO_SLIDES),
+  // Categorías que se muestran como carriles en la home.
+  homeCategories: z.array(z.string().max(64)).max(50).optional(),
 });
 
 export type HeroSlide = z.infer<typeof heroSlideSchema>;
@@ -638,7 +645,15 @@ export const updateProfileSchema = z
       .max(120)
       .optional()
       .or(z.literal('')),
-    bank_account: bankAccountSchema.nullable().optional(),
+    bank_account: z.preprocess(
+      (val) => {
+        if (val == null || typeof val !== 'object') return val;
+        const o = val as Record<string, unknown>;
+        if (!o.bank && !o.number) return null;
+        return val;
+      },
+      bankAccountSchema.nullable().optional(),
+    ),
     // Foto de perfil ya subida (a R2, vía `/api/upload` o `/api/me/avatar`): acá
     // solo viaja la URL resultante, nunca el archivo. `null` la quita; omitir la
     // clave deja la que estuviera — necesario porque el admin guarda el resto del

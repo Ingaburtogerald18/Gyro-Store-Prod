@@ -132,14 +132,19 @@ function toVariantMappings(value: unknown): VariantMappings {
 
 function toAdminProduct(row: AdminRow): AdminProduct {
   const template = firstOfEmbed(row.template);
+  const mappings = toVariantMappings(row.variant_mappings);
+  const variantPrices = Object.values(mappings)
+    .map((m) => m.price)
+    .filter((p): p is number => typeof p === 'number' && p > 0);
+  const fallbackPrice = row.price ?? row.base_price ?? 0;
   return {
     id: row.id,
     templateId: row.template_id,
-    // El nombre es del producto. Los ítems creados antes de la migración 0015 lo
-    // tenían solo en el molde: se cae ahí para no mostrarlos como "Sin nombre".
     name: row.name ?? template?.name ?? 'Sin nombre',
     description: row.description ?? '',
-    price: row.price ?? row.base_price ?? 0,
+    price: row.is_promo
+      ? fallbackPrice
+      : (variantPrices.length ? Math.min(...variantPrices) : fallbackPrice),
     basePrice: row.base_price,
     precioSugerido: row.precio_sugerido,
     precioTentativo: row.precio_tentativo,

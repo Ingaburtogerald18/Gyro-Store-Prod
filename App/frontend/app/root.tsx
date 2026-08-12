@@ -56,7 +56,6 @@ export function Layout({ children }: { children: ReactNode }) {
     // antes de que React hidrate; ese "mismatch" es intencional.
     <html
       lang="es"
-      data-theme="dark"
       data-skin="store"
       suppressHydrationWarning
     >
@@ -81,7 +80,7 @@ export function Layout({ children }: { children: ReactNode }) {
         <script
           nonce={nonce}
           dangerouslySetInnerHTML={{
-            __html: `try{var t=localStorage.getItem('gyro:theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t}catch(e){}`,
+            __html: `try{var t=localStorage.getItem('gyro:theme')||'dark';document.documentElement.dataset.theme=t}catch(e){}`,
           }}
         />
         <meta charSet="utf-8" />

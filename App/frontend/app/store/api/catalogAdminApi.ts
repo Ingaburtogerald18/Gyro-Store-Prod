@@ -20,6 +20,7 @@ export interface InventoryLot {
   lot: string;
   available: number;
   suggestedPrice: number | null;
+  linkedTo: string | null;
 }
 
 export const catalogAdminApi = baseApi.injectEndpoints({
@@ -100,8 +101,11 @@ export const catalogAdminApi = baseApi.injectEndpoints({
     }),
 
     // Lotes de bodega disponibles para vincular a una variante.
-    getInventoryLots: builder.query<InventoryLot[], void>({
-      query: () => '/admin/catalog/inventory-lots',
+    getInventoryLots: builder.query<InventoryLot[], string | undefined>({
+      query: (excludeProductId) => ({
+        url: '/admin/catalog/inventory-lots',
+        params: excludeProductId ? { excludeProductId } : undefined,
+      }),
       // Depende de `Purchase`: al recibir un lote en inventario, el buscador de
       // este editor tiene que mostrarlo sin recargar la página.
       providesTags: ['Purchase'],

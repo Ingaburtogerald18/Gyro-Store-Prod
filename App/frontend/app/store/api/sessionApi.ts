@@ -33,20 +33,18 @@ export interface StoreConfig {
   whatsapp: string;
   // ── Desde app_config → 'business_info' (editable en el panel) ──
   ruc: string;
-  /** Dirección del local; el footer la enlaza a Google Maps. */
   address: string;
-  /**
-   * Cuentas donde el cliente puede depositar o transferir. El endpoint ya las
-   * mandaba (`/api/config` hace spread de `business` entero), pero faltaban en
-   * este tipo, así que ninguna pantalla podía leerlas sin un cast: se editaban
-   * en el panel y no se veían en ningún lado.
-   */
+  locationUrl?: string;
+  socialLinks?: {
+    instagram?: string;
+    facebook?: string;
+    tiktok?: string;
+  };
   bankAccounts?: StoreBankAccount[];
   categories: Category[];
   images?: {
     logoStatic?: string;
     logoAnimated?: string;
-    logoHeader?: string;
     favicon?: string;
     posLogo?: string;
   };

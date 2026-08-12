@@ -7,6 +7,7 @@ import { type ColumnDef } from "@tanstack/react-table";
 
 import { PurchaseCommandPalette } from "./PurchaseCommandPalette";
 import { toast } from "sonner";
+import { BrandLoader } from "~/components/ui/module-loader";
 import { DataTable } from "~/components/ui/DataTable";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "~/components/ui/dialog";
 import { Button } from "~/components/ui/button";
@@ -349,7 +350,7 @@ export function PurchasesTable({ period = "all", onOpenForm }: { period?: string
   );
 
   if (isLoading) {
-    return <div className="h-64 animate-pulse rounded-card border bg-card shadow-lg" />;
+    return <BrandLoader text="Cargando compras..." />;
   }
 
   return (

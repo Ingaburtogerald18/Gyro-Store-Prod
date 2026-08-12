@@ -777,20 +777,48 @@ export interface AvailableLot {
   lot: string;
   available: number;
   suggestedPrice: number | null;
+  linkedTo: string | null;
 }
 
 // Catálogo de lotes recibidos para el buscador del editor de producto. Devuelve
 // también los agotados: al editar un producto ya mapeado hay que poder ver el
 // lote vinculado aunque se haya vendido entero, o el vínculo se vería "roto".
-export async function listAvailableLots(): Promise<AvailableLot[]> {
-  const { data, error } = await db
-    .from('purchases')
-    .select('code, product_name, category, lot, quantity, quantity_sold, quantity_reserved, suggested_price')
-    .eq('status', 'received')
-    .order('purchase_date', { ascending: false });
-  if (error) throw error;
+// `excludeProductId`: el producto que se está editando — sus propios vínculos
+// no cuentan como "ya vinculados" porque son los que el usuario está gestionando.
+export async function listAvailableLots(excludeProductId?: string): Promise<AvailableLot[]> {
+  const [purchasesResult, catalogResult] = await Promise.all([
+    db
+      .from('purchases')
+      .select('code, product_name, category, lot, quantity, quantity_sold, quantity_reserved, suggested_price')
+      .eq('status', 'received')
+      .order('purchase_date', { ascending: false }),
+    db
+      .from('catalog_items')
+      .select('id, name, variant_mappings')
+      .not('variant_mappings', 'is', null),
+  ]);
 
-  const rows = (data ?? []) as unknown as {
+  if (purchasesResult.error) throw purchasesResult.error;
+  if (catalogResult.error) throw catalogResult.error;
+
+  const codeToProduct = new Map<string, string>();
+  for (const item of (catalogResult.data ?? []) as { id: string; name: string; variant_mappings: unknown }[]) {
+    if (excludeProductId && item.id === excludeProductId) continue;
+    const mappings = item.variant_mappings;
+    if (!mappings || typeof mappings !== 'object') continue;
+    for (const entry of Object.values(mappings as Record<string, unknown>)) {
+      if (!entry || typeof entry !== 'object') continue;
+      const e = entry as Record<string, unknown>;
+      const codes = [
+        ...(Array.isArray(e.codes) ? e.codes.filter((c: unknown) => typeof c === 'string') : []),
+        ...(Array.isArray(e.skus) ? e.skus.filter((c: unknown) => typeof c === 'string') : []),
+        ...(typeof e.sku === 'string' && e.sku ? [e.sku] : []),
+      ];
+      for (const code of codes) codeToProduct.set(code as string, item.name ?? 'Producto sin nombre');
+    }
+  }
+
+  const rows = (purchasesResult.data ?? []) as unknown as {
     code: string;
     product_name: string;
     category: string | null;
@@ -808,6 +836,7 @@ export async function listAvailableLots(): Promise<AvailableLot[]> {
     lot: row.lot ?? '',
     available: Math.max(0, row.quantity - row.quantity_sold - row.quantity_reserved),
     suggestedPrice: row.suggested_price,
+    linkedTo: codeToProduct.get(row.code) ?? null,
   }));
 }
 

@@ -10,12 +10,14 @@ import { baseApi } from './api/baseApi';
 import { authReducer } from './slices/authSlice';
 import { cartReducer, hydrate } from './slices/cartSlice';
 import { uiReducer } from './slices/uiSlice';
+import { builderReducer } from './slices/builderSlice';
 
 const appReducer = combineReducers({
   [baseApi.reducerPath]: baseApi.reducer,
   auth: authReducer,
   cart: cartReducer,
   ui: uiReducer,
+  builder: builderReducer,
 });
 
 const rootReducer = (state: any, action: any) => {

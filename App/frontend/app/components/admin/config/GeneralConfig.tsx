@@ -42,7 +42,9 @@ export function GeneralConfig() {
       whatsapp: "",
       contactEmail: "",
       address: "",
+      locationUrl: "",
       currency: "C$",
+      socialLinks: { instagram: "", facebook: "", tiktok: "" },
       bankAccounts: [],
     },
     successMessage: "Información del negocio guardada correctamente.",
@@ -113,13 +115,39 @@ export function GeneralConfig() {
             <FieldError errors={[errors.contactEmail]} />
           </Field>
 
-          <div className="sm:col-span-2">
-            <Field data-invalid={!!errors.address}>
-              <FieldLabel htmlFor="biz-address">Dirección Física</FieldLabel>
-              <Input id="biz-address" placeholder="Ciudad, país" aria-invalid={!!errors.address} {...register("address")} />
-              <FieldError errors={[errors.address]} />
-            </Field>
-          </div>
+          <Field data-invalid={!!errors.address}>
+            <FieldLabel htmlFor="biz-address">Dirección Física</FieldLabel>
+            <Input id="biz-address" placeholder="Ciudad, país" aria-invalid={!!errors.address} {...register("address")} />
+            <FieldError errors={[errors.address]} />
+          </Field>
+
+          <Field data-invalid={!!(errors as any).locationUrl}>
+            <FieldLabel htmlFor="biz-location-url">Link de Ubicación (Google Maps)</FieldLabel>
+            <Input id="biz-location-url" type="url" placeholder="https://maps.google.com/..." aria-invalid={!!(errors as any).locationUrl} {...register("locationUrl")} />
+            <FieldError errors={[(errors as any).locationUrl]} />
+          </Field>
+        </div>
+      </Section>
+
+      <Section
+        title="Redes Sociales"
+        description="Links a las redes sociales de la tienda. Se muestran en el pie de página del catálogo."
+      >
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Field>
+            <FieldLabel htmlFor="social-ig">Instagram</FieldLabel>
+            <Input id="social-ig" placeholder="https://instagram.com/tu_tienda" {...register("socialLinks.instagram")} />
+          </Field>
+
+          <Field>
+            <FieldLabel htmlFor="social-fb">Facebook</FieldLabel>
+            <Input id="social-fb" placeholder="https://facebook.com/tu_tienda" {...register("socialLinks.facebook")} />
+          </Field>
+
+          <Field>
+            <FieldLabel htmlFor="social-tt">TikTok</FieldLabel>
+            <Input id="social-tt" placeholder="https://tiktok.com/@tu_tienda" {...register("socialLinks.tiktok")} />
+          </Field>
         </div>
       </Section>
 

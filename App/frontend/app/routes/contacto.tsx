@@ -137,7 +137,7 @@ export default function Contacto() {
                   `business_info.address` ya existía y nadie la leía, así que
                   cambiarla desde Configuración no tenía efecto acá. */}
               <a
-                href={`https://maps.google.com/?q=${encodeURIComponent(address)}`}
+                href={config?.locationUrl?.trim() || `https://maps.google.com/?q=${encodeURIComponent(address)}`}
                 target="_blank"
                 rel="noreferrer"
                 className="mt-2 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"

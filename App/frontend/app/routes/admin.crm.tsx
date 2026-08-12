@@ -24,6 +24,7 @@ import { Badge } from '~/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs';
 import { QueryState } from '~/components/ui/QueryState';
 import { Skeleton } from '~/components/ui/skeleton';
+import { BrandLoader } from '~/components/ui/module-loader';
 import {
   Dialog,
   DialogContent,
@@ -115,7 +116,7 @@ function AgendaTab({ onOpen }: { onOpen: (id: string) => void }) {
       empty={followUps.length === 0}
       errorMessage="No se pudo cargar la agenda."
       onRetry={refetch}
-      loadingFallback={<div className="space-y-2">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-16 rounded-card" />)}</div>}
+      loadingFallback={<BrandLoader text="Cargando agenda..." />}
       emptyFallback={
         <Card className="border-dashed bg-card">
           <CardContent className="flex flex-col items-center justify-center py-16 text-center">
@@ -173,7 +174,7 @@ function ContactsTab({ search, onOpen }: { search: string; onOpen: (id: string) 
       empty={contacts.length === 0}
       errorMessage="No se pudieron cargar los contactos."
       onRetry={refetch}
-      loadingFallback={<div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-20 rounded-card" />)}</div>}
+      loadingFallback={<BrandLoader text="Cargando contactos..." />}
       emptyFallback={
         <Card className="border-dashed bg-card">
           <CardContent className="flex flex-col items-center justify-center py-16 text-center">

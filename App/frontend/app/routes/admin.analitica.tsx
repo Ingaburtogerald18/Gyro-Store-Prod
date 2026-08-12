@@ -17,6 +17,7 @@ import {
 import { PageHeader } from '~/components/layout/PageHeader';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '~/components/ui/card';
 import { QueryState } from '~/components/ui/QueryState';
+import { BrandLoader } from '~/components/ui/module-loader';
 
 export const meta: MetaFunction = () => [{ title: pageTitle('Analítica', { admin: true }) }];
 
@@ -52,7 +53,7 @@ export default function AdminAnalitica() {
       <QueryState
         loading={overview.isLoading}
         error={overview.isError}
-        loadingFallback={<div className="h-24 animate-pulse rounded-card bg-muted" />}
+        loadingFallback={<BrandLoader text="Cargando analítica..." />}
       >
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
           {stats.map((s) => (

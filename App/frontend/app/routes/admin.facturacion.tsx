@@ -12,6 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '~/com
 import { Button } from '~/components/ui/button';
 import { DataTable } from '~/components/ui/DataTable';
 import { QueryState } from '~/components/ui/QueryState';
+import { BrandLoader } from '~/components/ui/module-loader';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '~/components/ui/dialog';
 import { Input } from '~/components/ui/input';
 import { Label } from '~/components/ui/label';
@@ -324,7 +325,7 @@ export default function AdminFacturacion() {
             loading={loadingUnlinked}
             error={unlinkedError}
             empty={unlinkedInvoices.length === 0}
-            loadingFallback={<div className="h-32 animate-pulse rounded-lg bg-muted" />}
+            loadingFallback={<BrandLoader text="Cargando facturas..." />}
             emptyFallback={
               <div className="rounded-lg border border-dashed bg-muted/50 py-10 text-center">
                 <HugeIcon icon={File01Icon} size={36} strokeWidth={2} className="mx-auto mb-3 text-muted-foreground opacity-50" aria-hidden />
@@ -345,7 +346,7 @@ export default function AdminFacturacion() {
           <QueryState
             loading={loadingLinked}
             error={linkedError}
-            loadingFallback={<div className="h-32 animate-pulse rounded-lg bg-muted" />}
+            loadingFallback={<BrandLoader text="Cargando facturas..." />}
           >
             <DataTable
               tableId="facturas-vinculadas"
@@ -378,7 +379,7 @@ export default function AdminFacturacion() {
             loading={loadingVoid}
             error={voidError}
             empty={voidInvoices.length === 0}
-            loadingFallback={<div className="h-32 animate-pulse rounded-lg bg-muted" />}
+            loadingFallback={<BrandLoader text="Cargando facturas..." />}
             emptyFallback={
               <p className="rounded-lg border border-dashed bg-muted/50 py-8 text-center text-sm text-muted-foreground">
                 No hay facturas canceladas.

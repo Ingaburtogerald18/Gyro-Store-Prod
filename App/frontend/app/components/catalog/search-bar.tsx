@@ -19,7 +19,15 @@ import { searchSet, selectSearch } from '~/store/slices/uiSlice';
 import { cn } from '~/lib/utils';
 import { useNavigate } from '@remix-run/react';
 
-export function SearchBar({ className }: { className?: string }) {
+export function SearchBar({ 
+  className,
+  autoFocus,
+  onBlur 
+}: { 
+  className?: string;
+  autoFocus?: boolean;
+  onBlur?: () => void;
+}) {
   const dispatch = useAppDispatch();
   const search = useAppSelector(selectSearch);
   const navigate = useNavigate();
@@ -32,18 +40,18 @@ export function SearchBar({ className }: { className?: string }) {
       navigate('/#catalogo');
     }
     
-    // Si ya estamos en la home, el navigate no recarga la página, así que
-    // forzamos el scroll al catálogo.
     if (window.location.pathname === '/') {
       setTimeout(() => {
         document.getElementById('catalogo')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }, 80);
     }
+    // Also trigger blur/close on submit so the overlay closes
+    if (onBlur) onBlur();
   }
 
   return (
-    <form onSubmit={handleSubmit} className="w-full">
-      <InputGroup className={cn('h-11', className)}>
+    <form onSubmit={handleSubmit} className={cn("w-full", className)}>
+      <InputGroup className="h-11 w-full">
       <InputGroupAddon>
         <HugeIcon icon={Search01Icon} size={16} strokeWidth={2} aria-hidden />
       </InputGroupAddon>
@@ -53,10 +61,10 @@ export function SearchBar({ className }: { className?: string }) {
         inputMode="search"
         value={search}
         onChange={(e) => dispatch(searchSet(e.target.value))}
+        onBlur={onBlur}
+        autoFocus={autoFocus}
         placeholder="Buscar en el catálogo…"
         aria-label="Buscar productos"
-        // 16px en móvil: por debajo de ese tamaño Safari iOS hace zoom al
-        // enfocar y descuadra el header.
         className="text-[16px] md:text-sm [&::-webkit-search-cancel-button]:appearance-none"
       />
 

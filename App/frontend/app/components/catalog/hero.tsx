@@ -40,10 +40,11 @@ import { SlideMedia } from '~/components/catalog/slide-media';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import { Button } from '~/components/ui/button';
 import { Separator } from '~/components/ui/separator';
-import { useAppSelector } from '~/store/hooks';
+import { useAppSelector, useAppDispatch } from '~/store/hooks';
 import { selectEditMode, selectIsAdmin } from '~/store/slices/authSlice';
+import { selectDraftLandingConfig, updateHeroSlides } from '~/store/slices/builderSlice';
 import { useGetConfigQuery } from '~/store/api/sessionApi';
-import { useGetLandingConfigQuery, useUpdateLandingConfigMutation } from '~/store/api/storefrontApi';
+import { useGetLandingConfigQuery } from '~/store/api/storefrontApi';
 import { cn } from "~/lib/utils"
 import { buildWhatsappUrl } from "~/lib/formatters";
 
@@ -76,13 +77,16 @@ export function Hero({ initialLanding }: { initialLanding?: LandingConfig | null
   const [slideToDeleteIndex, setSlideToDeleteIndex] = useState<number | null>(null);
 
   const { data: landingData } = useGetLandingConfigQuery();
-  const landing = landingData ?? initialLanding ?? EMPTY_LANDING;
-  const slides = landing.heroSlides;
-
+  
   const isAdmin = useAppSelector(selectIsAdmin);
   const editMode = useAppSelector(selectEditMode);
   const editing = isAdmin && editMode;
-  const [updateLanding, { isLoading: saving }] = useUpdateLandingConfigMutation();
+  const draftLanding = useAppSelector(selectDraftLandingConfig);
+  const dispatch = useAppDispatch();
+  const saving = false; // El guardado ahora es instantáneo en el borrador local
+  
+  const landing = editing && draftLanding ? draftLanding : (landingData ?? initialLanding ?? EMPTY_LANDING);
+  const slides = landing.heroSlides;
 
   const { data: config } = useGetConfigQuery();
   const whatsappOrderUrl = buildWhatsappUrl(
@@ -113,19 +117,11 @@ export function Hero({ initialLanding }: { initialLanding?: LandingConfig | null
   }, [autoPlaying, safeIndex, goTo]);
 
   // ── Persistencia del modo edición ──
-  // Cada acción guarda el ARREGLO COMPLETO de slides junto con `headerCategories`
-  // intacto: el endpoint reemplaza toda la configuración del landing, así que
-  // mandar solo los slides borraría el orden del header.
+  // Cada acción ahora actualiza el BORRADOR local en lugar del servidor.
+  // Los cambios se guardan al hacer clic en "Guardar Cambios" en el StoreHeader.
   async function commit(nextSlides: HeroSlide[]): Promise<boolean> {
-    try {
-      await updateLanding({ ...landing, heroSlides: nextSlides }).unwrap();
-      return true;
-    } catch (err) {
-      toast.error(
-        (err as { data?: { error?: string } })?.data?.error ?? 'No se pudieron guardar los cambios.',
-      );
-      return false;
-    }
+    dispatch(updateHeroSlides(nextSlides));
+    return true;
   }
 
   async function handleMove(dir: -1 | 1) {
@@ -200,8 +196,8 @@ export function Hero({ initialLanding }: { initialLanding?: LandingConfig | null
   }
 
   return (
-    <section className="mx-auto w-full max-w-[1400px] px-4 pt-3 pb-6 sm:pt-6 sm:pb-12">
-      <div className="group relative w-full overflow-hidden rounded-[2.5rem] border border-border/40 bg-card shadow-2xl">
+    <section className="mx-auto w-full max-w-6xl px-4 pt-3 pb-6 sm:pt-6 sm:pb-12">
+      <div className="group relative w-full overflow-hidden rounded-3xl border border-border/40 bg-card shadow-2xl sm:rounded-[2.5rem]">
         {/* ── Controles de edición ──
             Flotan sobre la diapositiva en vez de ir en una barra aparte: la
             referencia visual es el slide que se está tocando, y separarlos
@@ -264,9 +260,9 @@ export function Hero({ initialLanding }: { initialLanding?: LandingConfig | null
           </div>
         )}
 
-        <div className="flex min-h-[420px] flex-col items-stretch md:h-[620px] md:flex-row">
+        <div className="flex min-h-[340px] flex-col items-stretch md:h-[460px] md:flex-row">
           {/* ── Media ── */}
-          <div className="relative flex h-[260px] w-full items-center justify-center overflow-hidden border-b border-border/30 bg-card sm:h-[320px] md:h-auto md:w-1/2 md:border-r md:border-b-0">
+          <div className="relative flex h-[200px] w-full items-center justify-center overflow-hidden border-b border-border/30 bg-card sm:h-[280px] md:h-auto md:w-1/2 md:border-r md:border-b-0">
             {/* Glow radial muy tenue: da profundidad al vacío sin leerse como halo. */}
             <div
               aria-hidden
@@ -287,7 +283,7 @@ export function Hero({ initialLanding }: { initialLanding?: LandingConfig | null
           </div>
 
           {/* ── Texto ── */}
-          <div className="relative z-10 flex w-full flex-col justify-center p-5 text-left sm:p-10 md:w-1/2 md:p-16">
+          <div className="relative z-10 flex w-full flex-col justify-center p-5 text-left sm:p-10 md:w-1/2 md:p-12">
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeSlide.id}
@@ -301,7 +297,7 @@ export function Hero({ initialLanding }: { initialLanding?: LandingConfig | null
                   {activeSlide.eyebrow}
                 </span>
 
-                <h1 className="text-[20px] leading-[0.95] font-black tracking-tight text-balance text-foreground sm:text-4xl md:text-6xl">
+                <h1 className="text-[20px] leading-[0.95] font-black tracking-tight text-balance text-foreground sm:text-4xl md:text-5xl">
                   {activeSlide.title}
                 </h1>
 

@@ -27,6 +27,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '~/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '~/components/ui/tabs';
 import { QueryState } from '~/components/ui/QueryState';
+import { BrandLoader } from '~/components/ui/module-loader';
 import { errMsg, formatCordobas, withoutIds } from "~/lib/formatters";
 import {
   useCancelInstallmentPlanMutation,
@@ -346,12 +347,7 @@ export default function AdminCuotas() {
         loading={isLoading}
         error={isError}
         empty={plans.length === 0}
-        loadingFallback={
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="h-48 animate-pulse rounded-xl bg-card" />
-            <div className="h-48 animate-pulse rounded-xl bg-card" />
-          </div>
-        }
+        loadingFallback={<BrandLoader text="Cargando cuotas..." />}
         emptyFallback={
           <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border bg-muted/50 py-20 text-center">
             <HugeIcon icon={CreditCardIcon} size={40} strokeWidth={2} className="text-muted-foreground opacity-40" aria-hidden />

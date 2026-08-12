@@ -4,8 +4,10 @@ import { HugeIcon } from "~/components/ui/icon";
 import { Alert02Icon, CheckmarkCircle01Icon, Edit02Icon, Delete02Icon } from "@hugeicons/core-free-icons";
 import { useMemo, useState } from "react";
 import { type ColumnDef } from "@tanstack/react-table";
+import { motion } from "framer-motion";
 import { toast } from "sonner";
 
+import { BrandLoader } from "~/components/ui/module-loader";
 import { DataTable } from "~/components/ui/DataTable";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "~/components/ui/dialog";
 import { Button } from "~/components/ui/button";
@@ -42,11 +44,12 @@ export function CurrentInventoryTable({ period = "all", mode = "all" }: { period
   const categoryLabel = useCategoryLabel();
   const [revert] = useRevertPurchaseMutation();
 
-  const skuToCatalogMap = useMemo(() => {
+  const codeToCatalogMap = useMemo(() => {
     const map = new Map<string, string>();
     catalog.forEach((c: any) => {
       if (c.variantMappings) {
         Object.values(c.variantMappings).forEach((m: any) => {
+          if (m.codes) m.codes.forEach((s: string) => map.set(s, c.id));
           if (m.sku) map.set(m.sku, c.id);
           if (m.skus) m.skus.forEach((s: string) => map.set(s, c.id));
         });
@@ -86,24 +89,36 @@ export function CurrentInventoryTable({ period = "all", mode = "all" }: { period
         header: "Catálogo",
         cell: ({ row }) => {
           const rowData = row.original;
-          const hasMatch = skuToCatalogMap.has(rowData.code);
-          return (
-            <button
-              onClick={() => hasMatch && navigate(`/admin/catalogo?sku=${rowData.code}`)}
-              className={`flex items-center gap-1.5 transition-colors ${hasMatch ? "hover:text-primary" : "cursor-default"}`}
+          const catalogId = codeToCatalogMap.get(rowData.code);
+          return catalogId ? (
+            <motion.button
+              whileHover={{ scale: 1.06 }}
+              whileTap={{ scale: 0.94 }}
+              onClick={() => navigate(`/admin/catalogo?sku=${rowData.code}`)}
+              className="flex items-center gap-1.5"
             >
-              {hasMatch ? (
-                <span className="flex items-center gap-1 text-xs font-medium text-primary-2 bg-primary/10 px-2 py-0.5 rounded-md border border-primary/20">
-                  <HugeIcon icon={CheckmarkCircle01Icon} size={12} strokeWidth={2} />
-                  Enlazado
-                </span>
-              ) : (
-                <span title="Este producto aún no está vinculado al catálogo público" className="flex items-center gap-1 text-xs font-medium text-warning bg-warning/10 px-2 py-0.5 rounded-md border border-warning/20">
-                  <HugeIcon icon={Alert02Icon} size={12} strokeWidth={2} />
-                  Sin mapear
-                </span>
-              )}
-            </button>
+              <span className="flex items-center gap-1 text-xs font-medium text-primary-2 bg-primary/10 px-2 py-0.5 rounded-md border border-primary/20 shadow-sm transition-shadow hover:shadow-md hover:shadow-primary/20">
+                <HugeIcon icon={CheckmarkCircle01Icon} size={12} strokeWidth={2} />
+                Vinculado
+              </span>
+            </motion.button>
+          ) : (
+            <motion.button
+              whileHover={{ scale: 1.06 }}
+              whileTap={{ scale: 0.94 }}
+              animate={{ opacity: [0.7, 1, 0.7] }}
+              transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
+              onClick={() => {
+                navigate('/admin/catalogo');
+                toast.info('Desde acá podés vincular artículos del inventario con productos del catálogo público.');
+              }}
+              className="flex items-center gap-1.5"
+            >
+              <span className="flex items-center gap-1 text-xs font-medium text-warning bg-warning/10 px-2 py-0.5 rounded-md border border-warning/20 border-dashed shadow-sm transition-shadow hover:shadow-md hover:shadow-warning/20">
+                <HugeIcon icon={Alert02Icon} size={12} strokeWidth={2} />
+                Sin vincular
+              </span>
+            </motion.button>
           );
         }
       },
@@ -197,7 +212,7 @@ export function CurrentInventoryTable({ period = "all", mode = "all" }: { period
     ],
     // `categoryLabel` en la lista: sin él la columna se quedaba con el primer
     // valor resuelto y no reaccionaba a un renombrado en Catálogo.
-    [purchases, skuToCatalogMap, navigate, config, categoryLabel],
+    [purchases, codeToCatalogMap, navigate, config, categoryLabel],
   );
 
   const columns = useMemo(() => {
@@ -212,7 +227,7 @@ export function CurrentInventoryTable({ period = "all", mode = "all" }: { period
   }, [allColumns, mode]);
 
   if (isLoading) {
-    return <div className="h-64 animate-pulse rounded-card border bg-card shadow-lg" />;
+    return <BrandLoader text="Cargando inventario..." />;
   }
 
   return (

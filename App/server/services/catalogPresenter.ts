@@ -43,13 +43,12 @@ export function normalizeAxes(axes: unknown): Axis[] {
       const axis = raw as Record<string, unknown>;
       const key = typeof axis.key === 'string' ? axis.key : '';
       if (!key) return [];
+      const label = typeof axis.label === 'string' && axis.label ? axis.label : key;
       return [{
         key,
-        // Las filas viejas (forma de diccionario) no tienen label: cae al key,
-        // que al menos es legible, en vez de dejar el selector sin título.
-        label: typeof axis.label === 'string' && axis.label ? axis.label : key,
+        label,
         options: asStringArray(axis.options),
-        isColor: axis.isColor === true || key.toLowerCase().includes('color'),
+        isColor: axis.isColor === true || key.toLowerCase().includes('color') || label.toLowerCase().includes('color'),
       }];
     });
   }
@@ -214,15 +213,25 @@ export function toCatalogDetail(
     };
   });
 
+  const rawColorImages = item.images_by_color as Record<string, unknown> | null;
+  const colorImages: Record<string, string[]> = {};
+  if (rawColorImages && typeof rawColorImages === 'object') {
+    for (const [color, imgs] of Object.entries(rawColorImages)) {
+      const normalized = normalizeImages(imgs);
+      if (normalized.length) colorImages[color] = normalized;
+    }
+  }
+
   return {
     ...toCatalogProduct(item, stockByCode),
     axes: axes.map((axis) => ({
       key: axis.key,
       label: axis.label,
-      options: includedOptions(item, axis),
+      options: axis.options,
       isColor: axis.isColor,
     })),
     variants,
+    ...(Object.keys(colorImages).length > 0 ? { colorImages } : {}),
   };
 }
 
@@ -238,9 +247,19 @@ export function toCatalogProduct(
     ? ownImages
     : Object.values(item.images_by_color ?? {}).flatMap(normalizeImages);
 
-  // `price` es lo que se cobra; `base_price` actúa como precio "antes" cuando es
-  // mayor (habilita el badge de descuento). Si solo hay uno, ese manda.
-  const price = item.price ?? item.base_price ?? 0;
+  // El precio de la tarjeta se resuelve así:
+  //   1. Promo: el precio de oferta (`price`) manda.
+  //   2. Sin promo: el menor precio de las variantes vinculadas en bodega.
+  //   3. Sin variantes vinculadas: cae a `price` o `base_price` como fallback.
+  const mappings = mappingsOf(item);
+  const variantPrices = [...mappings.values()]
+    .map((m) => m.price)
+    .filter((p): p is number => typeof p === 'number' && p > 0);
+
+  const fallbackPrice = item.price ?? item.base_price ?? 0;
+  const price = item.is_promo
+    ? fallbackPrice
+    : (variantPrices.length ? Math.min(...variantPrices) : fallbackPrice);
   const basePrice = item.base_price ?? 0;
   const compareAtPrice = basePrice > price ? basePrice : undefined;
 

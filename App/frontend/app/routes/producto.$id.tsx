@@ -6,7 +6,7 @@
 // estén en el HTML (Open Graph al compartir por WhatsApp).
 import { HugeIcon } from "~/components/ui/icon";
 import { Message01Icon, ShoppingCart02Icon } from "@hugeicons/core-free-icons";
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { HeadersFunction, LoaderFunctionArgs, MetaFunction } from '@remix-run/node';
 import { getBrandName, pageTitle } from '~/lib/brand';
 import { useLoaderData } from '@remix-run/react';
@@ -151,6 +151,15 @@ export default function ProductDetail() {
   const stock = variant?.stock ?? product.stock;
   const soldOut = stock <= 0;
 
+  const colorAxis = product.axes.find((a) => a.isColor);
+  const selectedColor = colorAxis ? selection[colorAxis.key] : undefined;
+  const activeImages = useMemo(() => {
+    if (selectedColor && product.colorImages?.[selectedColor]?.length) {
+      return product.colorImages[selectedColor];
+    }
+    return product.images;
+  }, [selectedColor, product.colorImages, product.images]);
+
   function handleAddToCart() {
     if (missingAxis) {
       toast.error(`Elegí ${missingAxis.label || missingAxis.key} antes de agregar.`);
@@ -163,7 +172,7 @@ export default function ProductDetail() {
         name: product.name,
         variantName,
         price,
-        image: product.images[0] ?? '',
+        image: activeImages[0] ?? '',
         quantity,
       }),
     );
@@ -189,7 +198,7 @@ export default function ProductDetail() {
 
   return (
     <StorefrontShell>
-      <main className="mx-auto max-w-7xl px-4">
+      <main key="product-detail" className="mx-auto max-w-7xl px-4">
         <ProductTopNav 
           productName={product.name} 
           categoryName={product.category}
@@ -201,7 +210,7 @@ export default function ProductDetail() {
               con el trust box debajo. En móvil el trust box baja después del
               bloque de compra (ver copia más abajo). */}
           <div className="space-y-4 md:sticky md:top-32 md:self-start">
-            <ProductGallery images={product.images} name={product.name} soldOut={soldOut} />
+            <ProductGallery images={activeImages} name={product.name} soldOut={soldOut} />
             <div className="hidden md:block">
               <TrustBox />
             </div>
@@ -214,19 +223,21 @@ export default function ProductDetail() {
               )}
               {product.isPromo && !onSale && <Badge variant="promo">Oferta</Badge>}
 
-              <h1 className="text-2xl leading-tight font-black tracking-tight text-balance text-foreground sm:text-4xl">
-                {product.name}
-              </h1>
+              <div className="flex flex-col gap-3 md:flex-row md:items-baseline md:justify-between">
+                <h1 className="text-2xl leading-tight font-black tracking-tight text-balance text-foreground sm:text-4xl">
+                  {product.name}
+                </h1>
 
-              <div className="flex items-baseline gap-3">
-                <span className="text-3xl font-extrabold text-primary-2 tabular-nums">
-                  {formatCordobas(price, currency)}
-                </span>
-                {onSale && (
-                  <span className="text-base text-muted-foreground line-through tabular-nums">
-                    {formatCordobas(compareAt, currency)}
+                <div className="flex items-baseline gap-3 md:shrink-0">
+                  <span className="text-3xl font-extrabold text-primary-2 tabular-nums">
+                    {formatCordobas(price, currency)}
                   </span>
-                )}
+                  {onSale && (
+                    <span className="text-base text-muted-foreground line-through tabular-nums">
+                      {formatCordobas(compareAt, currency)}
+                    </span>
+                  )}
+                </div>
               </div>
 
               <StockIndicator stock={stock} />

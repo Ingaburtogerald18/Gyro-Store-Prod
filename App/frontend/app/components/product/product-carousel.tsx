@@ -54,7 +54,7 @@ export function ProductCarousel({
   if (!products.length) return null;
 
   return (
-    <section className="py-2 md:py-8" aria-label={title}>
+    <section className="py-2 sm:py-5 md:py-8" aria-label={title}>
       <div className="mb-5 flex items-end justify-between gap-4">
         <div className="min-w-0">
           <h2 className="text-[17px] font-bold tracking-tight text-foreground sm:text-2xl">{title}</h2>
@@ -77,7 +77,7 @@ export function ProductCarousel({
                 disabled={!enabled}
                 aria-label={dir === -1 ? 'Anterior' : 'Siguiente'}
                 className={cn(
-                  'ease-expo h-8 w-8 rounded-full active:scale-95 sm:h-10 sm:w-10',
+                  'ease-expo h-10 w-10 rounded-full active:scale-95',
                   'disabled:opacity-30',
                   !showcase && 'bg-card text-muted-foreground hover:border-foreground/25 hover:text-foreground',
                 )}
@@ -150,7 +150,6 @@ function ShowcaseCard({ product, index }: { product: CatalogProduct; index: numb
       <Link
         to={getProductUrl(product.id, product.name)}
         prefetch="intent"
-        viewTransition
         aria-label={product.name}
         className="block focus-visible:outline-none"
       >
@@ -162,7 +161,6 @@ function ShowcaseCard({ product, index }: { product: CatalogProduct; index: numb
               loading={index < 4 ? 'eager' : 'lazy'}
               decoding="async"
               className="ease-expo h-full w-full object-cover transition-transform duration-[600ms] will-change-transform group-hover:scale-[1.06]"
-              style={{ viewTransitionName: `vt-product-${product.id}` } as React.CSSProperties}
             />
           ) : (
             <div className="grid h-full place-items-center text-muted-foreground">

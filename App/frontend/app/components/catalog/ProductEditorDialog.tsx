@@ -57,6 +57,7 @@ import {
 import { ImageUploader } from './ImageUploader';
 import { ToneDot } from './ToneDot';
 import { buildCombinations, VariantMappingTable } from './VariantMappingTable';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs';
 import { cn } from '~/lib/utils';
 import { formatCordobas } from '~/lib/formatters';
 
@@ -117,7 +118,7 @@ export function ProductEditorDialog({
   onSave: (input: AdminProductInput) => Promise<void>;
 }) {
   const { data: templates = [] } = useGetTemplatesQuery(undefined, { skip: !open });
-  const { data: lots = [], isLoading: loadingLots } = useGetInventoryLotsQuery(undefined, { skip: !open });
+  const { data: lots = [], isLoading: loadingLots } = useGetInventoryLotsQuery(product?.id, { skip: !open });
 
   // La regla de la oferta no vive en el backend, pero tampoco se inventa acá:
   // es la que ya tenía este editor, movida del `handleSubmit` al schema para que
@@ -236,6 +237,30 @@ export function ProductEditorDialog({
     if (!colorAxis) return [];
     return form.axisOptions?.[colorAxis.key] ?? colorAxis.options ?? [];
   }, [colorAxis, form.axisOptions]);
+  const [activeColorTab, setActiveColorTab] = useState('');
+
+  useEffect(() => {
+    if (activeColorOptions.length > 0 && !activeColorOptions.includes(activeColorTab)) {
+      setActiveColorTab(activeColorOptions[0]);
+    }
+  }, [activeColorOptions, activeColorTab]);
+
+  // Cuando se activa el modo por-color y hay fotos en `images` pero no en
+  // `colorImages`, migrarlas al primer color para no perderlas.
+  useEffect(() => {
+    if (activeColorOptions.length === 0) return;
+    const currentImages = getValues('images') ?? [];
+    const currentColorImages = getValues('colorImages') ?? {};
+    const hasAnyColorImages = Object.values(currentColorImages).some(
+      (arr) => Array.isArray(arr) && arr.length > 0,
+    );
+    if (currentImages.length > 0 && !hasAnyColorImages) {
+      setValue('colorImages', {
+        ...currentColorImages,
+        [activeColorOptions[0]]: currentImages,
+      });
+    }
+  }, [activeColorOptions, getValues, setValue]);
 
   const filteredTemplates = useMemo(() => {
     if (!form.categoryId) return templates;
@@ -576,25 +601,33 @@ export function ProductEditorDialog({
                 title={activeColorOptions.length > 0 ? "5. Fotos por Variante (Color)" : "5. Fotos"}
                 hint={
                   activeColorOptions.length > 0
-                    ? "Sube fotos específicas para cada variante de color. Puedes arrastrarlas para reordenar."
+                    ? "Seleccioná un color y subí sus fotos. La primera de cada color es la portada."
                     : "La primera es la portada. Tamaño recomendado: 1080x1080px. Puedes arrastrarlas para reordenar."
                 }
               >
                 {activeColorOptions.length > 0 ? (
-                  <div className="space-y-6">
+                  <Tabs value={activeColorTab} onValueChange={setActiveColorTab}>
+                    <TabsList className="mb-4 flex-wrap">
+                      {activeColorOptions.map((color) => {
+                        const count = (form.colorImages?.[color] ?? []).length;
+                        return (
+                          <TabsTrigger key={color} value={color} className="gap-1.5 px-3">
+                            <ToneDot toneKey={color} />
+                            {color}
+                            {count > 0 && (
+                              <span className="ml-1 rounded-full bg-primary-2/20 px-1.5 text-[10px] font-bold text-primary-2">
+                                {count}
+                              </span>
+                            )}
+                          </TabsTrigger>
+                        );
+                      })}
+                    </TabsList>
                     {activeColorOptions.map((color) => (
-                      <div key={color} className="rounded-card border border-border p-4 bg-muted/10">
-                        <h4 className="mb-4 text-sm font-semibold flex items-center gap-2">
-                          <ToneDot toneKey={color} />
-                          {color}
-                        </h4>
+                      <TabsContent key={color} value={color}>
                         <Controller
                           control={control}
                           name={`colorImages.${color}`}
-                          // `defaultValue={[]}`: sin esto, la caja de un color al
-                          // que no le subiste fotos se registra en `undefined`, y el
-                          // schema (array) lo rechaza con "expected array, received
-                          // undefined" → no dejaba crear productos con eje de color.
                           defaultValue={[]}
                           render={({ field }) => (
                             <ImageUploader
@@ -604,9 +637,9 @@ export function ProductEditorDialog({
                             />
                           )}
                         />
-                      </div>
+                      </TabsContent>
                     ))}
-                  </div>
+                  </Tabs>
                 ) : (
                   <>
                     <Controller

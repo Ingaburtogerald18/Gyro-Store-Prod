@@ -136,27 +136,30 @@ function AdminSidebar({ isAdmin, role, pathname }: { isAdmin: boolean; role: str
         >
           {/* Con `prefers-reduced-motion` se usa el logo ESTÁTICO, no el video. */}
           {(config?.images?.logoStatic || config?.images?.logoAnimated) ? (
-            !reduceMotion &&
-              (config?.images?.logoAnimated?.match(/\.(webm|mp4|mov|m4v)($|\?)/i) ||
-                config?.images?.logoAnimated?.includes('video')) ? (
-              <video
-                src={config.images.logoAnimated}
-                autoPlay loop muted playsInline
-                preload="metadata"
-                aria-hidden
-                className="size-16 shrink-0 rounded-full object-contain transition-[width,height] duration-200 group-data-[collapsible=icon]:size-6"
-              />
-            ) : (
-              <img
-                src={config?.images?.logoStatic || config?.images?.logoAnimated}
-                alt={config?.brandName || getBrandName()}
-                width={64}
-                height={64}
-                loading="lazy"
-                decoding="async"
-                className="size-16 shrink-0 object-contain transition-[width,height] duration-200 group-data-[collapsible=icon]:size-6"
-              />
-            )
+            (() => {
+              const isVideo = !reduceMotion &&
+                (config?.images?.logoAnimated?.match(/\.(webm|mp4|mov|m4v)($|\?)/i) ||
+                  config?.images?.logoAnimated?.includes('video'));
+              return isVideo ? (
+                <video
+                  src={config.images.logoAnimated}
+                  autoPlay loop muted playsInline
+                  preload="metadata"
+                  aria-hidden
+                  className="size-16 shrink-0 rounded-full object-contain transition-[width,height] duration-200 group-data-[collapsible=icon]:size-6"
+                />
+              ) : (
+                <img
+                  src={config?.images?.logoStatic || config?.images?.logoAnimated}
+                  alt={config?.brandName || getBrandName()}
+                  width={64}
+                  height={64}
+                  loading="lazy"
+                  decoding="async"
+                  className="size-16 shrink-0 object-contain transition-[width,height] duration-200 group-data-[collapsible=icon]:size-6"
+                />
+              );
+            })()
           ) : (
             <div className="flex size-16 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground shadow-sm transition-[width,height] duration-200 group-data-[collapsible=icon]:size-6">
               <HugeIcon icon={Store01Icon} size={36} strokeWidth={2} />
@@ -400,7 +403,7 @@ export default function AdminLayout() {
       {/* La barra de progreso NO se monta acá: `root.tsx` ya tiene una para
           toda la app y dos instancias dibujarían dos barras. */}
       <SidebarInset className="relative">
-        <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-2 border-b border-border bg-background/80 px-4 backdrop-blur-md">
+        <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-2 border-b border-border bg-card/90 px-4 backdrop-blur-md">
 
 
           <div className="ml-auto flex items-center gap-2">

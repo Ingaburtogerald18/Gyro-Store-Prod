@@ -1,0 +1,16 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "gyro-backend",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "--prefix", "App", "dev"],
+      "port": 3000,
+      "autoPort": true,
+      "env": {
+        "GYRO_ENV_FILE": "C:\\Users\\ingab\\OneDrive - Gyro Store\\.env-prod",
+        "NODE_TLS_REJECT_UNAUTHORIZED": "0"
+      }
+    }
+  ]
+}
