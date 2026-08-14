@@ -36,7 +36,7 @@ const ITEMS: { icon: IconSvgElement; title: string; text: string }[] = [
 
 export function TrustBox() {
   return (
-    <ul className="grid grid-cols-2 gap-2" aria-label="Garantías de compra">
+    <ul className="grid grid-cols-1 gap-2 min-[400px]:grid-cols-2" aria-label="Garantías de compra">
       {ITEMS.map((item) => (
         <li key={item.title} className="rounded-xl border p-4">
           <HugeIcon

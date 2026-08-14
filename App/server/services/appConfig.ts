@@ -41,7 +41,9 @@ function defaultBusinessInfo(): BusinessInfo {
     whatsapp: config.whatsapp,
     contactEmail: config.contactEmail,
     address: '',
+    locationUrl: '',
     currency: config.currency,
+    socialLinks: { instagram: '', facebook: '', tiktok: '' },
     bankAccounts: [],
   };
 }

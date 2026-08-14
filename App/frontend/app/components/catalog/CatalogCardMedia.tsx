@@ -21,9 +21,9 @@ export function CatalogCardMedia({
   published?: boolean;
 }) {
   return (
-    <div className="aspect-square bg-muted/40 relative flex items-center justify-center text-muted-foreground">
+    <div className="aspect-square w-full shrink-0 overflow-hidden bg-muted/40 relative flex items-center justify-center text-muted-foreground">
       {image ? (
-        <img src={image} alt={alt} className="object-cover w-full h-full" />
+        <img src={image} alt={alt} className="absolute inset-0 object-cover w-full h-full" />
       ) : (
         <HugeIcon icon={Image01Icon} size={48} strokeWidth={2} className="opacity-50" />
       )}
@@ -32,7 +32,7 @@ export function CatalogCardMedia({
           primero que se busca es cuáles están publicados. */}
       <div className="absolute bottom-2 right-2">
         {published ? (
-          <Badge variant="secondary" className="bg-primary/20 text-primary hover:bg-primary/30">
+          <Badge variant="secondary" className="bg-emerald-600 text-white shadow-sm">
             <HugeIcon icon={GlobeIcon} size={12} strokeWidth={2} className="mr-1" /> Público
           </Badge>
         ) : (

@@ -14,7 +14,6 @@ import { Location01Icon, Mail01Icon } from '@hugeicons/core-free-icons';
 
 import { useGetConfigQuery } from '~/store/api/sessionApi';
 import { TRUST_SIGNALS } from '~/lib/trustSignals';
-import { SOCIAL_LINKS } from '~/lib/storeLinks';
 import { getBrandName } from '~/lib/brand';
 
 // ─── Íconos SVG inline de redes sociales ────────────────────────────────────
@@ -50,16 +49,19 @@ export function PublicFooter() {
   const address = config?.address?.trim();
   const email = config?.contactEmail?.trim();
 
+  const locationUrl = config?.locationUrl?.trim();
+  const social = config?.socialLinks;
+
   const logoSrc = config?.images?.logoStatic || config?.images?.logoAnimated;
   const isVideo = logoSrc && /\.(webm|mp4|mov|m4v)($|\?)/i.test(logoSrc);
 
   return (
     <footer
       id="public-footer"
-      className="border-t border-border bg-background"
+      className="border-t border-border bg-card"
     >
       {/* ── Cuerpo principal ──────────────────────────────────────────────── */}
-      <div className="mx-auto max-w-6xl px-4 py-10 md:py-14">
+      <div className="mx-auto max-w-7xl px-4 py-10 md:py-14">
         {/* Contenedor tipo card: alineado al preset (bg-card, border, rounded-xl) */}
         <div className="rounded-xl border border-border bg-card px-6 py-8 md:px-10 md:py-10">
           <div className="flex flex-col items-center text-center gap-6">
@@ -118,45 +120,50 @@ export function PublicFooter() {
             </ul>
 
             {/* ── Redes sociales ──────────────────────────────────────────── */}
-            <div className="flex items-center gap-2">
-              {/* Instagram */}
-              <a
-                href={SOCIAL_LINKS.instagram}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Instagram de Gyro Store"
-                className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-[#833AB4] via-[#FD1D1D] to-[#F56040] text-white transition-all duration-200 hover:scale-110 hover:opacity-90 active:scale-95"
-              >
-                <InstagramIcon className="h-4 w-4" />
-              </a>
-              {/* Facebook */}
-              <a
-                href={SOCIAL_LINKS.facebook}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Facebook de Gyro Store"
-                className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#1877F2] text-white transition-all duration-200 hover:scale-110 hover:opacity-90 active:scale-95"
-              >
-                <FacebookIcon className="h-4 w-4" />
-              </a>
-              {/* TikTok */}
-              <a
-                href={SOCIAL_LINKS.tiktok}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="TikTok de Gyro Store"
-                className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border bg-[#000] text-white transition-all duration-200 hover:scale-110 hover:opacity-90 active:scale-95"
-              >
-                <TikTokIcon className="h-4 w-4" />
-              </a>
-            </div>
+            {(social?.instagram || social?.facebook || social?.tiktok) && (
+              <div className="flex items-center gap-2">
+                {social.instagram && (
+                  <a
+                    href={social.instagram}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={`Instagram de ${brand}`}
+                    className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-[#833AB4] via-[#FD1D1D] to-[#F56040] text-white transition-all duration-200 hover:scale-110 hover:opacity-90 active:scale-95"
+                  >
+                    <InstagramIcon className="h-4 w-4" />
+                  </a>
+                )}
+                {social.facebook && (
+                  <a
+                    href={social.facebook}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={`Facebook de ${brand}`}
+                    className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-[#1877F2] text-white transition-all duration-200 hover:scale-110 hover:opacity-90 active:scale-95"
+                  >
+                    <FacebookIcon className="h-4 w-4" />
+                  </a>
+                )}
+                {social.tiktok && (
+                  <a
+                    href={social.tiktok}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={`TikTok de ${brand}`}
+                    className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-border bg-[#000] text-white transition-all duration-200 hover:scale-110 hover:opacity-90 active:scale-95"
+                  >
+                    <TikTokIcon className="h-4 w-4" />
+                  </a>
+                )}
+              </div>
+            )}
 
             {/* ── Contacto y ubicación ─────────────────────────────────────── */}
             {(address || email) && (
               <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
                 {address && (
                   <a
-                    href={`https://maps.google.com/?q=${encodeURIComponent(address)}`}
+                    href={locationUrl || `https://maps.google.com/?q=${encodeURIComponent(address)}`}
                     target="_blank"
                     rel="noreferrer"
                     className="inline-flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
@@ -183,7 +190,7 @@ export function PublicFooter() {
 
       {/* ── Barra inferior ─────────────────────────────────────────────────── */}
       <div className="border-t border-border">
-        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-1.5 px-4 py-4 text-center text-xs text-muted-foreground sm:flex-row">
+        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-1.5 px-4 py-4 text-center text-xs text-muted-foreground sm:flex-row">
           <p>© {year} {brand}. Todos los derechos reservados.</p>
           <p>
             Diseñado por{' '}

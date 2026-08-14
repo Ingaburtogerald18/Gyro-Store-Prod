@@ -111,7 +111,8 @@ export default function AdminMiPerfil() {
     }
   }
 
-  const role = profile?.roles?.[0] as AppRole | undefined;
+  const ROLE_PRIORITY: AppRole[] = ['global_admin', 'admin', 'seller', 'cashier', 'logistics_admin', 'logistics_customer'];
+  const role = ROLE_PRIORITY.find(r => profile?.roles?.includes(r));
 
   return (
     <div className="space-y-6">

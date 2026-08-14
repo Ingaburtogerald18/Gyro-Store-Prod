@@ -137,7 +137,7 @@ export function FilterBar({ products, categories = [] }: { products: CatalogProd
           </SelectContent>
         </Select>
 
-        <p className="hidden items-baseline gap-1 text-sm text-muted-foreground sm:flex">
+        <p className="flex items-baseline gap-1 text-sm text-muted-foreground">
           <span className="font-bold text-foreground tabular-nums">{count}</span>
           {count === 1 ? 'producto' : 'productos'}
         </p>

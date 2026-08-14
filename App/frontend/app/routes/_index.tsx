@@ -85,7 +85,7 @@ export default function Index() {
 
   return (
     <StorefrontShell>
-      <main>
+      <main key="home">
         <Hero initialLanding={landing} />
         <div id="catalogo" className="mx-auto max-w-7xl scroll-mt-20 px-4 py-8">
           <FilterBar products={products} categories={config?.categories} />

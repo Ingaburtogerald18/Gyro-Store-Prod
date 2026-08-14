@@ -5,7 +5,7 @@
 // se piden al detalle recién al abrir — RTK Query los cachea por id. Y el sheet
 // se monta desde la tarjeta solo tras el primer clic: con 40 productos en
 // pantalla, 40 portales vacíos es puro ruido en el DOM.
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from '@remix-run/react';
 import { toast } from 'sonner';
 import { HugeIcon } from '~/components/ui/icon';
@@ -61,7 +61,14 @@ export function QuickAddSheet({
   // Sin datos de stock no se bloquea la compra; con datos, una combinación
   // agotada no se puede agregar.
   const soldOut = variants.length > 0 && variant != null && variant.stock <= 0;
-  const image = product.images[0];
+  const colorAxis = axes.find((a) => a.isColor);
+  const selectedColor = colorAxis ? selection[colorAxis.key] : undefined;
+  const image = useMemo(() => {
+    if (selectedColor && detail?.colorImages?.[selectedColor]?.length) {
+      return detail.colorImages[selectedColor][0];
+    }
+    return product.images[0];
+  }, [selectedColor, detail?.colorImages, product.images]);
 
   function handleAdd() {
     if (missingAxis) {
@@ -148,7 +155,6 @@ export function QuickAddSheet({
             <Link
               to={getProductUrl(product.id, product.name)}
               prefetch="intent"
-              viewTransition
               onClick={() => onOpenChange(false)}
             >
               Ver detalles completos

@@ -75,7 +75,14 @@ export const storefrontApi = baseApi.injectEndpoints({
     }),
     updateLandingConfig: build.mutation<LandingConfig, LandingConfig>({
       query: (body) => ({ url: 'landing-config', method: 'PUT', body }),
-      invalidatesTags: ['Landing'],
+      async onQueryStarted(arg, { dispatch, queryFulfilled }) {
+        try {
+          const { data } = await queryFulfilled;
+          dispatch(
+            storefrontApi.util.updateQueryData('getLandingConfig', undefined, () => data)
+          );
+        } catch {}
+      }
     }),
 
     // ── Formulario de contacto público → captura el lead en el CRM

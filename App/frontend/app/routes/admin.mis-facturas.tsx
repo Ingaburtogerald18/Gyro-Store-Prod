@@ -14,6 +14,7 @@ import { PageHeader } from '~/components/layout/PageHeader';
 import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
 import { DataTable } from '~/components/ui/DataTable';
 import { QueryState } from '~/components/ui/QueryState';
+import { BrandLoader } from '~/components/ui/module-loader';
 import { RowActionsMenu } from '~/components/ui/RowActionsMenu';
 import { formatCordobas } from '~/lib/formatters';
 import { useGetMyInvoicesQuery, type Invoice } from '~/store/api/invoicesApi';
@@ -136,7 +137,7 @@ export default function AdminMisFacturas() {
             loading={loadingUnlinked}
             error={unlinkedError}
             empty={unlinkedInvoices.length === 0}
-            loadingFallback={<div className="h-32 animate-pulse rounded-lg bg-muted" />}
+            loadingFallback={<BrandLoader text="Cargando facturas..." />}
             emptyFallback={
               <div className="rounded-lg border border-dashed bg-muted/50 py-10 text-center">
                 <HugeIcon icon={File01Icon} size={36} strokeWidth={2} className="mx-auto mb-3 text-muted-foreground opacity-50" aria-hidden />
@@ -158,7 +159,7 @@ export default function AdminMisFacturas() {
             loading={loadingLinked}
             error={linkedError}
             empty={linkedInvoices.length === 0}
-            loadingFallback={<div className="h-32 animate-pulse rounded-lg bg-muted" />}
+            loadingFallback={<BrandLoader text="Cargando facturas..." />}
             emptyFallback={
               <p className="rounded-lg border border-dashed bg-muted/50 py-8 text-center text-sm text-muted-foreground">
                 Todavía no registraste ninguna venta con estas facturas.

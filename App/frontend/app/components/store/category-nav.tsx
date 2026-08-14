@@ -20,6 +20,7 @@ import { useAppDispatch, useAppSelector } from '~/store/hooks';
 import { categorySet, selectActiveCategory } from '~/store/slices/uiSlice';
 import { formatCordobas, getProductUrl } from '~/lib/formatters';
 import { cn } from '~/lib/utils';
+import { ProductCard } from '~/components/product/product-card';
 
 /** Cuántos productos se asoman en el panel. */
 const PREVIEW_LIMIT = 10;
@@ -91,10 +92,10 @@ export function CategoryNav({
   return (
     <nav
       aria-label="Categorías"
-      className="relative hidden md:block border-t border-border"
+      className="relative"
       onMouseLeave={scheduleClose}
     >
-      <div className="mx-auto flex max-w-6xl items-center gap-1 overflow-x-auto scrollbar-hide px-4 py-2">
+      <div className="flex items-center gap-1 overflow-x-auto scrollbar-hide">
         <NavTab
           selected={activeCategory === null}
           onSelect={() => goToCategory(null)}
@@ -132,7 +133,7 @@ export function CategoryNav({
             onMouseEnter={cancelClose}
             className="absolute inset-x-0 top-full z-40 border-y border-border bg-background/95 shadow-lg backdrop-blur-xl"
           >
-            <div className="mx-auto max-w-6xl px-4 py-6">
+            <div className="mx-auto max-w-7xl px-4 py-6">
               <div className="mb-4 flex items-center justify-between gap-3">
                 <h3 className="text-sm font-bold text-foreground">{openCategory.name}</h3>
                 <button
@@ -155,41 +156,9 @@ export function CategoryNav({
                 <ul className="grid grid-cols-3 gap-3 lg:grid-cols-5">
                   {openProducts.map((p) => (
                     <li key={p.id}>
-                      <Link
-                        to={getProductUrl(p.id, p.name)}
-                        prefetch="intent"
-                        onClick={() => setOpenId(null)}
-                        className="group/card flex h-full flex-col focus-visible:outline-none"
-                      >
-                        <div className="product-stage relative block overflow-hidden rounded-xl">
-                          {p.images[0] ? (
-                            <img
-                              src={p.images[0]}
-                              alt=""
-                              loading="lazy"
-                              decoding="async"
-                              className="ease-expo aspect-square h-full w-full object-cover transition-transform duration-300 group-hover/card:scale-[1.06]"
-                            />
-                          ) : (
-                            <div className="grid aspect-square w-full place-items-center bg-muted text-muted-foreground">
-                              <HugeIcon
-                                icon={ImageNotFound01Icon}
-                                size={20}
-                                strokeWidth={2}
-                                aria-hidden
-                              />
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex flex-1 flex-col gap-0.5 pt-2.5 px-0.5">
-                          <span className="line-clamp-2 text-xs leading-snug font-bold text-foreground transition-colors group-hover/card:text-primary-2">
-                            {p.name}
-                          </span>
-                          <span className="mt-auto pt-0.5 text-[11px] font-extrabold text-primary-2 tabular-nums">
-                            {formatCordobas(p.price)}
-                          </span>
-                        </div>
-                      </Link>
+                      <div onClick={() => setOpenId(null)} className="h-full">
+                        <ProductCard product={p} />
+                      </div>
                     </li>
                   ))}
                 </ul>

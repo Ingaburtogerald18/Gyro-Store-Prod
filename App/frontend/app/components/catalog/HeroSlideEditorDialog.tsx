@@ -32,10 +32,11 @@ import {
   SelectValue,
 } from '~/components/ui/select';
 import { Spinner } from '~/components/ui/spinner';
+import { Progress } from '~/components/ui/progress';
 import { getSupabaseClient } from '~/lib/supabase.client';
 
-/** Sube a R2 por `/api/upload`, igual que el editor de productos. */
-async function uploadMedia(file: File): Promise<string> {
+/** Sube a R2 por `/api/upload` reportando el progreso de la subida. */
+async function uploadMedia(file: File, onProgress?: (pct: number) => void): Promise<string> {
   const supabase = getSupabaseClient();
   const {
     data: { session },
@@ -45,15 +46,39 @@ async function uploadMedia(file: File): Promise<string> {
   body.append('file', file);
   body.append('folder', 'landing');
 
-  const res = await fetch('/api/upload', {
-    method: 'POST',
-    headers: session ? { Authorization: `Bearer ${session.access_token}` } : {},
-    body,
-  });
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', '/api/upload');
+    
+    if (session) {
+      xhr.setRequestHeader('Authorization', `Bearer ${session.access_token}`);
+    }
 
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || 'No se pudo subir el archivo.');
-  return data.url as string;
+    if (onProgress && xhr.upload) {
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable) {
+          const percentComplete = Math.round((event.loaded / event.total) * 100);
+          onProgress(percentComplete);
+        }
+      };
+    }
+
+    xhr.onload = () => {
+      try {
+        const data = JSON.parse(xhr.responseText);
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve(data.url);
+        } else {
+          reject(new Error(data.error || 'No se pudo subir el archivo.'));
+        }
+      } catch (err) {
+        reject(new Error('Respuesta inválida del servidor.'));
+      }
+    };
+
+    xhr.onerror = () => reject(new Error('Error de red al subir el archivo.'));
+    xhr.send(body);
+  });
 }
 
 export function HeroSlideEditorDialog({
@@ -70,6 +95,7 @@ export function HeroSlideEditorDialog({
 }) {
   const [draft, setDraft] = useState<HeroSlide | null>(slide);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   // Se re-siembra al abrir con OTRA diapositiva. Sin esto, abrir la segunda tras
   // cerrar la primera mostraría los datos de la primera.
@@ -83,8 +109,9 @@ export function HeroSlideEditorDialog({
   async function handleFile(file: File | undefined) {
     if (!file) return;
     setUploading(true);
+    setUploadProgress(0);
     try {
-      const url = await uploadMedia(file);
+      const url = await uploadMedia(file, (pct) => setUploadProgress(pct));
       // El tipo se deduce del archivo: pedirlo aparte es una pregunta que el
       // navegador ya respondió, y elegir mal deja el slide en blanco.
       setDraft((current) =>
@@ -96,6 +123,7 @@ export function HeroSlideEditorDialog({
       toast.error(err instanceof Error ? err.message : 'No se pudo subir el archivo.');
     } finally {
       setUploading(false);
+      setUploadProgress(0);
     }
   }
 
@@ -132,9 +160,16 @@ export function HeroSlideEditorDialog({
                   disabled={uploading || saving}
                   onChange={(e) => void handleFile(e.target.files?.[0])}
                 />
-                <FieldDescription>
-                  {uploading ? 'Subiendo…' : 'PNG, JPG, WEBP o MP4.'}
-                </FieldDescription>
+                {uploading ? (
+                  <div className="mt-2 space-y-1.5">
+                    <Progress value={uploadProgress} className="h-1.5" />
+                    <p className="text-[11px] font-medium text-muted-foreground">Subiendo... {uploadProgress}%</p>
+                  </div>
+                ) : (
+                  <FieldDescription>
+                    PNG, JPG, WEBP o MP4.
+                  </FieldDescription>
+                )}
               </div>
             </div>
           </Field>

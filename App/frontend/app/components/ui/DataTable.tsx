@@ -354,7 +354,7 @@ export function DataTable<T>({
           recortar las esquinas redondeadas) el sticky se anclaba mal y empujaba
           el encabezado sobre la primera fila. Va en flujo normal, con un borde
           inferior que lo separa del cuerpo. */}
-      <div className="relative hidden overflow-hidden rounded-card border border-border bg-card md:block">
+      <div className="relative hidden overflow-x-auto rounded-card border border-border bg-card md:block">
         <table className={cn("w-full", compact ? "text-[13px]" : "text-sm")}>
           <thead className="border-b border-border bg-muted/50 text-left">
             {table.getHeaderGroups().map((hg) => (

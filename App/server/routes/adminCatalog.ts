@@ -162,7 +162,8 @@ router.get(
       res.status(403).json({ error: 'Solo el administrador puede ver los lotes de bodega.' });
       return;
     }
-    res.json(await listAvailableLots());
+    const excludeProductId = typeof req.query.excludeProductId === 'string' ? req.query.excludeProductId : undefined;
+    res.json(await listAvailableLots(excludeProductId));
   }),
 );
 

@@ -103,7 +103,6 @@ export function ProductCard({
     <Link
       to={productUrl}
       prefetch="intent"
-      viewTransition
       aria-label={product.name}
       className={cn(
         // El stage ya no se levanta solo: ahora eleva la tarjeta entera.
@@ -165,7 +164,6 @@ export function ProductCard({
             hoverImage && !soldOut && 'group-hover:opacity-0',
             soldOut && 'opacity-70 grayscale',
           )}
-          style={{ viewTransitionName: `vt-product-${product.id}` } as React.CSSProperties}
         />
       ) : (
         <div className="grid h-full place-items-center text-muted-foreground">
@@ -188,7 +186,6 @@ export function ProductCard({
     <Link
       to={productUrl}
       prefetch="intent"
-      viewTransition
       className={cn(
         'flex min-w-0 flex-col gap-1 focus-visible:outline-none',
         isList ? 'flex-1 justify-center gap-1.5 py-1' : 'flex-1 pt-3 sm:pt-4',
@@ -220,7 +217,7 @@ export function ProductCard({
       <Button
         onClick={handleCta}
         disabled={soldOut}
-        className="h-9 flex-1 text-xs sm:h-11 sm:text-sm"
+        className="h-11 flex-1 text-xs sm:text-sm"
       >
         <HugeIcon icon={ShoppingCart02Icon} size={14} strokeWidth={2} aria-hidden />
         {soldOut ? 'Agotado' : 'Agregar'}
@@ -236,7 +233,7 @@ export function ProductCard({
             : `Pedir ${product.name} por WhatsApp`
         }
         title={soldOut ? 'Avísame por WhatsApp' : 'Pedir por WhatsApp'}
-        className="h-9 w-9 rounded-lg sm:h-11 sm:w-11"
+        className="h-11 w-11 rounded-lg"
       >
         <HugeIcon icon={Message01Icon} size={16} strokeWidth={2} aria-hidden className="h-[15px] w-[15px] sm:h-[18px] sm:w-[18px]" />
       </Button>
