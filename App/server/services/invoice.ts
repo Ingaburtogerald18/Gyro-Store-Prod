@@ -1,4 +1,5 @@
 import { db } from '../supabase';
+import { config } from '../config';
 import { round } from './finance';
 import { BadRequestError } from '../utils/httpError';
 import type { CreateInvoiceInput } from '../../shared/schemas';
@@ -294,22 +295,39 @@ export async function listInvoices(
  * trata como vendedores en Ventas (ver middleware/auth.ts) — un admin que
  * factura personalmente también necesita poder asignarse la factura.
  *
- * Nota: solo mira `profiles.roles`. Un correo que hoy es vendedor SOLO por la
- * whitelist de env (`SELLER_EMAILS`) y todavía no tiene fila en `profiles`
- * con ese rol no va a aparecer acá — mismo límite que ya tiene el selector de
- * vendedor de SaleEditor.tsx (`useGetUsersQuery`).
+ * Mira `profiles.roles`, MÁS el admin protegido por env (`config.protectedEmail`):
+ * su rol `global_admin` se inyecta desde el entorno y su fila en `profiles` puede
+ * tener `roles: []`, así que sin esa excepción no podría asignarse su propia
+ * factura. Un correo que hoy es vendedor SOLO por otra whitelist de env y todavía
+ * no tiene fila en `profiles` con ese rol sí queda fuera — mismo límite que el
+ * selector de vendedor de SaleEditor.tsx (`useGetUsersQuery`).
  */
 export async function listActiveSellers(): Promise<{ id: string; name: string }[]> {
+  // El filtro por rol se hace en JS y no con `.overlaps` en la query: el admin
+  // protegido (`config.protectedEmail`) recibe `global_admin` desde el ENTORNO
+  // (ver middleware/auth.ts → rolesFromEnvOrProfile), así que su fila en
+  // `profiles` puede tener `roles: []`. Con el `.overlaps` quedaba fuera del
+  // selector de "Vendedor" de Facturación y no podía emitirse su propia factura.
   const { data, error } = await db
     .from('profiles')
-    .select('id, name, roles, status, deleted_at')
-    .overlaps('roles', ['admin', 'seller', 'global_admin'])
+    .select('id, name, email, roles, status, deleted_at')
     .is('deleted_at', null)
     .neq('status', 'disabled')
     .order('name');
   if (error) throw error;
-  return ((data ?? []) as { id: string; name: string | null }[])
-    .filter((p) => p.name?.trim())
+
+  const SELLER_ROLES = ['admin', 'seller', 'global_admin'];
+  const protectedEmail = config.protectedEmail;
+
+  return ((data ?? []) as { id: string; name: string | null; email: string | null; roles: unknown }[])
+    .filter((p) => {
+      const hasRole = Array.isArray(p.roles) && p.roles.some((r) => SELLER_ROLES.includes(r as string));
+      const isProtected =
+        !!protectedEmail && (p.email || '').toLowerCase() === protectedEmail.toLowerCase();
+      // El nombre es obligatorio: el Combobox de Facturación matchea por nombre,
+      // una fila sin nombre no se puede seleccionar.
+      return (hasRole || isProtected) && !!p.name?.trim();
+    })
     .map((p) => ({ id: p.id, name: p.name!.trim() }));
 }
 
