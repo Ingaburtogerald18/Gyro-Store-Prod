@@ -4,7 +4,7 @@
 // Con >1 combinación de variantes, el CTA abre el QuickAddSheet para elegir
 // antes de agregar; con una sola va directo al carrito.
 import { HugeIcon } from "~/components/ui/icon";
-import { ImageNotFound01Icon, Message01Icon, ShoppingCart02Icon } from "@hugeicons/core-free-icons";
+import { ImageNotFound01Icon, ShoppingCart02Icon } from "@hugeicons/core-free-icons";
 import { useState } from 'react';
 import { Link } from '@remix-run/react';
 import { motion, useReducedMotion } from 'framer-motion';
@@ -19,6 +19,14 @@ import { useAppDispatch } from '~/store/hooks';
 import { addItem, openCart } from '~/store/slices/cartSlice';
 import { cn } from "~/lib/utils"
 import { buildWhatsappUrl, formatCordobas, getProductUrl } from "~/lib/formatters";
+
+function WhatsappIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width={16} height={16} {...props}>
+      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.888-.788-1.489-1.761-1.663-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z" />
+    </svg>
+  );
+}
 
 export function ProductCard({
   product,
@@ -105,9 +113,8 @@ export function ProductCard({
       prefetch="intent"
       aria-label={product.name}
       className={cn(
-        // El stage ya no se levanta solo: ahora eleva la tarjeta entera.
-        'product-stage relative block overflow-hidden rounded-xl focus-visible:outline-none',
-        isList ? 'aspect-square h-full w-full shrink-0' : 'aspect-[4/3] w-full',
+        'product-stage relative block overflow-hidden rounded-2xl focus-visible:outline-none',
+        isList ? 'aspect-square h-full w-full shrink-0' : 'aspect-square w-full',
       )}
     >
       <div className="absolute top-3 left-3 z-10 flex flex-col items-start gap-1.5">
@@ -191,10 +198,10 @@ export function ProductCard({
         isList ? 'flex-1 justify-center gap-1.5 py-1' : 'flex-1 pt-3 sm:pt-4',
       )}
     >
-      <h3 className="line-clamp-2 text-[13px] leading-snug font-bold tracking-tight text-foreground transition-colors group-hover:text-primary-2 sm:text-lg">
+      <h3 className="line-clamp-2 text-[13px] leading-snug font-bold tracking-tight text-foreground transition-colors group-hover:text-primary-2 sm:text-xl">
         {product.name}
       </h3>
-      <div className="mt-1 flex items-baseline gap-2">
+      <div className="mt-1.5 flex items-baseline gap-2">
         <span className="text-[13px] font-extrabold text-primary-2 tabular-nums sm:text-lg">
           {formatCordobas(product.price, currency)}
         </span>
@@ -205,7 +212,7 @@ export function ProductCard({
         )}
       </div>
       {description && (
-        <p className="mt-1.5 line-clamp-2 text-xs leading-relaxed font-light text-muted-foreground sm:text-sm">
+        <p className="mt-1.5 line-clamp-2 text-[11px] leading-relaxed font-light text-muted-foreground sm:text-sm">
           {description}
         </p>
       )}
@@ -235,7 +242,7 @@ export function ProductCard({
         title={soldOut ? 'Avísame por WhatsApp' : 'Pedir por WhatsApp'}
         className="h-11 w-11 rounded-lg"
       >
-        <HugeIcon icon={Message01Icon} size={16} strokeWidth={2} aria-hidden className="h-[15px] w-[15px] sm:h-[18px] sm:w-[18px]" />
+        <WhatsappIcon aria-hidden className="h-[15px] w-[15px] sm:h-[18px] sm:w-[18px]" />
       </Button>
     </div>
   );
@@ -249,21 +256,13 @@ export function ProductCard({
       delay: (index % 4) * 0.06,
       ease: [0.16, 1, 0.3, 1] as const,
     },
-    // La elevación y el tactile push llevan su propio `transition` anidado —
-    // Framer Motion lo respeta por gesto sin pisar el de entrada de arriba.
     whileHover: reduce
       ? undefined
       : { y: -4, transition: { type: 'spring' as const, stiffness: 260, damping: 24 } },
     whileTap: reduce ? undefined : { scale: 0.985 },
   };
 
-  // Panel del V1: superficie con marco hairline que se eleva entera al hover
-  // (whileHover de arriba), no solo la foto. Sin flex-col acá: el variant
-  // `list` necesita fila (imagen al lado del texto), no columna.
-  const shell = cn(
-    'group relative flex w-full rounded-2xl border border-border bg-card p-3',
-    'transition-colors duration-300 hover:border-foreground/20',
-  );
+  const shell = 'group relative flex w-full';
 
   // El sheet se monta junto a la tarjeta pero renderiza por portal (Radix):
   // el whileTap/whileHover del article no lo afectan.
@@ -288,8 +287,6 @@ export function ProductCard({
       <motion.article {...motionProps} className={cn(shell, 'h-full flex-col')}>
         {Stage}
         {Info}
-        {/* El CTA vive fuera del <Link> flex-1: así todas las tarjetas de una fila
-            alinean su botón a la misma altura sin importar el largo del nombre. */}
         <div className="pt-3">{Cta}</div>
       </motion.article>
       {quickAdd}
