@@ -2,6 +2,7 @@ import { db } from '../supabase';
 import { config } from '../config';
 import { round } from './finance';
 import { BadRequestError } from '../utils/httpError';
+import { config } from '../config';
 import type { CreateInvoiceInput } from '../../shared/schemas';
 import { listSellableProducts } from './sales';
 import { redeemDiscountCode, computeCodeDiscount, checkDiscountCode } from './discountCode';
@@ -295,12 +296,16 @@ export async function listInvoices(
  * trata como vendedores en Ventas (ver middleware/auth.ts) — un admin que
  * factura personalmente también necesita poder asignarse la factura.
  *
- * Mira `profiles.roles`, MÁS el admin protegido por env (`config.protectedEmail`):
- * su rol `global_admin` se inyecta desde el entorno y su fila en `profiles` puede
- * tener `roles: []`, así que sin esa excepción no podría asignarse su propia
- * factura. Un correo que hoy es vendedor SOLO por otra whitelist de env y todavía
- * no tiene fila en `profiles` con ese rol sí queda fuera — mismo límite que el
- * selector de vendedor de SaleEditor.tsx (`useGetUsersQuery`).
+ * Nota: solo mira `profiles.roles`. Un correo que hoy es vendedor SOLO por la
+ * whitelist de env (`SELLER_EMAILS`) y todavía no tiene fila en `profiles`
+ * con ese rol no va a aparecer acá — mismo límite que ya tiene el selector de
+ * vendedor de SaleEditor.tsx (`useGetUsersQuery`).
+ *
+ * Excepción: el correo protegido (`PROTECTED_ADMIN_EMAIL`) es global_admin
+ * SIEMPRE, sin importar lo que diga `profiles.roles` (ver middleware/auth.ts
+ * → `rolesFromEnvOrProfile`) — su fila puede tener `roles: []` porque nunca
+ * hizo falta escribirlo ahí. Sin este caso especial, ese admin quedaba afuera
+ * del propio selector de Caja pese a ser el admin más alto del sistema.
  */
 export async function listActiveSellers(): Promise<{ id: string; name: string }[]> {
   // El filtro por rol se hace en JS y no con `.overlaps` en la query: el admin
@@ -310,11 +315,19 @@ export async function listActiveSellers(): Promise<{ id: string; name: string }[
   // selector de "Vendedor" de Facturación y no podía emitirse su propia factura.
   const { data, error } = await db
     .from('profiles')
+    .select('id, name, roles, status, deleted_at, email')
     .select('id, name, email, roles, status, deleted_at')
     .is('deleted_at', null)
     .neq('status', 'disabled')
     .order('name');
   if (error) throw error;
+  return ((data ?? []) as { id: string; name: string | null; roles: string[] | null; email: string | null }[])
+    .filter(
+      (p) =>
+        p.name?.trim() &&
+        ((p.roles ?? []).some((r) => ['admin', 'seller', 'global_admin'].includes(r)) ||
+          (!!config.protectedEmail && p.email?.toLowerCase() === config.protectedEmail)),
+    )
 
   const SELLER_ROLES = ['admin', 'seller', 'global_admin'];
   const protectedEmail = config.protectedEmail;

@@ -119,6 +119,8 @@ export interface SaleListItem {
   total: number;
   /** Suma de la comisión de TODAS las líneas de la venta. */
   totalComision: number;
+  /** Suma de la ganancia de tienda de TODAS las líneas. Ausente para no-admins (dato sensible). */
+  totalGananciaTienda?: number;
   /** Correlativo de la factura con que se registró la venta. Null si no tiene. */
   invoiceNumber?: number | null;
   /** Código legible de esa factura: `GS-PR-12`. Null si no tiene. */
