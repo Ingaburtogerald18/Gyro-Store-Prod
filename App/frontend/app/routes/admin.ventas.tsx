@@ -33,6 +33,7 @@ import { QueryState } from '~/components/ui/QueryState';
 import { SkeletonCard } from '~/components/ui/skeletons';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '~/components/ui/dialog';
 import { StatusBadge } from '~/components/ui/StatusBadge';
+import { FilterSelect, type FilterSelectOption } from '~/components/ui/FilterSelect';
 import { SALE_STATUS, statusMeta } from '~/lib/status';
 import { Tabs, TabsList, TabsTrigger } from '~/components/ui/tabs';
 import { useAppSelector } from '~/store/hooks';
@@ -142,6 +143,34 @@ export default function AdminVentas() {
     status: statusFilter === 'all' ? undefined : statusFilter,
   });
 
+  // Filtro por vendedor: vive fuera de la URL (a diferencia de `statusFilter`)
+  // porque nada externo necesita enlazar directo a "las pendientes de Fulano".
+  // Las opciones salen de la pestaña ACTUAL (`sales`, ya scopeada por status),
+  // no de `filteredSales`: si no, elegir un vendedor haría desaparecer al resto
+  // de la lista de opciones.
+  const [sellerFilter, setSellerFilter] = useState('all');
+  const sellerOptions = useMemo<FilterSelectOption[]>(() => {
+    const names = new Set(sales.map((s) => s.sellerName || s.sellerEmail));
+    return [
+      { value: 'all', label: 'Todos los vendedores' },
+      ...Array.from(names).sort().map((name) => ({ value: name, label: name })),
+    ];
+  }, [sales]);
+  useEffect(() => {
+    setSellerFilter('all');
+  }, [statusFilter]);
+
+  // Lo que la tabla y el resumen de dinero realmente muestran: la pestaña
+  // (ya la filtró el servidor) + el vendedor (client-side, mismo criterio que
+  // `filteredPurchases` en Inventario).
+  const filteredSales = useMemo(
+    () =>
+      sellerFilter === 'all'
+        ? sales
+        : sales.filter((s) => (s.sellerName || s.sellerEmail) === sellerFilter),
+    [sales, sellerFilter],
+  );
+
   // Puede ser una venta (desde el detalle) o varias (rechazo masivo desde la
   // barra de selección) — el mismo diálogo sirve para las dos.
   const [rejectFor, setRejectFor] = useState<SaleListItem[] | null>(null);
@@ -155,7 +184,7 @@ export default function AdminVentas() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   useEffect(() => {
     setSelectedIds(new Set());
-  }, [statusFilter]);
+  }, [statusFilter, sellerFilter]);
 
   // El pago se hace por vendedor (es lo que arma el popup de resumen), así
   // que un lote mezclado no tendría un "cuánto le debemos" que tenga sentido.
@@ -193,14 +222,14 @@ export default function AdminVentas() {
         setSelectedIds(new Set());
         return;
       }
-      const sellers = new Set(sales.map((s) => s.sellerEmail));
+      const sellers = new Set(filteredSales.map((s) => s.sellerEmail));
       if (sellers.size > 1) {
         toast.error('Hay ventas de varios vendedores en esta lista. Seleccioná manualmente las de UN vendedor.');
         return;
       }
-      setSelectedIds(new Set(sales.map((s) => s.id)));
+      setSelectedIds(new Set(filteredSales.map((s) => s.id)));
     },
-    [sales],
+    [filteredSales],
   );
 
   const [bulkApproving, setBulkApproving] = useState(false);
@@ -347,6 +376,16 @@ export default function AdminVentas() {
     ];
   }, []);
 
+  // La comisión de una venta rechazada no se le debe a nadie — el rótulo
+  // avisa qué representa el número en CADA pestaña en vez de un genérico
+  // "Comisión" que en Pendientes/Aprobadas se leería como ya pagada.
+  const comisionLabel =
+    statusFilter === 'pending_approval'
+      ? 'Comisión pendiente'
+      : statusFilter === 'approved'
+        ? 'Comisión por pagar'
+        : 'Comisión total';
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -401,6 +440,48 @@ export default function AdminVentas() {
           </TabsList>
         </Tabs>
 
+        {/* Filtro por vendedor + resumen de dinero de lo que se está VIENDO
+            (pestaña + filtro), no del total sin filtrar — mismo criterio que
+            el resumen de Compras en Inventario (`filteredPurchases`). */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="sm:w-64">
+            <FilterSelect
+              value={sellerFilter}
+              onChange={setSellerFilter}
+              options={sellerOptions}
+              placeholder="Todos los vendedores"
+            />
+          </div>
+          <div className="flex items-center divide-x divide-border self-start rounded-xl border bg-card px-1 py-1 sm:self-auto">
+            <SummaryPill label="Ventas" value={filteredSales.length.toString()} />
+            <SummaryPill
+              label="Importe"
+              value={formatCordobas(filteredSales.reduce((sum, s) => sum + s.total, 0))}
+            />
+            {/* Una venta rechazada no genera comisión ni ganancia real: mostrarlas
+                en esa pestaña sería plata que nunca se movió. */}
+            {statusFilter !== 'rejected' && (
+              <>
+                <SummaryPill
+                  label={comisionLabel}
+                  value={formatCordobas(filteredSales.reduce((sum, s) => sum + s.totalComision, 0))}
+                  accent
+                />
+                {/* Ganancia de tienda: dato sensible, solo admin (el backend
+                    tampoco la manda a un vendedor común, ver routes/sales.ts). */}
+                {isAdmin && (
+                  <SummaryPill
+                    label="Ganancia tienda"
+                    value={formatCordobas(
+                      filteredSales.reduce((sum, s) => sum + (s.totalGananciaTienda ?? 0), 0),
+                    )}
+                  />
+                )}
+              </>
+            )}
+          </div>
+        </div>
+
         {/* Barra de acciones masivas: solo aparece con algo seleccionado
             (que a su vez solo es posible en Pendientes, para admin). */}
         {canBulkSelect && selectedIds.size > 0 && (
@@ -443,15 +524,15 @@ export default function AdminVentas() {
           <DataTable
             tableId="ventas"
             columns={columns}
-            data={sales}
-            searchPlaceholder="Buscar por vendedor…"
+            data={filteredSales}
+            hideSearch
             exportFilename="ventas"
             emptyText="No hay ventas en este estado."
             onRowClick={(row) => openSale(row.id)}
             selectedRowIds={canBulkSelect ? selectedIds : undefined}
             onToggleRow={canBulkSelect ? toggleSelect : undefined}
             onSelectAll={canBulkSelect ? handleSelectAll : undefined}
-            allSelected={canBulkSelect && sales.length > 0 && sales.every((s) => selectedIds.has(s.id))}
+            allSelected={canBulkSelect && filteredSales.length > 0 && filteredSales.every((s) => selectedIds.has(s.id))}
           />
         </QueryState>
       </div>
@@ -501,6 +582,18 @@ export default function AdminVentas() {
 
       <SellerPayoutSummaryDialog target={payoutSummaryFor} onClose={() => setPayoutSummaryFor(null)} />
 
+    </div>
+  );
+}
+
+// Mismo widget que `PurchasesTable` en Inventario (duplicado a propósito: son
+// 10 líneas sin estado propio, no vale la pena una dependencia compartida por
+// esto solo).
+function SummaryPill({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
+  return (
+    <div className="flex flex-col items-center px-3 py-0.5 min-w-[72px]">
+      <span className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</span>
+      <span className={`text-sm font-bold ${accent ? "text-primary-2" : "text-foreground"}`}>{value}</span>
     </div>
   );
 }

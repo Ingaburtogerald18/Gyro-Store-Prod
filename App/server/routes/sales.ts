@@ -200,6 +200,9 @@ router.get(
 
     if (!admin) {
       sale.items = sale.items.map(({ costeFinalSnap, gananciaTienda, ...rest }) => rest);
+      const { totalGananciaTienda, ...trimmedSale } = sale;
+      res.json(trimmedSale);
+      return;
     }
 
     res.json(sale);
@@ -278,7 +281,11 @@ router.get(
         : undefined
       : req.user!.email;
 
-    res.json(await listSales({ sellerEmail, status: status.success ? status.data : undefined }));
+    const sales = await listSales({ sellerEmail, status: status.success ? status.data : undefined });
+    // Ganancia de tienda: SENSIBLE, igual que en `/quote` y en el detalle de
+    // una venta — un vendedor común no ve la estructura de costos de la
+    // tienda, solo la suya (comisión).
+    res.json(admin ? sales : sales.map(({ totalGananciaTienda, ...rest }) => rest));
   }),
 );
 

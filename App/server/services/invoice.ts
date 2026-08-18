@@ -1,6 +1,7 @@
 import { db } from '../supabase';
 import { round } from './finance';
 import { BadRequestError } from '../utils/httpError';
+import { config } from '../config';
 import type { CreateInvoiceInput } from '../../shared/schemas';
 import { listSellableProducts } from './sales';
 import { redeemDiscountCode, computeCodeDiscount, checkDiscountCode } from './discountCode';
@@ -298,18 +299,28 @@ export async function listInvoices(
  * whitelist de env (`SELLER_EMAILS`) y todavía no tiene fila en `profiles`
  * con ese rol no va a aparecer acá — mismo límite que ya tiene el selector de
  * vendedor de SaleEditor.tsx (`useGetUsersQuery`).
+ *
+ * Excepción: el correo protegido (`PROTECTED_ADMIN_EMAIL`) es global_admin
+ * SIEMPRE, sin importar lo que diga `profiles.roles` (ver middleware/auth.ts
+ * → `rolesFromEnvOrProfile`) — su fila puede tener `roles: []` porque nunca
+ * hizo falta escribirlo ahí. Sin este caso especial, ese admin quedaba afuera
+ * del propio selector de Caja pese a ser el admin más alto del sistema.
  */
 export async function listActiveSellers(): Promise<{ id: string; name: string }[]> {
   const { data, error } = await db
     .from('profiles')
-    .select('id, name, roles, status, deleted_at')
-    .overlaps('roles', ['admin', 'seller', 'global_admin'])
+    .select('id, name, roles, status, deleted_at, email')
     .is('deleted_at', null)
     .neq('status', 'disabled')
     .order('name');
   if (error) throw error;
-  return ((data ?? []) as { id: string; name: string | null }[])
-    .filter((p) => p.name?.trim())
+  return ((data ?? []) as { id: string; name: string | null; roles: string[] | null; email: string | null }[])
+    .filter(
+      (p) =>
+        p.name?.trim() &&
+        ((p.roles ?? []).some((r) => ['admin', 'seller', 'global_admin'].includes(r)) ||
+          (!!config.protectedEmail && p.email?.toLowerCase() === config.protectedEmail)),
+    )
     .map((p) => ({ id: p.id, name: p.name!.trim() }));
 }
 

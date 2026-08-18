@@ -256,6 +256,15 @@ export function SaleEditor({
         setCustomerName(inv.customerName ?? '');
         setPhone(inv.phone ?? '');
       }
+      // El vendedor también se precarga desde la factura: sin esto, la venta
+      // quedaba a nombre de quien está REGISTRANDO (típicamente un admin
+      // verificando el ticket por otra persona), no del vendedor al que Caja
+      // se la asignó al emitirla. Sin dueño asignado (ticket de mostrador) no
+      // hay nada que precargar y queda el comportamiento de siempre.
+      if (isAdmin && inv.sellerUid) {
+        setIsRegisteredSeller(true);
+        setSelectedSellerId(inv.sellerUid);
+      }
       // Se guarda la factura para poder mostrar el importe REAL cobrado: la
       // cotización solo suma las líneas y no sabe del descuento.
       setLinkedInvoice(inv);

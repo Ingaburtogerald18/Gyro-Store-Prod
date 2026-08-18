@@ -587,6 +587,8 @@ export interface SaleListItem {
   total: number;
   /** Suma de `order_items.comision` de TODAS las líneas de la venta. */
   totalComision: number;
+  /** Suma de `order_items.ganancia_tienda`. `routes/sales.ts` la recorta para no-admins. */
+  totalGananciaTienda: number;
   /** Correlativo de la factura con que se registró la venta (`invoices.sale_id`). Null si no tiene. */
   invoiceNumber: number | null;
   /** Código legible de esa factura: `GS-PR-12`. Null si no tiene. */
@@ -697,6 +699,7 @@ export async function getSaleById(id: string): Promise<SaleWithItems | null> {
     phone: row.phone,
     total: row.total ?? 0,
     totalComision: itemRows.reduce((sum, it) => sum + (it.comision ?? 0), 0),
+    totalGananciaTienda: itemRows.reduce((sum, it) => sum + (it.ganancia_tienda ?? 0), 0),
     invoiceNumber,
     invoiceCode,
     createdAt: row.created_at,
@@ -750,17 +753,23 @@ export async function listSales(filters: { sellerEmail?: string; status?: string
     }
   }
 
-  // Comisión TOTAL de la venta: una venta puede tener varias líneas, cada una
-  // con su propia comisión (tramos distintos según margen). Se suma con una
-  // TERCERA query en lote (mismo criterio que el nombre del vendedor arriba)
-  // y no con un JOIN/embed: si la venta no tiene líneas todavía, la comisión
-  // es 0 y la venta igual se lista.
+  // Comisión y ganancia de tienda TOTALES de la venta: una venta puede tener
+  // varias líneas, cada una con su propio tramo. Se suman con una TERCERA
+  // query en lote (mismo criterio que el nombre del vendedor arriba) y no con
+  // un JOIN/embed: si la venta no tiene líneas todavía, quedan en 0 y la
+  // venta igual se lista. `ganancia_tienda` viaja en la misma fila que
+  // `comision` — no hace falta una cuarta query para sumarla aparte.
   const orderIds = rows.map((r) => r.id);
   const comisionByOrderId = new Map<string, number>();
+  const gananciaTiendaByOrderId = new Map<string, number>();
   if (orderIds.length > 0) {
-    const { data: items } = await db.from('order_items').select('order_id, comision').in('order_id', orderIds);
-    for (const it of (items ?? []) as { order_id: string; comision: number | null }[]) {
+    const { data: items } = await db
+      .from('order_items')
+      .select('order_id, comision, ganancia_tienda')
+      .in('order_id', orderIds);
+    for (const it of (items ?? []) as { order_id: string; comision: number | null; ganancia_tienda: number | null }[]) {
       comisionByOrderId.set(it.order_id, (comisionByOrderId.get(it.order_id) ?? 0) + (it.comision ?? 0));
+      gananciaTiendaByOrderId.set(it.order_id, (gananciaTiendaByOrderId.get(it.order_id) ?? 0) + (it.ganancia_tienda ?? 0));
     }
   }
 
@@ -793,6 +802,10 @@ export async function listSales(filters: { sellerEmail?: string; status?: string
     phone: row.phone,
     total: row.total ?? 0,
     totalComision: comisionByOrderId.get(row.id) ?? 0,
+    // Solo la ve admin/global_admin: routes/sales.ts la recorta para un
+    // vendedor común, igual que ya hace con `gananciaTienda` en `/quote` y en
+    // el detalle de una venta (getSaleById no la trae en absoluto).
+    totalGananciaTienda: gananciaTiendaByOrderId.get(row.id) ?? 0,
     invoiceNumber: invoiceBySaleId.get(row.id)?.number ?? null,
     invoiceCode: invoiceBySaleId.get(row.id)?.code ?? null,
     createdAt: row.created_at,
