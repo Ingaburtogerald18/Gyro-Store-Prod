@@ -27,6 +27,7 @@ import { DatePicker } from '~/components/ui/date-picker';
 import { Label } from '~/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/components/ui/select';
 import { Spinner } from '~/components/ui/spinner';
+import { BrandLoader } from '~/components/ui/module-loader';
 import { StatCard } from '~/components/ui/stat-card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '~/components/ui/dialog';
 import { cn } from '~/lib/utils';
@@ -234,11 +235,7 @@ export default function AdminDiscountCodes() {
         </CardHeader>
         <CardContent className="p-0">
           {isLoading ? (
-            <div className="p-4 space-y-2">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="h-16 animate-pulse rounded-xl bg-muted" />
-              ))}
-            </div>
+            <div className="py-8"><BrandLoader text="Cargando códigos..." /></div>
           ) : filteredData.length === 0 ? (
             <div className="py-12 flex flex-col items-center justify-center text-muted-foreground">
               <HugeIcon icon={Coupon01Icon} size={32} className="mb-2 opacity-50" />

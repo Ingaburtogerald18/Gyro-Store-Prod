@@ -17,10 +17,15 @@ import type { ReactNode } from 'react';
 import { CartDrawer } from '~/components/cart/cart-drawer';
 import { PublicFooter } from '~/components/layout/public-footer';
 import { StoreHeader } from '~/components/store/store-header';
+import { useAppSelector } from '~/store/hooks';
+import { selectEditMode } from '~/store/slices/authSlice';
+import { cn } from '~/lib/utils';
 
 export function StorefrontShell({ children }: { children: ReactNode }) {
+  const editMode = useAppSelector(selectEditMode);
+
   return (
-    <div className="flex min-h-dvh flex-col">
+    <div className={cn("flex min-h-dvh flex-col transition-all duration-300", editMode && "editing-mode")}>
       <StoreHeader />
       {/* flex-1 empuja el footer al fondo aunque la página sea corta. */}
       <div className="flex flex-1 flex-col">{children}</div>

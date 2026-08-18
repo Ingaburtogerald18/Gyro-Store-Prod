@@ -146,21 +146,21 @@ body {
 :root {
   --background: oklch(1 0 0);
   --foreground: oklch(0.148 0.004 228.8);
-  --card: oklch(1 0 0);
+  --card: oklch(0.94 0.008 166);
   --card-foreground: oklch(0.148 0.004 228.8);
-  --popover: oklch(1 0 0);
+  --popover: oklch(0.94 0.008 166);
   --popover-foreground: oklch(0.148 0.004 228.8);
   --primary: oklch(0.508 0.118 165.612);
   --primary-foreground: oklch(0.979 0.021 166.113);
   --secondary: oklch(0.967 0.001 286.375);
   --secondary-foreground: oklch(0.21 0.006 285.885);
-  --muted: oklch(0.963 0.002 197.1);
+  --muted: oklch(0.90 0.010 166);
   --muted-foreground: oklch(0.56 0.021 213.5);
-  --accent: oklch(0.963 0.002 197.1);
+  --accent: oklch(0.90 0.010 166);
   --accent-foreground: oklch(0.218 0.008 223.9);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.925 0.005 214.3);
-  --input: oklch(0.925 0.005 214.3);
+  --border: oklch(0.85 0.010 166);
+  --input: oklch(0.85 0.010 166);
   --ring: oklch(0.723 0.014 214.4);
   /* ── Escala de gráficos (CLARO) ──
      Un solo hue (el primary, ~152) variando lightness, más un neutro para
@@ -296,5 +296,14 @@ body {
   }
   html {
     @apply font-sans;
+  }
+}
+
+@layer utilities {
+  .editing-mode .group\/editable {
+    @apply transition-all duration-300;
+  }
+  .editing-mode .group\/editable:hover {
+    @apply outline-2 outline-dashed outline-primary ring-4 ring-primary/10 rounded-xl cursor-pointer;
   }
 }

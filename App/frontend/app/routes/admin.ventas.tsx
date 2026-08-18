@@ -30,6 +30,7 @@ import { Input } from '~/components/ui/input';
 import { Label } from '~/components/ui/label';
 import { DataTable } from '~/components/ui/DataTable';
 import { QueryState } from '~/components/ui/QueryState';
+import { BrandLoader } from '~/components/ui/module-loader';
 import { SkeletonCard } from '~/components/ui/skeletons';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '~/components/ui/dialog';
 import { StatusBadge } from '~/components/ui/StatusBadge';
@@ -518,8 +519,7 @@ export default function AdminVentas() {
           fetching={fetchingSales}
           error={salesError}
           onRetry={refetchSales}
-          shape="table"
-          shapeCount={6}
+          loadingFallback={<BrandLoader text="Cargando ventas..." />}
         >
           <DataTable
             tableId="ventas"

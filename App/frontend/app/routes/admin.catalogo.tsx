@@ -28,6 +28,7 @@ import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import { QueryState } from '~/components/ui/QueryState';
 import { Skeleton } from '~/components/ui/skeleton';
 import { SkeletonCard } from '~/components/ui/skeletons';
+import { BrandLoader } from '~/components/ui/module-loader';
 
 import { SortableCatalogGrid } from '~/components/catalog/SortableCatalogGrid';
 // Los dos más pesados del catálogo (27 KB y 21 KB) se descargaban al entrar,
@@ -250,13 +251,7 @@ export default function AdminCatalogo() {
         empty={visibleCatalog.length === 0}
         errorMessage="No se pudo cargar el catálogo."
         onRetry={refetch}
-        loadingFallback={
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {[1, 2, 3, 4].map(i => (
-              <Skeleton key={i} className="h-64 rounded-card" />
-            ))}
-          </div>
-        }
+        loadingFallback={<BrandLoader text="Cargando catálogo..." />}
         emptyFallback={
           // Dos vacíos distintos: «no hay nada cargado» pide crear el primer
           // producto; «tu búsqueda no encontró nada» pide corregir el término.

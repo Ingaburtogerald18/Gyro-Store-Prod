@@ -3,6 +3,7 @@ import { lazy, Suspense, useState, useMemo, useEffect } from 'react';
 import { useReducedMotion } from 'framer-motion';
 import { QueryState } from '~/components/ui/QueryState';
 import { SkeletonChart } from '~/components/ui/skeletons';
+import { BrandLoader } from '~/components/ui/module-loader';
 
 import type { MetaFunction } from '@remix-run/node';
 import { useGetKpisQuery, useGetSellerPerformanceQuery, useGetSalesLedgerQuery, useGetSalesTrendQuery } from '~/store/api/reportsApi';
@@ -169,11 +170,7 @@ export default function AdminDashboard() {
         loading={isLoading}
         error={isError}
         empty={!kpis}
-        // Cinco, no cuatro: el esqueleto tiene que tener la MISMA grilla que el
-        // contenido. Con cuatro `div` sueltos, al llegar los datos aparecía una
-        // quinta tarjeta y toda la fila saltaba.
-        shape="stats"
-        shapeCount={isAdmin ? 5 : 3}
+        loadingFallback={<BrandLoader text="Cargando dashboard..." />}
       >
         {kpis && (
           <div className="space-y-6">

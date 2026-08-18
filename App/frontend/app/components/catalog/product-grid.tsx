@@ -23,6 +23,12 @@ import { ProductCarousel } from '~/components/product/product-carousel';
 import { Skeleton } from '~/components/ui/skeleton';
 import { isDeal, useCatalogFilter } from '~/hooks/useCatalogFilter';
 
+import { useAppSelector } from '~/store/hooks';
+import { selectEditMode } from '~/store/slices/authSlice';
+import { selectDraftLandingConfig } from '~/store/slices/builderSlice';
+import { useGetLandingConfigQuery } from '~/store/api/storefrontApi';
+import { InlineRailsEditor } from '~/components/store/inline-rails-editor';
+
 export { isDeal };
 
 // Un producto pertenece a la categoría tanto si guarda el id como el nombre
@@ -39,20 +45,36 @@ interface ProductGridProps {
 
 export function ProductGrid({ products, categories = [], isLoading }: ProductGridProps) {
   const { filtered, isDefault } = useCatalogFilter(products, categories);
-
   const deals = useMemo(() => products.filter(isDeal), [products]);
 
-  // Una fila por categoría CON productos, y las ofertas fuera (ya tienen la suya
-  // arriba): si no, el mismo producto aparece dos veces en la misma pantalla.
+  const editMode = useAppSelector(selectEditMode);
+  const draftLanding = useAppSelector(selectDraftLandingConfig);
+  const { data: realLanding } = useGetLandingConfigQuery();
+
+  // Determinar qué categorías usar para los carriles según el estado
+  const railCategoriesIds = useMemo(() => {
+    const configToUse = editMode ? draftLanding : realLanding;
+    return configToUse?.homeCategories || [];
+  }, [editMode, draftLanding, realLanding]);
+
+  // Una fila por categoría CON productos, y las ofertas fuera.
+  // Ahora usamos el orden de railCategoriesIds si existe, si no, caemos a todas.
   const rows = useMemo(() => {
     const rest = products.filter((p) => !isDeal(p));
-    return categories
+    let orderedCategories = categories;
+
+    if (railCategoriesIds.length > 0) {
+      orderedCategories = railCategoriesIds
+        .map(id => categories.find(c => c.id === id))
+        .filter((c): c is StoreCategory => Boolean(c));
+    }
+
+    return orderedCategories
       .map((c) => ({ category: c, items: rest.filter((p) => inCategory(p, c)) }))
       .filter((row) => row.items.length > 0);
-  }, [products, categories]);
+  }, [products, categories, railCategoriesIds]);
 
-  // Productos que no caen en ninguna categoría de la config: sin este cajón
-  // quedarían invisibles en la vista por defecto.
+  // Productos que no caen en ninguna categoría de la config
   const uncategorized = useMemo(() => {
     if (categories.length === 0) return [];
     return products.filter((p) => !isDeal(p) && !categories.some((c) => inCategory(p, c)));
@@ -69,6 +91,8 @@ export function ProductGrid({ products, categories = [], isLoading }: ProductGri
   if (isDefault) {
     return (
       <div className="space-y-2 pb-2 md:space-y-6 md:pb-12">
+        {editMode && <InlineRailsEditor allCategories={categories} />}
+
         {deals.length > 0 && (
           <ProductCarousel
             title="SuperOfertas"
@@ -150,7 +174,7 @@ function GridSkeleton() {
           <Skeleton className="aspect-[4/3] w-full rounded-xl" />
           <Skeleton className="h-4 w-3/4" />
           <Skeleton className="h-4 w-1/3" />
-          <Skeleton className="h-9 w-full sm:h-11" />
+          <Skeleton className="h-11 w-full" />
         </div>
       ))}
     </div>

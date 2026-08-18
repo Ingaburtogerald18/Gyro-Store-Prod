@@ -58,9 +58,9 @@ export function BrandLoader({ text = 'Cargando…' }: { text?: string }) {
       animate={{ scale: 1, opacity: 1 }}
       exit={{ scale: reduce ? 1 : 0.96, opacity: 0 }}
       transition={{ type: 'spring', stiffness: 320, damping: 26 }}
-      className="flex flex-col items-center gap-4"
+      className="flex flex-col items-center gap-3"
     >
-      <h2 className="text-lg font-bold tracking-tight text-foreground">{config?.brandName || getBrandName()}</h2>
+      <h2 className="text-base font-bold tracking-tight text-foreground">{config?.brandName || getBrandName()}</h2>
       <div className="relative grid size-24 place-items-center">
         {/* Anillo: pista tenue + arco cyan que gira. */}
         <motion.svg
@@ -90,7 +90,7 @@ export function BrandLoader({ text = 'Cargando…' }: { text?: string }) {
         </motion.svg>
         
         {/* Centro del anillo */}
-        <div className="absolute inset-0 flex items-center justify-center p-4">
+        <div className="absolute inset-0 flex items-center justify-center p-5">
           {logoAnimated ? (
             isVideo ? (
               <video 

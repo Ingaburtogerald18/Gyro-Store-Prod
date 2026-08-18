@@ -4,6 +4,7 @@
 import { db } from '../supabase';
 import { landingConfigSchema, type LandingConfig } from '../../shared/schemas';
 import { logger } from '../utils/logger';
+import { deleteFileByUrl } from './storage.js';
 
 const CONFIG_KEY = 'landing_config';
 
@@ -63,11 +64,25 @@ export async function getLandingConfig(): Promise<LandingConfig> {
 // Guarda la configuración completa (no hay merge parcial a propósito: el panel
 // manda siempre el arreglo entero, así el orden de los slides es explícito).
 export async function saveLandingConfig(config: LandingConfig): Promise<LandingConfig> {
+  const oldConfig = await getLandingConfig();
+  
+  const oldUrls = oldConfig.heroSlides.map((s) => s.mediaUrl).filter(Boolean);
+  const newUrls = config.heroSlides.map((s) => s.mediaUrl).filter(Boolean);
+  
+  // Fotos que estaban en la versión anterior pero ya no están en la nueva
+  const urlsToDelete = oldUrls.filter((url) => !newUrls.includes(url));
+
   landingConfigCachedAt = 0;
   const { error } = await db
     .from('app_config')
     .upsert({ key: CONFIG_KEY, value: config }, { onConflict: 'key' });
 
   if (error) throw error;
+
+  // Limpieza en background (Fire and forget)
+  for (const url of urlsToDelete) {
+    deleteFileByUrl(url).catch((err) => logger.error('Error limpiando R2', err));
+  }
+
   return config;
 }

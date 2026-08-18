@@ -1,4 +1,5 @@
 import { db } from '../supabase';
+import { config } from '../config';
 import { round } from './finance';
 import { BadRequestError } from '../utils/httpError';
 import { config } from '../config';
@@ -307,9 +308,15 @@ export async function listInvoices(
  * del propio selector de Caja pese a ser el admin más alto del sistema.
  */
 export async function listActiveSellers(): Promise<{ id: string; name: string }[]> {
+  // El filtro por rol se hace en JS y no con `.overlaps` en la query: el admin
+  // protegido (`config.protectedEmail`) recibe `global_admin` desde el ENTORNO
+  // (ver middleware/auth.ts → rolesFromEnvOrProfile), así que su fila en
+  // `profiles` puede tener `roles: []`. Con el `.overlaps` quedaba fuera del
+  // selector de "Vendedor" de Facturación y no podía emitirse su propia factura.
   const { data, error } = await db
     .from('profiles')
     .select('id, name, roles, status, deleted_at, email')
+    .select('id, name, email, roles, status, deleted_at')
     .is('deleted_at', null)
     .neq('status', 'disabled')
     .order('name');
@@ -321,6 +328,19 @@ export async function listActiveSellers(): Promise<{ id: string; name: string }[
         ((p.roles ?? []).some((r) => ['admin', 'seller', 'global_admin'].includes(r)) ||
           (!!config.protectedEmail && p.email?.toLowerCase() === config.protectedEmail)),
     )
+
+  const SELLER_ROLES = ['admin', 'seller', 'global_admin'];
+  const protectedEmail = config.protectedEmail;
+
+  return ((data ?? []) as { id: string; name: string | null; email: string | null; roles: unknown }[])
+    .filter((p) => {
+      const hasRole = Array.isArray(p.roles) && p.roles.some((r) => SELLER_ROLES.includes(r as string));
+      const isProtected =
+        !!protectedEmail && (p.email || '').toLowerCase() === protectedEmail.toLowerCase();
+      // El nombre es obligatorio: el Combobox de Facturación matchea por nombre,
+      // una fila sin nombre no se puede seleccionar.
+      return (hasRole || isProtected) && !!p.name?.trim();
+    })
     .map((p) => ({ id: p.id, name: p.name!.trim() }));
 }
 

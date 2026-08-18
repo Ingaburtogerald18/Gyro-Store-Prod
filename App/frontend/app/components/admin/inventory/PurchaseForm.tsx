@@ -237,7 +237,7 @@ export function PurchaseForm({ onDone }: { onDone?: () => void } = {}) {
           </div>
           <div className="my-1 border-t border-primary/10" />
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-primary/70">Total Final</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-primary-2">Total Final</span>
             <span className="font-heading text-xl font-bold text-primary-2">{formatUsd(totalFinal)}</span>
           </div>
         </div>

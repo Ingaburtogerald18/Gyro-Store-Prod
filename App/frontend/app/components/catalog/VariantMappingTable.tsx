@@ -256,11 +256,7 @@ function VariantRow({
           excluded={usedCodes}
           onSelect={(code) => {
             const selectedLot = lots.find((l) => l.code === code);
-            // Si la variante no tiene precio propio asignado, heredamos el precio tentativo del lote
-            let nextPrice = price;
-            if (price === undefined && selectedLot?.suggestedPrice) {
-              nextPrice = selectedLot.suggestedPrice;
-            }
+            const nextPrice = selectedLot?.suggestedPrice ?? price;
             onUpdate([...codes, code], nextPrice);
           }}
           hasLots={hasLots}
@@ -306,7 +302,7 @@ function LotPicker({
   const [open, setOpen] = useState(false);
 
   const available = useMemo(
-    () => lots.filter((lot) => lot.available > 0 && !excluded.has(lot.code)),
+    () => lots.filter((lot) => lot.available > 0 && !excluded.has(lot.code) && !lot.linkedTo),
     [lots, excluded],
   );
 

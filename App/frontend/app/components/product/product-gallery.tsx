@@ -88,7 +88,6 @@ export function ProductGallery({
             }}
             className="h-full w-full touch-pan-y object-cover select-none"
             style={{
-              viewTransitionName: 'vt-product-detail',
               transformOrigin: `${origin.x}% ${origin.y}%`,
               // La lupa es transform puro: la resuelve el compositor, sin
               // recalcular layout en cada movimiento del mouse.

@@ -113,7 +113,7 @@ export function CombosPanel() {
       >
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {combos.map((combo) => (
-            <Card key={combo.id} className="bg-card border overflow-hidden flex flex-col relative">
+            <Card key={combo.id} className="bg-card border overflow-hidden flex flex-col h-full relative">
               <div className="absolute right-2 top-2 z-10 flex gap-1">
                 <button
                   onClick={() => openEdit(combo)}
@@ -137,14 +137,16 @@ export function CombosPanel() {
                 published={combo.published}
               />
 
-              <CardContent className="p-4 flex-1">
+              <CardContent className="p-4 flex-1 flex flex-col">
                 <h3 className="font-semibold text-foreground line-clamp-2" title={combo.name}>
                   {combo.name}
                 </h3>
-                <div className="mt-2 nums text-lg font-bold text-primary-2">{formatCordobas(combo.price)}</div>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {combo.items.length} artículo{combo.items.length === 1 ? '' : 's'}
-                </p>
+                <div className="mt-auto flex flex-col items-start pt-2">
+                  <div className="nums text-lg font-bold text-primary-2">{formatCordobas(combo.price)}</div>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {combo.items.length} artículo{combo.items.length === 1 ? '' : 's'}
+                  </p>
+                </div>
               </CardContent>
             </Card>
           ))}

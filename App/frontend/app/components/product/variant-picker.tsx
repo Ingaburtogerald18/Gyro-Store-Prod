@@ -82,6 +82,8 @@ export function VariantPicker({
   const pickable = pickableAxes(axes);
   if (pickable.length === 0) return null;
 
+  const sorted = [...pickable].sort((a, b) => (a.isColor === b.isColor ? 0 : a.isColor ? -1 : 1));
+
   // Sin `variants` no se puede saber de stock; deshabilitar todo dejaría el
   // producto incomprable, así que se degrada a "todo disponible".
   const stockKnown = variants.length > 0;
@@ -104,16 +106,14 @@ export function VariantPicker({
   }
 
   return (
-    <div className="space-y-4">
-      {axes.map((axis, axisIndex) => {
-        if (axis.options.length === 0) return null;
+    <div className="space-y-4 md:grid md:grid-cols-2 md:gap-6 md:space-y-0">
+      {sorted.map((axis) => {
+        const axisIndex = axes.indexOf(axis);
         const chosen = selection[axis.key];
 
         return (
-          <div key={axis.key} className="space-y-2">
+          <div key={axis.key} className="space-y-2 md:flex md:flex-col md:items-center">
             <Label className="text-xs font-medium tracking-[0.08em] text-muted-foreground uppercase">
-              {/* `label` es la etiqueta para humanos ("Tipo de conector"); `key`
-                  es el id interno, que antes se mostraba tal cual. */}
               {axis.label || axis.key}
               {chosen && <span className="ml-2 normal-case text-foreground">{chosen}</span>}
             </Label>
@@ -137,19 +137,14 @@ export function VariantPicker({
                     type="button"
                     variant="outline"
                     aria-pressed={active}
-                    // Agotado se comunica por estado deshabilitado Y por tachado,
-                    // no solo por un gris más claro (§8).
                     disabled={!enabled && !active}
                     onClick={() => pick(axis, axisIndex, option)}
-                    // h-11: elegir variante es la decisión previa a comprar, y
-                    // se toma con el pulgar. La densidad Rhea (h-8) es cómoda
-                    // con mouse pero deja un objetivo de 32px en móvil.
                     className={cn(
                       'h-11 rounded-pill',
                       active
                         ? 'border-primary bg-primary/10 font-semibold text-primary'
                         : 'text-muted-foreground',
-                      !enabled && !active && 'line-through',
+                      !enabled && !active && 'line-through opacity-40 border-dashed',
                     )}
                   >
                     {option}

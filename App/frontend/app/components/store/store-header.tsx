@@ -8,15 +8,18 @@ import { Menu01Icon, ShoppingCart02Icon, Search01Icon, Cancel01Icon, Edit02Icon 
 import { SearchBar } from '~/components/catalog/search-bar';
 import { CategoriesDrawer } from '~/components/store/categories-drawer';
 import { CategoryNav, inCategory } from '~/components/store/category-nav';
-import { CategoryNavEditorDialog } from '~/components/store/category-nav-editor-dialog';
 import { Button } from '~/components/ui/button';
 import { HugeIcon } from '~/components/ui/icon';
-import { useGetCatalogQuery, useGetLandingConfigQuery } from '~/store/api/storefrontApi';
+import { useGetCatalogQuery, useGetLandingConfigQuery, useUpdateLandingConfigMutation } from '~/store/api/storefrontApi';
 import { useGetConfigQuery } from '~/store/api/sessionApi';
 import { useAppDispatch, useAppSelector } from '~/store/hooks';
 import { selectCartCount, toggleCart } from '~/store/slices/cartSlice';
+import { selectIsAdmin, selectEditMode, toggleEditMode } from '~/store/slices/authSlice';
+import { selectDraftLandingConfig, initBuilderSession, clearBuilderSession } from '~/store/slices/builderSlice';
+import { InlineCategoryNavEditor } from './inline-category-nav-editor';
 import { HeaderSettingsMenu } from './header-settings-menu';
 import { getBrandName } from '~/lib/brand';
+import { cn } from '~/lib/utils';
 
 /** Botón del carrito con contador y "pop" al agregar. Comparte fuente de verdad
  *  con el resto de la app (cartSlice); reemplaza al botón estático. */
@@ -63,52 +66,67 @@ function CartButton() {
 }
 
 export function StoreHeader() {
-  // La búsqueda filtra la grilla de la home; en la ficha, el combo o contacto no
-  // hay nada que filtrar, así que ahí no se pinta (y no ocupa el ancho).
   const { pathname } = useLocation();
   const showSearch = pathname === '/';
   const [categoriesOpen, setCategoriesOpen] = useState(false);
-  // Controla si la barra de búsqueda móvil está visible. En escritorio no
-  // interviene: la barra siempre se pinta en su fila propia.
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
-  const [navEditorOpen, setNavEditorOpen] = useState(false);
+  const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   const reduceMotion = useReducedMotion();
 
-  // El catálogo alimenta la muestra del mega-menú. RTK Query lo cachea, así que
-  // en la home (que ya lo trae por SSR) esto no dispara una segunda descarga
-  // visible para el usuario.
   const { data: config } = useGetConfigQuery();
   const { data: products = [] } = useGetCatalogQuery();
-
   const { data: landing } = useGetLandingConfigQuery();
-  // La feature "Editar Navbar" (edición in-situ de categorías) quedó a medio
-  // construir: el estado `editing` nunca se agregó al uiSlice. Se deja DORMIDA
-  // (siempre false: el botón nunca aparece) para que compile, sin borrar el WIP.
-  // Decidir luego: completarla (agregar `editing` al slice + su acción) o quitarla.
-  const isEditing = false;
+  const isAdmin = useAppSelector(selectIsAdmin);
+  const editMode = useAppSelector(selectEditMode);
+  const draftLanding = useAppSelector(selectDraftLandingConfig);
+  const dispatch = useAppDispatch();
+  const [updateLanding, { isLoading: isSaving }] = useUpdateLandingConfigMutation();
 
-  // Mostrar todas las categorías configuradas
+  // Inicializar borrador al entrar al modo edición
+  useEffect(() => {
+    if (editMode && landing && !draftLanding) {
+      dispatch(initBuilderSession(landing));
+    }
+  }, [editMode, landing, draftLanding, dispatch]);
+
   const allCategories = useMemo(
     () => config?.categories ?? [],
     [config?.categories],
   );
 
-  // Categorías seleccionadas para el navbar de escritorio
   const headerNavCategories = useMemo(() => {
     if (!landing?.headerCategories || landing.headerCategories.length === 0) {
-      return allCategories.slice(0, 7); // Default limit
+      return allCategories.slice(0, 7);
     }
     return landing.headerCategories
       .map(id => allCategories.find(c => c.id === id))
       .filter((c): c is NonNullable<typeof c> => Boolean(c))
-      .slice(0, 7); // Limit to 7 to prevent breaking the design
+      .slice(0, 7);
   }, [allCategories, landing?.headerCategories]);
 
+  const handleSave = async () => {
+    if (!draftLanding) return;
+    try {
+      await updateLanding(draftLanding).unwrap();
+      dispatch(toggleEditMode());
+      dispatch(clearBuilderSession());
+    } catch {
+      // Error manejado por RTK Query globalmente o ignorado
+    }
+  };
+
+  const handleCancel = () => {
+    dispatch(toggleEditMode());
+    dispatch(clearBuilderSession());
+  };
+
   return (
-    <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-xl">
-      <div className="mx-auto flex h-16 max-w-6xl items-center gap-3 px-4">
-        {/* Hamburger: solo en móvil, a la IZQUIERDA del logo */}
-        {allCategories.length > 0 && (
+    <header className={cn(
+      "sticky top-0 z-40 bg-card/90 backdrop-blur-xl transition-all",
+      editMode ? "border-b border-primary/20 border-t-[4px] border-t-primary" : "border-b border-border"
+    )}>
+      <div className="mx-auto flex h-14 max-w-7xl items-center gap-3 px-4">
+        {!editMode && (
           <Button
             variant="ghost"
             size="icon"
@@ -120,56 +138,128 @@ export function StoreHeader() {
           </Button>
         )}
 
-        {/* El logo ahora tiene transición y efecto hover */}
         <Link
           to="/"
-          className="group shrink-0 rounded-xl px-2 py-1 text-left transition-all duration-300 hover:bg-primary/5 active:scale-95"
+          className={cn("group flex shrink-0 items-center gap-3 rounded-xl px-2 py-1 transition-all duration-300", 
+            !editMode && "hover:bg-primary/5 active:scale-95"
+          )}
           aria-label={`Ir al inicio de ${config?.brandName || getBrandName()}`}
+          onClick={(e) => {
+            if (editMode) {
+               e.preventDefault();
+            }
+          }}
         >
-          {config?.images?.logoStatic || config?.images?.logoAnimated ? (
-            !reduceMotion &&
-            (config.images.logoAnimated?.match(/\.(webm|mp4|mov|m4v)($|\?)/i) ||
-              config.images.logoAnimated?.includes('video')) ? (
+          {(() => {
+            const logoSrc = config?.images?.logoStatic || config?.images?.logoAnimated;
+            if (!logoSrc) return (
+              <span className="font-bold text-lg tracking-tight">
+                {config?.brandName || getBrandName()}
+              </span>
+            );
+            const isVideo = !reduceMotion &&
+              (config?.images?.logoAnimated?.match(/\.(webm|mp4|mov|m4v)($|\?)/i) ||
+                config?.images?.logoAnimated?.includes('video'));
+            return isVideo ? (
               <video
-                src={config.images.logoAnimated}
+                src={config?.images?.logoAnimated}
                 autoPlay
                 loop
                 muted
                 playsInline
                 preload="metadata"
                 aria-hidden
-                className="h-10 w-auto max-w-[120px] shrink-0 object-contain transition-all duration-300 group-hover:brightness-110"
+                className="h-10 max-w-[160px] shrink-0 object-contain object-left transition-all duration-300 group-hover:brightness-110"
+                style={{ minWidth: '40px' }}
               />
             ) : (
               <img
-                src={config.images.logoStatic || config.images.logoAnimated}
-                alt={config.brandName || getBrandName()}
+                src={logoSrc}
+                alt={config?.brandName || getBrandName()}
                 loading="lazy"
                 decoding="async"
-                className="h-10 w-auto max-w-[120px] shrink-0 object-contain transition-all duration-300 group-hover:brightness-110"
+                className="h-10 max-w-[160px] shrink-0 object-contain object-left transition-all duration-300 group-hover:brightness-110"
+                style={{ minWidth: '40px' }}
               />
-            )
-          ) : (
-            <div className="text-xl font-bold tracking-tight text-foreground transition-all group-hover:brightness-125">
-              Gyro<span className="text-primary">Store</span>
-            </div>
-          )}
+            );
+          })()}
         </Link>
 
-        {/* Navegación de categorías integrada en el header */}
-        <CategoryNav categories={headerNavCategories} products={products} inline />
-
-        {/* Búsqueda alineada a la derecha en escritorio; en móvil baja a su propia fila. */}
-        {showSearch && (
-          <div className="hidden flex-1 justify-end md:flex pr-4">
-            <SearchBar className="max-w-md" />
+        {/* Contenedor central (Categorías + Búsqueda Expandible) */}
+        <div className="hidden flex-1 items-center justify-end gap-1 md:flex relative">
+          
+          {/* Categorías (fade out when search is active) */}
+          <div className={cn(
+            "flex flex-1 items-center gap-1 transition-all duration-300 ease-out", 
+            isSearchExpanded && !editMode ? "opacity-0 -translate-y-1 pointer-events-none absolute left-0" : "opacity-100 translate-y-0 relative"
+          )}>
+            {editMode ? (
+              <InlineCategoryNavEditor allCategories={allCategories} />
+            ) : (
+              <CategoryNav categories={headerNavCategories} products={products} />
+            )}
           </div>
-        )}
 
-        {/* Zona derecha: Carrito Animado, Búsqueda móvil y Menú de Ajustes/Perfil */}
+          {/* Search Bar - Desktop Expandible */}
+          {!editMode && showSearch && (
+            <div className={cn(
+              "flex items-center justify-end transition-all duration-300 ease-out",
+              isSearchExpanded ? "w-full max-w-xl opacity-100 absolute right-0" : "w-10 opacity-100 relative"
+            )}>
+              {isSearchExpanded ? (
+                <SearchBar 
+                  className="w-full shadow-lg" 
+                  autoFocus
+                  onBlur={() => setIsSearchExpanded(false)}
+                />
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-10 w-10 shrink-0 text-muted-foreground hover:text-foreground"
+                  onClick={() => setIsSearchExpanded(true)}
+                  aria-label="Abrir búsqueda"
+                >
+                  <HugeIcon icon={Search01Icon} size={20} strokeWidth={2} />
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Zona derecha */}
         <div className="ml-auto flex shrink-0 items-center gap-2 sm:gap-3">
-          {/* 🔍 Ícono de búsqueda: solo móvil. Alterna visibilidad de la barra inferior. */}
-          {showSearch && (
+          {editMode && (
+            <div className="flex items-center gap-3 bg-primary/10 pl-3 pr-1 py-1 rounded-full border border-primary/20">
+              <div className="hidden sm:flex items-center gap-2">
+                <span className="relative flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75"></span>
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-primary"></span>
+                </span>
+                <span className="text-xs font-bold tracking-wider text-primary">MODO EDICIÓN</span>
+              </div>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={handleCancel}
+                className="h-8 rounded-full px-4 text-xs font-semibold text-primary hover:bg-primary/10"
+                disabled={isSaving}
+              >
+                Descartar
+              </Button>
+              <Button 
+                variant="default" 
+                size="sm" 
+                onClick={handleSave}
+                className="h-8 rounded-full px-4 text-xs font-semibold shadow-sm"
+                disabled={isSaving}
+              >
+                {isSaving ? "Guardando..." : "Guardar Cambios"}
+              </Button>
+            </div>
+          )}
+          
+          {!editMode && showSearch && (
             <Button
               variant="ghost"
               size="icon"
@@ -186,46 +276,16 @@ export function StoreHeader() {
               />
             </Button>
           )}
-          <CartButton />
-          <HeaderSettingsMenu />
+          {!editMode && <CartButton />}
+          {!editMode && <HeaderSettingsMenu />}
         </div>
       </div>
 
-      {/* Barra de búsqueda móvil: se muestra al tocar el ícono de lupa.
-          En escritorio NUNCA se renderiza (md:hidden la oculta siempre). */}
-      {showSearch && mobileSearchOpen && (
+      {!editMode && showSearch && mobileSearchOpen && (
         <div className="px-4 pb-3 md:hidden">
           <SearchBar />
         </div>
       )}
-
-      {/* Mega-menú de escritorio: lista estática de categorías. Se oculta en
-          móvil porque ahí existe el CategoriesDrawer. */}
-      <div className="mx-auto flex max-w-6xl items-center relative">
-        <CategoryNav categories={headerNavCategories} products={products} />
-        
-        {isEditing && (
-          <div className="absolute right-4 top-1/2 -translate-y-1/2 hidden md:block">
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-2 rounded-full border-dashed border-primary/50 text-primary shadow-sm hover:border-primary"
-              onClick={() => setNavEditorOpen(true)}
-            >
-              <HugeIcon icon={Edit02Icon} size={14} />
-              Editar Navbar
-            </Button>
-          </div>
-        )}
-      </div>
-
-      <CategoryNavEditorDialog 
-        open={navEditorOpen} 
-        onOpenChange={setNavEditorOpen}
-        allCategories={allCategories}
-        headerCategories={landing?.headerCategories || []}
-        landing={landing}
-      />
 
       <CategoriesDrawer
         open={categoriesOpen}

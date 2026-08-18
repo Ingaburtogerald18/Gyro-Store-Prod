@@ -92,7 +92,7 @@ function SortableCard({ item, readOnly, onEdit, onDelete }: SortableCardProps) {
     <Card
       ref={setNodeRef}
       style={style}
-      className={`flex flex-col relative group/catalog-card ${isDragging ? 'shadow-2xl ring-2 ring-ring z-50' : 'hover:ring-foreground/10 transition-shadow'}`}
+      className={`flex flex-col h-full relative group/catalog-card ${isDragging ? 'shadow-2xl ring-2 ring-ring z-50' : 'hover:ring-foreground/10 transition-shadow'}`}
     >
       {!readOnly && (
         <div className="absolute left-2 top-2 z-10 flex gap-1">
@@ -127,31 +127,34 @@ function SortableCard({ item, readOnly, onEdit, onDelete }: SortableCardProps) {
       )}
 
       <CatalogCardMedia image={item.images?.[0]} alt={item.name} published={item.published} />
-      <CardContent className="p-4 flex-1">
+      <CardContent className="p-4 flex-1 flex flex-col">
         {item.isPromo && (
           <span className="mb-1 block text-xs font-semibold text-primary">Promoción</span>
         )}
         <h3 className="font-semibold text-foreground line-clamp-2" title={item.name}>
           {item.name}
         </h3>
-        <div className="mt-2 flex items-baseline gap-2">
-          <span className="nums text-lg font-bold text-primary-2">{formatCordobas(item.price)}</span>
-          {item.basePrice && item.basePrice > item.price && (
-            <span className="nums text-xs text-muted-foreground line-through">{formatCordobas(item.basePrice)}</span>
+        
+        <div className="mt-auto flex flex-col items-start pt-2">
+          <div className="flex items-baseline gap-2">
+            <span className="nums text-lg font-bold text-primary-2">{formatCordobas(item.price)}</span>
+            {item.basePrice != null && item.basePrice > item.price && (
+              <span className="nums text-xs text-muted-foreground line-through">{formatCordobas(item.basePrice)}</span>
+            )}
+          </div>
+          {item.spoLink && (
+            <a
+              href={item.spoLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="mt-3 inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+            >
+              <HugeIcon icon={Image01Icon} size={14} strokeWidth={2} />
+              Fotos y videos
+            </a>
           )}
         </div>
-        {item.spoLink && (
-          <a
-            href={item.spoLink}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={(e) => e.stopPropagation()}
-            className="mt-3 inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
-          >
-            <HugeIcon icon={Image01Icon} size={14} strokeWidth={2} />
-            Fotos y videos
-          </a>
-        )}
       </CardContent>
     </Card>
   );

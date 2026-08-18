@@ -56,17 +56,31 @@ export function Layout({ children }: { children: ReactNode }) {
     // antes de que React hidrate; ese "mismatch" es intencional.
     <html
       lang="es"
-      data-theme="dark"
       data-skin="store"
       suppressHydrationWarning
     >
       <head>
+        {/* Zod en modo `jitless` — DEBE ir antes que cualquier módulo del bundle.
+            Zod 4 compila los esquemas con `new Function` (JIT). Nuestra CSP
+            (`script-src 'self' 'nonce-…'`, sin `'unsafe-eval'`) bloquea ese eval:
+            aunque Zod lo atrapa y cae a modo interpretado, deja un
+            `securitypolicyviolation` que DevTools muestra como Issue. Pre-seteando
+            `__zod_globalConfig.jitless` acá (script inline, corre en el parseo del
+            <head>, ANTES de que los `type=module` deferidos evalúen Zod) evitamos
+            el probe y el JIT por completo, sin abrir `'unsafe-eval'` en la CSP.
+            Ver zod/src/v4/core/{util,core}.ts y el test jitless-allows-eval. */}
+        <script
+          nonce={nonce}
+          dangerouslySetInnerHTML={{
+            __html: `globalThis.__zod_globalConfig=Object.assign(globalThis.__zod_globalConfig||{},{jitless:true});`,
+          }}
+        />
         {/* Anti-flash de tema: aplica el tema guardado ANTES del primer paint.
             Debe ir primero en <head>. Clave sincronizada con useTheme. */}
         <script
           nonce={nonce}
           dangerouslySetInnerHTML={{
-            __html: `try{var t=localStorage.getItem('gyro:theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t}catch(e){}`,
+            __html: `try{var t=localStorage.getItem('gyro:theme')||'dark';document.documentElement.dataset.theme=t}catch(e){}`,
           }}
         />
         <meta charSet="utf-8" />
