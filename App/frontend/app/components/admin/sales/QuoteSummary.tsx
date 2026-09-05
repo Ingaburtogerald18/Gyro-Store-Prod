@@ -3,27 +3,35 @@
 // (`saleTotal`, `costReal`, `costosFijos`…) más un `linesFinancials`; acá
 // `QuoteResult` trae `lines[]` con el desglose POR LÍNEA y tres totales.
 //
-// Doble capa para el desglose financiero: el backend ya recorta los campos de
-// costo según el rol, así que acá NO se decide quién ve qué — simplemente, si
-// un campo viene `undefined`, esa fila no se renderiza. Un vendedor nunca ve
-// costo real, utilidad ni ganancia de tienda porque no le llegan.
+// El desglose por línea vive en `FinancialBreakdown`: es el MISMO que muestra
+// el detalle de una venta ya registrada, solo que acá con números estimados y
+// allá con el snapshot congelado. Una sola copia para los dos momentos, igual
+// que `commission.ts` hace del lado del cálculo.
 import { HugeIcon } from '~/components/ui/icon';
-import { Alert02Icon, ArrowDown01Icon, Invoice01Icon, Wallet01Icon } from '@hugeicons/core-free-icons';
-import { useState } from 'react';
+import { Alert02Icon, Invoice01Icon, Wallet01Icon } from '@hugeicons/core-free-icons';
 
 import { Spinner } from '~/components/ui/spinner';
 import { formatCordobas } from '~/lib/formatters';
-import { cn } from '~/lib/utils';
+import { ChainRow, LineBreakdown } from './FinancialBreakdown';
 import type { QuoteLine, QuoteResult } from '~/store/api/salesApi';
+import type { Invoice } from '~/store/api/invoicesApi';
 
 export function QuoteSummary({
   result,
   loading,
   errorMsg,
+  invoice,
 }: {
   result: QuoteResult | null;
   loading: boolean;
   errorMsg?: string;
+  /**
+   * Factura ya verificada de la que nace la venta. Cuando existe, el importe
+   * que se cobra NO es la suma de las líneas: la cotización no conoce el
+   * descuento ni el delivery, y el botón mostraba C$970 mientras acá se leía
+   * C$850. Con la factura a mano se imprime el mismo desglose que el ticket.
+   */
+  invoice?: Invoice | null;
 }) {
   return (
     <section className="rounded-card border bg-card p-4 shadow-sm">
@@ -47,12 +55,16 @@ export function QuoteSummary({
       ) : (
         <div className="space-y-3">
           {/* Importe total */}
-          <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
-            <span className="text-xs text-muted-foreground">Importe total</span>
-            <span className="nums block font-heading text-3xl font-bold text-primary-2">
-              {formatCordobas(result.total)}
-            </span>
-          </div>
+          {invoice ? (
+            <InvoiceTotalBreakdown invoice={invoice} />
+          ) : (
+            <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
+              <span className="text-xs text-muted-foreground">Importe total</span>
+              <span className="nums block font-heading text-3xl font-bold text-primary-2">
+                {formatCordobas(result.total)}
+              </span>
+            </div>
+          )}
 
           {/* Comisión: para el vendedor es SU dato principal, así que va
               destacada arriba del desglose (que puede ni existir para él). */}
@@ -64,7 +76,7 @@ export function QuoteSummary({
           </div>
 
           {result.lines.map((line) => (
-            <LineBreakdown key={line.productName} line={line} />
+            <LineBreakdown key={line.productName} line={line} warnings={<QuoteWarnings line={line} />} />
           ))}
 
           {/* Totales de la venta: solo aportan cuando hay más de un producto. */}
@@ -74,11 +86,18 @@ export function QuoteSummary({
                 Totales de la venta
               </span>
               <dl className="nums divide-y divide-border/60">
-                <Row label="Comisión total" total={formatCordobas(result.totalComision)} />
+                <ChainRow label="Comisión total" total={formatCordobas(result.totalComision)} />
                 {result.totalGananciaTienda !== undefined && (
-                  <Row label="Ganancia tienda total" total={formatCordobas(result.totalGananciaTienda)} strong />
+                  <ChainRow label="Ganancia tienda total" total={formatCordobas(result.totalGananciaTienda)} strong />
                 )}
-                <Row label="Importe total" total={formatCordobas(result.total)} strong />
+                {/* Con factura manda SU total: incluye descuento y delivery, que
+                    la suma de líneas no conoce. Repetir acá `result.total`
+                    contradecía el desglose de arriba y el botón. */}
+                <ChainRow
+                  label={invoice ? 'Total a cobrar' : 'Importe total'}
+                  total={formatCordobas(invoice ? invoice.total : result.total)}
+                  strong
+                />
               </dl>
             </div>
           )}
@@ -88,180 +107,86 @@ export function QuoteSummary({
   );
 }
 
-// Desglose de una línea. El detalle arranca colapsado cuando hay varias líneas
-// para que el resumen quepa de un vistazo; se despliega con el encabezado.
-function LineBreakdown({ line }: { line: QuoteLine }) {
-  const [expanded, setExpanded] = useState(true);
-  const importe = line.precioUnit * line.quantity;
-
-  // Solo el admin recibe estos campos; para el vendedor vienen `undefined` y
-  // el bloque entero desaparece.
-  const hasFinancials =
-    line.costeFinalSnap !== undefined ||
-    line.utilidadBruta !== undefined ||
-    line.gananciaTienda !== undefined;
+/**
+ * Desglose del importe cuando la venta nace de una factura: mismo orden y
+ * mismos conceptos que el ticket impreso (subtotal → descuento → delivery →
+ * total), para que el vendedor pueda contrastarlo contra el papel que tiene en
+ * la mano. Las filas intermedias solo aparecen si tienen valor.
+ */
+function InvoiceTotalBreakdown({ invoice }: { invoice: Invoice }) {
+  const subtotal = invoice.subtotal ?? 0;
+  const discount = invoice.discount ?? 0;
+  const deliveryFee = invoice.deliveryFee ?? 0;
+  const hasExtras = discount > 0 || deliveryFee > 0;
 
   return (
-    <div className="overflow-hidden rounded-lg border bg-muted/40">
-      <button
-        type="button"
-        onClick={() => setExpanded((v) => !v)}
-        aria-expanded={expanded}
-        className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left transition-colors hover:bg-accent motion-reduce:transition-none"
-      >
-        <span className="min-w-0">
-          <span className="block truncate text-xs font-semibold text-foreground">
-            {line.productName}
-          </span>
-          <span className="nums block text-[11px] text-muted-foreground">
-            {line.quantity} × {formatCordobas(line.precioUnit)} = {formatCordobas(importe)}
-          </span>
-        </span>
-        <HugeIcon
-          icon={ArrowDown01Icon}
-          size={14}
-          strokeWidth={2}
-          aria-hidden
-          className={cn(
-            'shrink-0 text-muted-foreground transition-transform motion-reduce:transition-none',
-            expanded && 'rotate-180',
-          )}
-        />
-      </button>
-
-      {expanded && (
-        <div className="space-y-2 border-t px-3 py-2">
-          {/* Avisos que bloquean el registro */}
-          {line.insufficientStock && (
-            <p className="flex items-center gap-1.5 text-xs font-medium text-destructive">
-              <HugeIcon icon={Alert02Icon} size={13} strokeWidth={2} className="shrink-0" aria-hidden />
-              Stock insuficiente — disponible: {line.available}.
-            </p>
-          )}
-          {line.belowMinMargin && (
-            <p className="flex items-center gap-1.5 text-xs font-medium text-destructive">
-              <HugeIcon icon={Alert02Icon} size={13} strokeWidth={2} className="shrink-0" aria-hidden />
-              El precio queda por debajo del margen mínimo.
-            </p>
-          )}
-
-          {/* Dos columnas: unitario × cantidad = total. La cadena financiera se
-              calcula POR UNIDAD (de ahí sale el tramo de comisión) y recién se
-              multiplica, así que mostrar solo el total escondía de dónde salía
-              el porcentaje. En móvil no entran dos columnas de cifras: queda
-              solo la de totales. */}
-          <dl className="nums divide-y divide-border/40 text-xs">
-            <div className="flex items-center justify-end gap-4 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-              <span className="hidden w-20 text-right sm:block">Unitario</span>
-              <span className="w-24 text-right">Total ×{line.quantity}</span>
+    <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
+      {hasExtras && (
+        <dl className="nums mb-2 space-y-1 border-b border-primary/15 pb-2 text-xs">
+          <div className="flex items-center justify-between gap-2">
+            <dt className="text-muted-foreground">Subtotal productos</dt>
+            <dd className="font-medium tabular-nums text-foreground">{formatCordobas(subtotal)}</dd>
+          </div>
+          {discount > 0 && (
+            <div className="flex items-center justify-between gap-2">
+              <dt className="text-muted-foreground">Descuento</dt>
+              <dd className="font-medium tabular-nums text-muted-foreground">
+                −{formatCordobas(discount)}
+              </dd>
             </div>
-
-            <Row
-              label="Precio"
-              unit={formatCordobas(line.precioUnit)}
-              total={formatCordobas(importe)}
-            />
-            {line.costeFinalSnap !== undefined && (
-              <Row
-                label="Costo real"
-                unit={`−${formatCordobas(line.costeFinalSnap)}`}
-                // El bug era mostrar acá el costo UNITARIO en una columna de
-                // totales: la resta no cerraba (1,900 − 219 ≠ 807).
-                total={`−${formatCordobas(line.costoTotal ?? line.costeFinalSnap * line.quantity)}`}
-                muted
-              />
-            )}
-            {line.utilidadBruta !== undefined && (
-              <Row
-                label="Utilidad bruta"
-                unit={line.utilidadBrutaUnit !== undefined ? formatCordobas(line.utilidadBrutaUnit) : undefined}
-                total={formatCordobas(line.utilidadBruta)}
-                sub
-              />
-            )}
-            {line.salary !== undefined && (
-              <Row
-                label="Fondo de empresa"
-                unit={line.salaryUnit !== undefined ? `−${formatCordobas(line.salaryUnit)}` : undefined}
-                total={`−${formatCordobas(line.salary)}`}
-                muted
-              />
-            )}
-            {line.utilidadNeta !== undefined && (
-              <Row
-                label="Utilidad neta"
-                unit={line.utilidadNetaUnit !== undefined ? formatCordobas(line.utilidadNetaUnit) : undefined}
-                total={formatCordobas(line.utilidadNeta)}
-                sub
-              />
-            )}
-            <Row
-              // El tramo sale de la utilidad neta UNITARIA: la etiqueta lo dice
-              // para que se entienda por qué es ese porcentaje y no otro.
-              label={`Comisión vendedor (${Math.round(line.comisionPercent * 100)}% de la neta unitaria)`}
-              unit={line.comisionUnit !== undefined ? `−${formatCordobas(line.comisionUnit)}` : undefined}
-              total={`−${formatCordobas(line.comision)}`}
-            />
-            {line.gananciaTienda !== undefined && (
-              <Row
-                label="Ganancia tienda"
-                unit={line.gananciaTiendaUnit !== undefined ? formatCordobas(line.gananciaTiendaUnit) : undefined}
-                total={formatCordobas(line.gananciaTienda)}
-                strong
-              />
-            )}
-          </dl>
-
-          {!hasFinancials && (
-            <p className="text-[11px] text-muted-foreground">
-              El desglose de costos solo lo ve un administrador.
-            </p>
           )}
-        </div>
+          {deliveryFee > 0 && (
+            <div className="flex items-center justify-between gap-2">
+              <dt className="min-w-0 truncate text-muted-foreground">
+                Delivery{invoice.deliveryName ? ` · ${invoice.deliveryName}` : ''}
+              </dt>
+              <dd className="shrink-0 font-medium tabular-nums text-foreground">
+                +{formatCordobas(deliveryFee)}
+              </dd>
+            </div>
+          )}
+        </dl>
+      )}
+
+      <span className="text-xs text-muted-foreground">
+        {hasExtras ? 'Total a cobrar' : 'Importe total'} · factura {invoice.invoiceCode}
+      </span>
+      <span className="nums block font-heading text-3xl font-bold text-primary-2">
+        {formatCordobas(invoice.total)}
+      </span>
+
+      {deliveryFee > 0 && (
+        <p className="mt-2 text-[11px] leading-snug text-muted-foreground">
+          El envío no genera comisión ni entra en las ventas de reportería: se
+          informa aparte, en el reporte de Delivery.
+        </p>
       )}
     </div>
   );
 }
 
 /**
- * Fila del desglose. `unit` es opcional: para el rol seller el backend no manda
- * los valores unitarios de costo, y la fila cae a una sola columna.
- *
- * Las dos columnas son de ancho fijo (`w-20` / `w-24`) y `text-right`: con ancho
- * automático los dígitos no se alinean entre filas, que es justo lo que hace
- * legible una tabla de números.
+ * Avisos que bloquean el registro. Son lo único del desglose que es propio del
+ * cotizador: una venta ya registrada no tiene "stock insuficiente" que avisar,
+ * porque la reserva ya se hizo.
  */
-function Row({
-  label,
-  unit,
-  total,
-  muted,
-  sub,
-  strong,
-}: {
-  label: string;
-  unit?: string;
-  total: string;
-  muted?: boolean;
-  sub?: boolean;
-  strong?: boolean;
-}) {
-  const tone = strong
-    ? 'font-semibold text-foreground'
-    : muted || sub
-      ? 'text-muted-foreground'
-      : 'font-medium text-foreground';
-  const valueTone = strong ? 'text-primary-2' : muted || sub ? 'text-muted-foreground' : 'text-foreground';
+function QuoteWarnings({ line }: { line: QuoteLine }) {
+  if (!line.insufficientStock && !line.belowMinMargin) return null;
 
   return (
-    <div className={cn('flex items-center justify-between gap-2 py-1', sub && 'pl-3')}>
-      <dt className={cn('min-w-0 flex-1 text-[11px]', tone)}>{label}</dt>
-      <dd className="flex shrink-0 items-center gap-4 text-[11px]">
-        <span className={cn('hidden w-20 text-right tabular-nums sm:block', valueTone, 'opacity-80')}>
-          {unit ?? ''}
-        </span>
-        <span className={cn('w-24 text-right font-semibold tabular-nums', valueTone)}>{total}</span>
-      </dd>
-    </div>
+    <>
+      {line.insufficientStock && (
+        <p className="flex items-center gap-1.5 text-xs font-medium text-destructive">
+          <HugeIcon icon={Alert02Icon} size={13} strokeWidth={2} className="shrink-0" aria-hidden />
+          Stock insuficiente — disponible: {line.available}.
+        </p>
+      )}
+      {line.belowMinMargin && (
+        <p className="flex items-center gap-1.5 text-xs font-medium text-destructive">
+          <HugeIcon icon={Alert02Icon} size={13} strokeWidth={2} className="shrink-0" aria-hidden />
+          El precio queda por debajo del margen mínimo.
+        </p>
+      )}
+    </>
   );
 }

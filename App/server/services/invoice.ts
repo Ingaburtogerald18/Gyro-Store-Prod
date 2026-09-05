@@ -1,4 +1,5 @@
 import { db } from '../supabase';
+import { config } from '../config';
 import { round } from './finance';
 import { BadRequestError } from '../utils/httpError';
 import type { CreateInvoiceInput } from '../../shared/schemas';
@@ -25,9 +26,10 @@ export interface Invoice {
   /** Vendedor al que Caja le asignó la factura al emitirla (o null). */
   sellerUid?: string | null;
   /**
-   * Nombre del vendedor asignado. Solo lo resuelve `listInvoices` (segunda
-   * query en lote, mismo patrón que `listSales` en sales.ts — nunca un embed
-   * de PostgREST, que rompe el listado ENTERO si la FK no está en caché).
+   * Nombre del vendedor asignado. Lo resuelven `listInvoices` (segunda query en
+   * lote, mismo patrón que `listSales` en sales.ts — nunca un embed de
+   * PostgREST, que rompe el listado ENTERO si la FK no está en caché) y
+   * `findInvoiceByNumber` (una sola factura, una sola query).
    */
   sellerName?: string | null;
   /**
@@ -294,23 +296,49 @@ export async function listInvoices(
  * trata como vendedores en Ventas (ver middleware/auth.ts) — un admin que
  * factura personalmente también necesita poder asignarse la factura.
  *
- * Nota: solo mira `profiles.roles`. Un correo que hoy es vendedor SOLO por la
- * whitelist de env (`SELLER_EMAILS`) y todavía no tiene fila en `profiles`
- * con ese rol no va a aparecer acá — mismo límite que ya tiene el selector de
- * vendedor de SaleEditor.tsx (`useGetUsersQuery`).
+ * ── Por qué el filtro de rol NO va en el WHERE ──
+ * El correo protegido (`config.protectedEmail`) es `global_admin` por entorno:
+ * `rolesFromEnvOrProfile` hace cortocircuito y devuelve el rol SIN mirar
+ * `profiles.roles` (middleware/auth.ts). O sea que la fila del dueño de la
+ * tienda puede tener el array vacío y aun así ser quien más derecho tiene a
+ * facturar — y un `.overlaps('roles', …)` en SQL lo dejaba justamente a él
+ * fuera del selector.
+ *
+ * Filtrar en memoria cuesta traer la tabla entera, que son las cuentas del
+ * staff: unas pocas filas. El WHERE que ahorraba eso escondía un caso que se
+ * nota tarde y confunde mucho.
+ *
+ * Sigue en pie el otro límite: un correo que hoy es vendedor solo por whitelist
+ * de env y todavía no tiene su rol en `profiles` no aparece acá.
  */
+const INVOICE_SELLER_ROLES = ['admin', 'seller', 'global_admin'];
+
 export async function listActiveSellers(): Promise<{ id: string; name: string }[]> {
   const { data, error } = await db
     .from('profiles')
-    .select('id, name, roles, status, deleted_at')
-    .overlaps('roles', ['admin', 'seller', 'global_admin'])
+    .select('id, email, name, roles, status, deleted_at')
     .is('deleted_at', null)
     .neq('status', 'disabled')
     .order('name');
   if (error) throw error;
-  return ((data ?? []) as { id: string; name: string | null }[])
+
+  return ((data ?? []) as unknown as {
+    id: string;
+    email: string | null;
+    name: string | null;
+    roles: string[] | null;
+  }[])
+    .filter((p) => {
+      const isProtected =
+        !!config.protectedEmail && p.email?.toLowerCase() === config.protectedEmail;
+      return isProtected || (p.roles ?? []).some((r) => INVOICE_SELLER_ROLES.includes(r));
+    })
     .filter((p) => p.name?.trim())
-    .map((p) => ({ id: p.id, name: p.name!.trim() }));
+    // Se colapsan los espacios internos, no solo las puntas: un nombre guardado
+    // como "Gerald  Aburto" se DIBUJA "Gerald Aburto" (HTML colapsa los espacios
+    // repetidos), así que el combobox comparaba contra un texto que en pantalla
+    // no existía y no matcheaba nunca.
+    .map((p) => ({ id: p.id, name: p.name!.trim().replace(/\s+/g, ' ') }));
 }
 
 /**
@@ -351,6 +379,19 @@ export async function findInvoiceByNumber(
   // Mismo 404 que "no existe": no le confirmamos a un vendedor que el código
   // es válido si es de otro vendedor.
   if (!canAccessInvoice(invoice.sellerUid ?? null, access)) return null;
+
+  // El nombre del vendedor asignado: el editor de ventas lo muestra al verificar
+  // el código, porque es a ESE vendedor a quien se le va a registrar la venta
+  // (`registerSale` lo impone por encima de quien la tipea). Sin el nombre, un
+  // admin registraba a ciegas creyendo que la venta quedaba a nombre suyo.
+  if (invoice.sellerUid) {
+    const { data: profile } = await db
+      .from('profiles')
+      .select('name')
+      .eq('id', invoice.sellerUid)
+      .maybeSingle();
+    invoice.sellerName = (profile as { name: string | null } | null)?.name?.trim() || null;
+  }
 
   const { data: itemRows, error: itemsError } = await db
     .from('invoice_items')

@@ -321,6 +321,8 @@ create table orders (
   contact_id      uuid references contacts(id) on delete set null,
   phone           text,
   total           numeric(12,2),
+  payment_method  payment_method default 'efectivo',
+  payment_receipt_url text,
   created_at      timestamptz not null default now(),
   updated_at      timestamptz not null default now()
 );

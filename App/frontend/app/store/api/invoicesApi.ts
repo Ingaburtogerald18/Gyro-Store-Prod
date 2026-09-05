@@ -21,7 +21,11 @@ export interface Invoice {
   deliveryName?: string | null;
   /** Vendedor al que Caja le asignó la factura al emitirla (o null). */
   sellerUid?: string | null;
-  /** Solo lo trae el listado (`GET /invoices`, `/mine`): nombre resuelto del vendedor. */
+  /**
+   * Nombre resuelto del vendedor asignado. Lo traen el listado (`GET /invoices`,
+   * `/mine`) y el lookup por código (`/invoices/lookup`), que es de donde lo lee
+   * el editor de ventas para avisar a nombre de quién va a quedar la venta.
+   */
   sellerName?: string | null;
   /**
    * Vendedor que CANJEÓ la factura (la vinculó a su venta) — quien cobra la

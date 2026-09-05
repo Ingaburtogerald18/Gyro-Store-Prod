@@ -100,8 +100,26 @@ export interface UpdateSaleInput {
 export interface SaleWithItems extends SaleListItem {
   items: (SaleLineInput & {
     costeFinalSnap?: number;
+    costoTotal?: number;
+    utilidadBruta?: number;
+    salary?: number;
+    utilidadNeta?: number;
     comision?: number;
+    /**
+     * Fracción (0.40 = 40%). Solo admin: junto con `comision` deja despejar la
+     * utilidad neta y de ahí el costo, así que filtra lo mismo que el costo.
+     */
+    comisionPercent?: number;
     gananciaTienda?: number;
+    /** Reparto del Costo F/U de la línea en los 7 pozos (doc 11 §2). */
+    pozos?: Record<string, number>;
+
+    // La cadena por unidad: es de donde sale el tramo de comisión.
+    utilidadBrutaUnit?: number;
+    salaryUnit?: number;
+    utilidadNetaUnit?: number;
+    comisionUnit?: number;
+    gananciaTiendaUnit?: number;
   })[];
 }
 
@@ -117,12 +135,18 @@ export interface SaleListItem {
   customerName: string | null;
   phone: string | null;
   total: number;
+  /** Suma de `order_items.salary` (Fondo de Empresa, 20% de utilidad bruta). Ausente para no-admins. */
+  totalSalary?: number;
   /** Suma de la comisión de TODAS las líneas de la venta. */
   totalComision: number;
+  /** Suma de la ganancia de tienda de TODAS las líneas. Ausente para no-admins (dato sensible). */
+  totalGananciaTienda?: number;
   /** Correlativo de la factura con que se registró la venta. Null si no tiene. */
   invoiceNumber?: number | null;
   /** Código legible de esa factura: `GS-PR-12`. Null si no tiene. */
   invoiceCode?: string | null;
+  /** Costo de envío si la venta tiene factura con delivery. 0 si no tiene. */
+  deliveryFee?: number;
   createdAt: string;
 }
 

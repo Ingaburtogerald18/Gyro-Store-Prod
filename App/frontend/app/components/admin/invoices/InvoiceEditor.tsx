@@ -109,10 +109,15 @@ export function InvoiceEditor({
   }, [invoice]);
 
   const sellerNames = useMemo(() => sellers.map((s) => s.name), [sellers]);
-  const sellerUid = useMemo(
-    () => sellers.find((s) => s.name.trim().toLowerCase() === sellerQuery.trim().toLowerCase())?.id ?? '',
-    [sellers, sellerQuery],
-  );
+  // Se colapsan los espacios INTERNOS además de las puntas. `trim()` solo no
+  // alcanza: un nombre guardado como "Gerald  Aburto" se dibuja "Gerald Aburto"
+  // —HTML colapsa los espacios repetidos— así que quien lo tecleaba como lo veía
+  // nunca matcheaba, y el submit quedaba bloqueado sin decir por qué.
+  const sellerUid = useMemo(() => {
+    const normalize = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ');
+    const target = normalize(sellerQuery);
+    return sellers.find((s) => normalize(s.name) === target)?.id ?? '';
+  }, [sellers, sellerQuery]);
 
   // El catálogo solo trae lo que HOY tiene stock. Un producto de la factura que
   // se agotó desde entonces no estaría en el desplegable y su línea aparecería

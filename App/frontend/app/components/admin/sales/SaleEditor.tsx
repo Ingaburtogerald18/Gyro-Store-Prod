@@ -170,6 +170,12 @@ export function SaleEditor({
   // borre el código (lo que invalida la verificación, ver el campo de arriba).
   const linesLocked = !isEdit && useInvoice && !!linkedInvoice;
 
+  // Caja emitió el ticket a nombre de un vendedor: la venta va a quedar a nombre
+  // de ÉL, no de quien la registra (lo impone `registerSale`, que además rechaza
+  // un override que lo contradiga). Se bloquea el selector para que el admin no
+  // crea que está eligiendo algo que el servidor va a ignorar.
+  const invoiceSeller = !isEdit && useInvoice && linkedInvoice?.sellerUid ? linkedInvoice : null;
+
   // UNA sola razón visible a la vez, en orden de prioridad: el botón
   // deshabilitado SIEMPRE explica por qué.
   const disabledReason =
@@ -287,8 +293,13 @@ export function SaleEditor({
     if (disabledReason) return;
 
     try {
-      const overridePayload = isAdmin ? {
-        overrideSellerId: isRegisteredSeller ? selectedSellerId || undefined : undefined,
+      // Con una factura ya asignada no se manda override: el vendedor lo pone la
+      // factura y el servidor rechaza cualquier otro (ver `registerSale`).
+      const overridePayload = isAdmin && !invoiceSeller ? {
+        // "none" es el valor centinela de la opción "Usuario actual": mandarlo
+        // tal cual hacía fallar el zod del backend (espera un uuid) con un
+        // "Invalid input" que no decía nada. Vacío = sin override.
+        overrideSellerId: isRegisteredSeller && selectedSellerId !== 'none' ? selectedSellerId || undefined : undefined,
         overrideSellerName: !isRegisteredSeller ? externalSellerName.trim() || undefined : undefined,
       } : {};
 
@@ -438,47 +449,61 @@ export function SaleEditor({
                 <HugeIcon icon={UserIcon} size={16} strokeWidth={2} className="text-primary-2" aria-hidden />
                 <h3 className="text-sm font-semibold text-foreground">Asignar vendedor</h3>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground select-none">Registrado en el sistema</span>
-                <Switch
-                  id="is-registered-seller"
-                  checked={isRegisteredSeller}
-                  onCheckedChange={setIsRegisteredSeller}
-                  disabled={busy}
-                  aria-label="Vendedor registrado en el sistema"
-                />
-              </div>
-            </div>
-            
-            <div className="pt-3">
-              {isRegisteredSeller ? (
-                <Field>
-                  <FieldLabel htmlFor="sale-seller-id" className="sr-only">Seleccionar vendedor</FieldLabel>
-                  <Select value={selectedSellerId} onValueChange={setSelectedSellerId} disabled={busy}>
-                    <SelectTrigger id="sale-seller-id">
-                      <SelectValue placeholder="Usuario actual (por defecto)" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Usuario actual (por defecto)</SelectItem>
-                      {users.map((u) => (
-                        <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Field>
-              ) : (
-                <Field>
-                  <FieldLabel htmlFor="sale-external-seller" className="sr-only">Nombre del vendedor</FieldLabel>
-                  <Input
-                    id="sale-external-seller"
-                    value={externalSellerName}
-                    onChange={(e) => setExternalSellerName(e.target.value)}
-                    placeholder="Nombre del vendedor esporádico..."
+              {!invoiceSeller && (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground select-none">Registrado en el sistema</span>
+                  <Switch
+                    id="is-registered-seller"
+                    checked={isRegisteredSeller}
+                    onCheckedChange={setIsRegisteredSeller}
                     disabled={busy}
+                    aria-label="Vendedor registrado en el sistema"
                   />
-                </Field>
+                </div>
               )}
             </div>
+
+            {invoiceSeller ? (
+              <p className="flex items-start gap-1.5 rounded-lg border border-primary-2/30 bg-primary-2/10 px-3 py-2 text-xs text-primary-2">
+                <HugeIcon icon={Alert02Icon} size={14} strokeWidth={2} className="mt-px shrink-0" aria-hidden />
+                <span>
+                  Esta venta queda a nombre de{' '}
+                  <strong className="font-semibold">{invoiceSeller.sellerName ?? 'el vendedor de la factura'}</strong>,
+                  que es a quien Caja le emitió la factura {invoiceSeller.invoiceCode} — no de quien la registra.
+                  Si el ticket quedó mal asignado, registrá la venta y corregí el vendedor editándola.
+                </span>
+              </p>
+            ) : (
+              <div className="pt-3">
+                {isRegisteredSeller ? (
+                  <Field>
+                    <FieldLabel htmlFor="sale-seller-id" className="sr-only">Seleccionar vendedor</FieldLabel>
+                    <Select value={selectedSellerId} onValueChange={setSelectedSellerId} disabled={busy}>
+                      <SelectTrigger id="sale-seller-id">
+                        <SelectValue placeholder="Usuario actual (por defecto)" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Usuario actual (por defecto)</SelectItem>
+                        {users.map((u) => (
+                          <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                ) : (
+                  <Field>
+                    <FieldLabel htmlFor="sale-external-seller" className="sr-only">Nombre del vendedor</FieldLabel>
+                    <Input
+                      id="sale-external-seller"
+                      value={externalSellerName}
+                      onChange={(e) => setExternalSellerName(e.target.value)}
+                      placeholder="Nombre del vendedor esporádico..."
+                      disabled={busy}
+                    />
+                  </Field>
+                )}
+              </div>
+            )}
           </section>
         )}
 
@@ -513,7 +538,7 @@ export function SaleEditor({
 
       {/* ── Columna derecha: resumen sticky + acciones ── */}
       <div className="space-y-4 lg:sticky lg:top-4 lg:self-start">
-        <QuoteSummary result={result} loading={quoting} errorMsg={errorMsg} />
+        <QuoteSummary result={result} loading={quoting} errorMsg={errorMsg} invoice={linkedInvoice} />
 
         {isEdit && sale?.status !== 'pending_approval' && (
           <Field

@@ -240,6 +240,9 @@ export async function registerSale(
   // Importe REALMENTE cobrado cuando la venta nace de una factura: es el total
   // de la factura, que ya tiene aplicado el descuento (manual y/o por código).
   let invoiceTotal: number | null = null;
+  // Vendedor al que Caja le emitió el ticket. Manda sobre quien registra la
+  // venta (ver la resolución del vendedor más abajo).
+  let invoiceSellerUid: string | null = null;
 
   if (input.invoiceNumber) {
     // El vendedor tipea lo que ve impreso ("GS-PR-12"); acá se resuelve al
@@ -251,7 +254,7 @@ export async function registerSale(
 
     const { data: existing, error: invError } = await db
       .from('invoices')
-      .select('id, status, customer_name, phone, total, discount')
+      .select('id, status, customer_name, phone, total, discount, seller_uid')
       .eq('invoice_number', invoiceNumber)
       .maybeSingle();
 
@@ -263,6 +266,7 @@ export async function registerSale(
     finalCustomerName = existing.customer_name || input.customerName;
     finalPhone = existing.phone || input.phone;
     invoiceTotal = existing.total ?? null;
+    invoiceSellerUid = existing.seller_uid ?? null;
 
     const { data: invItems, error: itemsError } = await db
       .from('invoice_items')
@@ -361,10 +365,52 @@ export async function registerSale(
     }
   }
 
+  // ── A nombre de quién queda la venta ──
+  // Por defecto, quien la está registrando. PERO si la venta nace de una factura
+  // que Caja emitió a nombre de un vendedor, manda ESE vendedor: el ticket de
+  // papel ya dice de quién es la venta y a quién se le debe la comisión.
+  //
+  // Antes `invoices.seller_uid` se ignoraba acá y la venta quedaba siempre a
+  // nombre de quien la tipeaba. Como los admin registran facturas ajenas (el
+  // vendedor no siempre entra al sistema), la venta —y la comisión— terminaban
+  // acreditadas al admin, en silencio y sin que nadie tocara nada.
   let finalSellerUid: string | null = seller.uid;
   let finalSellerEmail: string = seller.email;
 
-  if (seller.isAdmin) {
+  if (invoiceSellerUid) {
+    const { data: invoiceSeller } = await db
+      .from('profiles')
+      .select('email')
+      .eq('id', invoiceSellerUid)
+      .maybeSingle();
+
+    // La FK de `invoices.seller_uid` es `on delete set null`, así que un uid
+    // asignado siempre tiene perfil. Si aun así no aparece, se corta: caer al
+    // usuario actual sería exactamente el bug que este bloque arregla.
+    if (!invoiceSeller?.email) {
+      throw new BadRequestError(
+        'No se pudo resolver el vendedor asignado a esta factura. Revisá su perfil antes de registrar la venta.',
+      );
+    }
+
+    // Un override que CONTRADICE a la factura se rechaza en vez de ignorarse en
+    // silencio: el editor ya muestra (y bloquea) el vendedor de la factura, así
+    // que esto solo llega desde la API directa o un formulario desactualizado.
+    // Para arreglar una factura mal asignada se edita la venta ya registrada,
+    // que exige motivo y queda asentado — cambiar el dueño de una comisión no
+    // debería poder hacerse sin dejar rastro.
+    const overrideContradiceFactura =
+      (!!input.overrideSellerId && input.overrideSellerId !== invoiceSellerUid) ||
+      !!input.overrideSellerName;
+    if (seller.isAdmin && overrideContradiceFactura) {
+      throw new BadRequestError(
+        `La factura ${formatInvoiceCode(invoiceIdToLink!)} ya está asignada a un vendedor, así que la venta se registra a su nombre. Si el ticket quedó mal asignado, registrá la venta y corregí el vendedor editándola.`,
+      );
+    }
+
+    finalSellerUid = invoiceSellerUid;
+    finalSellerEmail = invoiceSeller.email;
+  } else if (seller.isAdmin) {
     if (input.overrideSellerId) {
       const { data } = await db.from('profiles').select('email').eq('id', input.overrideSellerId).maybeSingle();
       if (data) {
@@ -585,16 +631,30 @@ export interface SaleListItem {
   weekOf: string | null;
   phone: string | null;
   total: number;
+  /** Suma de `order_items.salary` (Fondo de Empresa, 20% de utilidad bruta). */
+  totalSalary: number;
   /** Suma de `order_items.comision` de TODAS las líneas de la venta. */
   totalComision: number;
+  /** Suma de `order_items.ganancia_tienda`. `routes/sales.ts` la recorta para no-admins. */
+  totalGananciaTienda: number;
   /** Correlativo de la factura con que se registró la venta (`invoices.sale_id`). Null si no tiene. */
   invoiceNumber: number | null;
   /** Código legible de esa factura: `GS-PR-12`. Null si no tiene. */
   invoiceCode: string | null;
+  /** Costo de envío si la venta tiene factura con delivery. 0 si no tiene. */
+  deliveryFee: number;
   createdAt: string;
 }
 
-/** Una venta con sus líneas. Lo que el drawer de detalle necesita. */
+/**
+ * Una venta con sus líneas. Lo que el drawer de detalle necesita.
+ *
+ * Las líneas traen la cadena financiera COMPLETA de doc 11 §4 (utilidad bruta →
+ * salary → utilidad neta → comisión → ganancia) más el reparto en pozos, tal
+ * como quedó congelada en `order_items`. No se recalcula nada: doc 11 §1 dice
+ * que cambiar un costo o un % después no reescribe ventas viejas, así que el
+ * detalle tiene que mostrar lo que pasó ese día, no lo que pasaría hoy.
+ */
 export interface SaleWithItems extends SaleListItem {
   items: {
     productName: string;
@@ -602,8 +662,32 @@ export interface SaleWithItems extends SaleListItem {
     salePrice: number;
     /** Costo de una unidad. Solo para admin: la ruta lo recorta. */
     costeFinalSnap?: number;
+    /** Costo de TODAS las unidades de la línea. */
+    costoTotal?: number;
+    utilidadBruta?: number;
+    salary?: number;
+    utilidadNeta?: number;
     comision?: number;
+    /**
+     * Tramo de comisión aplicado, en tanto por uno. Solo para admin: junto con
+     * `comision` permite despejar la utilidad neta y de ahí el costo, así que
+     * filtra lo mismo que `costeFinalSnap`.
+     */
+    comisionPercent?: number;
     gananciaTienda?: number;
+    /** El reparto del Costo F/U de esta línea en los 7 pozos (doc 11 §2). */
+    pozos?: Record<string, number>;
+
+    // ── La misma cadena, POR UNIDAD ──
+    // Es de donde sale el tramo de comisión (se busca por la utilidad neta
+    // UNITARIA, ver commission.ts), así que sin estos valores el porcentaje
+    // parece salir de la nada. En la base solo viven los totales: acá se
+    // dividen entre la cantidad.
+    utilidadBrutaUnit?: number;
+    salaryUnit?: number;
+    utilidadNetaUnit?: number;
+    comisionUnit?: number;
+    gananciaTiendaUnit?: number;
   }[];
 }
 
@@ -642,7 +726,9 @@ export async function getSaleById(id: string): Promise<SaleWithItems | null> {
 
   const { data: items, error: itemsError } = await db
     .from('order_items')
-    .select('sku, quantity, precio_unit, coste_final_snap, comision, ganancia_tienda')
+    .select(
+      'sku, quantity, precio_unit, coste_final_snap, utilidad_bruta, salary, utilidad_neta, comision, ganancia_tienda, pozos',
+    )
     .eq('order_id', id);
 
   if (itemsError) throw itemsError;
@@ -664,8 +750,12 @@ export async function getSaleById(id: string): Promise<SaleWithItems | null> {
     quantity: number;
     precio_unit: number | null;
     coste_final_snap: number | null;
+    utilidad_bruta: number | null;
+    salary: number | null;
+    utilidad_neta: number | null;
     comision: number | null;
     ganancia_tienda: number | null;
+    pozos: Record<string, number> | null;
   }[];
 
   // Factura con que se registró la venta (`invoices.sale_id`). Segunda query,
@@ -674,16 +764,18 @@ export async function getSaleById(id: string): Promise<SaleWithItems | null> {
   // una fila apuntando a la venta.
   let invoiceNumber: number | null = null;
   let invoiceCode: string | null = null;
+  let deliveryFee = 0;
   const { data: linkedInvoices } = await db
     .from('invoices')
-    .select('invoice_number, invoice_code')
+    .select('invoice_number, invoice_code, delivery_fee')
     .eq('sale_id', id)
     .order('invoice_number', { ascending: false })
     .limit(1);
-  const linkedInvoice = (linkedInvoices ?? [])[0] as { invoice_number: number; invoice_code: string | null } | undefined;
+  const linkedInvoice = (linkedInvoices ?? [])[0] as { invoice_number: number; invoice_code: string | null; delivery_fee: number | null } | undefined;
   if (linkedInvoice) {
     invoiceNumber = linkedInvoice.invoice_number;
     invoiceCode = linkedInvoice.invoice_code ?? formatInvoiceCode(linkedInvoice.invoice_number);
+    deliveryFee = linkedInvoice.delivery_fee ?? 0;
   }
 
   return {
@@ -696,18 +788,52 @@ export async function getSaleById(id: string): Promise<SaleWithItems | null> {
     weekOf: row.week_of,
     phone: row.phone,
     total: row.total ?? 0,
+    totalSalary: itemRows.reduce((sum, it) => sum + (it.salary ?? 0), 0),
     totalComision: itemRows.reduce((sum, it) => sum + (it.comision ?? 0), 0),
+    totalGananciaTienda: itemRows.reduce((sum, it) => sum + (it.ganancia_tienda ?? 0), 0),
     invoiceNumber,
     invoiceCode,
+    deliveryFee,
     createdAt: row.created_at,
-    items: itemRows.map((it) => ({
-      productName: it.sku ?? '',
-      quantity: it.quantity,
-      salePrice: it.precio_unit ?? 0,
-      costeFinalSnap: it.coste_final_snap ?? 0,
-      comision: it.comision ?? 0,
-      gananciaTienda: it.ganancia_tienda ?? 0,
-    })),
+    items: itemRows.map((it) => {
+      const quantity = it.quantity;
+      const costeFinalSnap = it.coste_final_snap ?? 0;
+      const utilidadBruta = it.utilidad_bruta ?? 0;
+      const salary = it.salary ?? 0;
+      const utilidadNeta = it.utilidad_neta ?? 0;
+      const comision = it.comision ?? 0;
+      const gananciaTienda = it.ganancia_tienda ?? 0;
+
+      // `order_items` guarda los TOTALES de la línea; los unitarios se derivan.
+      // `quantity` no puede ser 0 (CHECK en la tabla), así que no hace falta
+      // guardarse de la división.
+      const perUnit = (total: number) => round(total / quantity, 2);
+
+      return {
+        productName: it.sku ?? '',
+        quantity,
+        salePrice: it.precio_unit ?? 0,
+        costeFinalSnap,
+        costoTotal: round(costeFinalSnap * quantity, 2),
+        utilidadBruta,
+        salary,
+        utilidadNeta,
+        comision,
+        // No hay columna `comision_percent`: se despeja del par que sí está.
+        // Sin utilidad neta positiva la comisión es 0 por regla de negocio
+        // (`computeCommissionPercent`), y ahí la división no tiene sentido.
+        // Se redondea a 4 decimales para que un tramo del 30% se lea 0.3 y no
+        // 0.29997 — el ruido lo mete el redondeo a centavos de `comision`.
+        comisionPercent: utilidadNeta > 0 ? round(comision / utilidadNeta, 4) : 0,
+        gananciaTienda,
+        pozos: it.pozos ?? undefined,
+        utilidadBrutaUnit: perUnit(utilidadBruta),
+        salaryUnit: perUnit(salary),
+        utilidadNetaUnit: perUnit(utilidadNeta),
+        comisionUnit: perUnit(comision),
+        gananciaTiendaUnit: perUnit(gananciaTienda),
+      };
+    }),
   };
 }
 
@@ -750,34 +876,43 @@ export async function listSales(filters: { sellerEmail?: string; status?: string
     }
   }
 
-  // Comisión TOTAL de la venta: una venta puede tener varias líneas, cada una
-  // con su propia comisión (tramos distintos según margen). Se suma con una
-  // TERCERA query en lote (mismo criterio que el nombre del vendedor arriba)
-  // y no con un JOIN/embed: si la venta no tiene líneas todavía, la comisión
-  // es 0 y la venta igual se lista.
+  // Comisión y ganancia de tienda TOTALES de la venta: una venta puede tener
+  // varias líneas, cada una con su propio tramo. Se suman con una TERCERA
+  // query en lote (mismo criterio que el nombre del vendedor arriba) y no con
+  // un JOIN/embed: si la venta no tiene líneas todavía, quedan en 0 y la
+  // venta igual se lista. `ganancia_tienda` viaja en la misma fila que
+  // `comision` — no hace falta una cuarta query para sumarla aparte.
   const orderIds = rows.map((r) => r.id);
+  const salaryByOrderId = new Map<string, number>();
   const comisionByOrderId = new Map<string, number>();
+  const gananciaTiendaByOrderId = new Map<string, number>();
   if (orderIds.length > 0) {
-    const { data: items } = await db.from('order_items').select('order_id, comision').in('order_id', orderIds);
-    for (const it of (items ?? []) as { order_id: string; comision: number | null }[]) {
+    const { data: items } = await db
+      .from('order_items')
+      .select('order_id, salary, comision, ganancia_tienda')
+      .in('order_id', orderIds);
+    for (const it of (items ?? []) as { order_id: string; salary: number | null; comision: number | null; ganancia_tienda: number | null }[]) {
+      salaryByOrderId.set(it.order_id, (salaryByOrderId.get(it.order_id) ?? 0) + (it.salary ?? 0));
       comisionByOrderId.set(it.order_id, (comisionByOrderId.get(it.order_id) ?? 0) + (it.comision ?? 0));
+      gananciaTiendaByOrderId.set(it.order_id, (gananciaTiendaByOrderId.get(it.order_id) ?? 0) + (it.ganancia_tienda ?? 0));
     }
   }
 
   // Nº de factura con que se registró cada venta (`invoices.sale_id`). CUARTA
   // query en lote, mismo criterio que las de arriba (nunca embed): si no se
   // resuelve, la venta igual se lista, solo que sin código de factura.
-  const invoiceBySaleId = new Map<string, { number: number; code: string }>();
+  const invoiceBySaleId = new Map<string, { number: number; code: string; deliveryFee: number }>();
   if (orderIds.length > 0) {
     const { data: invoices } = await db
       .from('invoices')
-      .select('sale_id, invoice_number, invoice_code')
+      .select('sale_id, invoice_number, invoice_code, delivery_fee')
       .in('sale_id', orderIds);
-    for (const inv of (invoices ?? []) as { sale_id: string | null; invoice_number: number; invoice_code: string | null }[]) {
+    for (const inv of (invoices ?? []) as { sale_id: string | null; invoice_number: number; invoice_code: string | null; delivery_fee: number | null }[]) {
       if (!inv.sale_id) continue;
       invoiceBySaleId.set(inv.sale_id, {
         number: inv.invoice_number,
         code: inv.invoice_code ?? formatInvoiceCode(inv.invoice_number),
+        deliveryFee: inv.delivery_fee ?? 0,
       });
     }
   }
@@ -792,9 +927,15 @@ export async function listSales(filters: { sellerEmail?: string; status?: string
     weekOf: row.week_of,
     phone: row.phone,
     total: row.total ?? 0,
+    totalSalary: salaryByOrderId.get(row.id) ?? 0,
     totalComision: comisionByOrderId.get(row.id) ?? 0,
+    // Solo la ve admin/global_admin: routes/sales.ts la recorta para un
+    // vendedor común, igual que ya hace con `gananciaTienda` en `/quote` y en
+    // el detalle de una venta (getSaleById no la trae en absoluto).
+    totalGananciaTienda: gananciaTiendaByOrderId.get(row.id) ?? 0,
     invoiceNumber: invoiceBySaleId.get(row.id)?.number ?? null,
     invoiceCode: invoiceBySaleId.get(row.id)?.code ?? null,
+    deliveryFee: invoiceBySaleId.get(row.id)?.deliveryFee ?? 0,
     createdAt: row.created_at,
   }));
 }
@@ -843,15 +984,126 @@ export async function updateSale(
     return { productName: item.productName, quantity: item.quantity, precioUnit: snapshot.precioUnit, snapshot };
   });
 
-  const newTotal = round(
+  const linesTotal = round(
     pricedLines.reduce((sum, line) => sum + line.precioUnit * line.quantity, 0),
     2,
   );
 
-  let oldComision = 0;
-  if (order.status === 'paid') {
-    const { data: oldItems } = await db.from('order_items').select('comision').eq('order_id', orderId);
-    oldComision = (oldItems || []).reduce((sum, it) => sum + (Number(it.comision) || 0), 0);
+  // ── La factura que emitió esta venta ──
+  // `registerSale` puede haber nacido de una factura ya impresa, y esa factura
+  // es el documento que ve el cliente y el que audita Facturación: si la venta
+  // se corrige, tiene que corregirse con ella. Se busca ACÁ, antes de tocar
+  // nada, porque de ella dependen el total y la validación de abajo.
+  //
+  // `limit(1)` y no `maybeSingle()` por el mismo motivo que en `getSaleById`:
+  // si por un caso raro hubiera dos filas apuntando a la venta, la edición no
+  // puede reventar por eso.
+  const { data: linkedInvoices } = await db
+    .from('invoices')
+    .select('id, invoice_number, invoice_code, status, subtotal, discount, delivery_fee, total')
+    .eq('sale_id', orderId)
+    .order('invoice_number', { ascending: false })
+    .limit(1);
+  const invoice = (linkedInvoices ?? [])[0] as
+    | {
+        id: string;
+        invoice_number: number;
+        invoice_code: string | null;
+        status: string;
+        subtotal: number | null;
+        discount: number | null;
+        delivery_fee: number | null;
+        total: number | null;
+      }
+    | undefined;
+  // Una factura anulada ya no describe nada que cobrar: para el total y para la
+  // sincronización cuenta como si la venta no tuviera factura.
+  const activeInvoice = invoice && invoice.status !== 'void' ? invoice : undefined;
+
+  // ── Líneas de ANTES, leídas una sola vez ──
+  // Alimentan dos cosas: el ajuste de comisión post-pago y saber si la edición
+  // tocó de verdad los productos. Si no los tocó (se corrigió el teléfono, el
+  // vendedor…), la factura no tiene por qué moverse.
+  const { data: oldItemRows } = await db
+    .from('order_items')
+    .select('sku, quantity, precio_unit, comision')
+    .eq('order_id', orderId);
+  const oldItems = (oldItemRows ?? []) as unknown as {
+    sku: string | null;
+    quantity: number;
+    precio_unit: number | null;
+    comision: number | null;
+  }[];
+
+  const oldComision =
+    order.status === 'paid'
+      ? oldItems.reduce((sum, it) => sum + (Number(it.comision) || 0), 0)
+      : 0;
+
+  const lineKey = (sku: string, quantity: number, price: number) => `${sku}|${quantity}|${price.toFixed(2)}`;
+  const keysBefore = oldItems
+    .map((it) => lineKey(it.sku ?? '', it.quantity, Number(it.precio_unit) || 0))
+    .sort();
+  const keysAfter = pricedLines.map((l) => lineKey(l.productName, l.quantity, l.precioUnit)).sort();
+  const linesChanged =
+    keysBefore.length !== keysAfter.length || keysBefore.some((k, i) => k !== keysAfter[i]);
+
+  // ── Descuento: no se puede repartir de nuevo sobre un papel ya impreso ──
+  // Con descuento, `order_items.precio_unit` es el precio YA prorrateado por
+  // `registerSale`, no el de lista que salió impreso. Devolver un cambio a
+  // `invoice_items` exigiría des-prorratear, y eso no cierra al centavo. Antes
+  // que escribir números inventados en un documento fiscal, se corta la edición.
+  const invoiceHasDiscount = (activeInvoice?.discount ?? 0) > 0;
+  if (activeInvoice && linesChanged && invoiceHasDiscount) {
+    const code = activeInvoice.invoice_code ?? formatInvoiceCode(activeInvoice.invoice_number);
+    throw new BadRequestError(
+      `Esta venta salió de la factura ${code}, que lleva un descuento aplicado. Cambiar los productos o ` +
+        'sus precios obligaría a repartir ese descuento de nuevo sobre un documento ya emitido: anulá la ' +
+        'factura y emitila otra vez.',
+    );
+  }
+
+  // ── ¿La factura quedó diciendo otra cosa que la venta? ──
+  // La condición NO es "esta edición tocó las líneas" sino "las dos capas no
+  // coinciden". La diferencia importa: las ventas que ya quedaron descuadradas
+  // por la versión vieja de esta función se reparan solas la próxima vez que se
+  // editen, en lugar de arrastrar el descuadre para siempre.
+  //
+  // Sin descuento el precio de la línea y el de lista son el mismo número, así
+  // que la comparación es directa. Con descuento nunca van a coincidir por
+  // diseño, y ahí la sincronización no aplica (el guard de arriba ya impidió que
+  // las líneas cambiaran).
+  let invoiceOutOfSync = false;
+  if (activeInvoice && !invoiceHasDiscount) {
+    const { data: invItemRows } = await db
+      .from('invoice_items')
+      .select('sku, quantity, unit_price')
+      .eq('invoice_id', activeInvoice.id);
+    const keysInvoice = ((invItemRows ?? []) as unknown as {
+      sku: string | null;
+      quantity: number;
+      unit_price: number | null;
+    }[])
+      .map((it) => lineKey(it.sku ?? '', it.quantity, Number(it.unit_price) || 0))
+      .sort();
+    invoiceOutOfSync =
+      keysInvoice.length !== keysAfter.length || keysInvoice.some((k, i) => k !== keysAfter[i]);
+  }
+
+  // ── El total de una venta facturada es el de la factura ──
+  // `linesTotal` es solo lo que suman los productos; la factura además cobra el
+  // envío. Guardar `linesTotal` pelado le borraba el envío al total y dejaba la
+  // orden descuadrada contra `invoices.total` — que es justo lo que pasó con
+  // GS-PR-3, GS-PR-5 y GS-PR-9.
+  //
+  // Con descuento el total de la factura se conserva TAL CUAL en vez de
+  // recomponerse: rearmarlo desde líneas prorrateadas puede mover un centavo por
+  // redondeo, y las líneas ahí no cambiaron.
+  let newTotal = linesTotal;
+  if (activeInvoice) {
+    newTotal = invoiceHasDiscount
+      ? (activeInvoice.total ?? linesTotal)
+      : round(linesTotal + (activeInvoice.delivery_fee ?? 0), 2);
   }
 
   if (order.status === 'pending_approval') {
@@ -942,6 +1194,52 @@ export async function updateSale(
     );
   } catch (err) {
     throw err;
+  }
+
+  // ── La factura sigue a la venta ──
+  // Va DESPUÉS de mover el stock: si la reserva falla, la factura no se tocó y
+  // el papel sigue describiendo lo que la orden todavía dice.
+  //
+  // `invoiceOutOfSync` ya garantiza descuento en cero, así que el precio de la
+  // línea y el de lista son el mismo número y no hay que des-prorratear nada. Se
+  // reemplazan las líneas enteras (borrar + insertar) en vez de parchearlas,
+  // igual que en `updateInvoice`: las filas no tienen identidad estable y
+  // parchear por posición se rompe al borrar una del medio.
+  if (activeInvoice && invoiceOutOfSync) {
+    const { error: delInvItemsError } = await db
+      .from('invoice_items')
+      .delete()
+      .eq('invoice_id', activeInvoice.id);
+    if (delInvItemsError) throw delInvItemsError;
+
+    const { error: insInvItemsError } = await db.from('invoice_items').insert(
+      pricedLines.map((line) => ({
+        invoice_id: activeInvoice.id,
+        sku: line.productName,
+        quantity: line.quantity,
+        unit_price: line.precioUnit,
+        line_total: round(line.precioUnit * line.quantity, 2),
+      })),
+    );
+    if (insInvItemsError) throw insInvItemsError;
+
+    const { error: invError } = await db
+      .from('invoices')
+      .update({ subtotal: linesTotal, total: newTotal })
+      .eq('id', activeInvoice.id);
+    if (invError) throw invError;
+
+    // Entrada propia, con `entity_id` de la factura: quien audita Facturación
+    // busca por el id del documento, no por el de la venta que lo movió.
+    await db.from('audit_logs').insert({
+      entity: 'invoices',
+      entity_id: activeInvoice.id,
+      action: 'invoice_synced_from_sale',
+      reason: input.reason || 'Edición de la venta ligada',
+      author_uid: user.uid,
+      before: { subtotal: activeInvoice.subtotal, total: activeInvoice.total },
+      after: { subtotal: linesTotal, total: newTotal },
+    });
   }
 
   if (order.status === 'approved' || order.status === 'paid') {

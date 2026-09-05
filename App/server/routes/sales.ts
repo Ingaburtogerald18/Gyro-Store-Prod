@@ -199,7 +199,36 @@ router.get(
     }
 
     if (!admin) {
-      sale.items = sale.items.map(({ costeFinalSnap, gananciaTienda, ...rest }) => rest);
+      // El vendedor ve SU comisión, no la estructura de costos de la tienda.
+      //
+      // Se poda mucho más que el costo directo, por el mismo criterio que en
+      // POST /quote: casi toda la cadena permite despejarlo hacia atrás.
+      //   · `utilidadBruta` → costo = precio − utilidad bruta.
+      //   · `comisionPercent` → utilidad neta = comisión ÷ %, y de ahí la bruta
+      //     (la neta es el 80% de la bruta) y el costo.
+      //   · `pozos` → su suma es el Costo F/U, que es parte del costo.
+      // Sobreviven `comision` y `comisionUnit`: son lo suyo y no despejan nada
+      // por sí solos.
+      sale.items = sale.items.map(
+        ({
+          costeFinalSnap,
+          costoTotal,
+          utilidadBruta,
+          salary,
+          utilidadNeta,
+          comisionPercent,
+          gananciaTienda,
+          pozos,
+          utilidadBrutaUnit,
+          salaryUnit,
+          utilidadNetaUnit,
+          gananciaTiendaUnit,
+          ...rest
+        }) => rest,
+      );
+      const { totalGananciaTienda, totalSalary, ...trimmedSale } = sale;
+      res.json(trimmedSale);
+      return;
     }
 
     res.json(sale);
@@ -278,7 +307,11 @@ router.get(
         : undefined
       : req.user!.email;
 
-    res.json(await listSales({ sellerEmail, status: status.success ? status.data : undefined }));
+    const sales = await listSales({ sellerEmail, status: status.success ? status.data : undefined });
+    // Ganancia de tienda y fondo empresa: SENSIBLE, igual que en `/quote` y en el detalle de
+    // una venta — un vendedor común no ve la estructura de costos de la
+    // tienda, solo la suya (comisión).
+    res.json(admin ? sales : sales.map(({ totalGananciaTienda, totalSalary, ...rest }) => rest));
   }),
 );
 

@@ -201,7 +201,7 @@ export const businessInfoSchema = z
       instagram: z.string().max(300).optional().default(''),
       facebook: z.string().max(300).optional().default(''),
       tiktok: z.string().max(300).optional().default(''),
-    }).optional().default({}),
+    }).optional().default({ instagram: '', facebook: '', tiktok: '' }),
     bankAccounts: z.array(storeBankAccountSchema).optional().default([]),
   })
   // El banco vacío se permite MIENTRAS se llena el formulario (ver
