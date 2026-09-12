@@ -65,10 +65,17 @@ export function SaleDetailDrawer({
             Venta
             {meta && <StatusBadge status={meta.status} label={meta.label} />}
           </DialogTitle>
-          <DialogDescription>
-            {sale
-              ? `${sale.sellerName || sale.sellerEmail} · ${new Date(sale.createdAt).toLocaleDateString('es-NI')}`
-              : 'Cargando…'}
+          <DialogDescription className="flex flex-wrap items-center gap-2">
+            <span>
+              {sale
+                ? `${sale.sellerName || sale.sellerEmail} · ${new Date(sale.createdAt).toLocaleDateString('es-NI')}`
+                : 'Cargando…'}
+            </span>
+            {sale?.isManualDate && (
+              <span className="inline-flex items-center rounded-full bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                Fecha manual
+              </span>
+            )}
           </DialogDescription>
         </DialogHeader>
 
@@ -96,6 +103,17 @@ export function SaleDetailDrawer({
                     <dt className="text-xs text-muted-foreground">Nº Factura</dt>
                     <dd className="mt-0.5 font-medium text-foreground">
                       {sale.invoiceCode ? <InvoiceCodeCell code={sale.invoiceCode} /> : '—'}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-muted-foreground">Fecha de venta</dt>
+                    <dd className="mt-0.5 font-medium text-foreground flex items-center gap-1.5 flex-wrap">
+                      <span>{new Date(sale.createdAt).toLocaleDateString('es-NI')}</span>
+                      {sale.isManualDate && (
+                        <span className="inline-flex items-center rounded-full bg-amber-500/10 px-1.5 py-0.2 text-[10px] font-medium text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                          Fecha manual
+                        </span>
+                      )}
                     </dd>
                   </div>
                 </dl>

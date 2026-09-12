@@ -5,6 +5,7 @@
 import { HugeIcon } from '~/components/ui/icon';
 import { CreditCardIcon, Invoice01Icon, Store01Icon, Tag01Icon, Calendar03Icon } from '@hugeicons/core-free-icons';
 import type { IconSvgElement } from '@hugeicons/react';
+import { useMemo } from 'react';
 
 import { SpotlightCard } from '~/components/ui/stat-card';
 import { QueryState } from '~/components/ui/QueryState';
@@ -31,7 +32,14 @@ const KEY_LABELS: Record<string, string> = {
   contado: 'De contado',
 };
 
-const SECTIONS: { key: keyof SalesBreakdown; title: string; icon: IconSvgElement; hint: string }[] = [
+export interface BreakdownSection {
+  key: keyof SalesBreakdown;
+  title: string;
+  icon: IconSvgElement;
+  hint: string;
+}
+
+const SECTIONS: BreakdownSection[] = [
   { key: 'by_method', title: 'Método de pago', icon: CreditCardIcon, hint: 'Solo ventas facturadas' },
   { key: 'by_origin', title: 'Origen del inventario', icon: Store01Icon, hint: 'Propio vs migrado' },
   { key: 'by_invoiced', title: 'Facturación', icon: Invoice01Icon, hint: 'Ventas con papel emitido' },
@@ -70,8 +78,21 @@ function GroupRows({ groups }: { groups: BreakdownGroup[] }) {
   );
 }
 
-export function SalesBreakdownCards({ range }: { range: PeriodRange }) {
+export function SalesBreakdownCards({
+  range,
+  excludeMethod = false,
+  className,
+}: {
+  range: PeriodRange;
+  excludeMethod?: boolean;
+  className?: string;
+}) {
   const { data, isLoading, isError } = useGetSalesBreakdownQuery(range);
+
+  const activeSections = useMemo(() => {
+    if (!excludeMethod) return SECTIONS;
+    return SECTIONS.filter((s) => s.key !== 'by_method');
+  }, [excludeMethod]);
 
   return (
     <QueryState
@@ -79,16 +100,16 @@ export function SalesBreakdownCards({ range }: { range: PeriodRange }) {
       error={isError}
       empty={!data}
       loadingFallback={
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {SECTIONS.map((s) => (
+        <div className={className || 'grid gap-4 sm:grid-cols-2 lg:grid-cols-4'}>
+          {activeSections.map((s) => (
             <div key={s.key} className="h-48 animate-pulse rounded-card bg-muted" />
           ))}
         </div>
       }
     >
       {data && (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {SECTIONS.map((s) => (
+        <div className={className || 'grid gap-4 sm:grid-cols-2 lg:grid-cols-4'}>
+          {activeSections.map((s) => (
             <SpotlightCard key={s.key} variant="default" className="p-5">
               <div className="mb-4 flex items-start justify-between gap-2 border-b pb-3">
                 <div className="flex items-center gap-2">

@@ -68,6 +68,7 @@ export interface RegisterSaleInput {
   phone?: string;
   overrideSellerId?: string;
   overrideSellerName?: string;
+  soldAt?: string;
   items: SaleLineInput[];
 }
 
@@ -86,6 +87,7 @@ export interface UpdateSaleInput {
   phone?: string;
   overrideSellerId?: string;
   overrideSellerName?: string;
+  soldAt?: string;
   items: SaleLineInput[];
   reason?: string;
 }
@@ -148,6 +150,7 @@ export interface SaleListItem {
   /** Costo de envío si la venta tiene factura con delivery. 0 si no tiene. */
   deliveryFee?: number;
   createdAt: string;
+  isManualDate?: boolean;
 }
 
 // ── Pago de comisiones ──
@@ -204,12 +207,12 @@ export const salesApi = baseApi.injectEndpoints({
     }),
     registerSale: build.mutation<RegisteredSale, RegisterSaleInput>({
       query: (body) => ({ url: 'sales', method: 'POST', body }),
-      invalidatesTags: ['Sale', 'Purchase', 'Product'],
+      invalidatesTags: ['Sale', 'Purchase', 'Product', 'Invoice'],
     }),
     updateSale: build.mutation<RegisteredSale, UpdateSaleInput>({
       query: ({ id, ...body }) => ({ url: `sales/${id}`, method: 'PUT', body }),
-      // Editar recalcula el snapshot y mueve reservas de stock.
-      invalidatesTags: ['Sale', 'Purchase', 'Product', 'CommissionPayment'],
+      // Editar recalcula el snapshot, mueve reservas de stock y puede sincronizar la factura vinculada.
+      invalidatesTags: ['Sale', 'Purchase', 'Product', 'CommissionPayment', 'Invoice'],
     }),
     approveSale: build.mutation<{ ok: boolean }, string>({
       query: (id) => ({ url: `sales/${id}/approve`, method: 'POST' }),

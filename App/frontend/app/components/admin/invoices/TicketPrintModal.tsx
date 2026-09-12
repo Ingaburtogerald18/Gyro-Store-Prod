@@ -31,44 +31,48 @@ export function TicketPrintModal({
    * pesada y sin texto seleccionable — peor resultado y dos dependencias más.
    */
   const openPrintDialog = (hint?: string) => {
-    if (!ticket) return;
+    if (!ticket || !ticketRef.current) return;
+
+    const clone = ticketRef.current.cloneNode(true) as HTMLElement;
+    clone.id = 'printable-ticket';
+
+    const wrapper = document.createElement('div');
+    wrapper.id = 'printable-ticket-wrapper';
+    wrapper.appendChild(clone);
+    document.body.appendChild(wrapper);
 
     const style = document.createElement('style');
     style.innerHTML = `
       @page { size: 80mm auto; margin: 0; }
       @media print {
-        body * {
-          visibility: hidden;
-        }
-        #printable-ticket, #printable-ticket * {
-          visibility: visible;
-        }
-        #printable-ticket {
-          position: absolute;
-          left: 0;
-          top: 0;
-          margin: 0;
-          padding: 0;
+        body > *:not(#printable-ticket-wrapper) {
+          display: none !important;
         }
         html, body {
           margin: 0 !important;
           padding: 0 !important;
+          background: #fff !important;
+          color-scheme: light !important;
+        }
+        #printable-ticket-wrapper {
+          display: flex !important;
+          justify-content: center !important;
+          background: #fff !important;
+          width: 100% !important;
+          min-height: 100vh !important;
+        }
+        #printable-ticket {
+          margin: 0 auto;
+          padding: 0;
           background: #fff !important;
         }
       }
     `;
     document.head.appendChild(style);
 
-    // ID temporal para que el CSS de arriba pueda aislarlo.
-    if (ticketRef.current) ticketRef.current.id = 'printable-ticket';
-
-    // La limpieza va en `afterprint` y NO justo después de `window.print()`:
-    // en Firefox y Safari `print()` no bloquea, así que quitar el <style> en la
-    // línea siguiente lo removía ANTES de que el navegador compusiera la
-    // página — y salía impresa la pantalla entera en vez del ticket.
     const cleanup = () => {
       style.remove();
-      if (ticketRef.current) ticketRef.current.id = '';
+      wrapper.remove();
       window.removeEventListener('afterprint', cleanup);
     };
     window.addEventListener('afterprint', cleanup);

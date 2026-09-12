@@ -73,6 +73,7 @@ export interface CreateInvoiceInput {
   discountCode?: string;
   /** Vendedor al que se le asigna la factura (opcional: ticket de mostrador). */
   sellerUid?: string;
+  issuedAt?: string;
   items: InvoiceItemInput[];
 }
 

@@ -691,13 +691,15 @@ create index analytics_events_type_idx on analytics_events (type);
 -- Registra el dinero extraído/gastado de los 7 pozos de la tienda. El check
 -- fija los pozos válidos: son los mismos que la clave `pozos` de `app_config`.
 create table expenses (
-  id          uuid primary key default gen_random_uuid(),
-  pozo        text not null check (pozo in ('publicidad', 'mantenimiento', 'utiles', 'garantias', 'prestamos', 'suscripciones', 'servicios')),
-  monto_cs    numeric(12,2) not null check (monto_cs > 0),
-  category    text,
-  description text,
-  created_by  uuid references profiles(id) on delete set null,
-  created_at  timestamptz not null default now()
+  id            uuid primary key default gen_random_uuid(),
+  pozo          text not null check (pozo in ('publicidad', 'mantenimiento', 'utiles', 'garantias', 'prestamos', 'suscripciones', 'servicios', 'salario')),
+  monto_cs      numeric(12,2) not null check (monto_cs > 0),
+  monto_usd     numeric(12,2) default null,
+  exchange_rate  numeric(8,4)  default null,
+  category      text,
+  description   text,
+  created_by    uuid references profiles(id) on delete set null,
+  created_at    timestamptz not null default now()
 );
 
 create index expenses_created_at_idx on expenses (created_at);

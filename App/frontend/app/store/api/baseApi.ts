@@ -54,6 +54,8 @@ export const baseApi = createApi({
     'DiscountCode',
     'Contacts',
     'FollowUps',
+    'Expense',
+    'LoanPayment',
   ],
   endpoints: () => ({}),
 });

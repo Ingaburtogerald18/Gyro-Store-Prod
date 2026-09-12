@@ -914,6 +914,7 @@ export const registerSaleInputSchema = z.object({
   phone: z.string().max(20).optional(),
   overrideSellerId: z.string().uuid().optional(),
   overrideSellerName: z.string().max(100).optional(),
+  soldAt: z.string().datetime().optional(),
   items: z
     .array(saleLineInputSchema)
     .max(50)
@@ -931,6 +932,7 @@ export const updateSaleInputSchema = z.object({
   phone: z.string().optional(),
   overrideSellerId: z.string().uuid().optional(),
   overrideSellerName: z.string().max(100).optional(),
+  soldAt: z.string().datetime().optional(),
   items: z.array(saleLineInputSchema).min(1, 'Selecciona al menos un producto.').max(50),
   reason: z.string().optional(),
 });
@@ -1010,6 +1012,7 @@ export const createInvoiceInputSchema = z.object({
   // mostrador puede no tener uno). Es lo que después le permite a ESE
   // vendedor verla en "Mis Facturas" antes de que exista una venta vinculada.
   sellerUid: z.string().uuid().optional(),
+  issuedAt: z.string().datetime().optional(),
   items: z.array(invoiceItemInputSchema).min(1, 'La factura necesita al menos un producto.'),
 });
 export type CreateInvoiceInput = z.infer<typeof createInvoiceInputSchema>;
@@ -1035,6 +1038,7 @@ export const updateInvoiceInputSchema = z.object({
   customerName: z.string().trim().max(120).optional(),
   phone: z.string().trim().max(30).optional(),
   deliveryName: z.string().trim().max(120).optional(),
+  issuedAt: z.string().datetime().optional(),
   items: z
     .array(
       z.object({
@@ -1219,4 +1223,68 @@ export const createCashClosureInputSchema = z.object({
   saldo_contado: z.coerce.number().min(0, 'El monto contado no puede ser negativo'),
   notas: z.string().max(500).optional().nullable(),
 });
-export type CreateCashClosureInput = z.infer<typeof createCashClosureInputSchema>;
+export type CreateCashClosureInput = z.infer<typeof createCashClosureInputSchema>;
+
+// ============================================================================
+// ── GASTOS OPERATIVOS Y POZOS (Reportería y Presupuestos) ──
+// ============================================================================
+export const POZOS_CON_SALARIO = [
+  'publicidad',
+  'mantenimiento',
+  'utiles',
+  'garantias',
+  'prestamos',
+  'suscripciones',
+  'servicios',
+  'salario',
+] as const;
+export type PozoConSalario = (typeof POZOS_CON_SALARIO)[number];
+
+export const createExpenseInputSchema = z.object({
+  pozo: z.enum([
+    'publicidad',
+    'mantenimiento',
+    'utiles',
+    'garantias',
+    'prestamos',
+    'suscripciones',
+    'servicios',
+    'salario',
+  ]),
+  monto: z.number().positive('El monto debe ser mayor a 0.'),
+  moneda: z.enum(['COR', 'USD']).default('COR'),
+  fecha: z.string().datetime().optional(),
+  category: z.string().trim().min(1, 'La categoría es obligatoria.').max(60, 'Máximo 60 caracteres.'),
+  description: z.string().trim().max(200, 'Máximo 200 caracteres.').optional(),
+});
+export type CreateExpenseInput = z.infer<typeof createExpenseInputSchema>;
+
+// ============================================================================
+// ── PAGOS DE PRÉSTAMOS (Deducciones directas de Ganancia Real) ──
+// ============================================================================
+export const loanPaymentSchema = z.object({
+  id: z.string().uuid(),
+  monto_cs: z.number().positive(),
+  monto_usd: z.number().nullable().optional(),
+  exchange_rate: z.number().nullable().optional(),
+  fecha: z.string(),
+  nota: z.string().nullable().optional(),
+  created_by: z.string().uuid().nullable().optional(),
+  created_at: z.string(),
+});
+export type LoanPayment = z.infer<typeof loanPaymentSchema>;
+
+export const createLoanPaymentSchema = z.object({
+  monto: z.coerce.number().positive('El monto debe ser mayor a 0.').optional(),
+  monto_cs: z.coerce.number().positive('El monto debe ser mayor a 0.').optional(),
+  moneda: z.enum(['COR', 'USD']).default('COR'),
+  fecha: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Formato de fecha inválido (YYYY-MM-DD)'),
+  nota: z.string().trim().max(300, 'Máximo 300 caracteres.').optional().nullable(),
+}).refine((data) => data.monto !== undefined || data.monto_cs !== undefined, {
+  message: 'El monto es obligatorio y debe ser mayor a 0.',
+});
+export type CreateLoanPaymentInput = z.infer<typeof createLoanPaymentSchema>;
+
+
+
+

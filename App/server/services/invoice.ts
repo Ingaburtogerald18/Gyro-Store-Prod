@@ -147,6 +147,18 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<Invoice>
   const deliveryFee = round(input.deliveryFee ?? 0, 2);
   const total = round(subtotal - discount + deliveryFee, 2);
 
+  let customCreatedAt: string | undefined = undefined;
+  if (input.issuedAt) {
+    const issuedDate = new Date(input.issuedAt);
+    if (isNaN(issuedDate.getTime())) {
+      throw new BadRequestError('Fecha de factura inválida.');
+    }
+    if (issuedDate.getTime() > Date.now() + 5 * 60 * 1000) {
+      throw new BadRequestError('La fecha de factura no puede ser futura.');
+    }
+    customCreatedAt = issuedDate.toISOString();
+  }
+
   const { data: invoice, error: invoiceError } = await db
     .from('invoices')
     .insert({
@@ -161,6 +173,7 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<Invoice>
       discount_code: discountCode,
       delivery_name: input.deliveryName || null,
       seller_uid: input.sellerUid || null,
+      ...(customCreatedAt ? { created_at: customCreatedAt } : {}),
     })
     .select(INVOICE_COLUMNS)
     .single();
@@ -190,7 +203,8 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<Invoice>
     sku: item.productName,
     quantity: item.quantity,
     unit_price: item.unitPrice,
-    line_total: round(item.quantity * item.unitPrice, 2)
+    line_total: round(item.quantity * item.unitPrice, 2),
+    ...(customCreatedAt ? { created_at: customCreatedAt } : {}),
   }));
 
   const { error: itemsError } = await db
@@ -502,12 +516,13 @@ export async function updateInvoice(
     customerName?: string;
     phone?: string;
     deliveryName?: string;
+    issuedAt?: string;
     items?: { productName: string; quantity: number; unitPrice: number }[];
   },
 ): Promise<Invoice | null> {
   const { data: existing, error: findError } = await db
     .from('invoices')
-    .select('id, status, subtotal, discount, delivery_fee')
+    .select('id, status, subtotal, discount, delivery_fee, created_at')
     .eq('id', id)
     .maybeSingle();
   if (findError) throw findError;
@@ -525,6 +540,17 @@ export async function updateInvoice(
   if (input.phone !== undefined) patch.phone = input.phone.trim() || null;
   if (input.deliveryName !== undefined) patch.delivery_name = input.deliveryName.trim() || null;
 
+  if (input.issuedAt !== undefined) {
+    const issuedDate = new Date(input.issuedAt);
+    if (isNaN(issuedDate.getTime())) {
+      throw new BadRequestError('Fecha de factura inválida.');
+    }
+    if (issuedDate.getTime() > Date.now() + 5 * 60 * 1000) {
+      throw new BadRequestError('La fecha de factura no puede ser futura.');
+    }
+    patch.created_at = issuedDate.toISOString();
+  }
+
   // ── Líneas ──
   // Se reemplazan enteras (borrar + insertar) en vez de intentar un diff: las
   // filas de `invoice_items` no tienen identidad estable en el formulario, y
@@ -539,6 +565,8 @@ export async function updateInvoice(
     const { error: delError } = await db.from('invoice_items').delete().eq('invoice_id', id);
     if (delError) throw delError;
 
+    const itemCreatedAt = (patch.created_at as string) || existing.created_at;
+
     const { error: insError } = await db.from('invoice_items').insert(
       input.items.map((it) => ({
         invoice_id: id,
@@ -546,11 +574,15 @@ export async function updateInvoice(
         quantity: it.quantity,
         unit_price: round(it.unitPrice, 2),
         line_total: round(it.quantity * it.unitPrice, 2),
+        ...(itemCreatedAt ? { created_at: itemCreatedAt } : {}),
       })),
     );
     if (insError) throw insError;
 
     patch.subtotal = subtotal;
+  } else if (patch.created_at) {
+    // Si no cambiaron las líneas pero sí la fecha, sincronizar created_at en invoice_items
+    await db.from('invoice_items').update({ created_at: patch.created_at }).eq('invoice_id', id);
   }
 
   // El total se recalcula si cambió CUALQUIERA de sus tres componentes.

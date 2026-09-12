@@ -233,6 +233,18 @@ export async function registerSale(
     throw new BadRequestError('El código de factura es obligatorio para registrar la venta (excepción: global_admin).');
   }
 
+  let customCreatedAt: string | undefined = undefined;
+  if (input.soldAt) {
+    const soldDate = new Date(input.soldAt);
+    if (isNaN(soldDate.getTime())) {
+      throw new BadRequestError('Fecha de venta inválida.');
+    }
+    if (soldDate.getTime() > Date.now() + 5 * 60 * 1000) {
+      throw new BadRequestError('La fecha de venta no puede ser futura.');
+    }
+    customCreatedAt = soldDate.toISOString();
+  }
+
   let finalItems = input.items;
   let finalCustomerName = input.customerName;
   let finalPhone = input.phone;
@@ -254,7 +266,7 @@ export async function registerSale(
 
     const { data: existing, error: invError } = await db
       .from('invoices')
-      .select('id, status, customer_name, phone, total, discount, seller_uid')
+      .select('id, status, customer_name, phone, total, discount, seller_uid, created_at')
       .eq('invoice_number', invoiceNumber)
       .maybeSingle();
 
@@ -267,6 +279,10 @@ export async function registerSale(
     finalPhone = existing.phone || input.phone;
     invoiceTotal = existing.total ?? null;
     invoiceSellerUid = existing.seller_uid ?? null;
+
+    if (!customCreatedAt && existing.created_at) {
+      customCreatedAt = existing.created_at;
+    }
 
     const { data: invItems, error: itemsError } = await db
       .from('invoice_items')
@@ -433,6 +449,7 @@ export async function registerSale(
       phone: finalPhone ?? null,
       contact_id: contactId,
       total,
+      ...(customCreatedAt ? { created_at: customCreatedAt } : {}),
     })
     .select('id, status, total')
     .single();
@@ -460,6 +477,7 @@ export async function registerSale(
         comision: line.snapshot.comision,
         ganancia_tienda: line.snapshot.gananciaTienda,
         pozos: line.snapshot.pozos,
+        ...(customCreatedAt ? { created_at: customCreatedAt } : {}),
       })),
     );
     if (itemsError) throw itemsError;
@@ -478,6 +496,16 @@ export async function registerSale(
 
   if (invoiceIdToLink) {
     await linkInvoiceToSale(invoiceIdToLink, order.id);
+  }
+
+  if (customCreatedAt) {
+    await db.from('audit_logs').insert({
+      entity: 'orders',
+      entity_id: order.id,
+      action: 'manual_date',
+      reason: `Fecha manual: ${customCreatedAt}`,
+      author_uid: seller.uid,
+    });
   }
 
   return { id: order.id, status: order.status, total: order.total };
@@ -644,6 +672,7 @@ export interface SaleListItem {
   /** Costo de envío si la venta tiene factura con delivery. 0 si no tiene. */
   deliveryFee: number;
   createdAt: string;
+  isManualDate?: boolean;
 }
 
 /**
@@ -778,6 +807,15 @@ export async function getSaleById(id: string): Promise<SaleWithItems | null> {
     deliveryFee = linkedInvoice.delivery_fee ?? 0;
   }
 
+  const { data: manualDateLogs } = await db
+    .from('audit_logs')
+    .select('id')
+    .eq('entity', 'orders')
+    .eq('entity_id', id)
+    .eq('action', 'manual_date')
+    .limit(1);
+  const isManualDate = Boolean(manualDateLogs && manualDateLogs.length > 0);
+
   return {
     id: row.id,
     status: row.status,
@@ -795,6 +833,7 @@ export async function getSaleById(id: string): Promise<SaleWithItems | null> {
     invoiceCode,
     deliveryFee,
     createdAt: row.created_at,
+    isManualDate,
     items: itemRows.map((it) => {
       const quantity = it.quantity;
       const costeFinalSnap = it.coste_final_snap ?? 0;
@@ -1146,6 +1185,17 @@ export async function updateSale(
     status: 'pending_approval',
   };
 
+  if (input.soldAt) {
+    const soldDate = new Date(input.soldAt);
+    if (isNaN(soldDate.getTime())) {
+      throw new BadRequestError('Fecha de venta inválida.');
+    }
+    if (soldDate.getTime() > Date.now() + 5 * 60 * 1000) {
+      throw new BadRequestError('La fecha de venta no puede ser futura.');
+    }
+    updatePayload.created_at = soldDate.toISOString();
+  }
+
   if (isAdmin) {
     if (input.overrideSellerId) {
       const { data } = await db.from('profiles').select('email').eq('id', input.overrideSellerId).maybeSingle();
@@ -1167,6 +1217,8 @@ export async function updateSale(
 
   await db.from('order_items').delete().eq('order_id', orderId);
 
+  const itemCreatedAt = updatePayload.created_at || order.created_at;
+
   const { error: itemsError } = await db.from('order_items').insert(
     pricedLines.map((line) => ({
       order_id: orderId,
@@ -1183,6 +1235,7 @@ export async function updateSale(
       comision: line.snapshot.comision,
       ganancia_tienda: line.snapshot.gananciaTienda,
       pozos: line.snapshot.pozos,
+      ...(itemCreatedAt ? { created_at: itemCreatedAt } : {}),
     })),
   );
   if (itemsError) throw itemsError;
@@ -1219,13 +1272,18 @@ export async function updateSale(
         quantity: line.quantity,
         unit_price: line.precioUnit,
         line_total: round(line.precioUnit * line.quantity, 2),
+        ...(updatePayload.created_at ? { created_at: updatePayload.created_at } : {}),
       })),
     );
     if (insInvItemsError) throw insInvItemsError;
 
     const { error: invError } = await db
       .from('invoices')
-      .update({ subtotal: linesTotal, total: newTotal })
+      .update({
+        subtotal: linesTotal,
+        total: newTotal,
+        ...(updatePayload.created_at ? { created_at: updatePayload.created_at } : {}),
+      })
       .eq('id', activeInvoice.id);
     if (invError) throw invError;
 
@@ -1240,6 +1298,9 @@ export async function updateSale(
       before: { subtotal: activeInvoice.subtotal, total: activeInvoice.total },
       after: { subtotal: linesTotal, total: newTotal },
     });
+  } else if (activeInvoice && updatePayload.created_at) {
+    await db.from('invoices').update({ created_at: updatePayload.created_at }).eq('id', activeInvoice.id);
+    await db.from('invoice_items').update({ created_at: updatePayload.created_at }).eq('invoice_id', activeInvoice.id);
   }
 
   if (order.status === 'approved' || order.status === 'paid') {
@@ -1269,6 +1330,16 @@ export async function updateSale(
     reason: input.reason || 'Edición de venta',
     author_uid: user.uid,
   });
+
+  if (updatePayload.created_at && updatePayload.created_at !== order.created_at) {
+    await db.from('audit_logs').insert({
+      entity: 'orders',
+      entity_id: orderId,
+      action: 'manual_date',
+      reason: `Fecha manual modificada en edición: ${updatePayload.created_at}`,
+      author_uid: user.uid,
+    });
+  }
 
   return { id: orderId, status: order.status === 'pending_approval' ? 'pending_approval' : order.status, total: newTotal };
 }
