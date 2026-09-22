@@ -174,10 +174,16 @@ export default function AdminDashboard() {
   const gananciaReal = useMemo(() => {
     if (!kpis) return 0;
     if (kpis.ganancia_real !== undefined) return kpis.ganancia_real;
+
+    const totalLoans = kpis.total_prestamos ?? 0;
+    const budgetDisponible = Math.max(0, kpis.budget_prestamos_disponible ?? (kpis.pozos_recogidos?.prestamos ?? 0));
+    const cubierto = Math.min(totalLoans, budgetDisponible);
+    const excedente = Math.max(0, totalLoans - cubierto);
+
     if (kpis.ganancia_tienda_total !== undefined) {
-      return kpis.ganancia_tienda_total - (kpis.total_prestamos ?? 0);
+      return kpis.ganancia_tienda_total - excedente;
     }
-    return kpis.total_vendido - (kpis.coste_total ?? 0) - kpis.comision_total - (kpis.total_prestamos ?? 0);
+    return kpis.total_vendido - (kpis.coste_total ?? 0) - kpis.comision_total - excedente;
   }, [kpis]);
 
   const monthKey = `${selectedMonth.year}-${selectedMonth.month}`;
@@ -427,6 +433,7 @@ export default function AdminDashboard() {
     sellers={sellers}
     formatMoney={formatMoney}
     queryParams={queryParams}
+    kpis={kpis}
   />
 </>
   );

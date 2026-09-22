@@ -117,6 +117,9 @@ router.get(
         ganancia_tienda_total_prev,
         total_prestamos,
         total_prestamos_prev,
+        budget_prestamos_disponible,
+        prestamos_cubierto_por_budget,
+        prestamos_de_ganancia,
         ganancia_real,
         ganancia_real_prev,
         ...rest

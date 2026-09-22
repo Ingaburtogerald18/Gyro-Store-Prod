@@ -19,9 +19,11 @@ import { toast } from "sonner";
 import {
   useGetLoanPaymentsListQuery,
   useDeleteLoanPaymentMutation,
+  useGetKpisQuery,
   type SalesLedgerRow,
   type SellerPerformanceRow,
   type LoanPaymentItem,
+  type FinancialKPIs,
 } from "~/store/api/reportsApi";
 import { DrilldownDialog } from "./DrilldownDialog";
 import { RegisterLoanPaymentDialog } from "./RegisterLoanPaymentDialog";
@@ -42,6 +44,7 @@ export function DashboardDrilldowns({
   sellers,
   formatMoney,
   queryParams,
+  kpis: kpisProp,
 }: {
   drilldown: DrilldownType;
   onClose: () => void;
@@ -49,12 +52,18 @@ export function DashboardDrilldowns({
   sellers: SellerPerformanceRow[];
   formatMoney: (n: number) => string;
   queryParams?: { startDate?: string; endDate?: string };
+  kpis?: FinancialKPIs;
 }) {
   const ledgerTotalVendido = ledger.reduce((s, r) => s + r.total_vendido, 0);
   const ledgerTotalCoste = ledger.reduce((s, r) => s + r.coste, 0);
   const ledgerTotalGanancia = ledger.reduce((s, r) => s + r.ganancia, 0);
   const totalCount = ledger.length;
   const ticketPromedio = totalCount > 0 ? ledgerTotalVendido / totalCount : 0;
+
+  const { data: queriedKpis } = useGetKpisQuery(queryParams, {
+    skip: !!kpisProp || drilldown !== 'ganancia',
+  });
+  const kpis = kpisProp ?? queriedKpis;
 
   const { data: loanPaymentsData } = useGetLoanPaymentsListQuery(queryParams, {
     skip: drilldown !== 'ganancia',
@@ -63,9 +72,13 @@ export function DashboardDrilldowns({
   const [isRegisterLoanOpen, setIsRegisterLoanOpen] = useState(false);
   const [paymentToDelete, setPaymentToDelete] = useState<LoanPaymentItem | null>(null);
 
-  const totalLoans = loanPaymentsData?.total ?? 0;
+  const totalLoans = loanPaymentsData?.total ?? kpis?.total_prestamos ?? 0;
   const loanPayments = loanPaymentsData?.payments ?? [];
-  const gananciaReal = ledgerTotalGanancia - totalLoans;
+  const gananciaTienda = kpis?.ganancia_tienda_total ?? ledgerTotalGanancia;
+  const budgetPrestamosDisponible = kpis?.budget_prestamos_disponible ?? 0;
+  const prestamosCubierto = kpis?.prestamos_cubierto_por_budget ?? Math.min(totalLoans, Math.max(0, budgetPrestamosDisponible));
+  const prestamosDeGanancia = kpis?.prestamos_de_ganancia ?? Math.max(0, totalLoans - prestamosCubierto);
+  const gananciaReal = kpis?.ganancia_real ?? (gananciaTienda - prestamosDeGanancia);
 
   const handleConfirmDelete = async () => {
     if (!paymentToDelete) return;
@@ -275,19 +288,31 @@ export function DashboardDrilldowns({
         onOpenChange={(open) => !open && onClose()}
         title="Rentabilidad y Ganancia Real"
         icon={PlusSignSquareIcon}
-        note="La ganancia real deduce los pagos mensuales de préstamos de la ganancia operativa de la tienda."
+        note="Los pagos de préstamos se amortizan primero con el fondo acumulado en el pozo préstamos (ventas menos gastos del pozo). Únicamente el excedente no cubierto se descuenta de la ganancia operativa de la tienda."
         footer={
-          <div className="flex flex-col gap-2 text-xs sm:text-sm font-medium">
+          <div className="flex flex-col gap-1.5 text-xs sm:text-sm font-medium w-full">
             <div className="flex items-center justify-between text-muted-foreground">
-              <span>Ganancia operativa (ventas)</span>
-              <span className="nums font-semibold text-foreground">{formatMoney(ledgerTotalGanancia)}</span>
+              <span>Ganancia operativa (tienda)</span>
+              <span className="nums font-semibold text-foreground">{formatMoney(gananciaTienda)}</span>
             </div>
             <div className="flex items-center justify-between text-muted-foreground">
-              <span>Pagos de préstamos del período</span>
-              <span className="nums font-semibold text-amber-500">-{formatMoney(totalLoans)}</span>
+              <span>Total pagos de préstamos ({loanPayments.length})</span>
+              <span className="nums font-semibold text-amber-500">{formatMoney(totalLoans)}</span>
+            </div>
+            <div className="flex items-center justify-between text-muted-foreground text-xs pl-3 border-l-2 border-border/80">
+              <span>• Budget pozo disponible</span>
+              <span className="nums font-medium text-foreground">{formatMoney(budgetPrestamosDisponible)}</span>
+            </div>
+            <div className="flex items-center justify-between text-muted-foreground text-xs pl-3 border-l-2 border-emerald-500/50">
+              <span>• Cubierto por budget del pozo</span>
+              <span className="nums font-medium text-emerald-500">-{formatMoney(prestamosCubierto)}</span>
+            </div>
+            <div className="flex items-center justify-between text-muted-foreground text-xs pl-3 border-l-2 border-rose-500/50">
+              <span>• Restado de ganancia (excedente)</span>
+              <span className="nums font-semibold text-rose-500">-{formatMoney(prestamosDeGanancia)}</span>
             </div>
             <div className="flex items-center justify-between border-t border-border/60 pt-2 text-sm sm:text-base font-bold text-foreground">
-              <span>Ganancia real neta</span>
+              <span>Ganancia real final</span>
               <span
                 className={cn(
                   'nums',
@@ -301,29 +326,41 @@ export function DashboardDrilldowns({
         }
       >
         <div className="space-y-6 py-2">
-          {/* Tarjetas resumen de 3 columnas */}
-          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+          {/* Tarjetas resumen de 4 columnas */}
+          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
             <div className="rounded-lg border border-border/60 bg-muted/20 p-3">
               <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
                 Ganancia tienda
               </span>
-              <p className="nums mt-1 text-lg font-semibold text-foreground">
-                {formatMoney(ledgerTotalGanancia)}
+              <p className="nums mt-1 text-base sm:text-lg font-semibold text-foreground">
+                {formatMoney(gananciaTienda)}
               </p>
               <span className="text-[11px] text-muted-foreground">
                 {totalCount} {totalCount === 1 ? 'venta' : 'ventas'}
               </span>
             </div>
 
-            <div className="rounded-lg border border-border/60 bg-amber-500/5 p-3">
-              <span className="text-[11px] font-medium uppercase tracking-wider text-amber-500">
-                Pagos préstamos
+            <div className="rounded-lg border border-blue-500/20 bg-blue-500/5 p-3">
+              <span className="text-[11px] font-medium uppercase tracking-wider text-blue-400">
+                Pozo préstamos
               </span>
-              <p className="nums mt-1 text-lg font-semibold text-amber-500">
-                -{formatMoney(totalLoans)}
+              <p className="nums mt-1 text-base sm:text-lg font-semibold text-blue-400">
+                {formatMoney(budgetPrestamosDisponible)}
               </p>
               <span className="text-[11px] text-muted-foreground">
-                {loanPayments.length} {loanPayments.length === 1 ? 'pago' : 'pagos'}
+                Budget disponible
+              </span>
+            </div>
+
+            <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-3">
+              <span className="text-[11px] font-medium uppercase tracking-wider text-amber-500">
+                Deducido de ganancia
+              </span>
+              <p className="nums mt-1 text-base sm:text-lg font-semibold text-amber-500">
+                -{formatMoney(prestamosDeGanancia)}
+              </p>
+              <span className="text-[11px] text-muted-foreground">
+                {prestamosDeGanancia === 0 ? 'Cubierto por pozo' : 'Excedente'}
               </span>
             </div>
 
@@ -345,7 +382,7 @@ export function DashboardDrilldowns({
               </span>
               <p
                 className={cn(
-                  'nums mt-1 text-lg font-semibold',
+                  'nums mt-1 text-base sm:text-lg font-semibold',
                   gananciaReal >= 0 ? 'text-emerald-500' : 'text-rose-500',
                 )}
               >
@@ -354,6 +391,36 @@ export function DashboardDrilldowns({
               <span className="text-[11px] text-muted-foreground">
                 {gananciaReal >= 0 ? 'Balance positivo' : 'Operando en rojo'}
               </span>
+            </div>
+          </div>
+
+          {/* Desglose de Amortización con Pozo */}
+          <div className="rounded-lg border border-border/70 bg-card/60 p-3.5 text-xs space-y-2.5">
+            <div className="flex flex-wrap items-center justify-between gap-2 font-semibold text-foreground">
+              <span className="flex items-center gap-1.5">
+                <HugeIcon icon={Coins01Icon} size={15} className="text-amber-500" />
+                Desglose de Amortización con Pozo Préstamos
+              </span>
+              <span className="nums text-muted-foreground font-mono text-[11px]">
+                {formatMoney(totalLoans)} pagados en el período
+              </span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-border/50">
+              <div className="space-y-0.5">
+                <span className="text-[11px] text-muted-foreground">1. Budget pozo disponible</span>
+                <p className="nums text-sm font-semibold text-foreground">{formatMoney(budgetPrestamosDisponible)}</p>
+                <p className="text-[10px] text-muted-foreground">Recaudado menos gastos del pozo</p>
+              </div>
+              <div className="space-y-0.5">
+                <span className="text-[11px] text-emerald-500 font-medium">2. Cubierto por budget</span>
+                <p className="nums text-sm font-semibold text-emerald-500">-{formatMoney(prestamosCubierto)}</p>
+                <p className="text-[10px] text-muted-foreground">Absorbido sin tocar ganancia</p>
+              </div>
+              <div className="space-y-0.5">
+                <span className="text-[11px] text-rose-500 font-medium">3. Restado de ganancia</span>
+                <p className="nums text-sm font-semibold text-rose-500">-{formatMoney(prestamosDeGanancia)}</p>
+                <p className="text-[10px] text-muted-foreground">Excedente descontado de utilidad</p>
+              </div>
             </div>
           </div>
 

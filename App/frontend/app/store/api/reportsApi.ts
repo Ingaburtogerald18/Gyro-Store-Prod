@@ -30,6 +30,9 @@ export interface FinancialKPIs {
   // ── Préstamos y Ganancia Real ──
   total_prestamos?: number;
   total_prestamos_prev?: number;
+  budget_prestamos_disponible?: number;
+  prestamos_cubierto_por_budget?: number;
+  prestamos_de_ganancia?: number;
   ganancia_real?: number;
   ganancia_real_prev?: number;
 }
