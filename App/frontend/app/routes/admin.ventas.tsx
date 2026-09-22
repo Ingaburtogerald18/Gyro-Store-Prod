@@ -415,16 +415,6 @@ export default function AdminVentas() {
         ? 'Comisión por pagar'
         : 'Comisión total';
 
-  // La comisión de una venta rechazada no se le debe a nadie — el rótulo
-  // avisa qué representa el número en CADA pestaña en vez de un genérico
-  // "Comisión" que en Pendientes/Aprobadas se leería como ya pagada.
-  const comisionLabel =
-    statusFilter === 'pending_approval'
-      ? 'Comisión pendiente'
-      : statusFilter === 'approved'
-        ? 'Comisión por pagar'
-        : 'Comisión total';
-
   return (
     <div className="space-y-6">
       <PageHeader
@@ -498,7 +488,6 @@ export default function AdminVentas() {
               value={formatCordobas(
                 filteredSales.reduce((sum, s) => sum + Math.max(0, s.total - (s.deliveryFee ?? 0)), 0),
               )}
-              value={formatCordobas(filteredSales.reduce((sum, s) => sum + s.total, 0))}
             />
             {/* Una venta rechazada no genera comisión ni ganancia real: mostrarlas
                 en esa pestaña sería plata que nunca se movió. */}
@@ -509,6 +498,9 @@ export default function AdminVentas() {
                   value={formatCordobas(filteredSales.reduce((sum, s) => sum + s.totalComision, 0))}
                   accent
                 />
+                {/* Fondo de empresa y ganancia de tienda: datos sensibles, solo
+                    admin (el backend tampoco los manda a un vendedor común,
+                    ver routes/sales.ts). */}
                 {isAdmin && (
                   <>
                     <SummaryPill
@@ -524,15 +516,6 @@ export default function AdminVentas() {
                       )}
                     />
                   </>
-                {/* Ganancia de tienda: dato sensible, solo admin (el backend
-                    tampoco la manda a un vendedor común, ver routes/sales.ts). */}
-                {isAdmin && (
-                  <SummaryPill
-                    label="Ganancia tienda"
-                    value={formatCordobas(
-                      filteredSales.reduce((sum, s) => sum + (s.totalGananciaTienda ?? 0), 0),
-                    )}
-                  />
                 )}
               </>
             )}
