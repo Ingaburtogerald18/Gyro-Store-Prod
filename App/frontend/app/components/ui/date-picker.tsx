@@ -15,6 +15,7 @@ export function DatePicker({
   id,
   placeholder = 'Elegí una fecha',
   disabled,
+  disableFuture = false,
   className,
 }: {
   value?: string;
@@ -22,10 +23,20 @@ export function DatePicker({
   id?: string;
   placeholder?: string;
   disabled?: boolean;
+  disableFuture?: boolean;
   className?: string;
 }) {
   const selected = value ? parseLocalYmd(value) : undefined;
   const [isOpen, setIsOpen] = React.useState(false);
+
+  const disabledMatcher = React.useMemo(() => {
+    if (!disableFuture) return undefined;
+    return (date: Date) => {
+      const today = new Date();
+      today.setHours(23, 59, 59, 999);
+      return date > today;
+    };
+  }, [disableFuture]);
 
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
@@ -50,6 +61,7 @@ export function DatePicker({
         <Calendar
           mode="single"
           selected={selected}
+          disabled={disabledMatcher}
           onSelect={(date) => {
             if (date) {
               onChange(toYmd(date));
@@ -66,14 +78,20 @@ export function DatePicker({
 
 // 'yyyy-MM-dd' → Date LOCAL. `new Date('yyyy-MM-dd')` se interpreta como UTC y
 // puede correr un día según la zona horaria; parseando a mano se evita.
-function parseLocalYmd(ymd: string): Date | undefined {
+export function parseLocalYmd(ymd: string): Date | undefined {
   const [y, m, d] = ymd.split('-').map(Number);
   if (!y || !m || !d) return undefined;
   return new Date(y, m - 1, d);
 }
 
-function toYmd(date: Date): string {
+export function toYmd(date: Date): string {
   const m = String(date.getMonth() + 1).padStart(2, '0');
   const d = String(date.getDate()).padStart(2, '0');
   return `${date.getFullYear()}-${m}-${d}`;
+}
+
+export function toLocalNoonIso(ymd: string): string {
+  const [y, m, d] = ymd.split('-').map(Number);
+  const date = new Date(y, m - 1, d, 12, 0, 0);
+  return date.toISOString();
 }

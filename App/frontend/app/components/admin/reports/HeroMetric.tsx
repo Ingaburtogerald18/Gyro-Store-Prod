@@ -126,6 +126,7 @@ export function CompactKpi({
   sub,
   onClick,
   href,
+  valueClassName,
 }: {
   icon?: IconSvgElement;
   label: string;
@@ -137,6 +138,7 @@ export function CompactKpi({
   sub?: string;
   onClick?: () => void;
   href?: string;
+  valueClassName?: string;
 }) {
   const content = (
     <>
@@ -153,7 +155,7 @@ export function CompactKpi({
           {label}
         </span>
       </div>
-      <p className="nums mt-1.5 text-xl font-semibold text-foreground">
+      <p className={cn("nums mt-1.5 text-xl font-semibold text-foreground", valueClassName)}>
         {format ? format(value) : value.toLocaleString('es-NI')}
       </p>
       <div className="mt-1 flex items-baseline gap-2">

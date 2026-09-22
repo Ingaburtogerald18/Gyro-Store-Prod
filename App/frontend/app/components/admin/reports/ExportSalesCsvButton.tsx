@@ -22,14 +22,25 @@ function csvCell(value: unknown): string {
 }
 
 function toCsv(rows: Record<string, unknown>[]): string {
-  const headers = Object.keys(rows[0]!);
+  const mapped = rows.map((r) => ({
+    'Fecha': r.created_at ? new Date(String(r.created_at)).toLocaleDateString('es-NI') : '',
+    'Cliente': r.customer_phone ?? '',
+    'Vendedor': r.seller_email ?? '',
+    'Producto (SKU)': r.item_sku ?? '',
+    'Cantidad': r.item_quantity ?? '',
+    'Precio Unitario': r.item_price ?? '',
+    'Monto Total': (Number(r.item_price || 0) * Number(r.item_quantity || 1)).toFixed(2),
+    'Método de Pago': r.payment_method ?? '',
+    'Factura': r.invoice_number ? `#${r.invoice_number}` : 'Sin factura',
+    'Estado': r.order_status ?? '',
+  }));
+
+  const headers = Object.keys(mapped[0]!);
   const lines = [
     headers.map(csvCell).join(','),
-    ...rows.map((row) => headers.map((h) => csvCell(row[h])).join(',')),
+    ...mapped.map((row) => headers.map((h) => csvCell((row as Record<string, unknown>)[h])).join(',')),
   ];
-  // El BOM es lo que hace que Excel en Windows abra el archivo en UTF-8; sin
-  // él, "Audífonos" sale como "AudÃ­fonos".
-  return `﻿${lines.join('\r\n')}`;
+  return `\uFEFF${lines.join('\r\n')}`;
 }
 
 export function ExportSalesCsvButton({ range }: { range: PeriodRange }) {

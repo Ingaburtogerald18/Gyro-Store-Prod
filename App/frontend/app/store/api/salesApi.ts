@@ -68,6 +68,7 @@ export interface RegisterSaleInput {
   phone?: string;
   overrideSellerId?: string;
   overrideSellerName?: string;
+  soldAt?: string;
   items: SaleLineInput[];
 }
 
@@ -86,6 +87,7 @@ export interface UpdateSaleInput {
   phone?: string;
   overrideSellerId?: string;
   overrideSellerName?: string;
+  soldAt?: string;
   items: SaleLineInput[];
   reason?: string;
 }
@@ -100,8 +102,26 @@ export interface UpdateSaleInput {
 export interface SaleWithItems extends SaleListItem {
   items: (SaleLineInput & {
     costeFinalSnap?: number;
+    costoTotal?: number;
+    utilidadBruta?: number;
+    salary?: number;
+    utilidadNeta?: number;
     comision?: number;
+    /**
+     * Fracción (0.40 = 40%). Solo admin: junto con `comision` deja despejar la
+     * utilidad neta y de ahí el costo, así que filtra lo mismo que el costo.
+     */
+    comisionPercent?: number;
     gananciaTienda?: number;
+    /** Reparto del Costo F/U de la línea en los 7 pozos (doc 11 §2). */
+    pozos?: Record<string, number>;
+
+    // La cadena por unidad: es de donde sale el tramo de comisión.
+    utilidadBrutaUnit?: number;
+    salaryUnit?: number;
+    utilidadNetaUnit?: number;
+    comisionUnit?: number;
+    gananciaTiendaUnit?: number;
   })[];
 }
 
@@ -117,6 +137,8 @@ export interface SaleListItem {
   customerName: string | null;
   phone: string | null;
   total: number;
+  /** Suma de `order_items.salary` (Fondo de Empresa, 20% de utilidad bruta). Ausente para no-admins. */
+  totalSalary?: number;
   /** Suma de la comisión de TODAS las líneas de la venta. */
   totalComision: number;
   /** Suma de la ganancia de tienda de TODAS las líneas. Ausente para no-admins (dato sensible). */
@@ -125,7 +147,10 @@ export interface SaleListItem {
   invoiceNumber?: number | null;
   /** Código legible de esa factura: `GS-PR-12`. Null si no tiene. */
   invoiceCode?: string | null;
+  /** Costo de envío si la venta tiene factura con delivery. 0 si no tiene. */
+  deliveryFee?: number;
   createdAt: string;
+  isManualDate?: boolean;
 }
 
 // ── Pago de comisiones ──
@@ -182,12 +207,12 @@ export const salesApi = baseApi.injectEndpoints({
     }),
     registerSale: build.mutation<RegisteredSale, RegisterSaleInput>({
       query: (body) => ({ url: 'sales', method: 'POST', body }),
-      invalidatesTags: ['Sale', 'Purchase', 'Product'],
+      invalidatesTags: ['Sale', 'Purchase', 'Product', 'Invoice'],
     }),
     updateSale: build.mutation<RegisteredSale, UpdateSaleInput>({
       query: ({ id, ...body }) => ({ url: `sales/${id}`, method: 'PUT', body }),
-      // Editar recalcula el snapshot y mueve reservas de stock.
-      invalidatesTags: ['Sale', 'Purchase', 'Product', 'CommissionPayment'],
+      // Editar recalcula el snapshot, mueve reservas de stock y puede sincronizar la factura vinculada.
+      invalidatesTags: ['Sale', 'Purchase', 'Product', 'CommissionPayment', 'Invoice'],
     }),
     approveSale: build.mutation<{ ok: boolean }, string>({
       query: (id) => ({ url: `sales/${id}/approve`, method: 'POST' }),

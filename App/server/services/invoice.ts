@@ -27,9 +27,10 @@ export interface Invoice {
   /** Vendedor al que Caja le asignó la factura al emitirla (o null). */
   sellerUid?: string | null;
   /**
-   * Nombre del vendedor asignado. Solo lo resuelve `listInvoices` (segunda
-   * query en lote, mismo patrón que `listSales` en sales.ts — nunca un embed
-   * de PostgREST, que rompe el listado ENTERO si la FK no está en caché).
+   * Nombre del vendedor asignado. Lo resuelven `listInvoices` (segunda query en
+   * lote, mismo patrón que `listSales` en sales.ts — nunca un embed de
+   * PostgREST, que rompe el listado ENTERO si la FK no está en caché) y
+   * `findInvoiceByNumber` (una sola factura, una sola query).
    */
   sellerName?: string | null;
   /**
@@ -147,6 +148,18 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<Invoice>
   const deliveryFee = round(input.deliveryFee ?? 0, 2);
   const total = round(subtotal - discount + deliveryFee, 2);
 
+  let customCreatedAt: string | undefined = undefined;
+  if (input.issuedAt) {
+    const issuedDate = new Date(input.issuedAt);
+    if (isNaN(issuedDate.getTime())) {
+      throw new BadRequestError('Fecha de factura inválida.');
+    }
+    if (issuedDate.getTime() > Date.now() + 5 * 60 * 1000) {
+      throw new BadRequestError('La fecha de factura no puede ser futura.');
+    }
+    customCreatedAt = issuedDate.toISOString();
+  }
+
   const { data: invoice, error: invoiceError } = await db
     .from('invoices')
     .insert({
@@ -161,6 +174,7 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<Invoice>
       discount_code: discountCode,
       delivery_name: input.deliveryName || null,
       seller_uid: input.sellerUid || null,
+      ...(customCreatedAt ? { created_at: customCreatedAt } : {}),
     })
     .select(INVOICE_COLUMNS)
     .single();
@@ -190,7 +204,8 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<Invoice>
     sku: item.productName,
     quantity: item.quantity,
     unit_price: item.unitPrice,
-    line_total: round(item.quantity * item.unitPrice, 2)
+    line_total: round(item.quantity * item.unitPrice, 2),
+    ...(customCreatedAt ? { created_at: customCreatedAt } : {}),
   }));
 
   const { error: itemsError } = await db
@@ -296,6 +311,20 @@ export async function listInvoices(
  * trata como vendedores en Ventas (ver middleware/auth.ts) — un admin que
  * factura personalmente también necesita poder asignarse la factura.
  *
+ * ── Por qué el filtro de rol NO va en el WHERE ──
+ * El correo protegido (`config.protectedEmail`) es `global_admin` por entorno:
+ * `rolesFromEnvOrProfile` hace cortocircuito y devuelve el rol SIN mirar
+ * `profiles.roles` (middleware/auth.ts). O sea que la fila del dueño de la
+ * tienda puede tener el array vacío y aun así ser quien más derecho tiene a
+ * facturar — y un `.overlaps('roles', …)` en SQL lo dejaba justamente a él
+ * fuera del selector.
+ *
+ * Filtrar en memoria cuesta traer la tabla entera, que son las cuentas del
+ * staff: unas pocas filas. El WHERE que ahorraba eso escondía un caso que se
+ * nota tarde y confunde mucho.
+ *
+ * Sigue en pie el otro límite: un correo que hoy es vendedor solo por whitelist
+ * de env y todavía no tiene su rol en `profiles` no aparece acá.
  * Nota: solo mira `profiles.roles`. Un correo que hoy es vendedor SOLO por la
  * whitelist de env (`SELLER_EMAILS`) y todavía no tiene fila en `profiles`
  * con ese rol no va a aparecer acá — mismo límite que ya tiene el selector de
@@ -307,6 +336,8 @@ export async function listInvoices(
  * hizo falta escribirlo ahí. Sin este caso especial, ese admin quedaba afuera
  * del propio selector de Caja pese a ser el admin más alto del sistema.
  */
+const INVOICE_SELLER_ROLES = ['admin', 'seller', 'global_admin'];
+
 export async function listActiveSellers(): Promise<{ id: string; name: string }[]> {
   // El filtro por rol se hace en JS y no con `.overlaps` en la query: el admin
   // protegido (`config.protectedEmail`) recibe `global_admin` desde el ENTORNO
@@ -315,12 +346,31 @@ export async function listActiveSellers(): Promise<{ id: string; name: string }[
   // selector de "Vendedor" de Facturación y no podía emitirse su propia factura.
   const { data, error } = await db
     .from('profiles')
+    .select('id, email, name, roles, status, deleted_at')
     .select('id, name, roles, status, deleted_at, email')
     .select('id, name, email, roles, status, deleted_at')
     .is('deleted_at', null)
     .neq('status', 'disabled')
     .order('name');
   if (error) throw error;
+
+  return ((data ?? []) as unknown as {
+    id: string;
+    email: string | null;
+    name: string | null;
+    roles: string[] | null;
+  }[])
+    .filter((p) => {
+      const isProtected =
+        !!config.protectedEmail && p.email?.toLowerCase() === config.protectedEmail;
+      return isProtected || (p.roles ?? []).some((r) => INVOICE_SELLER_ROLES.includes(r));
+    })
+    .filter((p) => p.name?.trim())
+    // Se colapsan los espacios internos, no solo las puntas: un nombre guardado
+    // como "Gerald  Aburto" se DIBUJA "Gerald Aburto" (HTML colapsa los espacios
+    // repetidos), así que el combobox comparaba contra un texto que en pantalla
+    // no existía y no matcheaba nunca.
+    .map((p) => ({ id: p.id, name: p.name!.trim().replace(/\s+/g, ' ') }));
   return ((data ?? []) as { id: string; name: string | null; roles: string[] | null; email: string | null }[])
     .filter(
       (p) =>
@@ -382,6 +432,19 @@ export async function findInvoiceByNumber(
   // Mismo 404 que "no existe": no le confirmamos a un vendedor que el código
   // es válido si es de otro vendedor.
   if (!canAccessInvoice(invoice.sellerUid ?? null, access)) return null;
+
+  // El nombre del vendedor asignado: el editor de ventas lo muestra al verificar
+  // el código, porque es a ESE vendedor a quien se le va a registrar la venta
+  // (`registerSale` lo impone por encima de quien la tipea). Sin el nombre, un
+  // admin registraba a ciegas creyendo que la venta quedaba a nombre suyo.
+  if (invoice.sellerUid) {
+    const { data: profile } = await db
+      .from('profiles')
+      .select('name')
+      .eq('id', invoice.sellerUid)
+      .maybeSingle();
+    invoice.sellerName = (profile as { name: string | null } | null)?.name?.trim() || null;
+  }
 
   const { data: itemRows, error: itemsError } = await db
     .from('invoice_items')
@@ -492,12 +555,13 @@ export async function updateInvoice(
     customerName?: string;
     phone?: string;
     deliveryName?: string;
+    issuedAt?: string;
     items?: { productName: string; quantity: number; unitPrice: number }[];
   },
 ): Promise<Invoice | null> {
   const { data: existing, error: findError } = await db
     .from('invoices')
-    .select('id, status, subtotal, discount, delivery_fee')
+    .select('id, status, subtotal, discount, delivery_fee, created_at')
     .eq('id', id)
     .maybeSingle();
   if (findError) throw findError;
@@ -515,6 +579,17 @@ export async function updateInvoice(
   if (input.phone !== undefined) patch.phone = input.phone.trim() || null;
   if (input.deliveryName !== undefined) patch.delivery_name = input.deliveryName.trim() || null;
 
+  if (input.issuedAt !== undefined) {
+    const issuedDate = new Date(input.issuedAt);
+    if (isNaN(issuedDate.getTime())) {
+      throw new BadRequestError('Fecha de factura inválida.');
+    }
+    if (issuedDate.getTime() > Date.now() + 5 * 60 * 1000) {
+      throw new BadRequestError('La fecha de factura no puede ser futura.');
+    }
+    patch.created_at = issuedDate.toISOString();
+  }
+
   // ── Líneas ──
   // Se reemplazan enteras (borrar + insertar) en vez de intentar un diff: las
   // filas de `invoice_items` no tienen identidad estable en el formulario, y
@@ -529,6 +604,8 @@ export async function updateInvoice(
     const { error: delError } = await db.from('invoice_items').delete().eq('invoice_id', id);
     if (delError) throw delError;
 
+    const itemCreatedAt = (patch.created_at as string) || existing.created_at;
+
     const { error: insError } = await db.from('invoice_items').insert(
       input.items.map((it) => ({
         invoice_id: id,
@@ -536,11 +613,15 @@ export async function updateInvoice(
         quantity: it.quantity,
         unit_price: round(it.unitPrice, 2),
         line_total: round(it.quantity * it.unitPrice, 2),
+        ...(itemCreatedAt ? { created_at: itemCreatedAt } : {}),
       })),
     );
     if (insError) throw insError;
 
     patch.subtotal = subtotal;
+  } else if (patch.created_at) {
+    // Si no cambiaron las líneas pero sí la fecha, sincronizar created_at en invoice_items
+    await db.from('invoice_items').update({ created_at: patch.created_at }).eq('invoice_id', id);
   }
 
   // El total se recalcula si cambió CUALQUIERA de sus tres componentes.

@@ -1,5 +1,6 @@
 import { getSalesBreakdown } from './reports';
 import { listMovements } from './caja';
+import { getBusinessDay } from '../utils/businessDay';
 
 // Resumen del día para el arqueo: qué se vendió hoy y por qué canal debería
 // haber entrado el dinero, más lo que efectivamente se movió en caja. Sirve para
@@ -30,9 +31,9 @@ const sumBy = (rows: Array<{ key: string; total: number }>, key: string) =>
   rows.find((r) => r.key === key)?.total ?? 0;
 
 export async function getDailySummary(): Promise<DailySummary> {
-  const hoy = new Date().toISOString().split('T')[0]!;
-  const startIso = `${hoy}T00:00:00.000Z`;
-  const endIso = `${hoy}T23:59:59.999Z`;
+  // Día LOCAL, no el día UTC: con `toISOString()` el arqueo se vaciaba a partir
+  // de las 18:00 de Nicaragua, porque para el server ya era mañana.
+  const { date: hoy, startIso, endIso } = getBusinessDay();
 
   const [breakdown, movimientos] = await Promise.all([
     getSalesBreakdown(startIso, endIso),

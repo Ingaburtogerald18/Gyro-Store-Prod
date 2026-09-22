@@ -319,7 +319,7 @@ export default function AdminVentas() {
 
 
   const columns = useMemo<ColumnDef<SaleListItem, unknown>[]>(() => {
-    return [
+    const cols: ColumnDef<SaleListItem, unknown>[] = [
       {
         accessorKey: 'createdAt',
         header: 'Fecha',
@@ -339,7 +339,6 @@ export default function AdminVentas() {
           </span>
         ),
       },
-      { accessorKey: 'phone', header: 'Teléfono', cell: ({ row }) => row.original.phone ?? '—' },
       {
         accessorKey: 'invoiceCode',
         header: 'Nº Factura',
@@ -351,14 +350,16 @@ export default function AdminVentas() {
           ),
       },
       {
-        accessorKey: 'total',
+        id: 'total',
         header: 'Total',
-        // `meta.align` en vez de un <div className="text-right"> dentro del
-        // header: DataTable envuelve el header en un flex propio, así que el div
-        // no se estiraba y el título quedaba a la izquierda mientras la cifra se
-        // iba a la derecha. Con `meta` alinea los dos.
+        // Total de la venta SIN el delivery (el delivery no genera comisión ni
+        // entra en las ventas de productos; se informa en el reporte de Delivery).
+        accessorFn: (row) => Math.max(0, row.total - (row.deliveryFee ?? 0)),
         meta: { align: 'right' },
-        cell: ({ row }) => <span className="font-semibold">{formatCordobas(row.original.total)}</span>,
+        cell: ({ row }) => {
+          const totalSinDelivery = Math.max(0, row.original.total - (row.original.deliveryFee ?? 0));
+          return <span className="font-semibold">{formatCordobas(totalSinDelivery)}</span>;
+        },
       },
       {
         accessorKey: 'totalComision',
@@ -366,16 +367,53 @@ export default function AdminVentas() {
         meta: { align: 'right' },
         cell: ({ row }) => <span className="text-primary-2 font-medium">{formatCordobas(row.original.totalComision)}</span>,
       },
-      {
-        accessorKey: 'status',
-        header: 'Estado',
-        cell: ({ row }) => {
-          const meta = statusMeta(SALE_STATUS, row.original.status);
-          return <StatusBadge status={meta.status} label={meta.label} />;
-        },
-      },
     ];
-  }, []);
+
+    if (isAdmin) {
+      cols.push({
+        accessorKey: 'totalSalary',
+        header: 'Fondo Empresa',
+        meta: { align: 'right' },
+        cell: ({ row }) => (
+          <span className="font-medium text-foreground">
+            {formatCordobas(row.original.totalSalary ?? 0)}
+          </span>
+        ),
+      });
+
+      cols.push({
+        accessorKey: 'totalGananciaTienda',
+        header: 'Ganancia Tienda',
+        meta: { align: 'right' },
+        cell: ({ row }) => (
+          <span className="font-medium text-foreground">
+            {formatCordobas(row.original.totalGananciaTienda ?? 0)}
+          </span>
+        ),
+      });
+    }
+
+    cols.push({
+      accessorKey: 'status',
+      header: 'Estado',
+      cell: ({ row }) => {
+        const meta = statusMeta(SALE_STATUS, row.original.status);
+        return <StatusBadge status={meta.status} label={meta.label} />;
+      },
+    });
+
+    return cols;
+  }, [isAdmin]);
+
+  // La comisión de una venta rechazada no se le debe a nadie — el rótulo
+  // avisa qué representa el número en CADA pestaña en vez de un genérico
+  // "Comisión" que en Pendientes/Aprobadas se leería como ya pagada.
+  const comisionLabel =
+    statusFilter === 'pending_approval'
+      ? 'Comisión pendiente'
+      : statusFilter === 'approved'
+        ? 'Comisión por pagar'
+        : 'Comisión total';
 
   // La comisión de una venta rechazada no se le debe a nadie — el rótulo
   // avisa qué representa el número en CADA pestaña en vez de un genérico
@@ -457,6 +495,9 @@ export default function AdminVentas() {
             <SummaryPill label="Ventas" value={filteredSales.length.toString()} />
             <SummaryPill
               label="Importe"
+              value={formatCordobas(
+                filteredSales.reduce((sum, s) => sum + Math.max(0, s.total - (s.deliveryFee ?? 0)), 0),
+              )}
               value={formatCordobas(filteredSales.reduce((sum, s) => sum + s.total, 0))}
             />
             {/* Una venta rechazada no genera comisión ni ganancia real: mostrarlas
@@ -468,6 +509,21 @@ export default function AdminVentas() {
                   value={formatCordobas(filteredSales.reduce((sum, s) => sum + s.totalComision, 0))}
                   accent
                 />
+                {isAdmin && (
+                  <>
+                    <SummaryPill
+                      label="Fondo empresa"
+                      value={formatCordobas(
+                        filteredSales.reduce((sum, s) => sum + (s.totalSalary ?? 0), 0),
+                      )}
+                    />
+                    <SummaryPill
+                      label="Ganancia tienda"
+                      value={formatCordobas(
+                        filteredSales.reduce((sum, s) => sum + (s.totalGananciaTienda ?? 0), 0),
+                      )}
+                    />
+                  </>
                 {/* Ganancia de tienda: dato sensible, solo admin (el backend
                     tampoco la manda a un vendedor común, ver routes/sales.ts). */}
                 {isAdmin && (

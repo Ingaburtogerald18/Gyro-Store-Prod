@@ -1,9 +1,10 @@
 import { HugeIcon } from '~/components/ui/icon';
-import { Add01Icon, Alert02Icon, Delete01Icon, UserIcon, Coupon01Icon, Cancel01Icon } from '@hugeicons/core-free-icons';
+import { Add01Icon, Alert02Icon, Calendar03Icon, Delete01Icon, UserIcon, Coupon01Icon, Cancel01Icon } from '@hugeicons/core-free-icons';
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
 import { Button } from '~/components/ui/button';
+import { DatePicker, toYmd, toLocalNoonIso } from '~/components/ui/date-picker';
 import { Input } from '~/components/ui/input';
 import { Combobox } from '~/components/ui/combobox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/components/ui/select';
@@ -79,6 +80,10 @@ export function InvoiceEditor({
   // entonces se pide el CÓDIGO. Sin switch, no hay descuento.
   const [includeDiscount, setIncludeDiscount] = useState(false);
 
+  const [invoiceDate, setInvoiceDate] = useState<string>(() => toYmd(new Date()));
+  const todayYmd = toYmd(new Date());
+  const isManualDate = invoiceDate !== todayYmd;
+
   // Código de descuento: el preview (validate) NO consume uso; el canje real lo
   // hace el servidor al crear la factura. El monto acá es solo informativo.
   const [validateCode, { isLoading: validatingCode }] = useValidateDiscountCodeMutation();
@@ -106,13 +111,21 @@ export function InvoiceEditor({
     setDeliveryFee(invoice.deliveryFee || '');
     setDeliveryName(invoice.deliveryName ?? '');
     setIncludeDelivery((invoice.deliveryFee ?? 0) > 0);
+    if (invoice.createdAt) {
+      setInvoiceDate(toYmd(new Date(invoice.createdAt)));
+    }
   }, [invoice]);
 
   const sellerNames = useMemo(() => sellers.map((s) => s.name), [sellers]);
-  const sellerUid = useMemo(
-    () => sellers.find((s) => s.name.trim().toLowerCase() === sellerQuery.trim().toLowerCase())?.id ?? '',
-    [sellers, sellerQuery],
-  );
+  // Se colapsan los espacios INTERNOS además de las puntas. `trim()` solo no
+  // alcanza: un nombre guardado como "Gerald  Aburto" se dibuja "Gerald Aburto"
+  // —HTML colapsa los espacios repetidos— así que quien lo tecleaba como lo veía
+  // nunca matcheaba, y el submit quedaba bloqueado sin decir por qué.
+  const sellerUid = useMemo(() => {
+    const normalize = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ');
+    const target = normalize(sellerQuery);
+    return sellers.find((s) => normalize(s.name) === target)?.id ?? '';
+  }, [sellers, sellerQuery]);
 
   // El catálogo solo trae lo que HOY tiene stock. Un producto de la factura que
   // se agotó desde entonces no estaría en el desplegable y su línea aparecería
@@ -204,6 +217,7 @@ export function InvoiceEditor({
           method,
           deliveryFee: includeDelivery ? Number(deliveryFee) || 0 : 0,
           deliveryName: includeDelivery ? deliveryName : '',
+          issuedAt: toLocalNoonIso(invoiceDate),
           items: validLines.map((l) => ({
             productName: l.productName,
             quantity: Number(l.quantity),
@@ -250,6 +264,7 @@ export function InvoiceEditor({
         discount: 0,
         discountCode: includeDiscount ? appliedCode?.code : undefined,
         sellerUid: sellerUid || undefined,
+        issuedAt: isManualDate ? toLocalNoonIso(invoiceDate) : undefined,
         items: validLines.map(l => ({
           productName: l.productName,
           quantity: Number(l.quantity),
@@ -322,6 +337,31 @@ export function InvoiceEditor({
           />
         </section>
       )}
+
+      {/* Fecha de factura */}
+      <section className="space-y-3 rounded-card border bg-card p-4 shadow-sm">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <HugeIcon icon={Calendar03Icon} size={16} strokeWidth={2} className="text-primary-2" aria-hidden />
+            <Label htmlFor="invoice-date" className="font-semibold text-foreground">Fecha de factura</Label>
+          </div>
+          {isManualDate && (
+            <span className="inline-flex items-center rounded-full bg-amber-500/10 px-2.5 py-0.5 text-xs font-medium text-amber-600 dark:text-amber-400 border border-amber-500/20">
+              Fecha manual
+            </span>
+          )}
+        </div>
+        <div className="pt-1">
+          <DatePicker
+            id="invoice-date"
+            value={invoiceDate}
+            onChange={(val) => setInvoiceDate(val)}
+            disabled={creating || updating}
+            disableFuture
+            className="max-w-xs"
+          />
+        </div>
+      </section>
 
       <div className="space-y-2">
         <Label>Productos</Label>

@@ -9,6 +9,7 @@ import type { ColumnDef } from '@tanstack/react-table';
 import { SpotlightCard } from '~/components/ui/stat-card';
 import { DataTable } from '~/components/ui/DataTable';
 import { QueryState } from '~/components/ui/QueryState';
+import { Badge } from '~/components/ui/badge';
 import { formatCordobas, formatNumber } from '~/lib/formatters';
 import { useGetTopProductsQuery, type TopProductRow } from '~/store/api/reportsApi';
 import type { PeriodRange } from './period';
@@ -17,7 +18,7 @@ export function TopProductsTable({
   range,
   sellerUid,
   limit = 10,
-  title = 'Top productos',
+  title = 'Top 10 productos más vendidos',
 }: {
   range: PeriodRange;
   sellerUid?: string;
@@ -26,30 +27,87 @@ export function TopProductsTable({
 }) {
   const { data = [], isLoading, isError } = useGetTopProductsQuery({ ...range, sellerUid, limit });
 
-  const columns = useMemo<ColumnDef<TopProductRow, unknown>[]>(
-    () => [
+  const hasMargin = useMemo(() => data.some((r) => r.margen !== undefined), [data]);
+
+  const columns = useMemo<ColumnDef<TopProductRow, unknown>[]>(() => {
+    const cols: ColumnDef<TopProductRow, unknown>[] = [
+      {
+        id: 'position',
+        header: '#',
+        cell: ({ row }) => (
+          <span className="nums font-semibold text-muted-foreground">
+            {row.index + 1}
+          </span>
+        ),
+      },
       {
         accessorKey: 'sku',
-        header: 'Producto',
-        cell: ({ row }) => <span className="font-medium text-foreground">{row.original.sku}</span>,
+        header: 'SKU',
+        cell: ({ row }) => (
+          <Badge variant="outline" className="font-mono text-[11px] font-medium">
+            {row.original.sku}
+          </Badge>
+        ),
+      },
+      {
+        id: 'nombre',
+        header: 'Nombre del producto',
+        cell: ({ row }) => {
+          const name = row.original.nombre || row.original.sku;
+          return <span className="font-medium text-foreground">{name}</span>;
+        },
       },
       {
         accessorKey: 'unidades',
-        header: 'Unidades',
+        header: 'Unidades vendidas',
         meta: { align: 'right' },
-        cell: ({ row }) => formatNumber(row.original.unidades),
+        cell: ({ row }) => (
+          <span className="nums font-medium text-foreground">
+            {formatNumber(row.original.unidades)}
+          </span>
+        ),
       },
       {
         accessorKey: 'ingreso',
-        header: 'Ingreso',
+        header: 'Ingreso generado',
         meta: { align: 'right' },
         cell: ({ row }) => (
-          <span className="font-semibold">{formatCordobas(row.original.ingreso, 'C$', 2)}</span>
+          <span className="nums font-semibold text-foreground">
+            {formatCordobas(row.original.ingreso, 'C$', 2)}
+          </span>
         ),
       },
-    ],
-    [],
-  );
+    ];
+
+    if (hasMargin) {
+      cols.push({
+        id: 'margen',
+        header: 'Margen',
+        meta: { align: 'right' },
+        cell: ({ row }) => {
+          const m = row.original.margen;
+          if (m === undefined) return <span className="text-muted-foreground">—</span>;
+          const isHigh = m >= 35;
+          const isMid = m >= 20 && m < 35;
+          return (
+            <span
+              className={`nums inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${
+                isHigh
+                  ? 'bg-emerald-500/15 text-emerald-400'
+                  : isMid
+                  ? 'bg-amber-500/15 text-amber-400'
+                  : 'bg-rose-500/15 text-rose-400'
+              }`}
+            >
+              {m.toFixed(1)}%
+            </span>
+          );
+        },
+      });
+    }
+
+    return cols;
+  }, [hasMargin]);
 
   return (
     <SpotlightCard variant="default" className="p-5">
@@ -58,9 +116,7 @@ export function TopProductsTable({
           <HugeIcon icon={Tag01Icon} size={20} strokeWidth={2} className="text-primary" />
           <h3 className="font-semibold text-foreground">{title}</h3>
         </div>
-        {/* El orden es por ingreso, no por unidades: veinte accesorios baratos
-            no pesan lo mismo que tres productos caros. */}
-        <span className="text-xs text-muted-foreground">por ingreso</span>
+        <span className="text-xs text-muted-foreground">ordenado por ingreso</span>
       </div>
 
       <QueryState
@@ -72,9 +128,10 @@ export function TopProductsTable({
           columns={columns}
           data={data}
           hideSearch
-          emptyText="No se vendió nada en este periodo."
+          emptyText="No se vendió ningún producto en este mes."
         />
       </QueryState>
     </SpotlightCard>
   );
 }
+

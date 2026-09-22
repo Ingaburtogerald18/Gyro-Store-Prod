@@ -1,90 +1,95 @@
-import { DollarSquareIcon, Package01Icon, PercentIcon, PlusSignSquareIcon, ShoppingCart02Icon } from "@hugeicons/core-free-icons";
-import { lazy, Suspense, useState, useMemo, useEffect } from 'react';
-import { useReducedMotion } from 'framer-motion';
+import {
+  DollarSquareIcon,
+  PercentIcon,
+  PlusSignSquareIcon,
+  ShoppingCart02Icon,
+  Invoice02Icon,
+  ChartLineData01Icon,
+  Coins01Icon,
+} from '@hugeicons/core-free-icons';
+import { useState, useMemo, useEffect } from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
 import { QueryState } from '~/components/ui/QueryState';
-import { SkeletonChart } from '~/components/ui/skeletons';
 import { BrandLoader } from '~/components/ui/module-loader';
+import { Button } from '~/components/ui/button';
 
 import type { MetaFunction } from '@remix-run/node';
-import { useGetKpisQuery, useGetSellerPerformanceQuery, useGetSalesLedgerQuery, useGetSalesTrendQuery } from '~/store/api/reportsApi';
-import { useGetCuadreQuery } from '~/store/api/cajaApi';
+import {
+  useGetKpisQuery,
+  useGetSellerPerformanceQuery,
+  useGetSalesLedgerQuery,
+  useGetSalesTrendQuery,
+} from '~/store/api/reportsApi';
 import { useAppSelector } from '~/store/hooks';
 import { selectIsAdmin } from '~/store/slices/authSlice';
 import { formatCordobas } from '~/lib/formatters';
 import { pageTitle } from '~/lib/brand';
+import { HugeIcon } from '~/components/ui/icon';
 
-// Reportería de ventas. Vive en components/admin/reports/ porque el panel del
-// vendedor en /admin/ventas reusa la tendencia y el top de productos.
 import { PageHeader } from '~/components/layout/PageHeader';
 import { SectionLabel } from '~/components/layout/SectionLabel';
 import { CompactKpi, HeroMetric } from '~/components/admin/reports/HeroMetric';
-import { PeriodPicker } from '~/components/admin/reports/PeriodPicker';
-// recharts es la dependencia más pesada del panel y solo la usa Reportería.
-// Con `lazy`, abrir Ventas o Inventario ya no descarga una librería de gráficos
-// que esas pantallas no dibujan.
-const SalesTrendChart = lazy(() =>
-  import('~/components/admin/reports/SalesTrendChart').then((m) => ({ default: m.SalesTrendChart })),
-);
 import { TopProductsTable } from '~/components/admin/reports/TopProductsTable';
 import { SalesBreakdownCards } from '~/components/admin/reports/SalesBreakdownCards';
 import { ExportSalesCsvButton } from '~/components/admin/reports/ExportSalesCsvButton';
-import { CuadreBanner } from '~/components/admin/reports/CuadreBanner';
 import { CostDistributionCard } from '~/components/admin/reports/CostDistributionCard';
 import { IncomeBreakdownCard } from '~/components/admin/reports/IncomeBreakdownCard';
 import { DashboardDrilldowns, type DrilldownType } from '~/components/admin/reports/DashboardDrilldowns';
-import { getPeriodRange, isPeriodReady, pickBucket, type CustomRange, type PeriodId } from '~/components/admin/reports/period';
+import { RegisterLoanPaymentDialog } from '~/components/admin/reports/RegisterLoanPaymentDialog';
+import { MonthSelector, getMonthRange, type MonthYear } from '~/components/admin/reports/MonthSelector';
+import { SalesDailyTrendChart } from '~/components/admin/reports/SalesDailyTrendChart';
+import { PaymentMethodDonut } from '~/components/admin/reports/PaymentMethodDonut';
+import { SellerRankingTable } from '~/components/admin/reports/SellerRankingTable';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs';
+import { ExpensesTab } from '~/components/admin/expenses/ExpensesTab';
 
 export const meta: MetaFunction = () => {
   return [{ title: pageTitle('Reportería', { admin: true }) }];
 };
 
 export default function AdminDashboard() {
-  const [range, setRange] = useState<PeriodId>('month');
-  // Rango libre: solo se usa cuando `range === 'range'`, pero se conserva al
-  // saltar entre presets para no perder lo que el usuario ya había elegido.
-  const [custom, setCustom] = useState<CustomRange>({ from: '', to: '' });
+  const now = new Date();
+  const [selectedMonth, setSelectedMonth] = useState<MonthYear>({
+    year: now.getFullYear(),
+    month: now.getMonth(),
+  });
 
-  const queryParams = useMemo(() => getPeriodRange(range, custom), [range, custom]);
-  // Con el rango libre a medio llenar no hay filtro que mandar: pedirlo igual
-  // traería el histórico completo rotulado como "el periodo elegido".
-  const periodReady = isPeriodReady(queryParams);
+  const queryParams = useMemo(
+    () => getMonthRange(selectedMonth.year, selectedMonth.month),
+    [selectedMonth],
+  );
 
-  // La Reportería es de admin, pero la ruta /admin no lo bloquea por rol: si un
-  // vendedor entra por URL, el backend ya le recorta los KPIs y acá se ocultan
-  // las secciones que no le corresponden. La UI acompaña al backend, no lo suple.
   const isAdmin = useAppSelector(selectIsAdmin);
 
-  const { data: kpis, isLoading, isError } = useGetKpisQuery(queryParams, { skip: !periodReady });
-
-  // Se pide acá además de dentro de `CuadreBanner` solo para saber DÓNDE
-  // colocarlo. RTK Query deduplica: es la misma entrada de caché, un request.
-  const { data: cuadreForPlacement } = useGetCuadreQuery();
-  const bannerOnTop = (cuadreForPlacement?.ventasPendientes ?? 0) > 0;
+  // Consulta de KPIs agregados del mes seleccionado
+  const { data: kpis, isLoading, isError } = useGetKpisQuery(queryParams);
 
   // ── Drilldown state ──
   const [drilldown, setDrilldown] = useState<DrilldownType>(null);
 
   // Sales ledger se carga solo cuando un pop-up lo necesita
-  const needsLedger = drilldown === 'vendido' || drilldown === 'coste' || drilldown === 'ganancia';
-  const { data: ledger = [] } = useGetSalesLedgerQuery(queryParams, { skip: !needsLedger || !periodReady });
+  const needsLedger =
+    drilldown === 'vendido' ||
+    drilldown === 'coste' ||
+    drilldown === 'ganancia' ||
+    drilldown === 'ventas' ||
+    drilldown === 'ticket_promedio';
 
-  // Seller performance se carga solo para el pop-up de comisiones
-  const { data: sellers = [] } = useGetSellerPerformanceQuery(queryParams, { skip: drilldown !== 'comisiones' || !periodReady });
+  const { data: ledger = [] } = useGetSalesLedgerQuery(queryParams, {
+    skip: !needsLedger,
+  });
+
+  // Seller performance se carga para el drilldown de comisiones
+  const { data: sellers = [] } = useGetSellerPerformanceQuery(queryParams, {
+    skip: drilldown !== 'comisiones',
+  });
 
   const formatMoney = (n: number) => formatCordobas(n, 'C$', 2);
 
-  // Las barras entran desde 0 en el primer frame tras montar, para que se vea
-  // el llenado. Si el usuario pidió menos movimiento, van directo al valor.
+  // Animación de barras de pozos
   const reduce = useReducedMotion();
   const [barsReady, setBarsReady] = useState(false);
 
-  // La dependencia es una CLAVE PRIMITIVA, no el objeto `kpis`.
-  //
-  // `kpis` es el objeto de RTK Query: cambia de referencia en cada refetch
-  // aunque los datos sean idénticos. Dependiendo de él, este efecto reiniciaba
-  // la animación de las barras en cada revalidación —las barras volvían a cero
-  // y subían de nuevo sin que nada hubiera cambiado—. Con la suma de los pozos,
-  // solo se reinicia cuando el reparto cambió de verdad.
   const pozosKey = kpis
     ? Object.values(kpis.pozos_recogidos || {}).reduce((s, v) => s + (v || 0), 0)
     : 0;
@@ -99,179 +104,330 @@ export default function AdminDashboard() {
     return () => cancelAnimationFrame(id);
   }, [reduce, pozosKey]);
 
-  // A dónde va cada córdoba vendido. Se descartan los tramos en cero para que
-  // el donut no dibuje segmentos invisibles.
-  // `?? 0` porque el backend recorta estos campos cuando quien pregunta no es
-  // admin (ver routes/reports.ts): sin el fallback el donut recibiría undefined.
-  const incomeBreakdown = useMemo(
-    () =>
-      kpis
+  // Desglose de ingresos para el donut financiero
+  const incomeBreakdown = useMemo(() => {
+    if (!kpis) return [];
+    return [
+      {
+        key: 'coste',
+        label: 'Costo de productos',
+        value: kpis.coste_total ?? 0,
+        fill: 'var(--color-chart-1)',
+      },
+      {
+        key: 'comision',
+        label: 'Comisiones',
+        value: kpis.comision_total,
+        fill: 'var(--color-chart-2)',
+      },
+      ...(kpis.salary_acumulado
         ? [
-            { key: 'coste', label: 'Coste', value: kpis.coste_total ?? 0, fill: 'var(--color-chart-1)' },
-            { key: 'comision', label: 'Comisiones', value: kpis.comision_total, fill: 'var(--color-chart-2)' },
-            { key: 'salary', label: 'Salary', value: kpis.salary_acumulado ?? 0, fill: 'var(--color-chart-3)' },
-            { key: 'ganancia', label: 'Ganancia tienda', value: kpis.ganancia_tienda_total ?? 0, fill: 'var(--color-chart-4)' },
-          ].filter((slice) => slice.value > 0)
-        : [],
-    [kpis],
-  );
+            {
+              key: 'salary',
+              label: 'Salary acumulado',
+              value: kpis.salary_acumulado,
+              fill: 'var(--color-chart-3)',
+            },
+          ]
+        : []),
+      ...(kpis.total_prestamos
+        ? [
+            {
+              key: 'prestamos',
+              label: 'Pago de préstamos',
+              value: kpis.total_prestamos,
+              fill: 'var(--color-chart-5, #f59e0b)',
+            },
+          ]
+        : []),
+      {
+        key: 'ganancia',
+        label: 'Ganancia real',
+        value: Math.max(0, kpis.ganancia_real ?? kpis.ganancia_tienda_total ?? (kpis.total_vendido - (kpis.coste_total ?? 0) - kpis.comision_total)),
+        fill: 'var(--color-chart-4)',
+      },
+    ].filter((slice) => slice.value > 0);
+  }, [kpis]);
 
-  // Sparkline del héroe.
-  //
-  // Reusa la serie del gráfico de tendencia en vez de pedir un endpoint nuevo.
-  // Los argumentos son EXACTAMENTE los mismos que usa `SalesTrendChart`
-  // (`{...range, bucket, sellerUid}`), así que RTK Query reconoce la misma
-  // entrada de caché y sale UN solo request, no dos. Si algún día cambian los
-  // argumentos de uno de los dos, se duplica el pedido en silencio.
+  // Sparkline para la tarjeta hero (Total Vendido)
   const { data: trend = [] } = useGetSalesTrendQuery(
-    { ...queryParams, bucket: pickBucket(queryParams), sellerUid: undefined },
-    { skip: !periodReady || !isAdmin },
+    { ...queryParams, bucket: 'day', sellerUid: undefined },
+    { skip: !isAdmin },
   );
 
-  const heroSeries = useMemo(() => trend.map((p) => ({ value: p.total_vendido })), [trend]);
+  const heroSeries = useMemo(
+    () => trend.map((p) => ({ value: p.total_vendido })),
+    [trend],
+  );
+
+  // Métricas calculadas para tarjetas secundarias
+  const ticketPromedio = useMemo(() => {
+    if (!kpis || kpis.total_ventas === 0) return 0;
+    return kpis.total_vendido / kpis.total_ventas;
+  }, [kpis]);
+
+  const ticketPromedioPrev = useMemo(() => {
+    if (!kpis || !kpis.total_ventas_prev || kpis.total_ventas_prev === 0) return undefined;
+    return (kpis.total_vendido_prev ?? 0) / kpis.total_ventas_prev;
+  }, [kpis]);
+
+  const gananciaReal = useMemo(() => {
+    if (!kpis) return 0;
+    if (kpis.ganancia_real !== undefined) return kpis.ganancia_real;
+    if (kpis.ganancia_tienda_total !== undefined) {
+      return kpis.ganancia_tienda_total - (kpis.total_prestamos ?? 0);
+    }
+    return kpis.total_vendido - (kpis.coste_total ?? 0) - kpis.comision_total - (kpis.total_prestamos ?? 0);
+  }, [kpis]);
+
+  const monthKey = `${selectedMonth.year}-${selectedMonth.month}`;
+
+  const isMonthEmpty = kpis && kpis.total_ventas === 0 && kpis.total_vendido === 0;
+
+  const [activeTab, setActiveTab] = useState<'resumen' | 'gastos'>('resumen');
+
+  const monthLabel = useMemo(() => {
+    const d = new Date(selectedMonth.year, selectedMonth.month, 1);
+    const name = d.toLocaleDateString('es-NI', { month: 'long' });
+    return `${name.charAt(0).toUpperCase() + name.slice(1)} ${selectedMonth.year}`;
+  }, [selectedMonth]);
 
   return (
     <>
+      {/* 1. Header con Título, Selector de Mes y Botón Exportar CSV */}
       <PageHeader
         eyebrow="Operación"
         title="Reportería"
-        description={isAdmin ? 'Ventas del periodo elegido.' : undefined}
-        actions={isAdmin ? <ExportSalesCsvButton range={queryParams} /> : undefined}
-        // El selector de periodo baja a su propia fila. Apilado a la derecha del
-        // título competía con él y en móvil se acomodaba de forma impredecible.
-        filters={
-          <PeriodPicker
-            period={range}
-            onPeriodChange={setRange}
-            custom={custom}
-            onCustomChange={setCustom}
-            layoutId="dashboard-range"
-          />
+        description={isAdmin ? 'Análisis comercial y métricas de desempeño mensual.' : undefined}
+        actions={
+          <div className="flex flex-wrap items-center gap-2.5">
+            <MonthSelector value={selectedMonth} onChange={setSelectedMonth} />
+            {isAdmin && activeTab === 'resumen' && (
+              <>
+                <RegisterLoanPaymentDialog
+                  trigger={
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-9 gap-1.5 text-xs text-amber-500 hover:text-amber-400 hover:border-amber-500/40"
+                    >
+                      <HugeIcon icon={Coins01Icon} size={15} strokeWidth={2} />
+                      Pagar préstamo
+                    </Button>
+                  }
+                  defaultDate={queryParams.startDate?.slice(0, 10)}
+                />
+                <ExportSalesCsvButton range={queryParams} />
+              </>
+            )}
+          </div>
         }
       />
 
-      {/* El banner sube arriba del héroe SOLO si hay algo que resolver. El
-          espacio caro de la parte superior es para lo que requiere acción; si
-          todo está al día, esos números son referencia y van abajo. */}
-      {bannerOnTop && (
-        <div className="mb-6">
-          <CuadreBanner range={queryParams} />
-        </div>
-      )}
-
-      {!periodReady ? (
-        <div className="rounded-card border border-dashed py-16 text-center">
-          <p className="text-sm text-muted-foreground">
-            Elegí la fecha de inicio y la de fin para ver el reporte del periodo.
-          </p>
-        </div>
-      ) : (
-      <QueryState
-        loading={isLoading}
-        error={isError}
-        empty={!kpis}
-        loadingFallback={<BrandLoader text="Cargando dashboard..." />}
+      <Tabs
+        value={activeTab}
+        onValueChange={(val) => setActiveTab(val as 'resumen' | 'gastos')}
+        className="space-y-6"
       >
-        {kpis && (
-          <div className="space-y-6">
-            {/* Un solo elemento domina: Total Vendido a 48 px con su delta y
-                su sparkline. El resto pasa a compacto — el peso no se reparte,
-                o ninguno gana. */}
-            <div className="grid grid-cols-12 gap-4">
-              <HeroMetric
-                className="col-span-12 lg:col-span-5"
-                icon={DollarSquareIcon}
-                eyebrow="Total vendido"
-                value={kpis.total_vendido}
-                prev={kpis.total_vendido_prev}
-                format={formatMoney}
-                series={heroSeries}
-                onClick={() => setDrilldown('vendido')}
-              />
-
-              <div className="col-span-12 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:col-span-7">
-                <CompactKpi
-                  icon={ShoppingCart02Icon}
-                  label="Ventas"
-                  value={kpis.total_ventas}
-                  prev={kpis.total_ventas_prev}
-                  sub={`${kpis.total_unidades} unidades`}
-                  href="/admin/ventas?status=approved"
-                />
-                <CompactKpi
-                  icon={PercentIcon}
-                  label="Comisiones"
-                  value={kpis.comision_total}
-                  prev={kpis.comision_total_prev}
-                  format={formatMoney}
-                  onClick={() => setDrilldown('comisiones')}
-                />
-                {isAdmin && (
-                  <CompactKpi
-                    icon={Package01Icon}
-                    label="Coste total"
-                    value={kpis.coste_total ?? 0}
-                    prev={kpis.coste_total_prev}
-                    format={formatMoney}
-                    // Subir el coste NO es una buena noticia: sin `invert` el
-                    // delta lo pintaría de verde.
-                    invert
-                    onClick={() => setDrilldown('coste')}
-                  />
-                )}
-                {isAdmin && (
-                  <CompactKpi
-                    icon={PlusSignSquareIcon}
-                    label="Ganancia tienda"
-                    value={kpis.ganancia_tienda_total ?? 0}
-                    prev={kpis.ganancia_tienda_total_prev}
-                    format={formatMoney}
-                    onClick={() => setDrilldown('ganancia')}
-                  />
-                )}
-              </div>
-            </div>
-
-            {isAdmin && (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-              <CostDistributionCard kpis={kpis} barsReady={barsReady} formatMoney={formatMoney} />
-              <IncomeBreakdownCard incomeBreakdown={incomeBreakdown} formatMoney={formatMoney} />
-            </div>
-            )}
-
-            {/* ── Reportería de ventas del periodo ──
-                Todo lo de abajo es admin: son datos del negocio (márgenes de
-                todos, top productos), no de una venta propia.
-                El vendedor tiene su propio panel en /admin/ventas. */}
-            {isAdmin && (
-              <div className="space-y-6">
-                <Suspense fallback={<SkeletonChart />}>
-                  <SalesTrendChart range={queryParams} />
-                </Suspense>
-
-                <TopProductsTable range={queryParams} />
-
-                <section className="space-y-3">
-                  <SectionLabel>Desglose del periodo</SectionLabel>
-                  <SalesBreakdownCards range={queryParams} />
-                </section>
-
-                {!bannerOnTop && <CuadreBanner range={queryParams} />}
-              </div>
-            )}
+        {isAdmin && (
+          <div className="flex items-center justify-between border-b border-border/60 pb-3">
+            <TabsList className="bg-muted/80 p-1">
+              <TabsTrigger value="resumen" className="gap-2 px-4 py-1.5 text-xs font-medium">
+                <HugeIcon icon={ChartLineData01Icon} size={15} />
+                Ventas y Rentabilidad
+              </TabsTrigger>
+              <TabsTrigger value="gastos" className="gap-2 px-4 py-1.5 text-xs font-medium">
+                <HugeIcon icon={DollarSquareIcon} size={15} />
+                Gastos y Presupuesto
+              </TabsTrigger>
+            </TabsList>
           </div>
         )}
-      </QueryState>
-      )}
 
-      {/* ── Pop-ups de drilldown de las StatCards ── */}
-      <DashboardDrilldowns
-        drilldown={drilldown}
-        onClose={() => setDrilldown(null)}
-        ledger={ledger}
-        sellers={sellers}
-        formatMoney={formatMoney}
-      />
-    </>
+        <TabsContent value="resumen" className="mt-0 focus-visible:outline-none">
+            <QueryState
+              loading={isLoading}
+              error={isError}
+              empty={!kpis}
+              loadingFallback={<BrandLoader text="Cargando reportería del mes..." />}
+            >
+        {kpis && (
+          <motion.div
+            key={monthKey}
+            initial={reduce ? false : { opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.22, ease: 'easeOut' }}
+            className="space-y-8"
+          >
+            {/* Si el mes está totalmente vacío, mostrar un banner informativo pero permitir explorar */}
+            {isMonthEmpty && (
+              <div className="rounded-2xl border border-dashed border-border/80 bg-card/40 p-8 text-center shadow-xs">
+                <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-full bg-muted/60 text-muted-foreground">
+                  <HugeIcon icon={ChartLineData01Icon} size={22} strokeWidth={1.8} />
+                </div>
+                <h3 className="font-heading text-base font-semibold text-foreground">
+                  Sin transacciones en este mes
+                </h3>
+                <p className="mx-auto mt-1 max-w-md text-xs text-muted-foreground">
+                  No se registraron ventas aprobadas durante el mes seleccionado. Puedes navegar a otros
+                  meses utilizando el selector del encabezado.
+                </p>
+              </div>
+            )}
+
+            {/* 2. KPIs Principales (Hero + 4 Tarjetas secundarias) */}
+            <section className="space-y-4">
+              <SectionLabel>Métricas del mes</SectionLabel>
+              <div className="space-y-4">
+                {/* Fila principal: Hero Total Vendido */}
+                <HeroMetric
+                  icon={DollarSquareIcon}
+                  eyebrow="Total vendido"
+                  value={kpis.total_vendido}
+                  prev={kpis.total_vendido_prev}
+                  format={formatMoney}
+                  series={heroSeries}
+                  onClick={() => setDrilldown('vendido')}
+                />
+
+                {/* Fila secundaria: 4 Tarjetas */}
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  {/* Número de Ventas */}
+                  <CompactKpi
+                    icon={ShoppingCart02Icon}
+                    label="Número de ventas"
+                    value={kpis.total_ventas}
+                    prev={kpis.total_ventas_prev}
+                    sub={`${formatCordobas(kpis.total_unidades, '', 0)} unidades`}
+                    onClick={() => setDrilldown('ventas')}
+                  />
+
+                  {/* Ticket Promedio */}
+                  <CompactKpi
+                    icon={Invoice02Icon}
+                    label="Ticket promedio"
+                    value={ticketPromedio}
+                    prev={ticketPromedioPrev}
+                    format={formatMoney}
+                    onClick={() => setDrilldown('ticket_promedio')}
+                  />
+
+                  {/* Comisiones Pagadas */}
+                  <CompactKpi
+                    icon={PercentIcon}
+                    label="Comisiones pagadas"
+                    value={kpis.comision_total}
+                    prev={kpis.comision_total_prev}
+                    format={formatMoney}
+                    onClick={() => setDrilldown('comisiones')}
+                  />
+
+                  {/* Ganancia Neta / Real */}
+                  <CompactKpi
+                    icon={PlusSignSquareIcon}
+                    label="Ganancia neta"
+                    value={gananciaReal}
+                    prev={kpis.ganancia_real_prev ?? kpis.ganancia_tienda_total_prev}
+                    format={formatMoney}
+                    valueClassName={gananciaReal >= 0 ? 'text-emerald-500' : 'text-rose-500'}
+                    sub={isAdmin && (kpis.total_prestamos ?? 0) > 0 ? 'Después de préstamos' : undefined}
+                    onClick={() => setDrilldown('ganancia')}
+                  />
+                </div>
+              </div>
+            </section>
+
+            {/* 3. Gráfico de Tendencia Diaria del Mes */}
+            {isAdmin && (
+              <section className="space-y-3">
+                <SectionLabel>Evolución diaria</SectionLabel>
+                <SalesDailyTrendChart
+                  range={queryParams}
+                  year={selectedMonth.year}
+                  month={selectedMonth.month}
+                  showGanancia={isAdmin}
+                />
+              </section>
+            )}
+
+            {/* 4. Ventas por método de pago + Ventas por vendedor (lado a lado en desktop) */}
+            {isAdmin && (
+              <section className="space-y-3">
+                <SectionLabel>Canales y equipo comercial</SectionLabel>
+                <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+                  <PaymentMethodDonut
+                    range={queryParams}
+                    className="p-5 lg:col-span-5"
+                  />
+                  <SellerRankingTable
+                    range={queryParams}
+                    className="p-5 lg:col-span-7"
+                  />
+                </div>
+              </section>
+            )}
+
+            {/* 5. Top 10 Productos Más Vendidos */}
+            <section className="space-y-3">
+              <SectionLabel>Productos destacados</SectionLabel>
+              <TopProductsTable range={queryParams} limit={10} />
+            </section>
+
+            {/* 6. Distribución de Costos (Pozos) */}
+            {isAdmin && (
+              <section className="space-y-3">
+                <SectionLabel>Estructura de costos</SectionLabel>
+                <CostDistributionCard
+                  kpis={kpis}
+                  barsReady={barsReady}
+                  formatMoney={formatMoney}
+                />
+              </section>
+            )}
+
+            {/* 7. Desglose Financiero (Donut ingresos + Tarjetas breakdown) */}
+            {isAdmin && (
+              <section className="space-y-3">
+                <SectionLabel>Desglose financiero</SectionLabel>
+                <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+                  <div className="lg:col-span-4">
+                    <IncomeBreakdownCard
+                      incomeBreakdown={incomeBreakdown}
+                      formatMoney={formatMoney}
+                      className="h-full p-5"
+                    />
+                  </div>
+                  <div className="lg:col-span-8">
+                    <SalesBreakdownCards
+                      range={queryParams}
+                      excludeMethod
+                      className="grid gap-4 sm:grid-cols-2"
+                    />
+                  </div>
+                </div>
+              </section>
+            )}
+          </motion.div>
+        )}
+      </QueryState>
+    </TabsContent>
+
+    {isAdmin && (
+      <TabsContent value="gastos" className="mt-0 focus-visible:outline-none">
+        <ExpensesTab queryParams={queryParams} monthLabel={monthLabel} />
+      </TabsContent>
+    )}
+  </Tabs>
+
+  {/* Pop-ups de drilldown de las tarjetas */}
+  <DashboardDrilldowns
+    drilldown={drilldown}
+    onClose={() => setDrilldown(null)}
+    ledger={ledger}
+    sellers={sellers}
+    formatMoney={formatMoney}
+    queryParams={queryParams}
+  />
+</>
   );
 }

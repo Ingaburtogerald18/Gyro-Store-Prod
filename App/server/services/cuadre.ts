@@ -1,5 +1,6 @@
 import { getBalances, type AccountBalance } from './caja';
 import { getFinancialKPIs, type FinancialKPIs } from './reports';
+import { getBusinessDay } from '../utils/businessDay';
 import { db } from '../supabase';
 
 export interface CuadreDashboard {
@@ -9,8 +10,12 @@ export interface CuadreDashboard {
 }
 
 export async function getCuadreDashboard(): Promise<CuadreDashboard> {
-  // Hoy en UTC o local (simplificado a ISO string del día)
-  const hoy = new Date().toISOString().split('T')[0];
+  // El día de HOY en hora de Nicaragua, con sus dos extremos.
+  //
+  // Antes acá se mandaba la fecha pelada dos veces (`getFinancialKPIs(hoy, hoy)`)
+  // y Postgres la casteaba a medianoche en AMBOS lados: el rango era un instante
+  // y los KPIs del Cuadre daban 0 aunque hubiera ventas aprobadas ese día.
+  const { startIso, endIso } = getBusinessDay();
 
   // Ejecutar todo en paralelo para mejor rendimiento
   const [pendingResult, balances, kpis] = await Promise.all([
@@ -20,7 +25,7 @@ export async function getCuadreDashboard(): Promise<CuadreDashboard> {
       .eq('status', 'pending_approval'),
     getBalances(),
     // KPIs financieros solo de hoy
-    getFinancialKPIs(hoy, hoy),
+    getFinancialKPIs(startIso, endIso),
   ]);
 
   if (pendingResult.error) throw pendingResult.error;

@@ -24,6 +24,10 @@ import {
   listLosses,
   exportSales,
   getExpensesByPozo,
+  createExpense,
+  deleteExpense,
+  listExpenses,
+  getExpensesOverflow,
   getSalesTrend,
   getSellerPerformance,
   getTopProducts,
@@ -31,9 +35,15 @@ import {
   getDeliverySummary,
   getSalesLedger,
   getDeliveryInvoices,
+  listLoanPayments,
+  getLoanPaymentsSummary,
+  createLoanPayment,
+  deleteLoanPayment,
 } from '../services/reports';
 import { parseCursor } from '../utils/pagination';
 import { BadRequestError } from '../utils/httpError';
+import { parseUuidParam } from '../utils/params';
+import { createExpenseInputSchema, createLoanPaymentSchema } from '../../shared/schemas';
 
 const router = Router();
 
@@ -105,6 +115,10 @@ router.get(
         pozos_recogidos,
         coste_total_prev,
         ganancia_tienda_total_prev,
+        total_prestamos,
+        total_prestamos_prev,
+        ganancia_real,
+        ganancia_real_prev,
         ...rest
       } = kpis;
       res.json(rest);
@@ -174,9 +188,19 @@ router.get(
     }
 
     const { startDate, endDate, sellerUid, limit } = parsed.data;
-    res.json(
-      await getTopProducts(startDate, endDate, scopedSellerUid(req, sellerUid), limit ?? 10),
+    const topProducts = await getTopProducts(
+      startDate,
+      endDate,
+      scopedSellerUid(req, sellerUid),
+      limit ?? 10,
     );
+
+    if (!isAdminLike(req.user!.roles)) {
+      res.json(topProducts.map(({ margen, ...rest }) => rest));
+      return;
+    }
+
+    res.json(topProducts);
   })
 );
 
@@ -295,23 +319,131 @@ router.get(
 );
 
 /**
+ * GET /api/reports/expenses/overflow
+ * Calcula el estado de desbordamiento acumulativo y la ganancia real del negocio.
+ */
+router.get(
+  '/expenses/overflow',
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const startDate = typeof req.query.startDate === 'string' ? req.query.startDate : (typeof req.query.desde === 'string' ? req.query.desde : undefined);
+    const endDate = typeof req.query.endDate === 'string' ? req.query.endDate : (typeof req.query.hasta === 'string' ? req.query.hasta : undefined);
+    const overflow = await getExpensesOverflow(startDate, endDate);
+    res.json(overflow);
+  })
+);
+
+/**
+ * POST /api/reports/expenses
+ * Registra un nuevo gasto operativo en un pozo o salario.
+ */
+router.post(
+  '/expenses',
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const data = createExpenseInputSchema.parse(req.body);
+    const expense = await createExpense(data, req.user!.uid);
+    res.status(201).json(expense);
+  })
+);
+
+/**
+ * DELETE /api/reports/expenses/:id
+ * Elimina un gasto operativo existente.
+ */
+router.delete(
+  '/expenses/:id',
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const id = parseUuidParam(req.params.id, 'Gasto no encontrado');
+    const result = await deleteExpense(id);
+    res.json(result);
+  })
+);
+
+/**
  * GET /api/reports/expenses
- * Gastos operativos agregados por pozo.
+ * Gastos operativos agregados por pozo o listado detallado (?detail=true).
  */
 router.get(
   '/expenses',
   requireAdmin,
   asyncHandler(async (req, res) => {
-    const parsed = dateRangeSchema.safeParse(req.query);
-    if (!parsed.success) {
-      throw new BadRequestError(INVALID_RANGE);
+    const isDetail = req.query.detail === 'true' || req.query.detail === '1';
+    const startDate = typeof req.query.desde === 'string' ? req.query.desde : (typeof req.query.startDate === 'string' ? req.query.startDate : undefined);
+    const endDate = typeof req.query.hasta === 'string' ? req.query.hasta : (typeof req.query.endDate === 'string' ? req.query.endDate : undefined);
+    const pozo = typeof req.query.pozo === 'string' ? req.query.pozo : undefined;
+    const page = req.query.page ? Math.max(1, Number(req.query.page)) : 1;
+    const pageSize = req.query.pageSize ? Math.min(100, Math.max(1, Number(req.query.pageSize))) : 50;
+
+    if (isDetail) {
+      const list = await listExpenses({ pozo, startDate, endDate, page, pageSize });
+      res.json(list);
+      return;
     }
 
-    const { startDate, endDate } = parsed.data;
     const expenses = await getExpensesByPozo(startDate, endDate);
-
     res.json(expenses);
   })
 );
 
+/**
+ * GET /api/reports/loan-payments/summary
+ * Total de pagos de préstamos en el periodo.
+ */
+router.get(
+  '/loan-payments/summary',
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const startDate = typeof req.query.startDate === 'string' ? req.query.startDate : (typeof req.query.desde === 'string' ? req.query.desde : undefined);
+    const endDate = typeof req.query.endDate === 'string' ? req.query.endDate : (typeof req.query.hasta === 'string' ? req.query.hasta : undefined);
+    const total = await getLoanPaymentsSummary(startDate, endDate);
+    res.json({ total });
+  })
+);
+
+/**
+ * GET /api/reports/loan-payments
+ * Listado de pagos de préstamos en el periodo con total acumulado.
+ */
+router.get(
+  '/loan-payments',
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const startDate = typeof req.query.startDate === 'string' ? req.query.startDate : (typeof req.query.desde === 'string' ? req.query.desde : undefined);
+    const endDate = typeof req.query.endDate === 'string' ? req.query.endDate : (typeof req.query.hasta === 'string' ? req.query.hasta : undefined);
+    const result = await listLoanPayments(startDate, endDate);
+    res.json(result);
+  })
+);
+
+/**
+ * POST /api/reports/loan-payments
+ * Registra un pago de préstamo (monto_cs, fecha, nota).
+ */
+router.post(
+  '/loan-payments',
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const data = createLoanPaymentSchema.parse(req.body);
+    const payment = await createLoanPayment(data, req.user!.uid);
+    res.status(201).json(payment);
+  })
+);
+
+/**
+ * DELETE /api/reports/loan-payments/:id
+ * Elimina un pago de préstamo.
+ */
+router.delete(
+  '/loan-payments/:id',
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const id = parseUuidParam(req.params.id, 'Pago no encontrado');
+    const result = await deleteLoanPayment(id);
+    res.json(result);
+  })
+);
+
 export default router;
+

@@ -26,6 +26,36 @@ export interface FinancialKPIs {
   comision_total_prev?: number;
   coste_total_prev?: number;
   ganancia_tienda_total_prev?: number;
+
+  // ── Préstamos y Ganancia Real ──
+  total_prestamos?: number;
+  total_prestamos_prev?: number;
+  ganancia_real?: number;
+  ganancia_real_prev?: number;
+}
+
+export interface LoanPaymentItem {
+  id: string;
+  monto_cs: number;
+  monto_usd: number | null;
+  exchange_rate: number | null;
+  fecha: string;
+  nota: string | null;
+  created_by: string | null;
+  created_at: string;
+}
+
+export interface LoanPaymentsListResponse {
+  payments: LoanPaymentItem[];
+  total: number;
+}
+
+export interface CreateLoanPaymentPayload {
+  monto?: number;
+  monto_cs?: number;
+  moneda?: 'COR' | 'USD';
+  fecha: string;
+  nota?: string | null;
 }
 
 export interface KpiParams {
@@ -37,6 +67,58 @@ export interface KpiParams {
 export interface ExpensePozoItem {
   pozo: string;
   total_gastado: number;
+}
+
+export interface ExpenseItem {
+  id: string;
+  pozo: string;
+  monto: number;
+  montoUsd: number | null;
+  exchangeRate: number | null;
+  category: string;
+  description: string | null;
+  createdBy: string | null;
+  createdByName: string | null;
+  createdByEmail: string | null;
+  createdAt: string;
+}
+
+export interface PozoOverflowItem {
+  pozo: string;
+  label: string;
+  recogido: number;
+  gastado: number;
+  disponible: number;
+  desbordamiento: number;
+  gastadoMes: number;
+  recogidoMes: number;
+}
+
+export interface ExpensesOverflowResponse {
+  pozos: PozoOverflowItem[];
+  totalDesbordamiento: number;
+  gananciaBruta: number;
+  gananciaReal: number;
+  presupuestoDisponible: number;
+  totalRecogido: number;
+  totalGastado: number;
+  desbordamientoDetalle: { pozo: string; label: string; monto: number }[];
+}
+
+export interface ExpensesListResponse {
+  expenses: ExpenseItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface CreateExpensePayload {
+  pozo: string;
+  monto: number;
+  moneda?: 'COR' | 'USD';
+  fecha?: string;
+  category: string;
+  description?: string;
 }
 
 // ── Reportería de ventas ──
@@ -67,8 +149,10 @@ export interface SellerPerformanceRow {
 
 export interface TopProductRow {
   sku: string;
+  nombre?: string;
   unidades: number;
   ingreso: number;
+  margen?: number;
 }
 
 /** Todos los cortes comparten forma: la UI solo traduce `key` a español. */
@@ -121,7 +205,7 @@ export const reportsApi = baseApi.injectEndpoints({
   endpoints: (build) => ({
     getKpis: build.query<FinancialKPIs, KpiParams | void>({
       query: (params) => ({ url: 'reports/kpis', params: params ?? undefined }),
-      providesTags: ['Sale', 'Purchase', 'Product'],
+      providesTags: ['Sale', 'Purchase', 'Product', 'LoanPayment'],
     }),
     getLosses: build.query<any, void>({
       query: () => 'reports/losses',
@@ -131,7 +215,60 @@ export const reportsApi = baseApi.injectEndpoints({
     }),
     getExpensesByPozo: build.query<ExpensePozoItem[], KpiParams | void>({
       query: (params) => ({ url: 'reports/expenses', params: params ?? undefined }),
-      providesTags: ['Sale'],
+      providesTags: ['Expense', 'Sale'],
+    }),
+    getExpensesOverflow: build.query<ExpensesOverflowResponse, KpiParams | void>({
+      query: (params) => ({ url: 'reports/expenses/overflow', params: params ?? undefined }),
+      providesTags: ['Expense', 'Sale'],
+    }),
+    getExpensesList: build.query<
+      ExpensesListResponse,
+      { pozo?: string; desde?: string; hasta?: string; page?: number; pageSize?: number } | void
+    >({
+      query: (params) => ({
+        url: 'reports/expenses',
+        params: { detail: 'true', ...(params ?? {}) },
+      }),
+      providesTags: ['Expense'],
+    }),
+    createExpense: build.mutation<ExpenseItem, CreateExpensePayload>({
+      query: (body) => ({
+        url: 'reports/expenses',
+        method: 'POST',
+        body,
+      }),
+      invalidatesTags: ['Expense', 'Sale'],
+    }),
+    deleteExpense: build.mutation<{ success: boolean; id: string }, string>({
+      query: (id) => ({
+        url: `reports/expenses/${id}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: ['Expense', 'Sale'],
+    }),
+
+    getLoanPaymentsSummary: build.query<{ total: number }, KpiParams | void>({
+      query: (params) => ({ url: 'reports/loan-payments/summary', params: params ?? undefined }),
+      providesTags: ['LoanPayment'],
+    }),
+    getLoanPaymentsList: build.query<LoanPaymentsListResponse, KpiParams | void>({
+      query: (params) => ({ url: 'reports/loan-payments', params: params ?? undefined }),
+      providesTags: ['LoanPayment'],
+    }),
+    createLoanPayment: build.mutation<LoanPaymentItem, CreateLoanPaymentPayload>({
+      query: (body) => ({
+        url: 'reports/loan-payments',
+        method: 'POST',
+        body,
+      }),
+      invalidatesTags: ['LoanPayment', 'Sale'],
+    }),
+    deleteLoanPayment: build.mutation<{ success: boolean; id: string }, string>({
+      query: (id) => ({
+        url: `reports/loan-payments/${id}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: ['LoanPayment', 'Sale'],
     }),
 
     getSalesTrend: build.query<SalesTrendPoint[], KpiParams & { bucket?: TrendBucket }>({
@@ -169,6 +306,14 @@ export const {
   // tiene consumidores y se quitó de acá.
   useLazyGetSalesExportQuery,
   useGetExpensesByPozoQuery,
+  useGetExpensesOverflowQuery,
+  useGetExpensesListQuery,
+  useCreateExpenseMutation,
+  useDeleteExpenseMutation,
+  useGetLoanPaymentsSummaryQuery,
+  useGetLoanPaymentsListQuery,
+  useCreateLoanPaymentMutation,
+  useDeleteLoanPaymentMutation,
   useGetSalesTrendQuery,
   useGetSellerPerformanceQuery,
   useGetTopProductsQuery,

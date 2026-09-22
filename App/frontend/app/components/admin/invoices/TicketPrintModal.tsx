@@ -48,12 +48,23 @@ export function TicketPrintModal({
    * pesada y sin texto seleccionable — peor resultado y dos dependencias más.
    */
   const openPrintDialog = (hint?: string) => {
-    if (!ticket) return;
+    if (!ticket || !ticketRef.current) return;
+
+    const clone = ticketRef.current.cloneNode(true) as HTMLElement;
+    clone.id = 'printable-ticket';
+
+    const wrapper = document.createElement('div');
+    wrapper.id = 'printable-ticket-wrapper';
+    wrapper.appendChild(clone);
+    document.body.appendChild(wrapper);
 
     const style = document.createElement('style');
     style.innerHTML = `
       @page { size: 80mm auto; margin: 0; }
       @media print {
+        body > *:not(#printable-ticket-wrapper) {
+          display: none !important;
+        }
         /* Se oculta TODO lo que cuelga de <body> (root de la app, overlay del
            diálogo, toasts…) y se muestra solo el portal del ticket, que es un
            hijo directo de <body> — sin el ancestro fijo que rompía el layout. */
@@ -63,11 +74,27 @@ export function TicketPrintModal({
           margin: 0 !important;
           padding: 0 !important;
           background: #fff !important;
+          color-scheme: light !important;
+        }
+        #printable-ticket-wrapper {
+          display: flex !important;
+          justify-content: center !important;
+          background: #fff !important;
+          width: 100% !important;
+          min-height: 100vh !important;
+        }
+        #printable-ticket {
+          margin: 0 auto;
+          padding: 0;
+          background: #fff !important;
         }
       }
     `;
     document.head.appendChild(style);
 
+    const cleanup = () => {
+      style.remove();
+      wrapper.remove();
     // La limpieza va en `afterprint` y NO justo después de `window.print()`: en
     // Firefox y Safari `print()` no bloquea, así que quitar el <style> en la
     // línea siguiente lo removería ANTES de que el navegador compusiera la
