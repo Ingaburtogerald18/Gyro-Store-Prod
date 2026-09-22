@@ -9,7 +9,12 @@
 // Por eso el resto de los KPIs pasan a versión compacta y sin CountUp. El peso
 // no se reparte.
 import type { IconSvgElement } from '@hugeicons/react';
-import { Area, AreaChart, ResponsiveContainer } from 'recharts';
+import { Area, AreaChart } from 'recharts';
+import { ChartContainer, type ChartConfig } from '~/components/ui/chart';
+
+const sparklineConfig = {
+  value: { label: 'Valor', color: 'var(--color-primary)' },
+} satisfies ChartConfig;
 
 import { HugeIcon } from '~/components/ui/icon';
 import { CountUp } from '~/components/ui/CountUp';
@@ -64,22 +69,20 @@ export function HeroMetric({
       {/* Sparkline: sin ejes, sin grilla, sin tooltip. No es un gráfico para
           leer valores — es la forma de la tendencia, y compite con nada. */}
       {series && series.length > 1 && (
-        <div className="mt-4 h-12 w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={series} margin={{ top: 2, right: 0, bottom: 0, left: 0 }}>
-              <Area
-                type="monotone"
-                dataKey="value"
-                stroke="var(--color-primary)"
-                strokeWidth={1.5}
-                fill="var(--color-primary)"
-                fillOpacity={0.1}
-                isAnimationActive={false}
-                dot={false}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
+        <ChartContainer config={sparklineConfig} className="mt-4 !aspect-auto h-12 w-full">
+          <AreaChart data={series} margin={{ top: 2, right: 0, bottom: 0, left: 0 }}>
+            <Area
+              type="monotone"
+              dataKey="value"
+              stroke="var(--color-primary)"
+              strokeWidth={1.5}
+              fill="var(--color-primary)"
+              fillOpacity={0.1}
+              isAnimationActive={false}
+              dot={false}
+            />
+          </AreaChart>
+        </ChartContainer>
       )}
     </>
   );

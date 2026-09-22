@@ -227,6 +227,8 @@ router.get(
         }) => rest,
       );
       const { totalGananciaTienda, totalSalary, ...trimmedSale } = sale;
+      sale.items = sale.items.map(({ costeFinalSnap, gananciaTienda, ...rest }) => rest);
+      const { totalGananciaTienda, ...trimmedSale } = sale;
       res.json(trimmedSale);
       return;
     }
@@ -312,6 +314,10 @@ router.get(
     // una venta — un vendedor común no ve la estructura de costos de la
     // tienda, solo la suya (comisión).
     res.json(admin ? sales : sales.map(({ totalGananciaTienda, totalSalary, ...rest }) => rest));
+    // Ganancia de tienda: SENSIBLE, igual que en `/quote` y en el detalle de
+    // una venta — un vendedor común no ve la estructura de costos de la
+    // tienda, solo la suya (comisión).
+    res.json(admin ? sales : sales.map(({ totalGananciaTienda, ...rest }) => rest));
   }),
 );
 

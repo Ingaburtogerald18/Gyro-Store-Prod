@@ -932,6 +932,9 @@ export async function listSales(filters: { sellerEmail?: string; status?: string
       .in('order_id', orderIds);
     for (const it of (items ?? []) as { order_id: string; salary: number | null; comision: number | null; ganancia_tienda: number | null }[]) {
       salaryByOrderId.set(it.order_id, (salaryByOrderId.get(it.order_id) ?? 0) + (it.salary ?? 0));
+      .select('order_id, comision, ganancia_tienda')
+      .in('order_id', orderIds);
+    for (const it of (items ?? []) as { order_id: string; comision: number | null; ganancia_tienda: number | null }[]) {
       comisionByOrderId.set(it.order_id, (comisionByOrderId.get(it.order_id) ?? 0) + (it.comision ?? 0));
       gananciaTiendaByOrderId.set(it.order_id, (gananciaTiendaByOrderId.get(it.order_id) ?? 0) + (it.ganancia_tienda ?? 0));
     }
