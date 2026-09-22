@@ -276,6 +276,7 @@ export function SaleEditor({
       }
       if (inv.createdAt) {
         setSaleDate(toYmd(new Date(inv.createdAt)));
+      }
       // El vendedor también se precarga desde la factura: sin esto, la venta
       // quedaba a nombre de quien está REGISTRANDO (típicamente un admin
       // verificando el ticket por otra persona), no del vendedor al que Caja
