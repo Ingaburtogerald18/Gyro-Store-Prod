@@ -39,6 +39,9 @@ const kpiSchema = z.object({
   // ── Tracking de préstamos y ganancia real ──
   total_prestamos: z.number().default(0),
   total_prestamos_prev: z.number().default(0),
+  budget_prestamos_disponible: z.number().default(0),
+  prestamos_cubierto_por_budget: z.number().default(0),
+  prestamos_de_ganancia: z.number().default(0),
   ganancia_real: z.number().default(0),
   ganancia_real_prev: z.number().default(0),
 });
@@ -165,6 +168,62 @@ export type DeliveryInvoiceRow = z.infer<typeof deliveryInvoiceRowSchema>;
 // ============================================================================
 
 /**
+ * Retorna la suma de gastos asociados al pozo 'prestamos' en el rango de fechas.
+ */
+export async function getPrestamosPozoExpenses(
+  startDate?: string,
+  endDate?: string
+): Promise<number> {
+  let query = db.from('expenses').select('monto_cs').eq('pozo', 'prestamos');
+  if (startDate) query = query.gte('created_at', startDate);
+  if (endDate) query = query.lte('created_at', endDate);
+
+  const { data, error } = await query;
+  if (error) throw error;
+
+  const total = (data || []).reduce((acc, row: any) => acc + (Number(row.monto_cs) || 0), 0);
+  return round(total, 2);
+}
+
+/**
+ * Calcula el budget disponible del pozo préstamos para un rango de fechas:
+ * collected_prestamos (acumulado por ventas via pozos) - expenses_del_pozo_prestamos.
+ * Si se provee `collectedOverride`, se utiliza en vez de consultar la base de datos.
+ */
+export async function getPrestamosPozoBudget(
+  startDate?: string,
+  endDate?: string,
+  collectedOverride?: number
+): Promise<{ collected: number; expenses: number; available: number }> {
+  let collected = collectedOverride;
+  if (collected === undefined) {
+    let itemsQuery = db
+      .from('order_items')
+      .select('pozos, orders!inner(status, created_at)')
+      .in('orders.status', ['approved', 'paid']);
+
+    if (startDate) itemsQuery = itemsQuery.gte('orders.created_at', startDate);
+    if (endDate) itemsQuery = itemsQuery.lte('orders.created_at', endDate);
+
+    const { data: orderItems, error: itemsError } = await itemsQuery;
+    if (itemsError) throw itemsError;
+
+    let totalCollected = 0;
+    for (const it of orderItems || []) {
+      if (it.pozos && typeof it.pozos === 'object') {
+        totalCollected += Number((it.pozos as Record<string, any>)['prestamos']) || 0;
+      }
+    }
+    collected = round(totalCollected, 2);
+  }
+
+  const expenses = await getPrestamosPozoExpenses(startDate, endDate);
+  const available = round(collected - expenses, 2);
+
+  return { collected, expenses, available };
+}
+
+/**
  * Retorna los KPIs financieros (ventas, utilidad, comisiones, pozos).
  *
  * NOTA: Para calcular esto "con SQL puro (no agregados en memoria)" como exige
@@ -200,20 +259,59 @@ export async function getFinancialKPIs(
     }
   }
 
-  const [currentLoansTotal, prevLoansTotal] = await Promise.all([
+  const rpcData = (data ?? {}) as Record<string, any>;
+  const collectedPrestamos = round(Number(rpcData.pozos_recogidos?.prestamos || 0), 2);
+
+  const [currentLoansTotal, prevLoansTotal, currentPrestamosBudget, prevPrestamosBudget] = await Promise.all([
     getLoanPaymentsSummary(startDate, endDate),
     prevStartDate && prevEndDate
       ? getLoanPaymentsSummary(prevStartDate, prevEndDate)
       : Promise.resolve(0),
+    getPrestamosPozoBudget(startDate, endDate, collectedPrestamos),
+    prevStartDate && prevEndDate
+      ? getPrestamosPozoBudget(prevStartDate, prevEndDate)
+      : Promise.resolve({ collected: 0, expenses: 0, available: 0 }),
   ]);
 
-  const rpcData = (data ?? {}) as Record<string, any>;
+  const budgetDisponible = currentPrestamosBudget.available;
+  const cubiertoPorBudget = round(
+    Math.max(0, Math.min(currentLoansTotal, budgetDisponible)),
+    2
+  );
+  const excedenteDeGanancia = round(
+    Math.max(0, currentLoansTotal - cubiertoPorBudget),
+    2
+  );
+  const gananciaReal = round(
+    Number(rpcData.ganancia_tienda_total || 0) - excedenteDeGanancia,
+    2
+  );
+
+  let gananciaRealPrev = 0;
+  if (prevStartDate && prevEndDate) {
+    const prevCubierto = round(
+      Math.max(0, Math.min(prevLoansTotal, prevPrestamosBudget.available)),
+      2
+    );
+    const prevExcedente = round(
+      Math.max(0, prevLoansTotal - prevCubierto),
+      2
+    );
+    gananciaRealPrev = round(
+      Number(rpcData.ganancia_tienda_total_prev || 0) - prevExcedente,
+      2
+    );
+  }
+
   const rawKPIs = {
     ...rpcData,
     total_prestamos: currentLoansTotal,
     total_prestamos_prev: prevLoansTotal,
-    ganancia_real: round(Number(rpcData.ganancia_tienda_total || 0) - currentLoansTotal, 2),
-    ganancia_real_prev: round(Number(rpcData.ganancia_tienda_total_prev || 0) - prevLoansTotal, 2),
+    budget_prestamos_disponible: budgetDisponible,
+    prestamos_cubierto_por_budget: cubiertoPorBudget,
+    prestamos_de_ganancia: excedenteDeGanancia,
+    ganancia_real: gananciaReal,
+    ganancia_real_prev: gananciaRealPrev,
   };
 
   const parsed = parseDbRows(kpiSchema, [rawKPIs], 'getFinancialKPIs');
