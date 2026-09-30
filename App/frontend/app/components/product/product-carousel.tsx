@@ -55,8 +55,10 @@ export function ProductCarousel({
           )}
         </div>
 
-        {/* También en móvil: son la pista visible de que la fila se desliza. */}
-        <div className="flex shrink-0 gap-2">
+        {/* También en móvil: son la pista visible de que la fila se desliza.
+            Si todo entra en pantalla (categoría con 1–3 productos) no hay nada
+            que deslizar: dos flechas apagadas solo hacen ver la fila vacía. */}
+        <div className={cn('flex shrink-0 gap-2', !canPrev && !canNext && 'invisible')}>
           {([-1, 1] as const).map((dir) => {
             const enabled = dir === -1 ? canPrev : canNext;
             const Icon = dir === -1 ? ArrowLeft01Icon : ArrowRight01Icon;

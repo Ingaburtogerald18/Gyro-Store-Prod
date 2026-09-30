@@ -218,27 +218,34 @@ export function ProductCard({
     </div>
   );
 
-  const Cta = (
+  // Agotado: el badge de la foto ya dice "Agotado"; repetirlo en un botón
+  // deshabilitado no aporta. El CTA principal pasa a ser el aviso de reposición
+  // por WhatsApp — el lead no se pierde — y el ícono aparte sobra.
+  const Cta = soldOut ? (
+    <Button
+      variant="whatsappOutline"
+      onClick={handleWhatsAppOrder}
+      aria-label={`Avisame cuando ${product.name} esté disponible, por WhatsApp`}
+      className="h-11 w-full text-xs sm:text-sm"
+    >
+      <WhatsappIcon aria-hidden className="h-[15px] w-[15px]" />
+      Avisame
+    </Button>
+  ) : (
     <div className="flex items-center gap-2">
       <Button
         onClick={handleCta}
-        disabled={soldOut}
         className="h-11 flex-1 text-xs sm:text-sm"
       >
         <HugeIcon icon={ShoppingCart02Icon} size={14} strokeWidth={2} aria-hidden />
-        {soldOut ? 'Agotado' : 'Agregar'}
+        Agregar
       </Button>
-      {/* Nunca se deshabilita, ni agotado: "avísame" sigue siendo un lead. */}
       <Button
         variant="whatsapp"
         size="icon"
         onClick={handleWhatsAppOrder}
-        aria-label={
-          soldOut
-            ? `Avisame cuando ${product.name} esté disponible, por WhatsApp`
-            : `Pedir ${product.name} por WhatsApp`
-        }
-        title={soldOut ? 'Avisame por WhatsApp' : 'Pedir por WhatsApp'}
+        aria-label={`Pedir ${product.name} por WhatsApp`}
+        title="Pedir por WhatsApp"
         className="h-11 w-11 rounded-lg"
       >
         <WhatsappIcon aria-hidden className="h-[15px] w-[15px] sm:h-[18px] sm:w-[18px]" />

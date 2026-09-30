@@ -303,7 +303,9 @@ export function Hero({ initialLanding }: { initialLanding?: LandingConfig | null
 
                 {/* Recortada en móvil: el CTA no puede depender de qué tan larga
                     sea la descripción de cada slide. */}
-                <p className="line-clamp-2 max-w-lg text-[12px] leading-relaxed font-medium text-muted-foreground sm:line-clamp-none sm:text-base">
+                {/* line-clamp-3 (antes 2): a 375px la descripción por defecto
+                    necesita 3 líneas y quedaba cortada en "…entrega en…". */}
+                <p className="line-clamp-3 max-w-lg text-[13px] leading-relaxed font-medium text-muted-foreground sm:line-clamp-none sm:text-base">
                   {activeSlide.description}
                 </p>
 

@@ -135,15 +135,16 @@ export function VariantPicker({
                   <Button
                     key={option}
                     type="button"
-                    variant="outline"
+                    // Activa = pill lleno (variant default), como la pestaña activa
+                    // de Tabs (DESIGN.md). Antes era outline con `text-primary` sobre
+                    // `bg-primary/10`, que en oscuro no se distinguía de las demás.
+                    variant={active ? 'default' : 'outline'}
                     aria-pressed={active}
                     disabled={!enabled && !active}
                     onClick={() => pick(axis, axisIndex, option)}
                     className={cn(
                       'h-11 rounded-pill',
-                      active
-                        ? 'border-primary bg-primary/10 font-semibold text-primary'
-                        : 'text-muted-foreground',
+                      active ? 'font-semibold' : 'text-muted-foreground',
                       !enabled && !active && 'line-through opacity-40 border-dashed',
                     )}
                   >
@@ -179,14 +180,14 @@ function ColorSwatch({
     return (
       <Button
         type="button"
-        variant="outline"
+        variant={active ? 'default' : 'outline'}
         size="sm"
         aria-pressed={active}
         disabled={!enabled && !active}
         onClick={onSelect}
         className={cn(
           'h-11 rounded-pill',
-          active ? 'border-primary bg-primary/10 font-semibold text-primary' : 'text-muted-foreground',
+          active ? 'font-semibold' : 'text-muted-foreground',
           !enabled && !active && 'line-through',
         )}
       >
