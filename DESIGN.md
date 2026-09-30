@@ -1,7 +1,7 @@
 # DESIGN.md — Gyro Store · Sistema de diseño **shadcn / style Rhea**
 
 > El proyecto adopta el preset oficial de shadcn `b2DeDk3s1` en storefront y back-office:
-> **style Rhea (base `radix`) · base color Mist · theme Emerald · charts Green · Figtree + Geist**.
+> **style Rhea (base `radix`) · base color Mist · theme Emerald · charts Green · Geist**.
 > La configuración vive en `components.json` (`"style": "radix-rhea"`, `"baseColor": "mist"`,
 > `"iconLibrary": "hugeicons"`).
 > Este documento describe el sistema **vivo en el código**; si el código y este archivo
@@ -20,30 +20,24 @@ Los componentes declaran estructura y semántica; la densidad y los estados sale
 
 | Capa | Archivo | Qué define |
 |---|---|---|
-| Primitivas | `app/components/ui/*.tsx` | Estructura, accesibilidad, `data-slot`, **y hoy también la apariencia** (vía `cva`) |
-| Style del registry | `app/style-rhea.css` | Las clases `.cn-*` del preset — hoy **sin uso** (ver aviso abajo) |
+| Primitivas | `app/components/ui/*.tsx` | Estructura, accesibilidad, `data-slot` **y la apariencia** (vía `cva`) |
 | Tokens (color) | `app/tailwind.css` → `:root` / `[data-theme="dark"]` | La paleta, en tokens semánticos |
-| Puente shadcn | `app/tailwind.css` → `@theme inline` | Mapea `--background`/`--primary`/… a `--color-*` |
+| Puente shadcn | `app/tailwind.css` → `@theme inline` | Mapea `--background`/`--primary`/… a `--color-*`, y define radios, fuentes y `--text-2xs` |
 
 **Regla base:** los componentes de `ui/` vienen del registry de shadcn (base `radix`) y se
 modifican **lo mínimo**. No se les reescribe la apariencia desde el call site.
 
-### ⚠️ El skin `.cn-*` está cableado pero INERTE
+### No hay skin `.cn-*`
 
-`app/style-rhea.css` son ~1680 líneas que definen ~404 clases `.cn-*` bajo `.style-rhea`, y
-`root.tsx` pone esa clase en `<html>`. **Pero ninguna primitiva de `ui/` usa esas clases**:
-`button.tsx`, `badge.tsx`, `input.tsx`, `sheet.tsx` y compañía se estilizan con utilidades
-Tailwind inline a través de `cva`, ya a densidad Rhea (botones `h-8`, etc.).
-
-Consecuencia práctica: **el look real sale de los tokens de `tailwind.css` + las utilidades
-inline de cada primitiva, no del archivo del skin.** Tocar `style-rhea.css` no cambia nada
-visual, y quitar su `@import` tampoco.
-
-Se mantiene cableado a propósito (decisión del dueño, ago 2026): deja el preset correcto y
-permite regenerar primitivas con `npx shadcn`. **No borrarlo sin preguntar.**
+Versiones anteriores de este documento describían un `app/style-rhea.css` con las clases
+`.cn-*` del preset, importado desde `tailwind.css`. **Ese archivo no existe en el repo** (no
+aparece en el historial de git) y `tailwind.css` no lo importa. El look sale entero de los
+tokens de `tailwind.css` + las utilidades inline de cada primitiva, ya a densidad Rhea
+(botones `h-8`, etc.). Si algún día se regeneran primitivas con `npx shadcn` y el CLI agrega
+ese archivo, revisar que no pise nada antes de importarlo.
 
 Cuando este documento dice "lo resuelve Rhea", entiéndase *el preset tal como está aplicado en
-las primitivas*, no el archivo `.css`.
+las primitivas*.
 
 ### La excepción: `forwardRef` en los controles de formulario
 
@@ -77,9 +71,10 @@ color — también cambia el `font-weight` (§8).
 Esto además unifica los dos sistemas de tabs del panel: `AnimatedTabs` (el propio, con
 indicador deslizante) ya usaba un pill `bg-primary`, así que ahora los dos hablan igual.
 
-`style-rhea.css` se carga con un `@import "./style-rhea.css"` desde `tailwind.css` (línea 21), y
-la clase `.style-rhea` la pone `root.tsx` en el `<html>`. **Las dos cosas hacen falta** para que
-el skin llegue a aplicarse — aunque hoy, por lo dicho en §1, no cambie nada visual.
+El mismo criterio aplica a las opciones de variante de la ficha (`variant-picker.tsx`): la
+elegida usa el `Button` **lleno** (`variant="default"`), no un outline tintado. Ojo: el
+variant `outline` trae `dark:bg-transparent`, que le gana a cualquier `bg-*` que se le sume
+desde el call site — por eso se cambia el variant, no se pisa el fondo.
 
 ---
 
@@ -108,9 +103,11 @@ la variable cruda.
 
 Viven en `tailwind.css` junto a los del preset, con valor por tema:
 
-- `--whatsapp` — verde canónico del canal (`#128c3e` claro / `#25d366` oscuro). No es decorativo:
-  identifica el contacto y el checkout. Se usa vía las variantes `whatsapp` / `whatsappOutline`
-  de `Button`, nunca como hex suelto.
+- `--whatsapp` / `--whatsapp-foreground` / `--whatsapp-hover` — verde del canal. No es
+  decorativo: identifica el contacto y el checkout. Se usa vía las variantes `whatsapp` /
+  `whatsappOutline` de `Button`, nunca como hex suelto. **El texto sobre el verde cambia por
+  tema**: blanco en claro (5.25:1) y casi negro en oscuro (9.4:1). Antes era blanco sobre
+  `#25d366` en oscuro — ≈2:1, el botón más usado de la tienda por debajo del piso de §9.
 - `--promo` — violeta de la etiqueta de promoción. Variante `promo` de `Badge`.
 - `--success` / `--warning` / `--info` — estados semánticos. **Tienen valor distinto por
   tema y no es simetría decorativa**: los tres se usan también como color de *texto*, así que
@@ -142,13 +139,19 @@ Viven en `tailwind.css` junto a los del preset, con valor por tema:
 
 ## 3. Tipografía
 
-Dos familias, servidas localmente con `@fontsource-variable` (sin Google Fonts):
+Una sola familia, **Geist Variable**, servida localmente con `@fontsource-variable/geist`
+(sin Google Fonts). Es a la vez `--font-sans` (cuerpo) y `--font-heading` (titulares, clase
+`font-heading`). Los subsets no latinos del paquete (cirílico, vietnamita) no se descargan:
+cada `@font-face` declara su `unicode-range` y el navegador solo pide el que usa la página.
 
-- **Figtree** — cuerpo. Es `--font-sans`, o sea la fuente por defecto de la app.
-- **Geist** — titulares. Es `--font-heading`, y se aplica con la clase `font-heading`.
+Registrar `--font-heading` en `@theme inline` es lo que hace que Tailwind genere la clase
+`font-heading`.
 
-Ambas se registran en `@theme inline`; registrar `--font-heading` ahí es justamente lo que hace
-que Tailwind genere la clase `font-heading`. Cifras (precios, stock, contadores) siempre
+**Escala de tamaños: solo la de Tailwind + `text-2xs`.** `--text-2xs` (11px, line-height
+1rem) es el paso para badges, eyebrows y metadatos densos, y el **piso** del sistema. No se
+escriben tamaños sueltos (`text-[10px]`, `text-[11px]`…): eran ~120 y cada uno elegía un
+número distinto. Excepciones deliberadas: el titular del hero y el ticket impreso
+(`Ticket.tsx`), que tienen su propia escala. Cifras (precios, stock, contadores) siempre
 `tabular-nums` / `.nums`. En `DataTable`, las celdas con `meta.align === "right"` aplican
 automáticamente `tabular-nums` para alinear columnas numéricas. Si se requiere más carácter
 en las tablas, se puede sumar `font-heading` a esa misma regla.
@@ -344,6 +347,19 @@ Las primitivas son de shadcn; estas piezas son **nuestras** y siguen vigentes:
 - `prefers-reduced-motion` respetado.
 - Touch targets ≥44px.
 - `alt` significativo en fotos; decorativas `aria-hidden`.
+- Nunca `focus-visible:outline-none` sin un reemplazo (`focus-visible:ring-2 ring-ring`).
+- Botón de solo ícono ⇒ `aria-label` (o texto `sr-only`), en español.
+- Nada de `<div onClick>`: si es clickeable es un `<button>` (o `role` + `tabIndex` + teclado).
+  Cada `<label>` apunta a su control con `htmlFor` / `id`.
+- Una tarjeta = un solo enlace enfocable (no dos `<Link>` al mismo destino).
+- `npm run lint` (ESLint + `jsx-a11y`) y `npm run typecheck` tienen que salir sin errores.
+
+### Errores de ruta
+
+`root.tsx` exporta un `ErrorBoundary` (`components/layout/route-error.tsx`) que distingue 404
+de error inesperado, en español y con la marca. Cada ruta `admin.*` re-exporta
+`AdminRouteError`, así el error queda dentro del área de contenido y la barra lateral sigue
+viva. El de `root` se renderiza **fuera del `<Provider>` de Redux**: no puede usar el store.
 
 ---
 
@@ -398,7 +414,7 @@ color deje de significar algo.
 | Título de página (`PageHeader`) | `font-heading text-2xl font-semibold tracking-tight` |
 | Métrica héroe | `font-heading text-5xl font-semibold tabular-nums` |
 | KPI compacto | `text-xl font-semibold tabular-nums` |
-| Eyebrow / `SectionLabel` | `text-[11px] font-semibold uppercase tracking-[0.08em]` |
+| Eyebrow / `SectionLabel` | `text-2xs font-semibold uppercase tracking-[0.08em]` |
 | Cuerpo y celdas | `text-sm` (`text-[13px]` en densidad compacta) |
 
 Nada por debajo de 11 px, y a 11 px solo con `uppercase` + `tracking`.

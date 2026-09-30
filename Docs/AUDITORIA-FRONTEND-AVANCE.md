@@ -55,12 +55,50 @@ Build previo a esta auditoría: 2,651,842 bytes de assets de cliente; 2,387,448 
 
 Se conservaron fuera del commit de esta fase: `root.tsx`, `useTheme.ts`, `module-loader.tsx`, `uiSlice.ts` y el archivo nuevo `lib/theme.ts`. Copia de respaldo local en `App/tmp/frontend-audit/`.
 
-## Fases pendientes
+## Estado al cierre (30 sep 2026)
 
-2. Tipos, ESLint, ErrorBoundary y errores al guardar.
-3. Caché inicial de RTK, skeleton, animaciones, bundle y favicon SSR.
-4. Tokens, tipografía y DESIGN.md.
-5. UX de catálogo, carrito, hero y variantes.
-6. WhatsApp flotante, vistos recientemente, imágenes responsivas, JSON-LD, regreso al carrito, sugerencias y accesibilidad del POS/tablet (un commit por idea).
+Commits de la rama, en orden:
 
-Para continuar respetando el orden solicitado, falta recuperar el control del navegador o recibir la verificación visual de la fase 1.
+| Commit | Fase | Qué |
+|---|---|---|
+| `a03eaae` | 1 | Imágenes borrosas, foco y enlace único en tarjetas, contraste de WhatsApp, banner de consentimiento, logo/hero eager, aria-labels, voseo. |
+| `308a38e` | 1 | `fetchpriority` en minúsculas (React 18 avisaba en consola). |
+| `d5f2c89` | 2 | `tsc` en 0 errores (eran 21), ESLint + jsx-a11y con script `lint` (0 errores), ErrorBoundary en root y en cada ruta del panel, toast al fallar el guardado del modo edición. |
+| `4387eb8` | 3 | Skeleton cuadrado (evita salto de layout) y una sola animación de entrada en la grilla. |
+| `489b9b7` | 4 | Variante activa visible en oscuro, CTA "Avisame" en tarjetas agotadas, flechas del carrusel ocultas si no hay nada que deslizar, descripción del hero completa en móvil. |
+| `69977e0` | 5 | 133 colores crudos y los hex de gráficos del panel pasan a tokens. |
+| `f979011` | 5 | Token `text-2xs` y 113 tamaños sueltos reemplazados por la escala. |
+| (este) | 5 | DESIGN.md al día con el código. |
+
+### Verificación de la fase 1 (pendiente en el primer commit)
+
+Hecha en el navegador a 1366 y 375 px: 0 imágenes con `blur-lg` tras la carga completa, un
+solo enlace por tarjeta, texto del botón de WhatsApp oscuro sobre verde claro en tema oscuro,
+banner de consentimiento de 45 px que reserva su alto, sin scroll horizontal.
+
+### Descartado a propósito
+
+- **Sembrar RTK con los datos del loader.** `baseApi` usa `refetchOnMountOrArgChange: true`
+  a propósito (arregla un bug de hidratación en producción con el adaptador Express↔Fetch,
+  ver el comentario en `baseApi.ts`). Sembrar la caché no evita ese refetch y tocar el flag
+  reabre el bug. Son 3 pedidos públicos cacheados; no compensa el riesgo.
+- **Subset latino de Geist.** Cada `@font-face` ya declara `unicode-range`: el navegador no
+  descarga cirílico ni vietnamita. Solo ocupan espacio en `build/`.
+- **Favicon en el SSR.** `favicon[.]ico.tsx` responde 204 a propósito para que no aparezca un
+  ícono fijo que después cambia por el configurado en el panel.
+- **Recharts en diferido.** `HeroMetric`, arriba del dashboard, ya lo usa: el chunk se
+  necesita en el primer render de todos modos.
+- **Quitar el toast al agregar al carrito.** Es consistente en las 4 pantallas y lo anuncia
+  el lector de pantalla; el drawer abierto no.
+
+### Pendiente
+
+- **Responsive del panel (caja/ventas/facturación) a 768 y 375 px.** No se pudo revisar
+  visualmente porque requiere sesión en el panel.
+- **Imagen del hero con fondo blanco** sobre tarjeta oscura: es un asset; conviene subir una
+  versión con fondo transparente u oscuro desde el panel.
+- **94 warnings de ESLint** (70 `any`, 22 variables sin usar, 2 dependencias de hooks).
+- **Cambios del tema sin commitear** del dueño (`root.tsx`, `useTheme.ts`, `uiSlice.ts`,
+  `module-loader.tsx`, `lib/theme.ts`): quedaron fuera de todos los commits.
+- Ideas de la auditoría sin implementar: `srcset` desde R2, JSON-LD de Product, vistos
+  recientemente, WhatsApp flotante en móvil, sugerencias en búsqueda vacía, atajos en el POS.
