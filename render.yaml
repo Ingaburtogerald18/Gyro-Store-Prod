@@ -11,7 +11,7 @@ services:
     # Vite/Remix también son devDeps → --include=dev en el frontend.
     # --legacy-peer-deps: @remix-run/node declara un peerOptional typescript ^5.1
     # y acá usamos TS 7 (solo tipos, inofensivo). Sin esto npm aborta el install.
-    buildCommand: npm install --include=dev --legacy-peer-deps && npm --prefix frontend install --include=dev --legacy-peer-deps && npm --prefix frontend run build
+    buildCommand: npm install --include=dev --legacy-peer-deps && npm run typecheck && npm --prefix frontend install --include=dev --legacy-peer-deps && npm --prefix frontend run build
     startCommand: npm start
     healthCheckPath: /api/health
     autoDeploy: true

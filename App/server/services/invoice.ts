@@ -2,7 +2,6 @@ import { db } from '../supabase';
 import { config } from '../config';
 import { round } from './finance';
 import { BadRequestError } from '../utils/httpError';
-import { config } from '../config';
 import type { CreateInvoiceInput } from '../../shared/schemas';
 import { listSellableProducts } from './sales';
 import { redeemDiscountCode, computeCodeDiscount, checkDiscountCode } from './discountCode';
@@ -346,8 +345,6 @@ export async function listActiveSellers(): Promise<{ id: string; name: string }[
   // selector de "Vendedor" de Facturación y no podía emitirse su propia factura.
   const { data, error } = await db
     .from('profiles')
-    .select('id, email, name, roles, status, deleted_at')
-    .select('id, name, roles, status, deleted_at, email')
     .select('id, name, email, roles, status, deleted_at')
     .is('deleted_at', null)
     .neq('status', 'disabled')
@@ -371,27 +368,6 @@ export async function listActiveSellers(): Promise<{ id: string; name: string }[
     // repetidos), así que el combobox comparaba contra un texto que en pantalla
     // no existía y no matcheaba nunca.
     .map((p) => ({ id: p.id, name: p.name!.trim().replace(/\s+/g, ' ') }));
-  return ((data ?? []) as { id: string; name: string | null; roles: string[] | null; email: string | null }[])
-    .filter(
-      (p) =>
-        p.name?.trim() &&
-        ((p.roles ?? []).some((r) => ['admin', 'seller', 'global_admin'].includes(r)) ||
-          (!!config.protectedEmail && p.email?.toLowerCase() === config.protectedEmail)),
-    )
-
-  const SELLER_ROLES = ['admin', 'seller', 'global_admin'];
-  const protectedEmail = config.protectedEmail;
-
-  return ((data ?? []) as { id: string; name: string | null; email: string | null; roles: unknown }[])
-    .filter((p) => {
-      const hasRole = Array.isArray(p.roles) && p.roles.some((r) => SELLER_ROLES.includes(r as string));
-      const isProtected =
-        !!protectedEmail && (p.email || '').toLowerCase() === protectedEmail.toLowerCase();
-      // El nombre es obligatorio: el Combobox de Facturación matchea por nombre,
-      // una fila sin nombre no se puede seleccionar.
-      return (hasRole || isProtected) && !!p.name?.trim();
-    })
-    .map((p) => ({ id: p.id, name: p.name!.trim() }));
 }
 
 /**
