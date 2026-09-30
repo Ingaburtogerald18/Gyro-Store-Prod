@@ -1,7 +1,7 @@
 # DESIGN.md — Gyro Store · Sistema de diseño **shadcn / style Rhea**
 
 > El proyecto adopta el preset oficial de shadcn `b2DeDk3s1` en storefront y back-office:
-> **style Rhea (base `radix`) · base color Mist · theme Emerald · charts Green · Geist**.
+> **style Rhea (base `radix`) · base color Mist · theme Emerald · charts Green · Chivo (tienda) + Geist (panel)**.
 > La configuración vive en `components.json` (`"style": "radix-rhea"`, `"baseColor": "mist"`,
 > `"iconLibrary": "hugeicons"`).
 > Este documento describe el sistema **vivo en el código**; si el código y este archivo
@@ -139,13 +139,49 @@ Viven en `tailwind.css` junto a los del preset, con valor por tema:
 
 ## 3. Tipografía
 
-Una sola familia, **Geist Variable**, servida localmente con `@fontsource-variable/geist`
-(sin Google Fonts). Es a la vez `--font-sans` (cuerpo) y `--font-heading` (titulares, clase
-`font-heading`). Los subsets no latinos del paquete (cirílico, vietnamita) no se descargan:
-cada `@font-face` declara su `unicode-range` y el navegador solo pide el que usa la página.
+La tipografía depende del **área** de la app, que `root.tsx` fija en `<html data-area>` según
+la ruta:
 
-Registrar `--font-heading` en `@theme inline` es lo que hace que Tailwind genere la clase
-`font-heading`.
+| Área | Rutas | `--font-sans` (cuerpo) | `--font-heading` (titulares) |
+|---|---|---|---|
+| `store` | tienda pública: `/`, `/producto`, `/combo`, `/contacto`… | **Chivo** | **Chivo** |
+| `admin` | `/admin*`, `/login`, `/auth*` | **Geist** | **Geist** |
+
+Además, **Chivo Mono** (`--font-spec`, clase `font-spec`) se usa **solo en el storefront y solo
+para datos técnicos**: la línea de specs de la tarjeta ("24 Ω · 112 dB"), la tabla de
+especificaciones de la ficha, el indicador de stock, los badges de stock ("Agotado",
+"¡Último disponible!") y los contadores del carrito.
+
+Las tres se sirven localmente con `@fontsource-variable` (sin Google Fonts). El woff2 latino de
+Chivo se precarga en `links()` de `root.tsx` para que el titular del hero no salte de fuente.
+Los subsets no latinos no se descargan: cada `@font-face` declara su `unicode-range`.
+
+**Por qué el área va en `<html>` y no en el layout de cada ruta.** Los `Dialog`/`Sheet` de
+shadcn se renderizan en un portal colgado de `<body>`, fuera del árbol del layout. Con la
+variable en `<html>`, el título del carrito sale en Chivo y el de un diálogo del panel, en
+Geist, sin tocar las primitivas.
+
+**Por qué los tokens apuntan a variables.** `@theme inline` copia el valor del token dentro de
+cada utilidad. Con un literal (`--font-heading: "Geist Variable"…`), `font-heading` quedaría
+fijo en una sola fuente para las dos áreas. Por eso `--font-sans` y `--font-heading` valen
+`var(--area-font-*)`, y `[data-area='store']` redefine esas variables.
+
+**Jerarquía en el storefront** (siempre con la escala de Tailwind, nunca `text-[Npx]`):
+
+| Rol | Clases |
+|---|---|
+| Titular del hero | `font-heading text-4xl md:text-6xl font-extrabold tracking-tight leading-[1.02]` |
+| Títulos de sección / carrusel / "Resultados" | `font-heading text-2xl md:text-3xl font-bold tracking-tight` |
+| Nombre en la ficha y en el combo | `font-heading text-3xl sm:text-4xl font-extrabold tracking-tight` |
+| Precio en la ficha | `font-heading text-3xl font-extrabold tracking-tight tabular-nums` |
+| Precio en la tarjeta | `font-heading text-lg sm:text-xl font-extrabold tracking-tight tabular-nums` |
+| Nombre en la tarjeta | `text-sm sm:text-lg font-semibold` |
+| Párrafos y descripciones | `font-normal` — nunca `font-light` ni `font-thin` |
+| Datos técnicos | `font-spec` (Chivo Mono) |
+
+Los pesos 700–800 son parte de la identidad elegida, pero **solo** en titulares y precios.
+Nada de degradados en el texto ni de una tercera familia. `font-spec` nunca en párrafos ni
+en botones.
 
 **Escala de tamaños: solo la de Tailwind + `text-2xs`.** `--text-2xs` (11px, line-height
 1rem) es el paso para badges, eyebrows y metadatos densos, y el **piso** del sistema. No se

@@ -57,7 +57,7 @@ export default function Contacto() {
   return (
     <StorefrontShell>
       <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-10">
-        <h1 className="text-2xl font-bold text-foreground">Contacto</h1>
+        <h1 className="font-heading text-3xl font-extrabold tracking-tight text-foreground">Contacto</h1>
         <p className="mt-1 text-muted-foreground">¿Tenés una consulta? Escribinos y te respondemos.</p>
 
         <div className="mt-8 grid gap-8 md:grid-cols-2">
@@ -131,7 +131,7 @@ export default function Contacto() {
 
           <div className="space-y-4">
             <div className="rounded-md border bg-card p-5 shadow-xs">
-              <h2 className="font-semibold text-foreground">Visitanos</h2>
+              <h2 className="font-heading text-lg font-bold text-foreground">Visitanos</h2>
               {/* La dirección sale de la config editable en el panel, no de un
                   literal: estaba hardcodeada como "Managua, Nicaragua" mientras
                   `business_info.address` ya existía y nadie la leía, así que

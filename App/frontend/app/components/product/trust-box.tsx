@@ -47,7 +47,7 @@ export function TrustBox() {
             className="text-primary-2"
           />
           <p className="mt-2 text-sm font-bold text-foreground">{item.title}</p>
-          <p className="mt-0.5 text-xs leading-relaxed font-light text-muted-foreground">
+          <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
             {item.text}
           </p>
         </li>

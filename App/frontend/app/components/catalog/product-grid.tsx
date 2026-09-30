@@ -125,7 +125,7 @@ export function ProductGrid({ products, categories = [], isLoading }: ProductGri
 
   return (
     <div className="space-y-4 pb-2 md:pb-12">
-      <h2 className="text-lg font-bold tracking-tight text-foreground md:text-xl">
+      <h2 className="font-heading text-2xl font-bold tracking-tight text-foreground md:text-3xl">
         Resultados{' '}
         <span className="ml-1 text-sm font-medium text-muted-foreground tabular-nums">
           ({filtered.length})

@@ -225,12 +225,12 @@ export default function ProductDetail() {
               {product.isPromo && !onSale && <Badge variant="promo">Oferta</Badge>}
 
               <div className="flex flex-col gap-3 md:flex-row md:items-baseline md:justify-between">
-                <h1 className="text-2xl leading-tight font-black tracking-tight text-balance text-foreground sm:text-4xl">
+                <h1 className="font-heading text-3xl leading-[1.05] font-extrabold tracking-tight text-balance text-foreground sm:text-4xl">
                   {product.name}
                 </h1>
 
                 <div className="flex items-baseline gap-3 md:shrink-0">
-                  <span className="text-3xl font-extrabold text-primary-2 tabular-nums">
+                  <span className="font-heading text-3xl font-extrabold tracking-tight text-primary-2 tabular-nums">
                     {formatCordobas(price, currency)}
                   </span>
                   {onSale && (

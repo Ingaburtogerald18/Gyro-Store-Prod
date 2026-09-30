@@ -30,3 +30,7 @@ App/tmp/
 
 # ── Scratch temporal de herramientas de edición (Claude Code / Rhea) ──
 .rhea-tmp/
+
+# Perfiles de navegador que dejan los agentes al hacer pruebas (cookies y
+# sesiones incluidas): nunca al repo.
+/tmp/

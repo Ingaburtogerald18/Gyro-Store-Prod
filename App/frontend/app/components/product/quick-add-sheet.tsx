@@ -114,7 +114,7 @@ export function QuickAddSheet({
             <div className="min-w-0 flex-1">
               <SheetTitle className="line-clamp-1 text-left">{product.name}</SheetTitle>
               <SheetDescription className="text-left">
-                <span className="text-base font-bold text-primary-2 tabular-nums">
+                <span className="font-heading text-lg font-extrabold tracking-tight text-primary-2 tabular-nums">
                   {formatCordobas(price, config?.currency)}
                 </span>
               </SheetDescription>

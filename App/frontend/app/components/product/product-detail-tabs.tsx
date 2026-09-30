@@ -122,7 +122,7 @@ function Specs({ specs }: { specs: SpecRow[] }) {
   return (
     // Grilla con hairlines: el gap de 1px sobre el borde dibuja las líneas,
     // sin bordes por celda.
-    <dl className="grid grid-cols-1 gap-px overflow-hidden rounded-xl bg-border sm:grid-cols-2">
+    <dl className="font-spec grid grid-cols-1 gap-px overflow-hidden rounded-xl bg-border sm:grid-cols-2">
       {specs.map((spec) => (
         <div key={spec.label} className="bg-card px-4 py-3">
           <dt className="text-xs text-muted-foreground capitalize">{spec.label}</dt>

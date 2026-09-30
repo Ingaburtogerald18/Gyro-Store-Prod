@@ -49,9 +49,9 @@ export function ProductCarousel({
     <section className="py-2 sm:py-5 md:py-8" aria-label={title}>
       <div className="mb-5 flex items-end justify-between gap-4">
         <div className="min-w-0">
-          <h2 className="text-[17px] font-bold tracking-tight text-foreground sm:text-2xl">{title}</h2>
+          <h2 className="font-heading text-2xl font-bold tracking-tight text-foreground md:text-3xl">{title}</h2>
           {subtitle && (
-            <p className="mt-0.5 text-2xs font-light text-muted-foreground sm:text-sm">{subtitle}</p>
+            <p className="mt-1 text-xs text-muted-foreground sm:text-sm">{subtitle}</p>
           )}
         </div>
 

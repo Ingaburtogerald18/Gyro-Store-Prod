@@ -67,6 +67,15 @@ export function ProductCard({
   const description = product.description
     ? product.description.replace(/<[^>]*>?/gm, '').trim()
     : '';
+  // Línea técnica (Chivo Mono): hasta tres valores CORTOS de la ficha, tipo
+  // "1DD+1BA · 23 Ω · 110 dB". Los valores largos ("Hasta 15 metros (en
+  // espacios abiertos)") son explicación, no dato: van a la ficha, no acá.
+  // Sin specs cargadas no se muestra nada.
+  const specLine = product.specs
+    .map((s) => s.value.trim())
+    .filter((v) => v && v.length <= 16)
+    .slice(0, 3)
+    .join(' · ');
 
   function handleCta(e: React.MouseEvent) {
     e.preventDefault();
@@ -133,7 +142,7 @@ export function ProductCard({
       {lowStock && (
         <Badge
           variant="destructive"
-          className="absolute top-2 right-2 z-10 text-2xs sm:px-2.5"
+          className="font-spec absolute top-2 right-2 z-10 text-2xs sm:px-2.5"
         >
           {product.stock === 1 ? '¡Último disponible!' : `¡Últimas ${product.stock}!`}
         </Badge>
@@ -182,7 +191,7 @@ export function ProductCard({
       {soldOut && (
         <Badge
           variant="secondary"
-          className="absolute bottom-2 left-1/2 -translate-x-1/2 py-1 text-2xs sm:bottom-3 sm:px-3"
+          className="font-spec absolute bottom-2 left-1/2 -translate-x-1/2 py-1 text-2xs sm:bottom-3 sm:px-3"
         >
           Agotado
         </Badge>
@@ -197,11 +206,14 @@ export function ProductCard({
         isList ? 'flex-1 justify-center gap-1.5 py-1' : 'flex-1 pt-3 sm:pt-4',
       )}
     >
-      <h3 className="line-clamp-2 text-sm leading-snug font-bold tracking-tight text-foreground transition-colors group-hover:text-primary-2 sm:text-xl">
+      <h3 className="line-clamp-2 text-sm leading-snug font-semibold text-foreground transition-colors group-hover:text-primary-2 sm:text-lg">
         {product.name}
       </h3>
+      {specLine && (
+        <p className="font-spec line-clamp-1 text-2xs text-muted-foreground">{specLine}</p>
+      )}
       <div className="mt-1.5 flex items-baseline gap-2">
-        <span className="text-sm font-extrabold text-primary-2 tabular-nums sm:text-lg">
+        <span className="font-heading text-lg font-extrabold tracking-tight text-primary-2 tabular-nums sm:text-xl">
           {formatCordobas(product.price, currency)}
         </span>
         {onSale && (

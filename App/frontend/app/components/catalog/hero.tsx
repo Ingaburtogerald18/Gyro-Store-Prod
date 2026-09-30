@@ -297,7 +297,7 @@ export function Hero({ initialLanding }: { initialLanding?: LandingConfig | null
                   {activeSlide.eyebrow}
                 </span>
 
-                <h1 className="text-[20px] leading-[0.95] font-black tracking-tight text-balance text-foreground sm:text-4xl md:text-5xl">
+                <h1 className="font-heading text-4xl leading-[1.02] font-extrabold tracking-tight text-balance text-foreground md:text-6xl">
                   {activeSlide.title}
                 </h1>
 

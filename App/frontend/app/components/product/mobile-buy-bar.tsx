@@ -43,7 +43,7 @@ export function MobileBuyBar({
       <div className="flex items-center gap-3">
         <div className="min-w-0 flex-1">
           <p className="truncate text-xs font-medium text-muted-foreground">{name}</p>
-          <p className="text-lg font-bold text-foreground tabular-nums">{price}</p>
+          <p className="font-heading text-lg font-extrabold tracking-tight text-foreground tabular-nums">{price}</p>
         </div>
 
         <Button

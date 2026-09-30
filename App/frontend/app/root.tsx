@@ -8,6 +8,7 @@ import {
   Outlet,
   Scripts,
   ScrollRestoration,
+  useLocation,
   useRouteLoaderData,
 } from '@remix-run/react';
 import type { ReactNode } from 'react';
@@ -15,15 +16,25 @@ import { Provider } from 'react-redux';
 import { Toaster } from 'sonner';
 import { store } from '~/store/store';
 import tailwindHref from './tailwind.css?url';
+import chivoWoff2 from '@fontsource-variable/chivo/files/chivo-latin-wght-normal.woff2?url';
 
-// Sin Google Fonts: Geist (body y headings, según el preset Rhea) se sirve
-// localmente vía @fontsource-variable, importado desde tailwind.css.
+// Sin Google Fonts: Chivo (tienda), Chivo Mono (datos técnicos) y Geist (panel)
+// se sirven localmente vía @fontsource-variable, importadas desde tailwind.css.
+// Se precarga el woff2 latino de Chivo: es la fuente del primer paint de la
+// tienda y, sin preload, el titular del hero salta de fuente al cargar.
 //
 // Favicon: NO va en links — se carga dinámicamente desde la config del admin
 // (Recursos de imágenes → Favicon) con el componente DynamicFavicon.
 export const links: LinksFunction = () => [
   { rel: 'stylesheet', href: tailwindHref },
+  { rel: 'preload', href: chivoWoff2, as: 'font', type: 'font/woff2', crossOrigin: 'anonymous' },
 ];
+
+/** Área de la app según la ruta: define la tipografía (ver `[data-area]` en
+ *  tailwind.css). El panel y el acceso del personal usan Geist; el resto, Chivo. */
+function areaFor(pathname: string): 'admin' | 'store' {
+  return /^\/(admin|login|auth)(\/|$)/.test(pathname) ? 'admin' : 'store';
+}
 
 // Único lugar donde el server pasa config al cliente. Solo llaves PÚBLICAS:
 // la service_role vive exclusivamente en el backend Express.
@@ -50,6 +61,7 @@ export function Layout({ children }: { children: ReactNode }) {
   const data = useRouteLoaderData<typeof loader>('root');
   const env = JSON.stringify(data?.ENV ?? {}).replace(/</g, '\\u003c');
   const nonce = data?.cspNonce ?? '';
+  const { pathname } = useLocation();
 
   return (
     // suppressHydrationWarning: el script anti-flash puede cambiar data-theme
@@ -57,6 +69,7 @@ export function Layout({ children }: { children: ReactNode }) {
     <html
       lang="es"
       data-skin="store"
+      data-area={areaFor(pathname)}
       suppressHydrationWarning
     >
       <head>
