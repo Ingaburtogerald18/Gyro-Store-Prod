@@ -53,6 +53,8 @@ export interface UpdateInvoiceInput {
   customerName?: string;
   phone?: string;
   deliveryName?: string;
+  /** Fecha de emisión (ISO). El backend la acepta en el PUT igual que al crear. */
+  issuedAt?: string;
   items?: InvoiceItemInput[];
 }
 

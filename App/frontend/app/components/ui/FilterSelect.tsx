@@ -25,9 +25,12 @@ export interface FilterSelectProps {
   icon?: React.ReactNode;
   /** "ghost" = sin bordes ni fondo, para usar como título de columna. */
   variant?: "default" | "ghost";
+  /** `id` del botón, para asociarlo a un <label htmlFor>. */
+  id?: string;
 }
 
 export function FilterSelect({
+  id,
   value,
   onChange,
   options,
@@ -68,6 +71,7 @@ export function FilterSelect({
   return (
     <div className="relative" ref={ref}>
       <button
+        id={id}
         type="button"
         onClick={() => setOpen((o) => !o)}
         className={cn(

@@ -71,6 +71,7 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
     }
     if (configRes.ok) config = (await configRes.json()) as StoreConfig;
   } catch {
+    // Relacionados y config son accesorios: si fallan, la ficha sale igual.
   }
 
   if (!product) {

@@ -123,9 +123,9 @@ export function Contact360Dialog({ contactId, onClose }: { contactId: string | n
                   <span className="text-muted-foreground">Alta:</span> {fmtDate(ficha.contact.createdAt)}
                 </p>
                 <div className="pt-1">
-                  <label className="text-xs font-medium text-muted-foreground">Etapa</label>
+                  <label htmlFor="contact360-stage" className="text-xs font-medium text-muted-foreground">Etapa</label>
                   <Select value={ficha.contact.stage ?? ''} onValueChange={(v) => handleStage(v as ContactStage)}>
-                    <SelectTrigger className="mt-1 w-full">
+                    <SelectTrigger id="contact360-stage" className="mt-1 w-full">
                       <SelectValue placeholder="Sin etapa" />
                     </SelectTrigger>
                     <SelectContent>
@@ -194,12 +194,12 @@ export function Contact360Dialog({ contactId, onClose }: { contactId: string | n
               )}
               <div className="flex flex-col gap-2 rounded-lg border bg-muted/30 p-3 sm:flex-row sm:items-end">
                 <div className="flex-1">
-                  <label className="text-xs text-muted-foreground">Fecha</label>
-                  <Input type="date" value={fuDate} onChange={(e) => setFuDate(e.target.value)} />
+                  <label htmlFor="contact360-fu-date" className="text-xs text-muted-foreground">Fecha</label>
+                  <Input id="contact360-fu-date" type="date" value={fuDate} onChange={(e) => setFuDate(e.target.value)} />
                 </div>
                 <div className="flex-[2]">
-                  <label className="text-xs text-muted-foreground">Motivo</label>
-                  <Input value={fuReason} onChange={(e) => setFuReason(e.target.value)} placeholder="Ej. Recordar cotización" />
+                  <label htmlFor="contact360-fu-reason" className="text-xs text-muted-foreground">Motivo</label>
+                  <Input id="contact360-fu-reason" value={fuReason} onChange={(e) => setFuReason(e.target.value)} placeholder="Ej. Recordar cotización" />
                 </div>
                 <Button type="button" onClick={handleAddFollowUp} disabled={creatingFu || !fuDate || !fuReason.trim()}>
                   Agendar

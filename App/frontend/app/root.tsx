@@ -104,6 +104,13 @@ import { GlobalProgress } from '~/components/ui/global-progress';
 import { TooltipProvider } from '~/components/ui/tooltip';
 import { StorefrontAnalytics } from '~/components/layout/storefront-analytics';
 import { useGetConfigQuery } from '~/store/api/sessionApi';
+import { RouteError } from '~/components/layout/route-error';
+
+// Se renderiza dentro de Layout pero SIN el <Provider> de App: RouteError no
+// toca el store. Cubre 404 y errores de cualquier ruta sin boundary propio.
+export function ErrorBoundary() {
+  return <RouteError />;
+}
 
 /** Favicon dinámico: lee la URL desde la config del admin (Recursos de imágenes)
  *  y la inyecta como `<link rel="icon">` en el `<head>`. Si no hay favicon

@@ -101,10 +101,11 @@ export default function AdminInventario() {
         filters={
           showPeriod ? (
             <div className="w-full sm:w-64">
-              <label className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              <label htmlFor="inventario-periodo" className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Periodo
               </label>
               <FilterSelect
+                id="inventario-periodo"
                 value={period}
                 onChange={(p) => updateParams({ period: p })}
                 options={monthOptions}
@@ -219,3 +220,6 @@ export default function AdminInventario() {
     </div>
   );
 }
+
+// Error dentro de la sección: se muestra en el área de contenido y la barra lateral sigue viva.
+export { AdminRouteError as ErrorBoundary } from '~/components/layout/route-error';

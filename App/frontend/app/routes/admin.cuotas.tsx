@@ -394,3 +394,6 @@ export default function AdminCuotas() {
     </div>
   );
 }
+
+// Error dentro de la sección: se muestra en el área de contenido y la barra lateral sigue viva.
+export { AdminRouteError as ErrorBoundary } from '~/components/layout/route-error';

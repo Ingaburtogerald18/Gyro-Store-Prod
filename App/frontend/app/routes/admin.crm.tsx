@@ -252,17 +252,17 @@ function CreateContactDialog({
         </DialogHeader>
         <div className="space-y-3">
           <div>
-            <label className="text-xs font-medium text-muted-foreground">Teléfono</label>
-            <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="8888 8888" />
+            <label htmlFor="crm-new-phone" className="text-xs font-medium text-muted-foreground">Teléfono</label>
+            <Input id="crm-new-phone" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="8888 8888" />
           </div>
           <div>
-            <label className="text-xs font-medium text-muted-foreground">Nombre (opcional)</label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Juan Pérez" />
+            <label htmlFor="crm-new-name" className="text-xs font-medium text-muted-foreground">Nombre (opcional)</label>
+            <Input id="crm-new-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Juan Pérez" />
           </div>
           <div>
-            <label className="text-xs font-medium text-muted-foreground">Origen</label>
+            <label htmlFor="crm-new-origin" className="text-xs font-medium text-muted-foreground">Origen</label>
             <Select value={origin} onValueChange={(v) => setOrigin(v as ContactOrigin)}>
-              <SelectTrigger className="w-full">
+              <SelectTrigger id="crm-new-origin" className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -283,3 +283,6 @@ function CreateContactDialog({
     </Dialog>
   );
 }
+
+// Error dentro de la sección: se muestra en el área de contenido y la barra lateral sigue viva.
+export { AdminRouteError as ErrorBoundary } from '~/components/layout/route-error';

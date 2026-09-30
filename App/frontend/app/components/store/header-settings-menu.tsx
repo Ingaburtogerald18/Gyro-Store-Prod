@@ -23,7 +23,9 @@ const CHIP =
  *  la vista de invitado como en la autenticada (antes había dos botones distintos). */
 function ThemeSwitch({ isDark, onToggle }: { isDark: boolean; onToggle: () => void }) {
   return (
-    <div className={cn(ROW, "justify-between cursor-pointer")} onClick={onToggle}>
+    // <label> y no <div onClick>: toda la fila activa el switch, pero el único
+    // control interactivo (y el único que recibe teclado) es el <button>.
+    <label className={cn(ROW, "justify-between cursor-pointer")}>
       <span className="flex items-center gap-2">
         {isDark ? <HugeIcon icon={Moon02Icon} size={16} strokeWidth={2} className="text-muted-foreground" /> : <HugeIcon icon={Sun01Icon} size={16} strokeWidth={2} className="text-muted-foreground" />}
         Apariencia
@@ -33,6 +35,7 @@ function ThemeSwitch({ isDark, onToggle }: { isDark: boolean; onToggle: () => vo
         role="switch"
         aria-checked={isDark}
         aria-label={`Cambiar a tema ${isDark ? "claro" : "oscuro"}`}
+        onClick={onToggle}
         className={cn(
           "relative h-6 w-11 shrink-0 rounded-full border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
           isDark ? "border-primary bg-primary" : "border-border bg-muted",
@@ -51,7 +54,7 @@ function ThemeSwitch({ isDark, onToggle }: { isDark: boolean; onToggle: () => vo
           )}
         </motion.span>
       </button>
-    </div>
+    </label>
   );
 }
 

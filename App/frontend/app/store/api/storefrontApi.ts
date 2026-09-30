@@ -81,7 +81,10 @@ export const storefrontApi = baseApi.injectEndpoints({
           dispatch(
             storefrontApi.util.updateQueryData('getLandingConfig', undefined, () => data)
           );
-        } catch {}
+        } catch {
+          // Si el guardado falla, la caché queda como estaba; el error lo
+          // muestra quien llamó a la mutation.
+        }
       }
     }),
 

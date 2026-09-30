@@ -245,7 +245,7 @@ export function DataTable<T>({
     ];
     // BOM: sin él Excel en Windows abre el archivo en ANSI y "Audífonos" sale
     // como "AudÃ­fonos".
-    const blob = new Blob([`﻿${lines.join("\r\n")}`], { type: "text/csv;charset=utf-8;" });
+    const blob = new Blob([`\uFEFF${lines.join("\r\n")}`], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -362,16 +362,22 @@ export function DataTable<T>({
                 {selectable && (
                   <th className="w-10 px-3 py-2.5">
                     {onSelectAll && (
-                      <div
+                      // <button role="checkbox"> y no <div onClick>: así llega el
+                      // teclado (Tab + Espacio) y el lector anuncia el estado.
+                      <button
+                        type="button"
+                        role="checkbox"
+                        aria-checked={allSelected}
+                        aria-label="Seleccionar todas las filas"
                         onClick={() => onSelectAll(!allSelected)}
-                        className={`flex h-[18px] w-[18px] cursor-pointer items-center justify-center rounded border transition-colors ${
+                        className={`flex h-[18px] w-[18px] cursor-pointer items-center justify-center rounded border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                           allSelected
                             ? "border-primary-2 bg-primary-2 text-primary-foreground"
                             : "border bg-card hover:bg-muted"
                         }`}
                       >
-                        {allSelected && <HugeIcon icon={Tick01Icon} size={14} strokeWidth={2} />}
-                      </div>
+                        {allSelected && <HugeIcon icon={Tick01Icon} size={14} strokeWidth={2} aria-hidden />}
+                      </button>
                     )}
                   </th>
                 )}
@@ -577,10 +583,21 @@ export function DataTable<T>({
             const isSelected =
               (selectedRowIds && selectedRowIds.has(rowId)) || (selectedRowId && rowId === selectedRowId);
             return (
+              // Tarjeta clickeable: también se abre con Enter/Espacio. Se ignoran
+              // las teclas que vienen de controles internos (botones del card).
               <div
                 key={row.id}
+                role={onRowClick ? "button" : undefined}
+                tabIndex={onRowClick ? 0 : undefined}
                 onClick={() => onRowClick?.(row.original)}
-                className={`${onRowClick ? "cursor-pointer " : ""}${isSelected ? "rounded-card ring-2 ring-primary-2" : ""}`}
+                onKeyDown={(e) => {
+                  if (!onRowClick || e.target !== e.currentTarget) return;
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    onRowClick(row.original);
+                  }
+                }}
+                className={`${onRowClick ? "cursor-pointer rounded-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring " : ""}${isSelected ? "rounded-card ring-2 ring-primary-2" : ""}`}
               >
                 {mobileCard ? (
                   mobileCard(row.original)

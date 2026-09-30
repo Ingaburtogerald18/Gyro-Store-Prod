@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { Link, useLocation } from '@remix-run/react';
 import { motion, AnimatePresence, useAnimationControls, useReducedMotion } from 'framer-motion';
+import { toast } from 'sonner';
 import { Menu01Icon, ShoppingCart02Icon, Search01Icon, Cancel01Icon, Edit02Icon } from '@hugeicons/core-free-icons';
 import { SearchBar } from '~/components/catalog/search-bar';
 import { CategoriesDrawer } from '~/components/store/categories-drawer';
@@ -110,8 +111,14 @@ export function StoreHeader() {
       await updateLanding(draftLanding).unwrap();
       dispatch(toggleEditMode());
       dispatch(clearBuilderSession());
-    } catch {
-      // Error manejado por RTK Query globalmente o ignorado
+      toast.success('Cambios de la tienda guardados.');
+    } catch (err) {
+      // Antes era un catch vacío: el botón volvía a su estado y el admin creía
+      // que se había guardado. El borrador se conserva para reintentar.
+      const message =
+        (err as { data?: { error?: string } })?.data?.error ??
+        'No se pudieron guardar los cambios. Probá de nuevo.';
+      toast.error(message);
     }
   };
 

@@ -55,6 +55,9 @@ export function ProductDetailTabs({
 
   return (
     <div>
+      {/* Patrón roving tabindex del WAI-ARIA: el foco lo reciben los tabs, y las
+          flechas burbujean hasta acá. El tablist en sí no debe ser enfocable. */}
+      {/* eslint-disable-next-line jsx-a11y/interactive-supports-focus */}
       <div
         ref={listRef}
         role="tablist"

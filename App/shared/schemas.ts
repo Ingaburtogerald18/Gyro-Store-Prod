@@ -653,7 +653,14 @@ export const updateProfileSchema = z
         return val;
       },
       bankAccountSchema.nullable().optional(),
-    ),
+      // `z.preprocess` deja el INPUT como `unknown` en zod 4, y con eso
+      // react-hook-form no puede tipar `watch('bank_account.bank')` ni sus
+      // errores. El formulario siempre manda la forma del objeto (o null), así
+      // que se declara ese input; la validación en runtime no cambia.
+    ) as unknown as z.ZodType<
+      BankAccount | null | undefined,
+      z.input<typeof bankAccountSchema> | null | undefined
+    >,
     // Foto de perfil ya subida (a R2, vía `/api/upload` o `/api/me/avatar`): acá
     // solo viaja la URL resultante, nunca el archivo. `null` la quita; omitir la
     // clave deja la que estuviera — necesario porque el admin guarda el resto del
