@@ -81,12 +81,12 @@ export function GeneralConfig() {
   return (
     <form onSubmit={submit} className="space-y-6">
       <Section
-        title="Información del Negocio"
+        title="Información del negocio"
         description="Datos generales de contacto y operación de la tienda. Se usan en la tienda, tickets y facturas."
       >
         <div className="grid gap-4 sm:grid-cols-2">
           <Field data-invalid={!!errors.brandName}>
-            <FieldLabel htmlFor="biz-brand" required>Nombre de la Tienda</FieldLabel>
+            <FieldLabel htmlFor="biz-brand" required>Nombre de la tienda</FieldLabel>
             <Input id="biz-brand" aria-required aria-invalid={!!errors.brandName} {...register("brandName")} />
             <FieldError errors={[errors.brandName]} />
           </Field>
@@ -98,31 +98,31 @@ export function GeneralConfig() {
           </Field>
 
           <Field data-invalid={!!errors.whatsapp}>
-            <FieldLabel htmlFor="biz-whatsapp" required>Teléfono Principal (WhatsApp)</FieldLabel>
+            <FieldLabel htmlFor="biz-whatsapp" required>Teléfono principal (WhatsApp)</FieldLabel>
             <Input id="biz-whatsapp" placeholder="50588887777" aria-required aria-invalid={!!errors.whatsapp} {...register("whatsapp")} />
             <FieldError errors={[errors.whatsapp]} />
           </Field>
 
           <Field data-invalid={!!errors.currency}>
-            <FieldLabel htmlFor="biz-currency" required>Moneda Principal</FieldLabel>
+            <FieldLabel htmlFor="biz-currency" required>Moneda principal</FieldLabel>
             <Input id="biz-currency" placeholder="C$" aria-required aria-invalid={!!errors.currency} {...register("currency")} />
             <FieldError errors={[errors.currency]} />
           </Field>
 
           <Field data-invalid={!!errors.contactEmail}>
-            <FieldLabel htmlFor="biz-email">Correo de Contacto</FieldLabel>
+            <FieldLabel htmlFor="biz-email">Correo de contacto</FieldLabel>
             <Input id="biz-email" type="email" placeholder="contacto@empresa.com" aria-invalid={!!errors.contactEmail} {...register("contactEmail")} />
             <FieldError errors={[errors.contactEmail]} />
           </Field>
 
           <Field data-invalid={!!errors.address}>
-            <FieldLabel htmlFor="biz-address">Dirección Física</FieldLabel>
+            <FieldLabel htmlFor="biz-address">Dirección física</FieldLabel>
             <Input id="biz-address" placeholder="Ciudad, país" aria-invalid={!!errors.address} {...register("address")} />
             <FieldError errors={[errors.address]} />
           </Field>
 
           <Field data-invalid={!!(errors as any).locationUrl}>
-            <FieldLabel htmlFor="biz-location-url">Link de Ubicación (Google Maps)</FieldLabel>
+            <FieldLabel htmlFor="biz-location-url">Enlace de ubicación (Google Maps)</FieldLabel>
             <Input id="biz-location-url" type="url" placeholder="https://maps.google.com/..." aria-invalid={!!(errors as any).locationUrl} {...register("locationUrl")} />
             <FieldError errors={[(errors as any).locationUrl]} />
           </Field>
@@ -130,7 +130,7 @@ export function GeneralConfig() {
       </Section>
 
       <Section
-        title="Redes Sociales"
+        title="Redes sociales"
         description="Links a las redes sociales de la tienda. Se muestran en el pie de página del catálogo."
       >
         <div className="grid gap-4 sm:grid-cols-3">
@@ -152,7 +152,7 @@ export function GeneralConfig() {
       </Section>
 
       <Section
-        title="Cuentas Bancarias de la Tienda"
+        title="Cuentas bancarias de la tienda"
         description="Dónde pueden depositar o transferir los clientes. Se muestran en la página de Contacto de la tienda, con botón para copiar el número."
       >
         <div className="space-y-4">
@@ -186,13 +186,13 @@ export function GeneralConfig() {
                 </Field>
 
                 <Field data-invalid={!!errors.bankAccounts?.[index]?.number}>
-                  <FieldLabel htmlFor={`number-${row.id}`} required>Número de Cuenta</FieldLabel>
+                  <FieldLabel htmlFor={`number-${row.id}`} required>Número de cuenta</FieldLabel>
                   <Input id={`number-${row.id}`} aria-required aria-invalid={!!errors.bankAccounts?.[index]?.number} {...register(`bankAccounts.${index}.number`)} />
                   <FieldError errors={[errors.bankAccounts?.[index]?.number]} />
                 </Field>
 
                 <Field data-invalid={!!errors.bankAccounts?.[index]?.holder}>
-                  <FieldLabel htmlFor={`holder-${row.id}`}>Titular (Opcional)</FieldLabel>
+                  <FieldLabel htmlFor={`holder-${row.id}`}>Titular (opcional)</FieldLabel>
                   <Input id={`holder-${row.id}`} aria-invalid={!!errors.bankAccounts?.[index]?.holder} {...register(`bankAccounts.${index}.holder`)} />
                   <FieldError errors={[errors.bankAccounts?.[index]?.holder]} />
                 </Field>

@@ -40,7 +40,6 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Field, FieldError, FieldLabel } from '~/components/ui/field';
 import { Input } from '~/components/ui/input';
 import { QueryState } from '~/components/ui/QueryState';
-import { BrandLoader } from '~/components/ui/module-loader';
 
 export const meta: MetaFunction = () => [{ title: pageTitle('Mi perfil', { admin: true }) }];
 
@@ -120,6 +119,7 @@ export default function AdminMiPerfil() {
         eyebrow="Mi cuenta"
         title="Mi perfil"
         description="Tu foto, tus datos de contacto y la cuenta donde recibís tus pagos."
+        className="mb-0"
       />
 
       <QueryState
@@ -127,34 +127,54 @@ export default function AdminMiPerfil() {
         error={isError}
         onRetry={refetch}
         errorMessage="No se pudo cargar tu perfil."
-        loadingFallback={
-          <div className="flex justify-center p-12">
-            <BrandLoader text="Cargando tu perfil..." />
-          </div>
-        }
+        shape="card"
       >
         {profile && (
-          // `max-w-lg`: es un formulario de una columna. Estirado a todo el ancho
-          // del panel, los campos quedan de 1.400 px para escribir un teléfono.
-          <Card className="max-w-lg">
+          // Dos columnas: quién sos (foto, correo, rol) a la izquierda y lo que
+          // se edita a la derecha. Antes era una sola tarjeta angosta que dejaba
+          // dos tercios de la pantalla vacíos.
+          <div className="grid max-w-5xl items-start gap-6 lg:grid-cols-[300px_minmax(0,1fr)]">
+            <Card className="rounded-card shadow-none">
+              <CardContent className="grid gap-5 p-5">
+                <AvatarPicker
+                  src={profile.avatar_url}
+                  name={profile.name || profile.email}
+                  uploading={isUploading || isDeletingAvatar}
+                  onPick={handlePickAvatar}
+                  onRemove={handleRemoveAvatar}
+                />
+                <Field>
+                  <FieldLabel htmlFor="mi-correo">Correo corporativo</FieldLabel>
+                  <Input id="mi-correo" type="email" value={profile.email} disabled readOnly />
+                  <p className="mt-1 text-2xs text-muted-foreground">
+                    Lo administra Microsoft Entra ID y no se puede modificar.
+                  </p>
+                </Field>
+                <Field>
+                  <FieldLabel>Rol</FieldLabel>
+                  <div>
+                    <Badge variant="outline" className="rounded-full text-xs">
+                      {role ? ROLE_LABELS[role] ?? role : 'Sin rol asignado'}
+                    </Badge>
+                  </div>
+                  <p className="mt-1 text-2xs text-muted-foreground">
+                    Lo asigna un administrador desde Personal.
+                  </p>
+                </Field>
+              </CardContent>
+            </Card>
+
+          <Card className="rounded-card shadow-none">
             <CardHeader className="border-b border-border pb-4">
-              <CardTitle className="text-lg">Mis datos</CardTitle>
+              <CardTitle className="text-base">Mis datos</CardTitle>
               <CardDescription>
                 Estos datos los ve el equipo en Personal. La cuenta bancaria solo la ve un
                 administrador.
               </CardDescription>
             </CardHeader>
 
-            <CardContent className="grid gap-6 p-4 sm:p-6">
-              <AvatarPicker
-                src={profile.avatar_url}
-                name={profile.name || profile.email}
-                uploading={isUploading || isDeletingAvatar}
-                onPick={handlePickAvatar}
-                onRemove={handleRemoveAvatar}
-              />
-
-              <div className="grid gap-4">
+            <CardContent className="grid gap-6 p-5">
+              <div className="grid gap-4 md:grid-cols-2">
                 <Field data-invalid={!!errors.name}>
                   <FieldLabel htmlFor="mi-nombre" required>
                     Nombre a mostrar
@@ -166,26 +186,6 @@ export default function AdminMiPerfil() {
                     {...register('name')}
                   />
                   <FieldError errors={[errors.name]} />
-                </Field>
-
-                <Field>
-                  <FieldLabel htmlFor="mi-correo">Correo corporativo</FieldLabel>
-                  <Input id="mi-correo" type="email" value={profile.email} disabled readOnly />
-                  <p className="mt-1 text-2xs text-muted-foreground">
-                    Lo administra Microsoft Entra ID y no se puede modificar.
-                  </p>
-                </Field>
-
-                <Field>
-                  <FieldLabel>Rol</FieldLabel>
-                  <div>
-                    <Badge variant="outline" className="text-xs">
-                      {role ? ROLE_LABELS[role] ?? role : 'Sin rol asignado'}
-                    </Badge>
-                  </div>
-                  <p className="mt-1 text-2xs text-muted-foreground">
-                    Lo asigna un administrador desde Personal.
-                  </p>
                 </Field>
 
                 <Field data-invalid={!!errors.personal_email}>
@@ -211,12 +211,12 @@ export default function AdminMiPerfil() {
                   <FieldError errors={[errors.phone]} />
                 </Field>
 
-                <ProfileBankFields form={form} idPrefix="mi" legend="Mi cuenta bancaria (pagos)" />
               </div>
+              <ProfileBankFields form={form} idPrefix="mi" legend="Mi cuenta bancaria (pagos)" />
             </CardContent>
 
-            <CardFooter className="border-t border-border pt-4">
-              <Button className="w-full" onClick={onSubmit} disabled={isSaving}>
+            <CardFooter className="justify-end border-t border-border pt-4">
+              <Button className="h-9 rounded-md" onClick={onSubmit} disabled={isSaving}>
                 <HugeIcon
                   icon={RefreshIcon}
                   size={16}
@@ -228,6 +228,7 @@ export default function AdminMiPerfil() {
               </Button>
             </CardFooter>
           </Card>
+          </div>
         )}
       </QueryState>
     </div>

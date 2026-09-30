@@ -117,7 +117,7 @@ export function ImagesConfig() {
           </FieldLabel>
           <Input
             id={`img-url-${key}`}
-            placeholder="O ingresa la URL de la imagen"
+            placeholder="O pegá la URL de la imagen"
             aria-invalid={!!errors[key]}
             {...register(key)}
           />
@@ -129,7 +129,7 @@ export function ImagesConfig() {
 
   return (
     <Section
-      title="Recursos de Imágenes"
+      title="Recursos de imágenes"
       description="Sube los logos y favicons que se utilizarán en la interfaz y en los tickets generados."
     >
       <QueryState
