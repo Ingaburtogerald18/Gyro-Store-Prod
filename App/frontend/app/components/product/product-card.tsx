@@ -119,12 +119,12 @@ export function ProductCard({
     >
       <div className="absolute top-3 left-3 z-10 flex flex-col items-start gap-1.5">
         {onSale && (
-          <Badge variant="promo" className="text-[10px] tabular-nums sm:px-2.5 sm:text-[11px]">
+          <Badge variant="promo" className="text-2xs tabular-nums sm:px-2.5">
             −{discountPct}%
           </Badge>
         )}
         {product.isPromo && !onSale && (
-          <Badge variant="promo" className="text-[10px] sm:px-2.5 sm:text-[11px]">
+          <Badge variant="promo" className="text-2xs sm:px-2.5">
             Oferta
           </Badge>
         )}
@@ -133,7 +133,7 @@ export function ProductCard({
       {lowStock && (
         <Badge
           variant="destructive"
-          className="absolute top-2 right-2 z-10 text-[10px] sm:px-2.5 sm:text-[11px]"
+          className="absolute top-2 right-2 z-10 text-2xs sm:px-2.5"
         >
           {product.stock === 1 ? '¡Último disponible!' : `¡Últimas ${product.stock}!`}
         </Badge>
@@ -182,7 +182,7 @@ export function ProductCard({
       {soldOut && (
         <Badge
           variant="secondary"
-          className="absolute bottom-2 left-1/2 -translate-x-1/2 py-1 text-[10px] sm:bottom-3 sm:px-3 sm:text-[11px]"
+          className="absolute bottom-2 left-1/2 -translate-x-1/2 py-1 text-2xs sm:bottom-3 sm:px-3"
         >
           Agotado
         </Badge>
@@ -197,11 +197,11 @@ export function ProductCard({
         isList ? 'flex-1 justify-center gap-1.5 py-1' : 'flex-1 pt-3 sm:pt-4',
       )}
     >
-      <h3 className="line-clamp-2 text-[13px] leading-snug font-bold tracking-tight text-foreground transition-colors group-hover:text-primary-2 sm:text-xl">
+      <h3 className="line-clamp-2 text-sm leading-snug font-bold tracking-tight text-foreground transition-colors group-hover:text-primary-2 sm:text-xl">
         {product.name}
       </h3>
       <div className="mt-1.5 flex items-baseline gap-2">
-        <span className="text-[13px] font-extrabold text-primary-2 tabular-nums sm:text-lg">
+        <span className="text-sm font-extrabold text-primary-2 tabular-nums sm:text-lg">
           {formatCordobas(product.price, currency)}
         </span>
         {onSale && (
@@ -211,7 +211,7 @@ export function ProductCard({
         )}
       </div>
       {description && (
-        <p className="mt-1.5 line-clamp-2 text-[11px] leading-relaxed font-light text-muted-foreground sm:text-sm">
+        <p className="mt-1.5 line-clamp-2 text-xs leading-relaxed text-muted-foreground sm:text-sm">
           {description}
         </p>
       )}

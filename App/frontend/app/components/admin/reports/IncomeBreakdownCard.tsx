@@ -95,7 +95,7 @@ export function IncomeBreakdownCard({
             </ChartContainer>
 
             <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+              <span className="text-2xs uppercase tracking-wider text-muted-foreground">
                 Ingresos
               </span>
               <span className="nums text-xs font-bold text-foreground">
@@ -126,7 +126,7 @@ export function IncomeBreakdownCard({
                     <span className="nums font-semibold text-foreground">
                       {formatMoney(slice.value)}
                     </span>
-                    <span className="nums ml-2 text-[11px] text-muted-foreground">
+                    <span className="nums ml-2 text-2xs text-muted-foreground">
                       ({pct.toFixed(1)}%)
                     </span>
                   </div>

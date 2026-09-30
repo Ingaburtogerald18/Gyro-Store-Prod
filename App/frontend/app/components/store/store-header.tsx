@@ -56,7 +56,7 @@ function CartButton() {
             exit={{ scale: 0, opacity: 0 }}
             transition={{ type: "spring", stiffness: 520, damping: 20 }}
             // ring-background lo separa del header con un halo del color de fondo → "flota".
-            className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-primary px-1 text-[11px] font-bold tabular-nums text-background ring-2 ring-background shadow-lg"
+            className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-primary px-1 text-2xs font-bold tabular-nums text-background ring-2 ring-background shadow-lg"
           >
             {count > 99 ? '99+' : count}
           </motion.span>

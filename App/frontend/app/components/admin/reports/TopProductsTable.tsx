@@ -44,7 +44,7 @@ export function TopProductsTable({
         accessorKey: 'sku',
         header: 'SKU',
         cell: ({ row }) => (
-          <Badge variant="outline" className="font-mono text-[11px] font-medium">
+          <Badge variant="outline" className="font-mono text-2xs font-medium">
             {row.original.sku}
           </Badge>
         ),

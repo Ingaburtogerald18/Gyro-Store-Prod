@@ -51,7 +51,7 @@ export function ProductCarousel({
         <div className="min-w-0">
           <h2 className="text-[17px] font-bold tracking-tight text-foreground sm:text-2xl">{title}</h2>
           {subtitle && (
-            <p className="mt-0.5 text-[11px] font-light text-muted-foreground sm:text-sm">{subtitle}</p>
+            <p className="mt-0.5 text-2xs font-light text-muted-foreground sm:text-sm">{subtitle}</p>
           )}
         </div>
 

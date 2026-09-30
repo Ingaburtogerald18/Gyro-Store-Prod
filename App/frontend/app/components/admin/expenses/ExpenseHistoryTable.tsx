@@ -158,7 +158,7 @@ export function ExpenseHistoryTable({
       <div className="overflow-hidden rounded-card border border-border bg-card shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
-            <thead className="border-b border-border bg-muted/40 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+            <thead className="border-b border-border bg-muted/40 text-2xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
               <tr>
                 <th className="px-4 py-3">Fecha</th>
                 <th className="px-4 py-3">Pozo</th>
@@ -218,7 +218,7 @@ export function ExpenseHistoryTable({
                       <td className="whitespace-nowrap px-4 py-3">
                         <span
                           className={cn(
-                            'inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium border',
+                            'inline-flex items-center rounded-full px-2 py-0.5 text-2xs font-medium border',
                             badge.className,
                           )}
                         >
@@ -240,7 +240,7 @@ export function ExpenseHistoryTable({
                       <td className="whitespace-nowrap px-4 py-3 text-right text-xs text-foreground nums">
                         <span className="font-semibold">{formatMoney(item.monto)}</span>
                         {item.montoUsd != null && (
-                          <span className="block text-[10px] text-muted-foreground">
+                          <span className="block text-2xs text-muted-foreground">
                             ${item.montoUsd.toFixed(2)} USD × {item.exchangeRate}
                           </span>
                         )}

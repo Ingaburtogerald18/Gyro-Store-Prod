@@ -114,7 +114,7 @@ export function CartDrawer() {
                       <div className="flex flex-1 flex-col">
                         <p className="flex items-center gap-1.5 text-sm leading-tight font-medium text-foreground">
                           {item.comboId && (
-                            <Badge variant="promo" className="shrink-0 text-[10px]">
+                            <Badge variant="promo" className="shrink-0 text-2xs">
                               Combo
                             </Badge>
                           )}

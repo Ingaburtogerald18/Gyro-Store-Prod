@@ -156,7 +156,7 @@ export function Contact360Dialog({ contactId, onClose }: { contactId: string | n
                   {ficha.orders.map((o) => (
                     <li key={`${o.kind}-${o.id}`} className="flex items-center justify-between py-2">
                       <span className="flex items-center gap-2">
-                        <Badge variant="outline" className="text-[10px]">
+                        <Badge variant="outline" className="text-2xs">
                           {o.kind === 'sale' ? 'Venta' : 'Web'}
                         </Badge>
                         <span className="text-muted-foreground">{o.status}</span>

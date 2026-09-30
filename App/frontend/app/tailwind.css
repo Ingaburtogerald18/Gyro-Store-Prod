@@ -97,6 +97,12 @@
      `font-heading` que ya usan varios componentes. */
   --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
   --font-heading: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
+
+  /* Paso por debajo de text-xs para badges, eyebrows y metadatos densos.
+     Reemplaza ~120 `text-[10px]`/`text-[11px]` sueltos: 11px es el piso de
+     lectura del sistema — nada de texto de interfaz por debajo de esto. */
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 1rem;
 }
 
 /* Escenario del producto: transparente a propósito — las fotos del catálogo ya

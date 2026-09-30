@@ -172,7 +172,7 @@ export function InlineCategoryNavEditor({ allCategories }: InlineCategoryNavEdit
       </DropdownMenu>
 
       {/* Contador de uso */}
-      <div className="ml-auto flex shrink-0 items-center gap-1 rounded-full bg-muted/50 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+      <div className="ml-auto flex shrink-0 items-center gap-1 rounded-full bg-muted/50 px-2 py-0.5 text-2xs font-medium text-muted-foreground">
         <span className={cn(draftHeaderCategories.length >= 7 && "text-warning")}>
           {draftHeaderCategories.length}
         </span>

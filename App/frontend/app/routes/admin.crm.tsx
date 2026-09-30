@@ -195,13 +195,13 @@ function ContactsTab({ search, onOpen }: { search: string; onOpen: (id: string) 
             <span className="flex w-full items-center justify-between gap-2">
               <span className="truncate font-semibold text-foreground">{c.name || c.phone || 'Contacto'}</span>
               {c.stage && (
-                <Badge variant="outline" className="shrink-0 text-[10px]">
+                <Badge variant="outline" className="shrink-0 text-2xs">
                   {CONTACT_STAGE_LABELS[c.stage as ContactStage] ?? c.stage}
                 </Badge>
               )}
             </span>
             <span className="text-xs text-muted-foreground">{c.phone || 'Sin teléfono'}</span>
-            <span className="text-[11px] text-muted-foreground">
+            <span className="text-2xs text-muted-foreground">
               {CONTACT_ORIGIN_LABELS[c.origin as ContactOrigin] ?? c.origin}
             </span>
           </button>

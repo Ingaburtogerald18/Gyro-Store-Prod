@@ -20,7 +20,7 @@ export function SectionLabel({
 }) {
   return (
     <div className={cn('flex items-baseline justify-between gap-3', className)}>
-      <h2 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+      <h2 className="text-2xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
         {children}
       </h2>
       {action && <div className="shrink-0 text-xs text-muted-foreground">{action}</div>}

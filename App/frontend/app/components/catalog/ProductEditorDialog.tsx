@@ -615,7 +615,7 @@ export function ProductEditorDialog({
                             <ToneDot toneKey={color} />
                             {color}
                             {count > 0 && (
-                              <span className="ml-1 rounded-full bg-primary-2/20 px-1.5 text-[10px] font-bold text-primary-2">
+                              <span className="ml-1 rounded-full bg-primary-2/20 px-1.5 text-2xs font-bold text-primary-2">
                                 {count}
                               </span>
                             )}

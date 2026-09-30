@@ -119,7 +119,7 @@ function TransitCell({ purchase }: { purchase: Purchase }) {
       title={`Compra ${compra} → zarpó el ${salida} → ${llegada.toLowerCase()} ${info.days} días.`}
     >
       <span className="nums text-xs font-semibold">{info.days}d</span>
-      <span className="text-[10px] opacity-70">{llegada}</span>
+      <span className="text-2xs opacity-70">{llegada}</span>
     </span>
   );
 }
@@ -419,7 +419,7 @@ export function PurchasesTable({ period = "all", onOpenForm }: { period?: string
 function SummaryPill({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
   return (
     <div className="flex flex-col items-center px-3 py-0.5 min-w-[72px]">
-      <span className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</span>
+      <span className="text-2xs uppercase tracking-wide text-muted-foreground">{label}</span>
       <span className={`text-sm font-bold ${accent ? "text-primary-2" : "text-foreground"}`}>{value}</span>
     </div>
   );

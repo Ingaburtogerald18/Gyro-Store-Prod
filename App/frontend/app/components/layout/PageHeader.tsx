@@ -40,7 +40,7 @@ export function PageHeader({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           {eyebrow && (
-            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+            <p className="text-2xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
               {eyebrow}
             </p>
           )}

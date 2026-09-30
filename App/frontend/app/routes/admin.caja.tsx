@@ -725,7 +725,7 @@ function SummaryTile({
       <p className={`mt-0.5 text-lg font-bold tabular-nums ${muted ? 'text-muted-foreground' : 'text-foreground'}`}>
         {value}
       </p>
-      <p className="mt-0.5 text-[11px] text-muted-foreground">{hint}</p>
+      <p className="mt-0.5 text-2xs text-muted-foreground">{hint}</p>
     </div>
   );
 }

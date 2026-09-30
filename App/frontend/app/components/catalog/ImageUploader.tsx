@@ -226,7 +226,7 @@ function SortableImageItem({
       />
 
       {isCover && (
-        <span className="absolute left-1.5 top-1.5 z-10 rounded-md bg-primary px-1.5 py-0.5 text-[10px] font-bold text-primary-foreground">
+        <span className="absolute left-1.5 top-1.5 z-10 rounded-md bg-primary px-1.5 py-0.5 text-2xs font-bold text-primary-foreground">
           Portada
         </span>
       )}

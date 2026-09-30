@@ -125,7 +125,7 @@ export function DashboardDrilldowns({
                     {row.cliente || 'Cliente sin nombre'}
                   </span>
                   {row.invoice_number && (
-                    <span className="ml-2 rounded-sm bg-muted px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground">
+                    <span className="ml-2 rounded-sm bg-muted px-1.5 py-0.5 text-2xs font-mono text-muted-foreground">
                       #{row.invoice_number}
                     </span>
                   )}
@@ -172,7 +172,7 @@ export function DashboardDrilldowns({
                     {row.cliente || 'Cliente no especificado'}
                   </span>
                   {row.invoice_number && (
-                    <span className="ml-2 rounded-sm bg-muted px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground">
+                    <span className="ml-2 rounded-sm bg-muted px-1.5 py-0.5 text-2xs font-mono text-muted-foreground">
                       #{row.invoice_number}
                     </span>
                   )}
@@ -227,7 +227,7 @@ export function DashboardDrilldowns({
                       {formatMoney(row.total_vendido)}
                     </span>
                     <span
-                      className={`nums block text-[10px] font-medium ${
+                      className={`nums block text-2xs font-medium ${
                         isAbove ? 'text-success' : 'text-muted-foreground'
                       }`}
                     >
@@ -329,37 +329,37 @@ export function DashboardDrilldowns({
           {/* Tarjetas resumen de 4 columnas */}
           <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
             <div className="rounded-lg border border-border/60 bg-muted/20 p-3">
-              <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+              <span className="text-2xs font-medium uppercase tracking-wider text-muted-foreground">
                 Ganancia tienda
               </span>
               <p className="nums mt-1 text-base sm:text-lg font-semibold text-foreground">
                 {formatMoney(gananciaTienda)}
               </p>
-              <span className="text-[11px] text-muted-foreground">
+              <span className="text-2xs text-muted-foreground">
                 {totalCount} {totalCount === 1 ? 'venta' : 'ventas'}
               </span>
             </div>
 
             <div className="rounded-lg border border-info/20 bg-info/5 p-3">
-              <span className="text-[11px] font-medium uppercase tracking-wider text-info">
+              <span className="text-2xs font-medium uppercase tracking-wider text-info">
                 Pozo préstamos
               </span>
               <p className="nums mt-1 text-base sm:text-lg font-semibold text-info">
                 {formatMoney(budgetPrestamosDisponible)}
               </p>
-              <span className="text-[11px] text-muted-foreground">
+              <span className="text-2xs text-muted-foreground">
                 Budget disponible
               </span>
             </div>
 
             <div className="rounded-lg border border-warning/20 bg-warning/5 p-3">
-              <span className="text-[11px] font-medium uppercase tracking-wider text-warning">
+              <span className="text-2xs font-medium uppercase tracking-wider text-warning">
                 Deducido de ganancia
               </span>
               <p className="nums mt-1 text-base sm:text-lg font-semibold text-warning">
                 -{formatMoney(prestamosDeGanancia)}
               </p>
-              <span className="text-[11px] text-muted-foreground">
+              <span className="text-2xs text-muted-foreground">
                 {prestamosDeGanancia === 0 ? 'Cubierto por pozo' : 'Excedente'}
               </span>
             </div>
@@ -374,7 +374,7 @@ export function DashboardDrilldowns({
             >
               <span
                 className={cn(
-                  'text-[11px] font-medium uppercase tracking-wider',
+                  'text-2xs font-medium uppercase tracking-wider',
                   gananciaReal >= 0 ? 'text-success' : 'text-destructive',
                 )}
               >
@@ -388,7 +388,7 @@ export function DashboardDrilldowns({
               >
                 {formatMoney(gananciaReal)}
               </p>
-              <span className="text-[11px] text-muted-foreground">
+              <span className="text-2xs text-muted-foreground">
                 {gananciaReal >= 0 ? 'Balance positivo' : 'Operando en rojo'}
               </span>
             </div>
@@ -401,25 +401,25 @@ export function DashboardDrilldowns({
                 <HugeIcon icon={Coins01Icon} size={15} className="text-warning" />
                 Desglose de Amortización con Pozo Préstamos
               </span>
-              <span className="nums text-muted-foreground font-mono text-[11px]">
+              <span className="nums text-muted-foreground font-mono text-2xs">
                 {formatMoney(totalLoans)} pagados en el período
               </span>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-border/50">
               <div className="space-y-0.5">
-                <span className="text-[11px] text-muted-foreground">1. Budget pozo disponible</span>
+                <span className="text-2xs text-muted-foreground">1. Budget pozo disponible</span>
                 <p className="nums text-sm font-semibold text-foreground">{formatMoney(budgetPrestamosDisponible)}</p>
-                <p className="text-[10px] text-muted-foreground">Recaudado menos gastos del pozo</p>
+                <p className="text-2xs text-muted-foreground">Recaudado menos gastos del pozo</p>
               </div>
               <div className="space-y-0.5">
-                <span className="text-[11px] text-success font-medium">2. Cubierto por budget</span>
+                <span className="text-2xs text-success font-medium">2. Cubierto por budget</span>
                 <p className="nums text-sm font-semibold text-success">-{formatMoney(prestamosCubierto)}</p>
-                <p className="text-[10px] text-muted-foreground">Absorbido sin tocar ganancia</p>
+                <p className="text-2xs text-muted-foreground">Absorbido sin tocar ganancia</p>
               </div>
               <div className="space-y-0.5">
-                <span className="text-[11px] text-destructive font-medium">3. Restado de ganancia</span>
+                <span className="text-2xs text-destructive font-medium">3. Restado de ganancia</span>
                 <p className="nums text-sm font-semibold text-destructive">-{formatMoney(prestamosDeGanancia)}</p>
-                <p className="text-[10px] text-muted-foreground">Excedente descontado de utilidad</p>
+                <p className="text-2xs text-muted-foreground">Excedente descontado de utilidad</p>
               </div>
             </div>
           </div>
@@ -486,7 +486,7 @@ export function DashboardDrilldowns({
                           -{formatMoney(p.monto_cs)}
                         </span>
                         {p.monto_usd && (
-                          <p className="nums text-[11px] text-muted-foreground font-mono">
+                          <p className="nums text-2xs text-muted-foreground font-mono">
                             (${p.monto_usd.toLocaleString('es-NI', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD)
                           </p>
                         )}

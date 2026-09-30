@@ -123,7 +123,7 @@ export function PozoCardsGrid({
                       <span className="nums text-xs font-semibold text-foreground">
                         {fmt(item.recogido)}
                       </span>
-                      <span className="nums text-[10px] text-muted-foreground">
+                      <span className="nums text-2xs text-muted-foreground">
                         {percentOfTotal}%
                       </span>
                     </div>

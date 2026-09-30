@@ -57,7 +57,7 @@ export function SellerRankingTable({
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead>
-              <tr className="border-b border-border/60 text-[11px] uppercase tracking-wider text-muted-foreground">
+              <tr className="border-b border-border/60 text-2xs uppercase tracking-wider text-muted-foreground">
                 <th className="py-2 pr-2 text-center w-8">#</th>
                 <th className="py-2 pr-4">Vendedor</th>
                 <th className="py-2 px-3">Ventas totales</th>
@@ -79,15 +79,15 @@ export function SellerRankingTable({
                     {/* Posición */}
                     <td className="py-2.5 pr-2 text-center">
                       {rank === 1 ? (
-                        <span className="inline-flex size-6 items-center justify-center rounded-full bg-warning/20 text-[11px] font-bold text-warning">
+                        <span className="inline-flex size-6 items-center justify-center rounded-full bg-warning/20 text-2xs font-bold text-warning">
                           1
                         </span>
                       ) : rank === 2 ? (
-                        <span className="inline-flex size-6 items-center justify-center rounded-full bg-muted text-[11px] font-bold text-muted-foreground">
+                        <span className="inline-flex size-6 items-center justify-center rounded-full bg-muted text-2xs font-bold text-muted-foreground">
                           2
                         </span>
                       ) : rank === 3 ? (
-                        <span className="inline-flex size-6 items-center justify-center rounded-full bg-tone-amber/20 text-[11px] font-bold text-tone-amber">
+                        <span className="inline-flex size-6 items-center justify-center rounded-full bg-tone-amber/20 text-2xs font-bold text-tone-amber">
                           3
                         </span>
                       ) : (
@@ -101,7 +101,7 @@ export function SellerRankingTable({
                     <td className="py-2.5 pr-4 min-w-[140px]">
                       <p className="font-medium text-foreground truncate">{displayName}</p>
                       {seller.seller_email && seller.seller_name && (
-                        <p className="text-[10px] text-muted-foreground truncate">
+                        <p className="text-2xs text-muted-foreground truncate">
                           {seller.seller_email}
                         </p>
                       )}
@@ -126,7 +126,7 @@ export function SellerRankingTable({
                       <span className="nums font-medium text-foreground">
                         {formatNumber(seller.num_ventas)}
                       </span>
-                      <span className="nums text-[10px] text-muted-foreground ml-1">
+                      <span className="nums text-2xs text-muted-foreground ml-1">
                         ({seller.unidades} uds)
                       </span>
                     </td>

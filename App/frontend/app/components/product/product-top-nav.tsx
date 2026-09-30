@@ -111,7 +111,7 @@ export function ProductTopNav({
           >
             <HugeIcon icon={ShoppingCart02Icon} size={18} strokeWidth={2} aria-hidden />
             {cartCount > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground tabular-nums">
+              <span className="absolute -top-0.5 -right-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-primary px-1 text-2xs font-bold text-primary-foreground tabular-nums">
                 {cartCount}
               </span>
             )}

@@ -171,7 +171,7 @@ export default function AdminMiPerfil() {
                 <Field>
                   <FieldLabel htmlFor="mi-correo">Correo corporativo</FieldLabel>
                   <Input id="mi-correo" type="email" value={profile.email} disabled readOnly />
-                  <p className="mt-1 text-[10px] text-muted-foreground">
+                  <p className="mt-1 text-2xs text-muted-foreground">
                     Lo administra Microsoft Entra ID y no se puede modificar.
                   </p>
                 </Field>
@@ -183,7 +183,7 @@ export default function AdminMiPerfil() {
                       {role ? ROLE_LABELS[role] ?? role : 'Sin rol asignado'}
                     </Badge>
                   </div>
-                  <p className="mt-1 text-[10px] text-muted-foreground">
+                  <p className="mt-1 text-2xs text-muted-foreground">
                     Lo asigna un administrador desde Personal.
                   </p>
                 </Field>

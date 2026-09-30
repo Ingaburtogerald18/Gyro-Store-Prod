@@ -293,7 +293,7 @@ export function Hero({ initialLanding }: { initialLanding?: LandingConfig | null
                 transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
                 className="space-y-2.5 sm:space-y-6"
               >
-                <span className="inline-block text-[10px] font-black tracking-[0.2em] text-primary-2 uppercase sm:text-xs">
+                <span className="inline-block text-2xs font-black tracking-[0.2em] text-primary-2 uppercase sm:text-xs">
                   {activeSlide.eyebrow}
                 </span>
 
@@ -318,7 +318,7 @@ export function Hero({ initialLanding }: { initialLanding?: LandingConfig | null
                       variant="default"
                       size="lg"
                       onClick={handlePrimaryAction}
-                      className="group/cta w-full justify-center text-[12px] sm:w-auto sm:text-sm"
+                      className="group/cta w-full justify-center text-xs sm:w-auto sm:text-sm"
                     >
                       <span className="truncate">{activeSlide.buttonText || 'Ver catálogo'}</span>
                       <HugeIcon icon={ArrowRight02Icon} size={14} strokeWidth={2} aria-hidden className="shrink-0 transition-transform duration-300 group-hover/cta:translate-x-1" />
@@ -328,7 +328,7 @@ export function Hero({ initialLanding }: { initialLanding?: LandingConfig | null
                       variant="whatsapp"
                       size="lg"
                       onClick={() => window.open(whatsappOrderUrl, '_blank', 'noopener,noreferrer')}
-                      className="group/wa w-full justify-center text-[12px] sm:w-auto sm:text-sm"
+                      className="group/wa w-full justify-center text-xs sm:w-auto sm:text-sm"
                     >
                       <WhatsappIcon aria-hidden className="shrink-0 transition-transform duration-300 group-hover/wa:scale-110" />
                       <span className="truncate">WhatsApp</span>

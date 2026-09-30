@@ -47,7 +47,7 @@ export function HeroMetric({
         {icon && (
           <HugeIcon icon={icon} size={16} strokeWidth={2} className="text-primary" />
         )}
-        <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+        <span className="text-2xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
           {eyebrow}
         </span>
       </div>
@@ -151,7 +151,7 @@ export function CompactKpi({
             className="text-muted-foreground/70"
           />
         )}
-        <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+        <span className="text-2xs font-medium uppercase tracking-wide text-muted-foreground">
           {label}
         </span>
       </div>

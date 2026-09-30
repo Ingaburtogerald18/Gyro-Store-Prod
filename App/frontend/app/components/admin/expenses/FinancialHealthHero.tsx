@@ -49,17 +49,17 @@ export function FinancialHealthHero({
         <div className="relative z-10">
           {/* Header badges */}
           <div className="flex items-center gap-2 mb-4">
-            <span className="flex h-6 items-center gap-1.5 rounded-full bg-primary-2/10 px-2.5 text-[11px] font-medium text-primary-2">
+            <span className="flex h-6 items-center gap-1.5 rounded-full bg-primary-2/10 px-2.5 text-2xs font-medium text-primary-2">
               <HugeIcon icon={Coins01Icon} size={14} strokeWidth={2} aria-hidden />
               Presupuesto Operativo {monthLabel ? `· ${monthLabel}` : ''}
             </span>
             {hasOverflow ? (
-              <span className="flex h-6 items-center gap-1 rounded-full bg-destructive/10 px-2.5 text-[11px] font-medium text-destructive border border-destructive/20">
+              <span className="flex h-6 items-center gap-1 rounded-full bg-destructive/10 px-2.5 text-2xs font-medium text-destructive border border-destructive/20">
                 <HugeIcon icon={Alert02Icon} size={13} strokeWidth={2} aria-hidden />
                 Excedido
               </span>
             ) : (
-              <span className="flex h-6 items-center gap-1 rounded-full bg-success/10 px-2.5 text-[11px] font-medium text-success border border-success/20">
+              <span className="flex h-6 items-center gap-1 rounded-full bg-success/10 px-2.5 text-2xs font-medium text-success border border-success/20">
                 <HugeIcon icon={CheckmarkCircle01Icon} size={13} strokeWidth={2} aria-hidden />
                 {percentUsed}% usado
               </span>
@@ -139,11 +139,11 @@ export function FinancialHealthHero({
                   <HugeIcon icon={ArrowDown01Icon} size={14} strokeWidth={2} className="text-destructive" aria-hidden />
                 )}
               </div>
-              <p className="mt-1 text-[11px] text-muted-foreground">
+              <p className="mt-1 text-2xs text-muted-foreground">
                 Ganancia bruta: {fmt(gananciaBruta)}
               </p>
               {hasOverflow && (
-                <p className="text-[11px] text-destructive font-medium">
+                <p className="text-2xs text-destructive font-medium">
                   Excedente: -{fmt(totalDesbordamiento)}
                 </p>
               )}

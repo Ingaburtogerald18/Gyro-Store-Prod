@@ -41,7 +41,7 @@ export function StatusBadge({
     <span
       data-badge={status}
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-pill border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider",
+        "inline-flex items-center gap-1.5 rounded-pill border px-2.5 py-1 text-2xs font-bold uppercase tracking-wider",
         VARIANTS[status],
         glow && GLOWS[status],
         className,

@@ -268,7 +268,7 @@ export function DataTable<T>({
               aria-label={searchPlaceholder}
               className="w-full bg-transparent py-2 text-sm outline-none placeholder:text-muted-foreground"
             />
-            <kbd className="hidden shrink-0 rounded border border-border px-1 text-[10px] text-muted-foreground sm:inline">
+            <kbd className="hidden shrink-0 rounded border border-border px-1 text-2xs text-muted-foreground sm:inline">
               /
             </kbd>
           </div>
@@ -389,7 +389,7 @@ export function DataTable<T>({
                       key={header.id}
                       aria-sort={sorted === "asc" ? "ascending" : sorted === "desc" ? "descending" : undefined}
                       className={cn(
-                        "whitespace-nowrap px-3 py-2.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground",
+                        "whitespace-nowrap px-3 py-2.5 text-2xs font-bold uppercase tracking-wider text-muted-foreground",
                         align === "right" && "text-right",
                         align === "center" && "text-center",
                         header.column.columnDef.meta?.className

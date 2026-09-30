@@ -202,12 +202,12 @@ function VariantRow({
             aria-hidden
           />
           {parts.map((part) => (
-            <Badge key={part} variant="secondary" className="text-[11px] font-medium">
+            <Badge key={part} variant="secondary" className="text-2xs font-medium">
               {part}
             </Badge>
           ))}
           {isOrphan && (
-            <span className="text-[11px] font-medium text-warning">
+            <span className="text-2xs font-medium text-warning">
               · ya no existe entre las opciones activas
             </span>
           )}
@@ -215,7 +215,7 @@ function VariantRow({
 
         <Badge
           variant={stock > 0 ? 'default' : 'outline'}
-          className={cn('shrink-0 text-[10px] font-bold', stock === 0 && 'text-warning')}
+          className={cn('shrink-0 text-2xs font-bold', stock === 0 && 'text-warning')}
         >
           {!hasLots ? 'Sin vincular' : stock > 0 ? `${stock} uds` : 'Agotado'}
         </Badge>
@@ -234,7 +234,7 @@ function VariantRow({
                 <span className="font-bold text-primary">[{code}]</span>{' '}
                 <span className="text-foreground">{lot?.productName ?? 'Lote no encontrado en bodega'}</span>
               </span>
-              <span className="shrink-0 text-[10px] font-semibold text-muted-foreground">
+              <span className="shrink-0 text-2xs font-semibold text-muted-foreground">
                 {lot ? `${lot.available} uds` : '—'}
               </span>
               <Button
@@ -276,7 +276,7 @@ function VariantRow({
                 onUpdate(codes, raw ? Number(raw) : undefined);
               }}
             />
-            <span className="text-[11px] text-muted-foreground">
+            <span className="text-2xs text-muted-foreground">
               Precio propio de esta variante (opcional)
             </span>
           </div>
@@ -346,7 +346,7 @@ function LotPicker({
                   <span className="min-w-0 flex-1 text-xs leading-relaxed">
                     <span className="font-bold text-primary">[{lot.code}]</span> {lot.productName}
                   </span>
-                  <Badge variant="secondary" className="shrink-0 text-[10px] font-bold">
+                  <Badge variant="secondary" className="shrink-0 text-2xs font-bold">
                     {lot.available} uds
                   </Badge>
                 </CommandItem>

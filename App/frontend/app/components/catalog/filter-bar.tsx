@@ -68,7 +68,7 @@ export function FilterBar({ products, categories = [] }: { products: CatalogProd
         <HugeIcon icon={FilterHorizontalIcon} size={16} strokeWidth={2} aria-hidden />
         Filtros
         {activeCount > 0 && (
-          <span className="grid size-5 place-items-center rounded-full bg-primary text-[11px] font-bold text-primary-foreground tabular-nums">
+          <span className="grid size-5 place-items-center rounded-full bg-primary text-2xs font-bold text-primary-foreground tabular-nums">
             {activeCount}
           </span>
         )}

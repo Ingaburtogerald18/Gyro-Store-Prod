@@ -242,11 +242,11 @@ function TooltipContent({
       <div className="mb-2 flex items-center justify-between border-b border-border/60 pb-1.5 font-medium">
         <span className="capitalize text-foreground font-semibold">{data.dateStr}</span>
         {data.hasSales ? (
-          <span className="nums rounded-sm bg-primary/15 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
+          <span className="nums rounded-sm bg-primary/15 px-1.5 py-0.5 text-2xs font-semibold text-primary">
             Día {data.day}
           </span>
         ) : (
-          <span className="rounded-sm bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+          <span className="rounded-sm bg-muted px-1.5 py-0.5 text-2xs text-muted-foreground">
             Sin ventas
           </span>
         )}

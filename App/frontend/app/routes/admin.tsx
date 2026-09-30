@@ -168,7 +168,7 @@ function AdminSidebar({ isAdmin, role, pathname }: { isAdmin: boolean; role: str
 
           <div className="flex flex-col items-center text-center leading-tight group-data-[collapsible=icon]:hidden">
             <span className="whitespace-nowrap text-sm font-bold tracking-tight">{config?.brandName || getBrandName()}</span>
-            <span className="whitespace-nowrap text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+            <span className="whitespace-nowrap text-2xs font-medium uppercase tracking-wider text-muted-foreground">
               Panel Admin
             </span>
           </div>
@@ -191,7 +191,7 @@ function AdminSidebar({ isAdmin, role, pathname }: { isAdmin: boolean; role: str
             <SidebarGroup key={group.label} className="px-2 py-1">
               {/* `hidden` en rail: la etiqueta del grupo se recortaba a dos
                   letras ilegibles y dejaba un hueco entre bloques de iconos. */}
-              <SidebarGroupLabel className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground/70 group-data-[collapsible=icon]:hidden">
+              <SidebarGroupLabel className="text-2xs uppercase tracking-[0.08em] text-muted-foreground/70 group-data-[collapsible=icon]:hidden">
                 {group.label}
               </SidebarGroupLabel>
               {/* Línea separadora sutil entre grupos en modo colapsado (no en el primero) */}
@@ -217,7 +217,7 @@ function AdminSidebar({ isAdmin, role, pathname }: { isAdmin: boolean; role: str
                         >
                           <HugeIcon icon={item.icon} size={16} strokeWidth={2} />
                           <span className="text-[13px]">{item.name}</span>
-                          <span className="ml-auto rounded-full border border-border px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide group-data-[collapsible=icon]:hidden">
+                          <span className="ml-auto rounded-full border border-border px-1.5 py-0.5 text-2xs font-medium uppercase tracking-wide group-data-[collapsible=icon]:hidden">
                             Pronto
                           </span>
                         </SidebarMenuButton>

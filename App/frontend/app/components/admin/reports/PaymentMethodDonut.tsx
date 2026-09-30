@@ -129,7 +129,7 @@ export function PaymentMethodDonut({
 
             {/* Total al centro del donut */}
             <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+              <span className="text-2xs uppercase tracking-wider text-muted-foreground">
                 Total
               </span>
               <span className="nums text-xs font-bold text-foreground">
@@ -152,7 +152,7 @@ export function PaymentMethodDonut({
                   />
                   <div className="min-w-0">
                     <p className="font-medium text-foreground">{item.label}</p>
-                    <p className="text-[10px] text-muted-foreground">
+                    <p className="text-2xs text-muted-foreground">
                       {formatNumber(item.count)} {item.count === 1 ? 'venta' : 'ventas'}
                     </p>
                   </div>
@@ -162,7 +162,7 @@ export function PaymentMethodDonut({
                   <span className="nums block font-semibold text-foreground">
                     {formatCordobas(item.value, 'C$', 2)}
                   </span>
-                  <span className="nums block text-[10px] font-medium text-muted-foreground">
+                  <span className="nums block text-2xs font-medium text-muted-foreground">
                     {item.percentage.toFixed(1)}%
                   </span>
                 </div>

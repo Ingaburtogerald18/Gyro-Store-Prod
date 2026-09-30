@@ -92,7 +92,7 @@ export function LineBreakdown({
           <span className="block truncate text-xs font-semibold text-foreground">
             {line.productName}
           </span>
-          <span className="nums block text-[11px] text-muted-foreground">
+          <span className="nums block text-2xs text-muted-foreground">
             {line.quantity} × {formatCordobas(line.precioUnit)} = {formatCordobas(importe)}
           </span>
         </span>
@@ -118,7 +118,7 @@ export function LineBreakdown({
               el porcentaje. En móvil no entran dos columnas de cifras: queda
               solo la de totales. */}
           <dl className="nums divide-y divide-border/40 text-xs">
-            <div className="flex items-center justify-end gap-4 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            <div className="flex items-center justify-end gap-4 pb-1 text-2xs font-semibold uppercase tracking-wider text-muted-foreground">
               <span className="hidden w-20 text-right sm:block">Unitario</span>
               <span className="w-24 text-right">Total ×{line.quantity}</span>
             </div>
@@ -187,7 +187,7 @@ export function LineBreakdown({
           </dl>
 
           {!hasFinancials && (
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-2xs text-muted-foreground">
               El desglose de costos solo lo ve un administrador.
             </p>
           )}
@@ -229,8 +229,8 @@ export function ChainRow({
 
   return (
     <div className={cn('flex items-center justify-between gap-2 py-1', sub && 'pl-3')}>
-      <dt className={cn('min-w-0 flex-1 text-[11px]', tone)}>{label}</dt>
-      <dd className="flex shrink-0 items-center gap-4 text-[11px]">
+      <dt className={cn('min-w-0 flex-1 text-2xs', tone)}>{label}</dt>
+      <dd className="flex shrink-0 items-center gap-4 text-2xs">
         <span className={cn('hidden w-20 text-right tabular-nums sm:block', valueTone, 'opacity-80')}>
           {unit ?? ''}
         </span>
