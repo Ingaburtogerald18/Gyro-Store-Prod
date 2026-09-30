@@ -28,7 +28,17 @@ import { Spinner } from "~/components/ui/spinner";
 import { useGetConfigQuery } from "~/store/api/sessionApi";
 import { useCategoryLabel } from "~/hooks/useCategoryLabel";
 
-export function CurrentInventoryTable({ period = "all", mode = "all" }: { period?: string; mode?: "inStock" | "outOfStock" | "all" }) {
+export function CurrentInventoryTable({
+  period = "all",
+  mode = "all",
+  search,
+}: {
+  period?: string;
+  mode?: "inStock" | "outOfStock" | "all";
+  /** Búsqueda controlada desde la barra de la pantalla. Si se pasa, la tabla
+   *  no dibuja su propio buscador (habría dos). */
+  search?: string;
+}) {
   const navigate = useNavigate();
   const { data: allRows = [], isLoading } = useGetCurrentInventoryQuery(period);
   const rows = useMemo(() => {
@@ -236,6 +246,8 @@ export function CurrentInventoryTable({ period = "all", mode = "all" }: { period
         columns={columns}
         data={rows}
         searchPlaceholder={mode === "outOfStock" ? "Buscar en agotados…" : "Buscar en bodega…"}
+        hideSearch={search !== undefined}
+        globalFilterValue={search}
         emptyText={mode === "outOfStock" ? "No hay productos agotados." : "No hay productos recibidos en bodega todavía."}
         initialSorting={[{ id: "code", desc: false }]}
       />

@@ -375,7 +375,7 @@ export default function AdminLayout() {
 
       {/* La barra de progreso NO se monta acá: `root.tsx` ya tiene una para
           toda la app y dos instancias dibujarían dos barras. */}
-      <SidebarInset className="relative">
+      <SidebarInset className="relative min-w-0">
         <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-2 border-b border-border bg-card/90 px-4 backdrop-blur-md">
 
 
@@ -442,7 +442,7 @@ export default function AdminLayout() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: reduceMotion ? 0 : 0.15, ease: 'easeOut' }}
-          className="mx-auto flex w-full max-w-[1600px] flex-1 flex-col px-4 py-6 lg:px-8 lg:py-8"
+          className="mx-auto flex w-full min-w-0 max-w-[1600px] flex-1 flex-col px-4 py-6 lg:px-8 lg:py-8"
         >
           <Outlet />
         </motion.main>

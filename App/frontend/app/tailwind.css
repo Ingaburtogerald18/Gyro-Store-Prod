@@ -102,7 +102,10 @@
      (la usan títulos de Dialog/Sheet/Card de shadcn y el panel). */
   --font-sans: var(--area-font-sans);
   --font-heading: var(--area-font-heading);
-  /* Chivo Mono: SOLO datos técnicos del storefront (specs, stock, contadores). */
+  /* Chivo fija, sin depender del área: montos grandes del PANEL (métricas,
+     totales), que van en Chivo aunque el resto del panel siga en Geist. */
+  --font-display: "Chivo Variable", ui-sans-serif, system-ui, sans-serif;
+  /* Chivo Mono: datos técnicos (specs, stock, contadores, códigos). */
   --font-spec: "Chivo Mono Variable", ui-monospace, monospace;
 
   /* Paso por debajo de text-xs para badges, eyebrows y metadatos densos.

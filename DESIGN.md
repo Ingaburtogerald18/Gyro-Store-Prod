@@ -147,6 +147,10 @@ la ruta:
 | `store` | tienda pública: `/`, `/producto`, `/combo`, `/contacto`… | **Chivo** | **Chivo** |
 | `admin` | `/admin*`, `/login`, `/auth*` | **Geist** | **Geist** |
 
+En el **panel**, los montos grandes (métricas y totales) usan **Chivo** con la clase
+`font-display` (`--font-display`, fija, no depende del área); el resto del panel sigue en
+Geist. Referencia: la franja de métricas de Inventario.
+
 Además, **Chivo Mono** (`--font-spec`, clase `font-spec`) se usa **solo en el storefront y solo
 para datos técnicos**: la línea de specs de la tarjeta ("24 Ω · 112 dB"), la tabla de
 especificaciones de la ficha, el indicador de stock, los badges de stock ("Agotado",
