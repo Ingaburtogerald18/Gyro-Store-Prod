@@ -18,6 +18,15 @@ import type { MetaFunction } from '@remix-run/node';
 import { pageTitle } from '~/lib/brand';
 import { toast } from 'sonner';
 
+import {
+  Kbd,
+  Metric,
+  MetricStrip,
+  SegmentedControl,
+  Workspace,
+  WorkspaceToolbar,
+  useShortcut,
+} from '~/components/admin/workspace';
 import { PageHeader } from '~/components/layout/PageHeader';
 import { Button } from '~/components/ui/button';
 import { Input } from '~/components/ui/input';
@@ -25,10 +34,8 @@ import { Label } from '~/components/ui/label';
 import { Badge } from '~/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '~/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/components/ui/select';
-import { Tabs, TabsList, TabsTrigger } from '~/components/ui/tabs';
 import { QueryState } from '~/components/ui/QueryState';
-import { BrandLoader } from '~/components/ui/module-loader';
-import { errMsg, formatCordobas, withoutIds } from "~/lib/formatters";
+import { errMsg, formatCordobas, withoutIds, formatLongDate } from '~/lib/formatters';
 import {
   useCancelInstallmentPlanMutation,
   useCreateInstallmentPlanMutation,
@@ -157,7 +164,7 @@ function PlanCard({ plan, onPay }: { plan: InstallmentPlan; onPay: () => void })
   const pct = pctPaid(plan.amountPaid, plan.total);
 
   return (
-    <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
+    <div className="overflow-hidden rounded-card border border-border bg-card">
       <div className="space-y-3 p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -165,7 +172,9 @@ function PlanCard({ plan, onPay }: { plan: InstallmentPlan; onPay: () => void })
               <p className="truncate font-semibold text-foreground">{plan.phone ?? 'Sin teléfono'}</p>
               <Badge
                 variant="outline"
-                className={plan.status === 'completed' ? 'text-primary-2 border-primary/30 bg-primary/10' : 'text-warning border-warning/30 bg-warning/10'}
+                // Verde = saldado; azul = en curso. El ámbar se reserva para
+                // atrasos, y un plan activo no está atrasado por serlo.
+                className={plan.status === 'completed' ? 'rounded-full border-success/30 bg-success/10 text-success' : 'rounded-full border-info/30 bg-info/10 text-info'}
               >
                 {plan.status === 'completed' ? 'Pagado' : 'Activo'}
               </Badge>
@@ -173,7 +182,7 @@ function PlanCard({ plan, onPay }: { plan: InstallmentPlan; onPay: () => void })
             {plan.sellerEmail && <p className="text-xs text-muted-foreground">Vendedor: {plan.sellerEmail}</p>}
           </div>
           <div className="text-right text-sm">
-            <p className="font-bold text-foreground">{formatCordobas(plan.total)}</p>
+            <p className="font-display font-bold text-foreground">{formatCordobas(plan.total)}</p>
             <p className="text-xs text-muted-foreground">{plan.numCuotas} cuotas</p>
           </div>
         </div>
@@ -188,7 +197,7 @@ function PlanCard({ plan, onPay }: { plan: InstallmentPlan; onPay: () => void })
 
         {plan.status === 'active' && (
           <p className="text-xs text-muted-foreground">
-            Primera cuota: {new Date(`${plan.firstDue}T00:00:00`).toLocaleDateString('es-NI')}
+            Primera cuota: {formatLongDate(plan.firstDue)}
           </p>
         )}
 
@@ -201,9 +210,9 @@ function PlanCard({ plan, onPay }: { plan: InstallmentPlan; onPay: () => void })
           )}
           {plan.payments.length === 0 && (
             <Button size="sm" variant="ghost" onClick={handleCancel} disabled={cancelling} className="text-destructive">
-        {cancelling && <Spinner className="mr-2" />}
-        Cancelar
-      </Button>
+              {cancelling && <Spinner className="mr-2" />}
+              Cancelar plan
+            </Button>
           )}
           <button
             onClick={() => setExpanded((v) => !v)}
@@ -224,7 +233,7 @@ function PlanCard({ plan, onPay }: { plan: InstallmentPlan; onPay: () => void })
                 <span className="ml-2 text-xs capitalize text-muted-foreground">{p.method ?? 'efectivo'}</span>
               </div>
               <span className="text-xs text-muted-foreground">
-                {p.paidAt ? new Date(p.paidAt).toLocaleDateString('es-NI') : '—'}
+                {formatLongDate(p.paidAt)}
               </span>
             </div>
           ))}
@@ -314,53 +323,69 @@ export default function AdminCuotas() {
   );
 
   const activeCount = plans.filter((p) => p.status === 'active').length;
+  const pendingTotal = plans.reduce((acc, p) => acc + (p.status === 'active' ? p.amountPending : 0), 0);
+  const paidTotal = plans.reduce((acc, p) => acc + p.amountPaid, 0);
+
+  useShortcut('n', () => setPickerOpen(true));
 
   return (
     <div className="space-y-6">
       <PageHeader
         eyebrow="Operación"
-        title="Ventas en Cuotas"
-        description="Seguimiento de pagos hasta saldar el total."
+        title="Cuotas"
+        description="Ventas a plazos: seguimiento de pagos hasta saldar el total."
+        className="mb-0"
         actions={
-        <div className="flex items-center gap-3">
-          {activeCount > 0 && (
-            <span className="rounded-full bg-warning/15 px-3 py-1.5 text-sm font-medium text-warning">
-              {activeCount} activas
-            </span>
-          )}
-          <Button onClick={() => setPickerOpen(true)}>
-            <HugeIcon icon={Add01Icon} size={16} strokeWidth={2} className="mr-1.5" aria-hidden /> Nuevo plan
+          <Button onClick={() => setPickerOpen(true)} className="h-9 gap-2 rounded-md">
+            <HugeIcon icon={Add01Icon} size={16} strokeWidth={2} aria-hidden />
+            Nuevo plan
+            <Kbd>N</Kbd>
           </Button>
-        </div>
         }
       />
 
-      <Tabs value={statusFilter} onValueChange={(v) => setStatusFilter(v as typeof statusFilter)}>
-        <TabsList className="bg-card border">
-          <TabsTrigger value="active">Activas</TabsTrigger>
-          <TabsTrigger value="all">Todas</TabsTrigger>
-          <TabsTrigger value="completed">Completadas</TabsTrigger>
-        </TabsList>
-      </Tabs>
+      <Workspace>
+        <WorkspaceToolbar>
+          <SegmentedControl
+            label="Planes"
+            value={statusFilter}
+            onChange={setStatusFilter}
+            options={[
+              { value: 'active', label: 'Activos' },
+              { value: 'all', label: 'Todos' },
+              { value: 'completed', label: 'Saldados' },
+            ]}
+          />
+        </WorkspaceToolbar>
 
-      <QueryState
-        loading={isLoading}
-        error={isError}
-        empty={plans.length === 0}
-        loadingFallback={<BrandLoader text="Cargando cuotas..." />}
-        emptyFallback={
-          <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border bg-muted/50 py-20 text-center">
-            <HugeIcon icon={CreditCardIcon} size={40} strokeWidth={2} className="text-muted-foreground opacity-40" aria-hidden />
-            <p className="text-muted-foreground">No hay planes de cuotas en esta categoría.</p>
-          </div>
-        }
-      >
-        <div className="grid gap-4 sm:grid-cols-2">
-          {plans.map((plan) => (
-            <PlanCard key={plan.id} plan={plan} onPay={() => setPayFor(plan)} />
-          ))}
+        {/* Números de lo que se está viendo (según el selector). */}
+        <MetricStrip columns={3}>
+          <Metric label="Planes activos" value={activeCount} sub={`${plans.length} en esta vista`} />
+          <Metric label="Por cobrar" value={formatCordobas(pendingTotal)} sub="Saldo de los planes activos" />
+          <Metric label="Cobrado" value={formatCordobas(paidTotal)} sub="Pagos registrados" />
+        </MetricStrip>
+
+        <div className="p-4">
+          <QueryState
+            loading={isLoading}
+            error={isError}
+            empty={plans.length === 0}
+            shape="card"
+            emptyFallback={
+              <div className="flex flex-col items-center justify-center gap-3 rounded-card border border-dashed border-border py-16 text-center">
+                <HugeIcon icon={CreditCardIcon} size={32} strokeWidth={2} className="text-muted-foreground opacity-50" aria-hidden />
+                <p className="text-sm text-muted-foreground">No hay planes de cuotas en esta vista.</p>
+              </div>
+            }
+          >
+            <div className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">
+              {plans.map((plan) => (
+                <PlanCard key={plan.id} plan={plan} onPay={() => setPayFor(plan)} />
+              ))}
+            </div>
+          </QueryState>
         </div>
-      </QueryState>
+      </Workspace>
 
       <PaymentDialog plan={payFor} onClose={() => setPayFor(null)} />
       <CreatePlanDialog sale={createFor} onClose={() => setCreateFor(null)} />
