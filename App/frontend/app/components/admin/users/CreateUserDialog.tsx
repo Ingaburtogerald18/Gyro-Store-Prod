@@ -60,13 +60,13 @@ export function CreateUserDialog() {
       <DialogTrigger asChild>
         <Button variant="default">
           <HugeIcon icon={UserAdd01Icon} size={16} strokeWidth={2} className="mr-2" />
-          Agregar Empleado
+          Agregar persona
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <form onSubmit={handleCreate}>
           <DialogHeader>
-            <DialogTitle>Pre-crear Empleado</DialogTitle>
+            <DialogTitle>Agregar persona al equipo</DialogTitle>
             <DialogDescription>
               Registra al empleado y asigna su rol. Podrá iniciar sesión con Microsoft Entra ID
               y el sistema lo enlazará automáticamente.
