@@ -2,11 +2,11 @@
 // contactos con Ficha 360. El inbox/bot de WhatsApp (CRM-B/C) llega cuando se
 // conecte la Cloud API de Meta.
 import { HugeIcon } from '~/components/ui/icon';
-import { Add01Icon, Cancel01Icon, CheckmarkCircle02Icon, Search01Icon, UserMultiple02Icon } from '@hugeicons/core-free-icons';
+import { Add01Icon, Cancel01Icon, CheckmarkCircle02Icon, UserMultiple02Icon } from '@hugeicons/core-free-icons';
 import { useState } from 'react';
 import type { MetaFunction } from '@remix-run/node';
 import { pageTitle } from '~/lib/brand';
-import { formatShortDate } from '~/lib/formatters';
+import { formatLongDate } from '~/lib/formatters';
 import { toast } from 'sonner';
 
 import {
@@ -21,10 +21,7 @@ import { Card, CardContent } from '~/components/ui/card';
 import { Button } from '~/components/ui/button';
 import { Input } from '~/components/ui/input';
 import { Badge } from '~/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs';
 import { QueryState } from '~/components/ui/QueryState';
-import { Skeleton } from '~/components/ui/skeleton';
-import { BrandLoader } from '~/components/ui/module-loader';
 import {
   Dialog,
   DialogContent,
@@ -40,6 +37,14 @@ import {
   useGetFollowUpsQuery,
   useUpdateFollowUpMutation,
 } from '~/store/api/crmApi';
+import {
+  Kbd,
+  SegmentedControl,
+  ToolbarSearch,
+  Workspace,
+  WorkspaceToolbar,
+  useShortcut,
+} from '~/components/admin/workspace';
 import { Contact360Dialog } from '~/components/admin/crm/Contact360Dialog';
 
 export const meta: MetaFunction = () => [{ title: pageTitle('CRM y clientes', { admin: true }) }];
@@ -53,43 +58,43 @@ export default function AdminCrm() {
   const [selected, setSelected] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
 
+  useShortcut('n', () => setCreateOpen(true));
+
   return (
     <div className="space-y-6">
       <PageHeader
         eyebrow="Análisis y sistema"
         title="CRM y clientes"
-        description="Seguimientos del día y la ficha completa de cada cliente. (El chat de WhatsApp llega en una fase posterior.)"
+        description="Seguimientos del día y la ficha completa de cada cliente."
+        className="mb-0"
+        actions={
+          <Button onClick={() => setCreateOpen(true)} className="h-9 gap-2 rounded-md">
+            <HugeIcon icon={Add01Icon} size={16} strokeWidth={2} aria-hidden />
+            Nuevo contacto
+            <Kbd>N</Kbd>
+          </Button>
+        }
       />
 
-      <Tabs value={tab} onValueChange={setTab} className="space-y-4">
-        <TabsList className="bg-card border">
-          <TabsTrigger value="agenda" className="data-[state=active]:bg-muted">Agenda</TabsTrigger>
-          <TabsTrigger value="contactos" className="data-[state=active]:bg-muted">Contactos</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="agenda" className="outline-none">
-          <AgendaTab onOpen={setSelected} />
-        </TabsContent>
-
-        <TabsContent value="contactos" className="space-y-4 outline-none">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="relative w-full max-w-sm">
-              <HugeIcon icon={Search01Icon} size={16} strokeWidth={2} className="absolute left-2.5 top-2.5 text-muted-foreground" />
-              <Input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Buscar por nombre o teléfono…"
-                className="pl-9"
-              />
-            </div>
-            <Button onClick={() => setCreateOpen(true)} className="h-10 font-bold">
-              <HugeIcon icon={Add01Icon} size={16} strokeWidth={2} className="mr-2" />
-              Nuevo contacto
-            </Button>
-          </div>
-          <ContactsTab search={search} onOpen={setSelected} />
-        </TabsContent>
-      </Tabs>
+      <Workspace>
+        <WorkspaceToolbar>
+          <SegmentedControl
+            label="Vista"
+            value={tab as 'agenda' | 'contactos'}
+            onChange={setTab}
+            options={[
+              { value: 'agenda', label: 'Agenda' },
+              { value: 'contactos', label: 'Contactos' },
+            ]}
+          />
+          {tab === 'contactos' && (
+            <ToolbarSearch value={search} onChange={setSearch} placeholder="Buscar por nombre o teléfono" />
+          )}
+        </WorkspaceToolbar>
+        <div className="p-4">
+          {tab === 'agenda' ? <AgendaTab onOpen={setSelected} /> : <ContactsTab search={search} onOpen={setSelected} />}
+        </div>
+      </Workspace>
 
       <Contact360Dialog contactId={selected} onClose={() => setSelected(null)} />
       <CreateContactDialog open={createOpen} onClose={() => setCreateOpen(false)} onCreated={setSelected} />
@@ -116,11 +121,11 @@ function AgendaTab({ onOpen }: { onOpen: (id: string) => void }) {
       empty={followUps.length === 0}
       errorMessage="No se pudo cargar la agenda."
       onRetry={refetch}
-      loadingFallback={<BrandLoader text="Cargando agenda..." />}
+      shape="list"
       emptyFallback={
-        <Card className="border-dashed bg-card">
+        <Card className="rounded-card border-dashed bg-card shadow-none">
           <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-            <HugeIcon icon={CheckmarkCircle02Icon} size={40} strokeWidth={2} className="mb-3 text-primary" />
+            <HugeIcon icon={CheckmarkCircle02Icon} size={32} strokeWidth={2} className="mb-3 text-success" />
             <h3 className="text-lg font-medium text-foreground">Nada pendiente</h3>
             <p className="mt-1 max-w-sm text-sm text-muted-foreground">No hay seguimientos por hacer. Agendá uno desde la ficha de un cliente.</p>
           </CardContent>
@@ -132,26 +137,32 @@ function AgendaTab({ onOpen }: { onOpen: (id: string) => void }) {
           const overdue = !!f.scheduledDate && f.scheduledDate < TODAY;
           const isToday = f.scheduledDate === TODAY;
           return (
-            <li key={f.id} className="flex items-center justify-between gap-3 rounded-card border bg-card p-3">
+            <li key={f.id} className="flex items-center justify-between gap-3 rounded-card border border-border bg-card p-3">
               <button className="min-w-0 flex-1 text-left" onClick={() => onOpen(f.contactId)}>
                 <div className="flex items-center gap-2">
                   <span className="truncate font-medium text-foreground">{f.contactName || f.contactPhone || 'Contacto'}</span>
                   {overdue ? (
-                    <Badge variant="outline" className="border-destructive/40 text-destructive">Vencido</Badge>
+                    <Badge variant="outline" className="rounded-full border-destructive/30 bg-destructive/10 text-destructive">
+                      Vencido · {formatLongDate(f.scheduledDate)}
+                    </Badge>
                   ) : isToday ? (
-                    <Badge variant="outline" className="border-primary/40 text-primary">Hoy</Badge>
+                    <Badge variant="outline" className="rounded-full border-info/30 bg-info/10 text-info">Hoy</Badge>
                   ) : (
-                    <span className="text-xs text-muted-foreground">{formatShortDate(f.scheduledDate)}</span>
+                    <span className="text-xs text-muted-foreground">{formatLongDate(f.scheduledDate)}</span>
                   )}
                 </div>
                 <p className="truncate text-sm text-muted-foreground">{f.reason}</p>
               </button>
-              <span className="flex shrink-0 gap-1">
-                <Button size="icon" variant="ghost" aria-label="Completar" onClick={() => setStatus(f.id, 'completed')}>
-                  <HugeIcon icon={CheckmarkCircle02Icon} size={18} strokeWidth={2} className="text-primary" />
+              {/* Acciones con texto: dos íconos chicos (✓ y ✕) para dos acciones
+                  opuestas eran fáciles de confundir. */}
+              <span className="flex shrink-0 gap-1.5">
+                <Button size="sm" variant="outline" className="h-8 gap-1.5 rounded-md" onClick={() => setStatus(f.id, 'completed')}>
+                  <HugeIcon icon={CheckmarkCircle02Icon} size={15} strokeWidth={2} className="text-success" aria-hidden />
+                  Hecho
                 </Button>
-                <Button size="icon" variant="ghost" aria-label="Cancelar" onClick={() => setStatus(f.id, 'cancelled')}>
-                  <HugeIcon icon={Cancel01Icon} size={18} strokeWidth={2} className="text-destructive" />
+                <Button size="sm" variant="ghost" className="h-8 gap-1.5 rounded-md text-muted-foreground" onClick={() => setStatus(f.id, 'cancelled')}>
+                  <HugeIcon icon={Cancel01Icon} size={15} strokeWidth={2} aria-hidden />
+                  Descartar
                 </Button>
               </span>
             </li>
@@ -174,11 +185,11 @@ function ContactsTab({ search, onOpen }: { search: string; onOpen: (id: string) 
       empty={contacts.length === 0}
       errorMessage="No se pudieron cargar los contactos."
       onRetry={refetch}
-      loadingFallback={<BrandLoader text="Cargando contactos..." />}
+      shape="card"
       emptyFallback={
-        <Card className="border-dashed bg-card">
+        <Card className="rounded-card border-dashed bg-card shadow-none">
           <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-            <HugeIcon icon={UserMultiple02Icon} size={40} strokeWidth={2} className="mb-3 text-muted-foreground" />
+            <HugeIcon icon={UserMultiple02Icon} size={32} strokeWidth={2} className="mb-3 text-muted-foreground" />
             <h3 className="text-lg font-medium text-foreground">Sin contactos</h3>
             <p className="mt-1 max-w-sm text-sm text-muted-foreground">Los pedidos web y el formulario de contacto crean contactos solos, o agregá uno a mano.</p>
           </CardContent>
@@ -190,7 +201,7 @@ function ContactsTab({ search, onOpen }: { search: string; onOpen: (id: string) 
           <button
             key={c.id}
             onClick={() => onOpen(c.id)}
-            className="flex flex-col items-start gap-1 rounded-card border bg-card p-4 text-left transition-colors hover:border-primary/40"
+            className="flex flex-col items-start gap-1 rounded-card border border-border bg-card p-4 text-left transition-colors hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <span className="flex w-full items-center justify-between gap-2">
               <span className="truncate font-semibold text-foreground">{c.name || c.phone || 'Contacto'}</span>
