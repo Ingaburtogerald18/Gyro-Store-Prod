@@ -8,8 +8,9 @@
 // el conteo), la grilla (que renderiza) y los chips de filtros activos. Con
 // estado local se desincronizaban.
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
+import { DEFAULT_THEME, type Theme } from '~/lib/theme';
 
-export type Theme = 'dark' | 'light';
+export type { Theme } from '~/lib/theme';
 
 /** Orden de la grilla del catálogo. */
 export type CatalogSort = 'relevant' | 'price-asc' | 'price-desc';
@@ -33,7 +34,7 @@ interface UiState {
 }
 
 const initialState: UiState = {
-  theme: 'dark', // Editorial Dark por defecto (doc 05 §7)
+  theme: DEFAULT_THEME, // Editorial Dark por defecto (doc 05 §7)
   mobileNavOpen: false,
   search: '',
   activeCategory: null,

@@ -28,27 +28,29 @@ export function BrandLoader({ text = 'Cargando…' }: { text?: string }) {
   const reduce = useReducedMotion();
   const { data: config } = useGetConfigQuery();
   
-  // Cache the logo in localStorage so it appears instantly on first render / page refresh
-  // before the RTK query completes.
-  const [cachedLogo, setCachedLogo] = useState<string | null>(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('gyro_logoAnimated');
-    }
-    return null;
-  });
+  // El primer render debe coincidir con SSR; leer el caché solo tras hidratar.
+  const [cachedLogo, setCachedLogo] = useState<string | null>(null);
 
   useEffect(() => {
-    if (config?.images?.logoAnimated) {
-      localStorage.setItem('gyro_logoAnimated', config.images.logoAnimated);
-      setCachedLogo(config.images.logoAnimated);
-    } else if (config && !config.images?.logoAnimated) {
-      // If config loaded and there is explicitly NO logo, clear the cache
-      localStorage.removeItem('gyro_logoAnimated');
-      setCachedLogo(null);
+    if (config) {
+      const logo = config.images?.logoAnimated || null;
+      setCachedLogo(logo);
+      try {
+        if (logo) localStorage.setItem('gyro_logoAnimated', logo);
+        else localStorage.removeItem('gyro_logoAnimated');
+      } catch {
+        // La configuración sigue funcionando aunque el storage esté bloqueado.
+      }
+    } else {
+      try {
+        setCachedLogo(localStorage.getItem('gyro_logoAnimated'));
+      } catch {
+        // Sin caché disponible, se mantiene el icono de carga predeterminado.
+      }
     }
   }, [config]);
 
-  const logoAnimated = config?.images?.logoAnimated || cachedLogo;
+  const logoAnimated = config ? config.images?.logoAnimated : cachedLogo;
   // Si la URL no tiene extensión clara, asumimos que puede ser video si contiene "video", o usamos un chequeo más laxo
   const isVideo = logoAnimated?.match(/\.(webm|mp4|mov|m4v)($|\?)/i) || logoAnimated?.includes('video');
 
