@@ -74,6 +74,35 @@ export function formatShortDate(
   });
 }
 
+/**
+ * Fecha canónica del panel: "28 abr 2026". Antes convivían tres formatos
+ * (2026-04-28, 18/9/2026 y "20 sept 2026") según la pantalla.
+ *
+ * Un 'yyyy-MM-dd' suelto se lee como fecha LOCAL: `new Date('2026-04-28')` es
+ * UTC y en Nicaragua (UTC−6) se muestra como el 27. Con hora, se respeta.
+ */
+export function formatLongDate(value: string | null | undefined): string {
+  if (!value) return '—';
+  const onlyDate = /^\d{4}-\d{2}-\d{2}$/.test(value);
+  const date = onlyDate
+    ? new Date(Number(value.slice(0, 4)), Number(value.slice(5, 7)) - 1, Number(value.slice(8, 10)))
+    : new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  return date
+    .toLocaleDateString('es-NI', { day: 'numeric', month: 'short', year: 'numeric' })
+    .replace('.', '');
+}
+
+/**
+ * "KZ EDX Pro | Jack 3.5mm | Mic | Turquesa" → { model: "KZ EDX Pro",
+ * variant: "Jack 3.5mm · Mic · Turquesa" }. Solo para MOSTRAR: el nombre
+ * guardado no cambia. En una celda, el modelo va en negrita y la variante abajo.
+ */
+export function splitProductName(name: string): { model: string; variant: string } {
+  const [model, ...rest] = (name ?? '').split(' | ');
+  return { model: model.trim(), variant: rest.map((s) => s.trim()).join(' · ') };
+}
+
 // Mensaje de error de una respuesta RTK Query fallida (`{ data: { error } }`),
 // con fallback si no vino en ese shape.
 export function errMsg(err: unknown, fallback: string): string {

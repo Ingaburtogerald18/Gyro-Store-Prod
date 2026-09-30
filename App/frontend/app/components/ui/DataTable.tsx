@@ -82,6 +82,12 @@ interface DataTableProps<T> {
    * visibles por tabla; sin él, todas compartirían la misma preferencia.
    */
   tableId?: string;
+  /**
+   * Columnas ocultas de entrada (por id). Para tablas con muchas columnas que
+   * no entran en una laptop: se pueden volver a mostrar desde el botón de
+   * columnas, y esa elección (con `tableId`) queda guardada.
+   */
+  defaultHiddenColumns?: string[];
   /** Vacío por FILTRO, distinto del vacío real. Ver nota en el render. */
   emptyFilteredText?: ReactNode;
   /** Si se pasa, el vacío por filtro ofrece limpiar. */
@@ -129,6 +135,7 @@ export function DataTable<T>({
   mobileCard,
   paginated = true,
   tableId,
+  defaultHiddenColumns,
   emptyFilteredText,
   onClearFilters,
   exportFilename,
@@ -144,7 +151,9 @@ export function DataTable<T>({
   // render del cliente rompe la hidratación.
   useEffect(() => {
     setDensityState(readDensity());
-    setColumnVisibility(readColumnVisibility(tableId));
+    const defaults = Object.fromEntries((defaultHiddenColumns ?? []).map((id) => [id, false]));
+    setColumnVisibility({ ...defaults, ...readColumnVisibility(tableId) });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- defaults de entrada: solo al montar.
   }, [tableId]);
 
   const setDensity = (next: Density) => {
@@ -258,7 +267,7 @@ export function DataTable<T>({
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
         {!hideSearch && (
-          <div className="flex flex-1 items-center gap-2 rounded-pill border border-border bg-card px-3 transition-colors focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/15 sm:max-w-xs sm:flex-none">
+          <div className="flex h-9 flex-1 items-center gap-2 rounded-md border border-border bg-card px-2.5 transition-colors focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/30 sm:max-w-xs sm:flex-none">
             <HugeIcon icon={Search01Icon} size={16} strokeWidth={2} className="text-muted-foreground" />
             <input
               ref={searchRef}
@@ -289,7 +298,7 @@ export function DataTable<T>({
             title={compact ? "Filas normales" : "Filas compactas"}
             aria-label={compact ? "Cambiar a filas normales" : "Cambiar a filas compactas"}
             aria-pressed={compact}
-            className="grid size-8 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <HugeIcon icon={MenuSquareIcon} size={16} strokeWidth={2} />
           </button>
@@ -300,7 +309,7 @@ export function DataTable<T>({
                 type="button"
                 title="Columnas"
                 aria-label="Elegir columnas visibles"
-                className="grid size-8 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <HugeIcon icon={LayoutTable01Icon} size={16} strokeWidth={2} />
               </button>
@@ -331,7 +340,7 @@ export function DataTable<T>({
               onClick={exportCsv}
               title="Exportar CSV"
               aria-label="Exportar a CSV lo que se ve en la tabla"
-              className="grid size-8 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <HugeIcon icon={Download04Icon} size={16} strokeWidth={2} />
             </button>
@@ -389,7 +398,9 @@ export function DataTable<T>({
                       key={header.id}
                       aria-sort={sorted === "asc" ? "ascending" : sorted === "desc" ? "descending" : undefined}
                       className={cn(
-                        "whitespace-nowrap px-3 py-2.5 text-2xs font-bold uppercase tracking-wider text-muted-foreground",
+                        // Un solo estilo de encabezado, en frase: las MAYÚSCULAS
+                        // en negrita competían con los datos.
+                        "whitespace-nowrap px-3 py-2.5 text-xs font-medium text-muted-foreground",
                         align === "right" && "text-right",
                         align === "center" && "text-center",
                         header.column.columnDef.meta?.className

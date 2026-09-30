@@ -4,10 +4,9 @@ import { HugeIcon } from "~/components/ui/icon";
 import { Alert02Icon, CheckmarkCircle01Icon, Edit02Icon, Delete02Icon } from "@hugeicons/core-free-icons";
 import { useMemo, useState } from "react";
 import { type ColumnDef } from "@tanstack/react-table";
-import { motion } from "framer-motion";
 import { toast } from "sonner";
 
-import { BrandLoader } from "~/components/ui/module-loader";
+import { Skeleton } from "~/components/ui/skeleton";
 import { DataTable } from "~/components/ui/DataTable";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "~/components/ui/dialog";
 import { Button } from "~/components/ui/button";
@@ -21,7 +20,7 @@ import {
   type Purchase,
 } from "~/store/api/inventoryV1Api";
 import { useGetAdminCatalogQuery } from "~/store/api/catalogAdminApi";
-import { formatUsd } from "~/lib/formatters";
+import { formatUsd, splitProductName } from "~/lib/formatters";
 import { CodeCell, MoneyCell } from "~/components/ui/cells";
 import { useNavigate } from "@remix-run/react";
 import { Spinner } from "~/components/ui/spinner";
@@ -77,7 +76,7 @@ export function CurrentInventoryTable({
     setReverting(true);
     try {
       await revert(revertFor.id).unwrap();
-      toast.success(`La llegada del lote "${revertFor.lot}" ha sido descartada. El producto volvió a estar en tránsito.`);
+      toast.success(`Se descartó la llegada del lote ${revertFor.lot}. El producto volvió a "En tránsito".`);
       setRevertFor(null);
     } catch (err: any) {
       toast.error(err?.data?.error || "No se pudo descartar la llegada.");
@@ -92,7 +91,15 @@ export function CurrentInventoryTable({
       {
         accessorKey: "productName",
         header: "Producto",
-        cell: (c) => <span className="font-medium text-foreground">{c.getValue() as string}</span>
+        cell: (c) => {
+          const { model, variant } = splitProductName(c.getValue() as string);
+          return (
+            <div className="flex flex-col">
+              <span className="font-medium text-foreground">{model}</span>
+              {variant && <span className="text-xs text-muted-foreground">{variant}</span>}
+            </div>
+          );
+        },
       },
       {
         id: "catalogMatch",
@@ -100,35 +107,29 @@ export function CurrentInventoryTable({
         cell: ({ row }) => {
           const rowData = row.original;
           const catalogId = codeToCatalogMap.get(rowData.code);
+          // Texto con ícono, sin animación: "Sin vincular" parpadeaba en loop
+          // en cada fila, y un parpadeo permanente deja de ser una señal.
           return catalogId ? (
-            <motion.button
-              whileHover={{ scale: 1.06 }}
-              whileTap={{ scale: 0.94 }}
+            <button
+              type="button"
               onClick={() => navigate(`/admin/catalogo?sku=${rowData.code}`)}
-              className="flex items-center gap-1.5"
+              className="inline-flex items-center gap-1 rounded-md text-xs text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
-              <span className="flex items-center gap-1 text-xs font-medium text-primary-2 bg-primary/10 px-2 py-0.5 rounded-md border border-primary/20 shadow-sm transition-shadow hover:shadow-md hover:shadow-primary/20">
-                <HugeIcon icon={CheckmarkCircle01Icon} size={12} strokeWidth={2} />
-                Vinculado
-              </span>
-            </motion.button>
+              <HugeIcon icon={CheckmarkCircle01Icon} size={13} strokeWidth={2} className="text-success" aria-hidden />
+              Vinculado
+            </button>
           ) : (
-            <motion.button
-              whileHover={{ scale: 1.06 }}
-              whileTap={{ scale: 0.94 }}
-              animate={{ opacity: [0.7, 1, 0.7] }}
-              transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
+            <button
+              type="button"
               onClick={() => {
                 navigate('/admin/catalogo');
                 toast.info('Desde acá podés vincular artículos del inventario con productos del catálogo público.');
               }}
-              className="flex items-center gap-1.5"
+              className="inline-flex items-center gap-1 rounded-md text-xs font-medium text-warning hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
-              <span className="flex items-center gap-1 text-xs font-medium text-warning bg-warning/10 px-2 py-0.5 rounded-md border border-warning/20 border-dashed shadow-sm transition-shadow hover:shadow-md hover:shadow-warning/20">
-                <HugeIcon icon={Alert02Icon} size={12} strokeWidth={2} />
-                Sin vincular
-              </span>
-            </motion.button>
+              <HugeIcon icon={Alert02Icon} size={13} strokeWidth={2} aria-hidden />
+              Sin vincular
+            </button>
           );
         }
       },
@@ -140,11 +141,12 @@ export function CurrentInventoryTable({
         // los uuids crudos de las categorías de Catálogo.
         cell: (c) => {
           const val = c.getValue() as string;
-          if (!val) return <span className="text-muted-foreground">—</span>;
+          const label = val ? categoryLabel(val).replace(/^KZ\s+/, "") : "";
+          if (!label || label === "—") return <span className="text-muted-foreground">—</span>;
           return (
-            <div className="flex items-center gap-1.5 whitespace-nowrap bg-muted px-2 py-0.5 rounded-full w-fit">
-              <span className="text-xs font-medium text-foreground">{categoryLabel(val)}</span>
-            </div>
+            <span className="whitespace-nowrap rounded-md border border-border px-2 py-0.5 text-xs text-muted-foreground">
+              {label}
+            </span>
           );
         },
       },
@@ -157,25 +159,27 @@ export function CurrentInventoryTable({
         accessorKey: "quantitySold",
         header: "Vendido",
         meta: { align: "right" },
-        cell: (c) => <span className={(c.getValue() as number) > 0 ? "text-warning font-medium" : "text-muted-foreground"}>{c.getValue() as number}</span>
+        cell: (c) => <span className={(c.getValue() as number) > 0 ? "text-foreground" : "text-muted-foreground"}>{c.getValue() as number}</span>
       },
       {
         accessorKey: "available",
         header: "Stock",
         meta: { align: "right" },
-        cell: (c) => <span className={c.getValue() === 0 ? "text-destructive font-bold" : "text-primary-2 font-bold"}>{c.getValue() as number}</span>
+        // Stock en negrita y en color de texto; solo el 0 se marca (ámbar:
+        // es "para reponer", no un error).
+        cell: (c) => <span className={c.getValue() === 0 ? "font-semibold text-warning" : "font-semibold text-foreground"}>{c.getValue() as number}</span>
       },
-      { accessorKey: "priceUnitFinalUsd", header: "Coste ($USD)", meta: { align: "right" }, cell: (c) => <span title={formatUsd(c.getValue(), 4)}><MoneyCell currency="usd" value={c.getValue() as number} /></span> },
+      { accessorKey: "priceUnitFinalUsd", header: "Costo USD", meta: { align: "right" }, cell: (c) => <span title={formatUsd(c.getValue(), 4)}><MoneyCell currency="usd" value={c.getValue() as number} /></span> },
 
       {
         accessorKey: "costRealCordobas",
-        header: "Coste (C$)",
+        header: "Costo C$",
         meta: { align: "right" },
-        cell: (c) => <MoneyCell tone="pos" value={c.getValue() as number} />
+        cell: (c) => <MoneyCell value={c.getValue() as number} />
       },
       {
         accessorKey: "costoFijoCordobas",
-        header: "Coste c/ Fijos",
+        header: "Costo con fijos",
         meta: { align: "right" },
         cell: (c) => <MoneyCell tone="strong" value={c.getValue() as number} />,
       },
@@ -186,7 +190,7 @@ export function CurrentInventoryTable({
         cell: ({ row }) => {
           const ps = row.original.suggestedPrice;
           if (!ps) return <span className="text-muted-foreground text-xs">—</span>;
-          return <MoneyCell tone="pos" value={ps} />;
+          return <MoneyCell tone="strong" value={ps} />;
         },
       },
       {
@@ -196,7 +200,7 @@ export function CurrentInventoryTable({
         cell: ({ row }) => {
           const ganancia = row.original.gananciaUnitCordobas;
           if (ganancia == null) return <span className="text-muted-foreground text-xs">—</span>;
-          return <MoneyCell tone="strong" value={ganancia} />;
+          return <MoneyCell tone={ganancia < 0 ? "neg" : "pos"} value={ganancia} />;
         },
       },
       {
@@ -237,7 +241,13 @@ export function CurrentInventoryTable({
   }, [allColumns, mode]);
 
   if (isLoading) {
-    return <BrandLoader text="Cargando inventario..." />;
+    return (
+      <div className="space-y-2">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <Skeleton key={i} className="h-10 w-full rounded-md" />
+        ))}
+      </div>
+    );
   }
 
   return (
@@ -250,21 +260,25 @@ export function CurrentInventoryTable({
         globalFilterValue={search}
         emptyText={mode === "outOfStock" ? "No hay productos agotados." : "No hay productos recibidos en bodega todavía."}
         initialSorting={[{ id: "code", desc: false }]}
+        // 12 columnas no entran en una laptop: "Comprado" y "Costo C$" se
+        // ocultan de entrada (se muestran desde el botón de columnas).
+        tableId="inventario-stock"
+        defaultHiddenColumns={["quantityOriginal", "costRealCordobas"]}
       />
 
       <Dialog open={!!revertFor} onOpenChange={() => setRevertFor(null)}>
   <DialogContent>
     <DialogHeader>
-      <DialogTitle>{"Descartar Llegada de Lote"}</DialogTitle>
+      <DialogTitle>Descartar llegada del lote</DialogTitle>
     </DialogHeader>
         <div className="space-y-4">
           <p className="text-sm text-muted-foreground leading-relaxed">
-            ¿Estás seguro de que deseas descartar la llegada del producto{" "}
+            ¿Querés descartar la llegada de{" "}
             <strong className="text-foreground font-semibold">{revertFor?.productName}</strong> (Lote:{" "}
-            <span className="text-primary-2 font-mono font-bold">{revertFor?.lot}</span>)?
+            <span className="font-spec font-semibold text-foreground">{revertFor?.lot}</span>)?
           </p>
           <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-3.5 text-xs text-destructive leading-normal">
-            <strong className="block mb-1 text-destructive font-semibold">⚠️ Advertencia de Inventario:</strong>
+            <strong className="mb-1 block font-semibold text-destructive">Esto cambia el inventario</strong>
             Se restarán <strong className="text-destructive font-bold">{revertFor?.available} unidades</strong> del stock actual en bodega. El lote completo volverá al estado original de <strong className="text-destructive font-semibold">"En tránsito"</strong> en el Registro de Compras.
           </div>
         </div>
@@ -272,10 +286,10 @@ export function CurrentInventoryTable({
           <Button variant="ghost" onClick={() => setRevertFor(null)}>
             Cancelar
           </Button>
-          <Button onClick={handleRevert} disabled={reverting} className="bg-destructive/90 text-destructive-foreground hover:bg-destructive">
-        {reverting && <Spinner className="mr-2" />}
-        Confirmar y Descartar
-      </Button>
+          <Button variant="destructive" onClick={handleRevert} disabled={reverting}>
+            {reverting && <Spinner className="mr-2" />}
+            Descartar llegada
+          </Button>
         </div>
         </DialogContent>
 </Dialog>

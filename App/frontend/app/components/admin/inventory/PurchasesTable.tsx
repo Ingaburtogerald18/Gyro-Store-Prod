@@ -20,8 +20,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "~/components/u
 import { RowActionsMenu } from "~/components/ui/RowActionsMenu";
 import { Skeleton } from "~/components/ui/skeleton";
 import { Spinner } from "~/components/ui/spinner";
+import { StatusBadge, type BadgeStatus } from "~/components/ui/StatusBadge";
 import { useCategoryLabel } from "~/hooks/useCategoryLabel";
-import { formatUsd } from "~/lib/formatters";
+import { formatLongDate, formatUsd, splitProductName } from "~/lib/formatters";
 import { getTransitInfo, formatShortDate, type TransitInfo } from "~/lib/transit";
 import { cn } from "~/lib/utils";
 import { useDeletePurchaseMutation, useGetPurchasesQuery, type Purchase } from "~/store/api/inventoryV1Api";
@@ -35,16 +36,10 @@ export type PurchaseStatusFilter = "all" | "transit" | "received" | "late";
 // (banda "bad" de lib/transit). El rojo no se usa: ninguna compra es un error.
 type Tone = "ok" | "transit" | "late";
 
-const TONE_STYLES: Record<Tone, string> = {
-  ok: "bg-success/10 text-success",
-  transit: "bg-info/10 text-info",
-  late: "bg-warning/10 text-warning",
-};
-
-const TONE_LABEL: Record<Tone, string> = {
-  ok: "En bodega",
-  transit: "En tránsito",
-  late: "Demorado",
+const TONE_BADGE: Record<Tone, { status: BadgeStatus; label: string }> = {
+  ok: { status: "success", label: "En bodega" },
+  transit: { status: "info", label: "En tránsito" },
+  late: { status: "pending", label: "Demorado" },
 };
 
 function toneOf(p: Purchase, info: TransitInfo = getTransitInfo(p)): Tone {
@@ -53,34 +48,7 @@ function toneOf(p: Purchase, info: TransitInfo = getTransitInfo(p)): Tone {
 }
 
 function StatusPill({ tone }: { tone: Tone }) {
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium",
-        TONE_STYLES[tone],
-      )}
-    >
-      <span aria-hidden className="size-1.5 rounded-full bg-current" />
-      {TONE_LABEL[tone]}
-    </span>
-  );
-}
-
-/** 'yyyy-MM-dd' → "28 abr 2026", en fecha LOCAL (sin el corrimiento de UTC). */
-export function formatLongDate(value?: string | null): string {
-  if (!value) return "—";
-  const [y, m, d] = value.slice(0, 10).split("-").map(Number);
-  if (!y || !m || !d) return value;
-  return new Date(y, m - 1, d)
-    .toLocaleDateString("es-NI", { day: "numeric", month: "short", year: "numeric" })
-    .replace(".", "");
-}
-
-/** "KZ EDX Pro | Jack 3.5mm | Mic | Turquesa" → modelo + variante. Solo para
- *  mostrar: el nombre guardado no cambia. */
-function splitName(name: string): { model: string; variant: string } {
-  const [model, ...rest] = name.split(" | ");
-  return { model: model.trim(), variant: rest.map((s) => s.trim()).join(" · ") };
+  return <StatusBadge status={TONE_BADGE[tone].status} label={TONE_BADGE[tone].label} />;
 }
 
 /** Cómo va el tránsito del lote, en palabras. Neutro: el color lo da la píldora. */
@@ -256,7 +224,7 @@ export function PurchasesTable({
               </tr>
 
               {lot.items.map((p) => {
-                const { model, variant } = splitName(p.productName);
+                const { model, variant } = splitProductName(p.productName);
                 const tone = toneOf(p);
                 const category = categoryText(p.category);
                 return (

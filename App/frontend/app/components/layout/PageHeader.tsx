@@ -37,11 +37,13 @@ export function PageHeader({
 }) {
   return (
     <header className={cn('mb-6', className)}>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
+          {/* Migas "Grupo / Sección" en tono de texto, no un rótulo en
+              mayúsculas: ubica sin competir con el título. */}
           {eyebrow && (
-            <p className="text-2xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-              {eyebrow}
+            <p className="text-xs text-muted-foreground">
+              {eyebrow} <span aria-hidden>/</span> {title}
             </p>
           )}
           <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">

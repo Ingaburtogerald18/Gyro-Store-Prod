@@ -37,7 +37,7 @@ export function MoneyCell({
 
 /** Código de producto (mono, discreto). */
 export function CodeCell({ value }: { value?: string | null }) {
-  return <span className="font-mono font-normal text-sm text-foreground">{value || "—"}</span>;
+  return <span className="font-spec text-xs whitespace-nowrap text-muted-foreground">{value || "—"}</span>;
 }
 
 /** 

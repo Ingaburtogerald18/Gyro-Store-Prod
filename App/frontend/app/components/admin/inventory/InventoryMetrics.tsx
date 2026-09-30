@@ -8,50 +8,12 @@
 // números van en el color del texto y en Chivo (--font-display, la letra de los
 // montos); el color queda para UNA señal: ámbar cuando hay algo que mirar
 // (mercadería en camino, productos agotados).
-import type { ReactNode } from "react";
-
-import { Skeleton } from "~/components/ui/skeleton";
+import { Metric, MetricStrip as Strip, MetricStripSkeleton as StripSkeleton } from "~/components/admin/workspace";
 import { useGetCurrentInventoryQuery, useGetInventoryKpisQuery, useGetPurchasesQuery } from "~/store/api/inventoryV1Api";
 import { cordobasFromUsd, formatUsd } from "~/lib/formatters";
 import { cn } from "~/lib/utils";
 
 const fmtInt = (n: number) => n.toLocaleString("en-US");
-
-function Metric({ label, value, sub }: { label: string; value: ReactNode; sub?: ReactNode }) {
-  return (
-    <div className="flex min-w-0 flex-col gap-1 px-5 py-4">
-      <span className="text-xs text-muted-foreground">{label}</span>
-      <span className="font-display text-2xl leading-tight font-bold tracking-tight text-foreground tabular-nums">
-        {value}
-      </span>
-      {sub && <span className="truncate text-xs text-muted-foreground tabular-nums">{sub}</span>}
-    </div>
-  );
-}
-
-function Strip({ children }: { children: ReactNode }) {
-  return (
-    // Divisores verticales: a 2 columnas, entre la 1.ª y la 2.ª; a 4, entre todas.
-    <div className="grid grid-cols-2 border-b border-border lg:grid-cols-4 [&>*]:border-border [&>*:nth-child(odd)]:border-r lg:[&>*:not(:last-child)]:border-r">
-
-      {children}
-    </div>
-  );
-}
-
-function StripSkeleton() {
-  return (
-    <Strip>
-      {Array.from({ length: 4 }).map((_, i) => (
-        <div key={i} className="flex flex-col gap-2 px-5 py-4">
-          <Skeleton className="h-3 w-24 rounded-md" />
-          <Skeleton className="h-7 w-28 rounded-md" />
-          <Skeleton className="h-3 w-20 rounded-md" />
-        </div>
-      ))}
-    </Strip>
-  );
-}
 
 /** Compras: qué se compró en el periodo y cuánto costó. */
 export function PurchaseMetrics({ period = "all" }: { period?: string }) {
