@@ -44,5 +44,6 @@ export function SlideMedia({
     );
   }
 
-  return <img src={slide.mediaUrl} alt={slide.title || ''} fetchPriority="high" loading="eager" width={1200} height={900} className={className} />;
+  // React 18 requiere el atributo HTML en minúsculas para evitar un warning.
+  return <img src={slide.mediaUrl} alt={slide.title || ''} {...{ fetchpriority: 'high' }} loading="eager" width={1200} height={900} className={className} />;
 }
