@@ -6,6 +6,7 @@ import {
   ArrowUpRight01Icon,
   Cancel01Icon,
   LockIcon,
+  MoreHorizontalIcon,
   RefreshIcon,
   Tag01Icon,
   Wallet01Icon,
@@ -22,7 +23,22 @@ import { Label } from '~/components/ui/label';
 import { toast } from 'sonner';
 import { DataTable } from '~/components/ui/DataTable';
 import { QueryState } from '~/components/ui/QueryState';
-import { StatCard } from '~/components/ui/stat-card';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '~/components/ui/dropdown-menu';
+import {
+  Kbd,
+  Metric,
+  MetricStrip,
+  ToolbarSearch,
+  ToolbarSelect,
+  Workspace,
+  WorkspaceToolbar,
+  useShortcut,
+} from '~/components/admin/workspace';
 import {
   useGetAccountsQuery,
   useGetMovementsQuery,
@@ -36,12 +52,12 @@ import {
   useGetClosuresQuery,
   useCreateClosureMutation,
 } from '~/store/api/cajaApi';
-import { formatByCurrency } from '~/lib/formatters';
+import { formatByCurrency, formatLongDate } from '~/lib/formatters';
 import { format } from 'date-fns';
 import type { AccountMovement } from '@shared/schemas';
 
 export const meta: MetaFunction = () => {
-  return [{ title: pageTitle('Caja y Bancos', { admin: true }) }];
+  return [{ title: pageTitle('Caja y bancos', { admin: true }) }];
 };
 
 // Sentinela del Select de categorías: "escribir una categoría suelta" sin
@@ -102,6 +118,15 @@ export default function AdminCajaRoute() {
   const [closureNotas, setClosureNotas] = useState('');
 
   const activeAccounts = useMemo(() => accounts.filter((a) => a.activo), [accounts]);
+
+  // Barra de herramientas: búsqueda + cuenta + tipo. Filtran la tabla acá
+  // (la tabla recibe las filas ya filtradas y no dibuja su propio buscador).
+  const [search, setSearch] = useState('');
+  const [accountFilter, setAccountFilter] = useState('all');
+  const [tipoFilter, setTipoFilter] = useState<'all' | 'ingreso' | 'egreso'>('all');
+
+  // "N" abre Registrar movimiento: es la acción de todo el día en la compu.
+  useShortcut('n', () => setIsMovOpen(true));
   const accName = (id: string) => accounts.find((a) => a.id === id)?.nombre ?? 'Desconocida';
   const accMonedaOf = (id: string) => accounts.find((a) => a.id === id)?.moneda;
 
@@ -242,11 +267,29 @@ export default function AdminCajaRoute() {
     }
   };
 
+  const filteredMovements = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return movements.filter((m) => {
+      if (accountFilter !== 'all' && m.account_id !== accountFilter) return false;
+      if (tipoFilter !== 'all' && m.tipo !== tipoFilter) return false;
+      if (!q) return true;
+      return [m.descripcion, m.categoria, accName(m.account_id)]
+        .filter(Boolean)
+        .some((v) => String(v).toLowerCase().includes(q));
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- accName deriva de `accounts`.
+  }, [movements, search, accountFilter, tipoFilter, accounts]);
+
   const columns = [
     {
       header: 'Fecha',
       accessorKey: 'ocurrio_at',
-      cell: (info: any) => format(new Date(info.getValue()), 'dd/MM/yyyy HH:mm'),
+      cell: (info: any) => (
+        <span className="whitespace-nowrap">
+          {formatLongDate(info.getValue())}{' '}
+          <span className="text-xs text-muted-foreground">{format(new Date(info.getValue()), 'HH:mm')}</span>
+        </span>
+      ),
     },
     {
       header: 'Cuenta',
@@ -259,9 +302,11 @@ export default function AdminCajaRoute() {
       cell: (info: any) => {
         const t = info.getValue();
         return (
-          <span className={`inline-flex items-center gap-1 ${t === 'ingreso' ? 'text-success' : 'text-destructive'}`}>
-            {t === 'ingreso' ? <HugeIcon icon={ArrowUpRight01Icon} size={16} strokeWidth={2} /> : <HugeIcon icon={ArrowDownRight01Icon} size={16} strokeWidth={2} />}
-            {t.toUpperCase()}
+          // El tipo va en texto normal con su flecha; el color lo lleva el
+          // monto (verde solo lo que entra), no una palabra en MAYÚSCULAS.
+          <span className="inline-flex items-center gap-1 text-muted-foreground">
+            {t === 'ingreso' ? <HugeIcon icon={ArrowUpRight01Icon} size={14} strokeWidth={2} className="text-success" /> : <HugeIcon icon={ArrowDownRight01Icon} size={14} strokeWidth={2} />}
+            {t === 'ingreso' ? 'Ingreso' : 'Egreso'}
           </span>
         );
       },
@@ -269,11 +314,12 @@ export default function AdminCajaRoute() {
     {
       header: 'Monto',
       accessorKey: 'monto',
+      meta: { align: 'right' as const },
       cell: (info: any) => {
         const mov = info.row.original as AccountMovement;
         const sign = mov.tipo === 'egreso' ? '−' : '+';
         return (
-          <span className="nums">
+          <span className={`nums font-medium ${mov.tipo === 'ingreso' ? 'text-success' : 'text-foreground'}`}>
             {sign}
             {formatByCurrency(Number(info.getValue()), accMonedaOf(mov.account_id))}
           </span>
@@ -292,69 +338,127 @@ export default function AdminCajaRoute() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <PageHeader title="Caja y Bancos" description="Libro diario de ingresos y egresos de las cuentas." />
-        <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" onClick={() => setIsAccOpen(true)}>Nueva Cuenta</Button>
-          <Button variant="outline" onClick={openCategories}>
-            <HugeIcon icon={Tag01Icon} size={16} strokeWidth={2} className="mr-2" /> Categorías
-          </Button>
-          <Button variant="outline" onClick={() => setIsTransferOpen(true)} disabled={activeAccounts.length < 2}>
-            <HugeIcon icon={RefreshIcon} size={16} strokeWidth={2} className="mr-2" /> Traspaso
-          </Button>
-          <Button variant="outline" onClick={openClosure} disabled={activeAccounts.length === 0}>
-            <HugeIcon icon={LockIcon} size={16} strokeWidth={2} className="mr-2" /> Cerrar día
-          </Button>
-          <Button onClick={() => setIsMovOpen(true)} className="shadow-sm">
-            <HugeIcon icon={Add01Icon} size={16} strokeWidth={2} className="mr-2" /> Registrar Movimiento
-          </Button>
-        </div>
-      </div>
+      {/* Una acción principal, una secundaria y el resto en "Más": antes eran
+          cinco botones del mismo peso compitiendo en el encabezado. */}
+      <PageHeader
+        eyebrow="Operación"
+        title="Caja y bancos"
+        description="Libro diario de ingresos y egresos de las cuentas."
+        className="mb-0"
+        actions={
+          <>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="h-9 gap-2 rounded-md">
+                  <HugeIcon icon={MoreHorizontalIcon} size={16} strokeWidth={2} aria-hidden />
+                  Más
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-52">
+                <DropdownMenuItem onClick={() => setIsAccOpen(true)}>
+                  <HugeIcon icon={Wallet01Icon} size={16} strokeWidth={2} className="mr-2" />
+                  Nueva cuenta
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={openCategories}>
+                  <HugeIcon icon={Tag01Icon} size={16} strokeWidth={2} className="mr-2" />
+                  Categorías de gasto
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setIsTransferOpen(true)} disabled={activeAccounts.length < 2}>
+                  <HugeIcon icon={RefreshIcon} size={16} strokeWidth={2} className="mr-2" />
+                  Traspaso entre cuentas
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Button variant="outline" onClick={openClosure} disabled={activeAccounts.length === 0} className="h-9 gap-2 rounded-md">
+              <HugeIcon icon={LockIcon} size={16} strokeWidth={2} aria-hidden />
+              Cerrar día
+            </Button>
+            <Button onClick={() => setIsMovOpen(true)} className="h-9 gap-2 rounded-md">
+              <HugeIcon icon={Add01Icon} size={16} strokeWidth={2} aria-hidden />
+              Registrar movimiento
+              <Kbd>N</Kbd>
+            </Button>
+          </>
+        }
+      />
 
-      {/* RESUMEN DEL DÍA: qué se vendió hoy y por qué canal debería haber entrado
-          el dinero. Es la referencia para cuadrar contra caja y bancos. */}
-      {resumen && resumen.ventas.count > 0 && (
-        <section className="rounded-card border border-border bg-card p-4 sm:p-5">
-          <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
-            <h2 className="text-sm font-semibold text-foreground">Resumen de hoy</h2>
-            <p className="text-sm text-muted-foreground">
-              <span className="font-bold text-foreground tabular-nums">{resumen.ventas.count}</span>{' '}
-              {resumen.ventas.count === 1 ? 'venta' : 'ventas'} ·{' '}
-              <span className="font-bold text-foreground tabular-nums">{formatByCurrency(resumen.ventas.total)}</span> vendido
-            </p>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <SummaryTile label="En efectivo" hint="Debe estar en tu caja" value={formatByCurrency(resumen.ventas.efectivo)} />
-            <SummaryTile label="Transferencia" hint="Debe estar en un banco" value={formatByCurrency(resumen.ventas.transferencia)} />
-            <SummaryTile label="Tarjeta" hint="Debe estar en un banco" value={formatByCurrency(resumen.ventas.tarjeta)} />
-            <SummaryTile
-              label="Sin definir"
-              hint="Ventas sin factura — revisá"
-              value={formatByCurrency(resumen.ventas.sinDefinir)}
-              muted
-            />
-          </div>
-
-          <p className="mt-4 border-t border-border pt-3 text-xs text-muted-foreground">
-            Movimientos de caja registrados hoy:{' '}
-            <span className="font-semibold text-success">+{formatByCurrency(resumen.caja.ingresos)}</span>{' '}
-            <span className="font-semibold text-destructive">−{formatByCurrency(resumen.caja.egresos)}</span>
-          </p>
-        </section>
-      )}
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {accounts.map(acc => (
-          <StatCard
-            key={acc.id}
-            label={acc.nombre}
-            value={formatByCurrency(balanceOf(acc.id), acc.moneda)}
-            icon={Wallet01Icon}
-            sub={acc.tipo === 'banco' ? 'Cuenta Bancaria' : 'Caja de Efectivo'}
+      <Workspace>
+        <WorkspaceToolbar>
+          <ToolbarSearch value={search} onChange={setSearch} placeholder="Buscar descripción o categoría" />
+          <ToolbarSelect
+            label="Cuenta"
+            value={accountFilter}
+            onChange={setAccountFilter}
+            options={[{ value: 'all', label: 'Todas' }, ...accounts.map((a) => ({ value: a.id, label: a.nombre }))]}
           />
-        ))}
-      </div>
+          <ToolbarSelect
+            label="Tipo"
+            value={tipoFilter}
+            onChange={setTipoFilter}
+            options={[
+              { value: 'all', label: 'Todos' },
+              { value: 'ingreso', label: 'Ingresos' },
+              { value: 'egreso', label: 'Egresos' },
+            ]}
+          />
+        </WorkspaceToolbar>
+
+        {/* Saldo por cuenta: una métrica por cuenta, en la misma franja. */}
+        {accounts.length > 0 && (
+          <MetricStrip columns={accounts.length >= 4 ? 4 : accounts.length === 3 ? 3 : 2}>
+            {accounts.map((acc) => (
+              <Metric
+                key={acc.id}
+                label={acc.nombre}
+                value={formatByCurrency(balanceOf(acc.id), acc.moneda)}
+                sub={`${acc.tipo === 'banco' ? 'Cuenta bancaria' : 'Caja de efectivo'} · ${acc.moneda}`}
+              />
+            ))}
+          </MetricStrip>
+        )}
+
+        {/* RESUMEN DEL DÍA: qué se vendió hoy y por qué canal debería haber
+            entrado el dinero. Es la referencia para cuadrar contra las cuentas. */}
+        {resumen && resumen.ventas.count > 0 && (
+          <div className="border-b border-border">
+            <div className="flex flex-wrap items-baseline justify-between gap-2 px-5 pt-4">
+              <h2 className="text-sm font-semibold text-foreground">Resumen de hoy</h2>
+              <p className="text-xs text-muted-foreground">
+                <span className="font-semibold text-foreground tabular-nums">{resumen.ventas.count}</span>{' '}
+                {resumen.ventas.count === 1 ? 'venta' : 'ventas'} ·{' '}
+                <span className="font-semibold text-foreground tabular-nums">{formatByCurrency(resumen.ventas.total)}</span> vendido ·
+                movimientos{' '}
+                <span className="font-semibold text-success">+{formatByCurrency(resumen.caja.ingresos)}</span>{' '}
+                <span className="font-semibold text-foreground">−{formatByCurrency(resumen.caja.egresos)}</span>
+              </p>
+            </div>
+            <div className="grid grid-cols-2 lg:grid-cols-4">
+              <SummaryTile label="En efectivo" hint="Debe estar en tu caja" value={formatByCurrency(resumen.ventas.efectivo)} />
+              <SummaryTile label="Transferencia" hint="Debe estar en un banco" value={formatByCurrency(resumen.ventas.transferencia)} />
+              <SummaryTile label="Tarjeta" hint="Debe estar en un banco" value={formatByCurrency(resumen.ventas.tarjeta)} />
+              <SummaryTile label="Sin definir" hint="Ventas sin factura, revisalas" value={formatByCurrency(resumen.ventas.sinDefinir)} muted />
+            </div>
+          </div>
+        )}
+
+        <div className="p-4">
+          <QueryState loading={isLoadingMov || isLoadingAcc} onRetry={refetch}>
+            <DataTable
+              columns={columns}
+              data={filteredMovements}
+              hideSearch
+              tableId="caja-movimientos"
+              emptyText="Todavía no hay movimientos registrados."
+              emptyFilteredText="Ningún movimiento coincide con la búsqueda o los filtros."
+              onClearFilters={() => {
+                setSearch('');
+                setAccountFilter('all');
+                setTipoFilter('all');
+              }}
+            />
+          </QueryState>
+        </div>
+      </Workspace>
 
       {closures.length > 0 && (
         <section className="rounded-card border border-border bg-card">
@@ -367,7 +471,7 @@ export default function AdminCajaRoute() {
               return (
                 <div key={c.id} className="flex flex-wrap items-center justify-between gap-x-6 gap-y-1 px-4 py-2.5 text-sm">
                   <span className="min-w-[7rem] font-medium text-foreground">{accName(c.account_id)}</span>
-                  <span className="text-muted-foreground tabular-nums">{format(new Date(c.fecha), 'dd/MM/yyyy')}</span>
+                  <span className="text-muted-foreground tabular-nums">{formatLongDate(c.fecha)}</span>
                   <span className="text-muted-foreground">
                     Esperado <span className="tabular-nums text-foreground">{formatByCurrency(c.saldo_esperado, accMonedaOf(c.account_id))}</span>
                   </span>
@@ -379,7 +483,7 @@ export default function AdminCajaRoute() {
                       cuadra
                         ? 'bg-success/10 text-success'
                         : c.diferencia > 0
-                          ? 'bg-primary/10 text-primary'
+                          ? 'bg-info/10 text-info'
                           : 'bg-destructive/10 text-destructive'
                     }`}
                   >
@@ -394,24 +498,16 @@ export default function AdminCajaRoute() {
         </section>
       )}
 
-      <QueryState loading={isLoadingMov || isLoadingAcc} onRetry={refetch}>
-        <DataTable
-          columns={columns}
-          data={movements}
-          searchPlaceholder="Buscar en descripción..."
-        />
-      </QueryState>
-
       {/* MODAL MOVIMIENTO */}
       <Dialog open={isMovOpen} onOpenChange={setIsMovOpen}>
         <DialogContent>
           <form onSubmit={handleRegisterMovement}>
             <DialogHeader>
-              <DialogTitle>Registrar Ingreso / Egreso</DialogTitle>
+              <DialogTitle>Registrar movimiento</DialogTitle>
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="space-y-2">
-                <Label>Tipo de Movimiento</Label>
+                <Label>Tipo de movimiento</Label>
                 <Select value={tipo} onValueChange={(v: any) => { setTipo(v); setCatSelect(''); setCategoria(''); }}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -465,7 +561,7 @@ export default function AdminCajaRoute() {
               </div>
 
               <div className="space-y-2">
-                <Label>Descripción (Opcional)</Label>
+                <Label>Descripción (opcional)</Label>
                 <Input value={descripcion} onChange={e => setDescripcion(e.target.value)} />
               </div>
             </div>
@@ -481,7 +577,7 @@ export default function AdminCajaRoute() {
         <DialogContent>
           <form onSubmit={handleCreateAccount}>
             <DialogHeader>
-              <DialogTitle>Nueva Cuenta</DialogTitle>
+              <DialogTitle>Nueva cuenta</DialogTitle>
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="space-y-2">
@@ -520,7 +616,7 @@ export default function AdminCajaRoute() {
               </p>
             </div>
             <DialogFooter>
-              <Button type="submit" disabled={isCreatingAcc}>Crear Cuenta</Button>
+              <Button type="submit" disabled={isCreatingAcc}>Crear cuenta</Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -564,7 +660,7 @@ export default function AdminCajaRoute() {
                 <Input required type="number" step="0.01" min="0" value={transferMonto} onChange={e => setTransferMonto(e.target.value)} />
               </div>
               <div className="space-y-2">
-                <Label>Descripción (Opcional)</Label>
+                <Label>Descripción (opcional)</Label>
                 <Input placeholder="Ej. Depósito del efectivo del día" value={transferDesc} onChange={e => setTransferDesc(e.target.value)} />
               </div>
             </div>
@@ -589,7 +685,7 @@ export default function AdminCajaRoute() {
                 onChange={e => setNewCat(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCat(); } }}
               />
-                <Button type="button" variant="outline" onClick={addCat} aria-label="Agregar producto del catálogo">
+                <Button type="button" variant="outline" onClick={addCat} aria-label="Agregar categoría">
                 <HugeIcon icon={Add01Icon} size={16} strokeWidth={2} />
               </Button>
             </div>
@@ -688,7 +784,7 @@ export default function AdminCajaRoute() {
               )}
 
               <div className="space-y-2">
-                <Label>Notas (Opcional)</Label>
+                <Label>Notas (opcional)</Label>
                 <Input placeholder="Ej. Faltó vuelto de una venta" value={closureNotas} onChange={e => setClosureNotas(e.target.value)} />
               </div>
               <p className="text-xs text-muted-foreground">
@@ -720,9 +816,9 @@ function SummaryTile({
   muted?: boolean;
 }) {
   return (
-    <div className="rounded-card border border-border bg-muted/30 px-3 py-2.5">
-      <p className="text-xs font-medium text-muted-foreground">{label}</p>
-      <p className={`mt-0.5 text-lg font-bold tabular-nums ${muted ? 'text-muted-foreground' : 'text-foreground'}`}>
+    <div className="px-5 py-3">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className={`mt-0.5 font-display text-lg font-bold tabular-nums ${muted ? 'text-muted-foreground' : 'text-foreground'}`}>
         {value}
       </p>
       <p className="mt-0.5 text-2xs text-muted-foreground">{hint}</p>
