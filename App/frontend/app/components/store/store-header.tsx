@@ -176,7 +176,7 @@ export function StoreHeader() {
               <img
                 src={logoSrc}
                 alt={config?.brandName || getBrandName()}
-                loading="lazy"
+                loading="eager"
                 decoding="async"
                 className="h-10 max-w-[160px] shrink-0 object-contain object-left transition-all duration-300 group-hover:brightness-110"
                 style={{ minWidth: '40px' }}

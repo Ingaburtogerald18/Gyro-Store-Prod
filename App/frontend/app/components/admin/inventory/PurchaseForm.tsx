@@ -191,7 +191,7 @@ export function PurchaseForm({ onDone }: { onDone?: () => void } = {}) {
           {...register("category")}
         >
           <NativeSelectOption value="" disabled>
-            {categories.length === 0 ? 'No hay categorías creadas' : 'Selecciona una categoría'}
+            {categories.length === 0 ? 'No hay categorías creadas' : 'Seleccioná una categoría'}
           </NativeSelectOption>
           {categories.map((c) => (
             <NativeSelectOption key={c.id} value={c.id}>

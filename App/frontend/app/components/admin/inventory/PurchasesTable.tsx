@@ -367,7 +367,7 @@ export function PurchasesTable({ period = "all", onOpenForm }: { period?: string
               <SummaryPill label="Total" value={formatUsd(filteredPurchases.reduce((s, p) => s + (p.total ?? 0), 0))} accent />
             </div>
             {onOpenForm && (
-              <Button onClick={onOpenForm} className="flex items-center gap-1.5 whitespace-nowrap">
+          <Button onClick={onOpenForm} aria-label="Registrar compra" className="flex items-center gap-1.5 whitespace-nowrap">
                 <HugeIcon icon={Add01Icon} size={16} strokeWidth={2} />
                 <span className="hidden sm:inline">Registrar compra</span>
               </Button>

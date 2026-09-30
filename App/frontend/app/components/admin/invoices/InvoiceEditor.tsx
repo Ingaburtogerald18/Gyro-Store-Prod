@@ -406,7 +406,7 @@ export function InvoiceEditor({
                 {formatCordobas((Number(line.quantity) || 0) * (Number(line.unitPrice) || 0))}
               </div>
               {lines.length > 1 && (
-                <Button variant="ghost" size="icon" className="shrink-0 text-destructive" onClick={() => removeLine(line.uid)}>
+                <Button aria-label="Eliminar línea" variant="ghost" size="icon" className="shrink-0 text-destructive" onClick={() => removeLine(line.uid)}>
                   <HugeIcon icon={Delete01Icon} size={18} />
                 </Button>
               )}

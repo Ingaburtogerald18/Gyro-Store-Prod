@@ -328,7 +328,7 @@ export function CheckoutDialog({
                       applyCode();
                     }
                   }}
-                  placeholder="Tenés un código?"
+                  placeholder="¿Tenés un código?"
                   className="uppercase"
                   maxLength={30}
                 />

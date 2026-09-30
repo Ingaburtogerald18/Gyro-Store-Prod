@@ -5,7 +5,7 @@
 // antes de agregar; con una sola va directo al carrito.
 import { HugeIcon } from "~/components/ui/icon";
 import { ImageNotFound01Icon, ShoppingCart02Icon } from "@hugeicons/core-free-icons";
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from '@remix-run/react';
 import { motion, useReducedMotion } from 'framer-motion';
 
@@ -45,12 +45,15 @@ export function ProductCard({
   // El sheet se monta recién en el primer uso: con 40 tarjetas en pantalla, 40
   // portales vacíos son 40 nodos y 40 suscripciones que nadie pidió.
   const [quickAddMounted, setQuickAddMounted] = useState(false);
-  // Blur-up: la foto entra desenfocada y se resuelve al cargar, en vez de
-  // aparecer de golpe sobre un hueco. `onLoad` cubre también la imagen que ya
-  // venía del caché del navegador (dispara igual, solo que de inmediato).
+  // onLoad puede ocurrir antes de hidratar: comprobar también la imagen del DOM.
   const [imageLoaded, setImageLoaded] = useState(false);
+  const imageRef = useRef<HTMLImageElement>(null);
 
   const image = product.images[0];
+  useEffect(() => {
+    const img = imageRef.current;
+    setImageLoaded(Boolean(img?.complete && img.naturalWidth > 0));
+  }, [image]);
   // Segunda foto: si existe, hace crossfade al pasar el mouse (patrón del V1).
   const hoverImage = product.images[1];
   const soldOut = product.stock <= 0;
@@ -108,12 +111,9 @@ export function ProductCard({
   // La tarjeta entera se eleva al hover (ver `shell` más abajo); acá la foto
   // solo hace zoom por separado, sin trasladarse.
   const Stage = (
-    <Link
-      to={productUrl}
-      prefetch="intent"
-      aria-label={product.name}
+    <div
       className={cn(
-        'product-stage relative block overflow-hidden rounded-2xl focus-visible:outline-none',
+        'product-stage relative block overflow-hidden rounded-2xl',
         isList ? 'aspect-square h-full w-full shrink-0' : 'aspect-square w-full',
       )}
     >
@@ -135,7 +135,7 @@ export function ProductCard({
           variant="destructive"
           className="absolute top-2 right-2 z-10 text-[10px] sm:px-2.5 sm:text-[11px]"
         >
-          ¡Últimas {product.stock}!
+          {product.stock === 1 ? '¡Último disponible!' : `¡Últimas ${product.stock}!`}
         </Badge>
       )}
 
@@ -153,6 +153,7 @@ export function ProductCard({
 
       {image ? (
         <img
+          ref={imageRef}
           src={image}
           alt={product.name}
           loading={index < 4 ? 'eager' : 'lazy'}
@@ -186,15 +187,13 @@ export function ProductCard({
           Agotado
         </Badge>
       )}
-    </Link>
+    </div>
   );
 
   const Info = (
-    <Link
-      to={productUrl}
-      prefetch="intent"
+    <div
       className={cn(
-        'flex min-w-0 flex-col gap-1 focus-visible:outline-none',
+        'flex min-w-0 flex-col gap-1',
         isList ? 'flex-1 justify-center gap-1.5 py-1' : 'flex-1 pt-3 sm:pt-4',
       )}
     >
@@ -216,7 +215,7 @@ export function ProductCard({
           {description}
         </p>
       )}
-    </Link>
+    </div>
   );
 
   const Cta = (
@@ -236,10 +235,10 @@ export function ProductCard({
         onClick={handleWhatsAppOrder}
         aria-label={
           soldOut
-            ? `Avísame cuando ${product.name} esté disponible, por WhatsApp`
+            ? `Avisame cuando ${product.name} esté disponible, por WhatsApp`
             : `Pedir ${product.name} por WhatsApp`
         }
-        title={soldOut ? 'Avísame por WhatsApp' : 'Pedir por WhatsApp'}
+        title={soldOut ? 'Avisame por WhatsApp' : 'Pedir por WhatsApp'}
         className="h-11 w-11 rounded-lg"
       >
         <WhatsappIcon aria-hidden className="h-[15px] w-[15px] sm:h-[18px] sm:w-[18px]" />
@@ -274,8 +273,10 @@ export function ProductCard({
     return (
       <>
         <motion.article {...motionProps} className={cn(shell, 'gap-3 sm:gap-4')}>
+          <Link to={productUrl} prefetch="intent" aria-label={product.name} className="flex w-full gap-3 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:gap-4">
           <div className="relative w-[40%] max-w-[200px] shrink-0 self-center">{Stage}</div>
           {Info}
+          </Link>
         </motion.article>
         {quickAdd}
       </>
@@ -285,8 +286,10 @@ export function ProductCard({
   return (
     <>
       <motion.article {...motionProps} className={cn(shell, 'h-full flex-col')}>
+        <Link to={productUrl} prefetch="intent" aria-label={product.name} className="flex flex-1 flex-col rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background">
         {Stage}
         {Info}
+        </Link>
         <div className="pt-3">{Cta}</div>
       </motion.article>
       {quickAdd}

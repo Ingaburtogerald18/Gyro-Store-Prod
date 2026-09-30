@@ -44,5 +44,5 @@ export function SlideMedia({
     );
   }
 
-  return <img src={slide.mediaUrl} alt={slide.title || ''} className={className} />;
+  return <img src={slide.mediaUrl} alt={slide.title || ''} fetchPriority="high" loading="eager" width={1200} height={900} className={className} />;
 }

@@ -142,7 +142,7 @@ export function RegisterExpenseDialog({
               <FieldLabel htmlFor="expense-pozo">Categoría de gasto</FieldLabel>
               <Select value={pozo} onValueChange={setPozo} disabled={isLoading}>
                 <SelectTrigger id="expense-pozo">
-                  <SelectValue placeholder="Selecciona una categoría" />
+                  <SelectValue placeholder="Seleccioná una categoría" />
                 </SelectTrigger>
                 <SelectContent>
                   {POZO_OPTIONS.map((opt) => (

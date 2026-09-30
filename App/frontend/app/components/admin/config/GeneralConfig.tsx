@@ -167,7 +167,7 @@ export function GeneralConfig() {
                 <Field data-invalid={!!errors.bankAccounts?.[index]?.bank}>
                   <FieldLabel htmlFor={`bank-${row.id}`} required>Banco</FieldLabel>
                   <select id={`bank-${row.id}`} className={SELECT_CLASS} {...register(`bankAccounts.${index}.bank`)}>
-                    <option value="">Selecciona un banco</option>
+                    <option value="">Seleccioná un banco</option>
                     {STORE_BANKS.map((bank) => (
                       <option key={bank} value={bank}>{bank}</option>
                     ))}

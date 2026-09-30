@@ -97,7 +97,7 @@ export function CreateUserDialog() {
               <FieldLabel>Rol Inicial</FieldLabel>
               <Select value={newRole} onValueChange={(v) => setNewRole(v as AppRole)}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Selecciona un rol" />
+                  <SelectValue placeholder="Seleccioná un rol" />
                 </SelectTrigger>
                 <SelectContent>
                   {Object.entries(ROLE_LABELS).map(([key, label]) => (

@@ -67,6 +67,8 @@
   /* ── Extras de Gyro (shadcn no los trae) ── */
   --color-primary-2: var(--primary-2);
   --color-whatsapp: var(--whatsapp);
+  --color-whatsapp-foreground: var(--whatsapp-foreground);
+  --color-whatsapp-hover: var(--whatsapp-hover);
   --color-promo: var(--promo);
   --color-success: var(--success);
   --color-warning: var(--warning);
@@ -191,7 +193,9 @@ body {
      claro. La usan nombre de producto en hover, precios y eyebrows (41 sitios),
      que hasta ahora quedaban sin color porque el token no existía. */
   --primary-2: oklch(0.432 0.095 166.913);
-  --whatsapp: #128c3e;
+  --whatsapp: oklch(0.516 0.145 149);
+  --whatsapp-foreground: oklch(1 0 0);
+  --whatsapp-hover: oklch(0.46 0.13 149);
   --promo: oklch(0.585 0.233 292.5);
   /* Estados semánticos en tema CLARO. Van más oscuros que su par del tema
      oscuro a propósito: como también se usan de color de TEXTO, tienen que
@@ -271,7 +275,9 @@ body {
   /* Sobre oscuro el acento secundario va al revés: más claro que --primary,
      para que resalte como highlight (mismo rol que el teal del V1). */
   --primary-2: oklch(0.696 0.17 162.48);
-  --whatsapp: #25d366;
+  --whatsapp: oklch(0.76 0.2 149);
+  --whatsapp-foreground: oklch(0.18 0.02 149);
+  --whatsapp-hover: oklch(0.82 0.17 149);
   --promo: oklch(0.585 0.233 292.5);
   /* En oscuro van claros: 9–10:1 contra --background y contra --card. */
   --success: oklch(0.72 0.16 150);

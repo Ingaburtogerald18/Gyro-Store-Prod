@@ -195,7 +195,7 @@ export function RegisterLoanPaymentDialog({
                 </p>
               ) : (
                 <FieldDescription>
-                  Ingresa la cuota o abono realizado al préstamo.
+                  Ingresá la cuota o abono realizado al préstamo.
                 </FieldDescription>
               )}
             </Field>

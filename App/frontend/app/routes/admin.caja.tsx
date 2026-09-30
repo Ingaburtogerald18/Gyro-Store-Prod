@@ -423,7 +423,7 @@ export default function AdminCajaRoute() {
               <div className="space-y-2">
                 <Label>Cuenta</Label>
                 <Select value={accountId} onValueChange={setAccountId}>
-                  <SelectTrigger><SelectValue placeholder="Selecciona..." /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="Seleccioná..." /></SelectTrigger>
                   <SelectContent>
                     {activeAccounts.map(acc => (
                       <SelectItem key={acc.id} value={acc.id}>{acc.nombre} ({acc.moneda})</SelectItem>
@@ -589,7 +589,7 @@ export default function AdminCajaRoute() {
                 onChange={e => setNewCat(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCat(); } }}
               />
-              <Button type="button" variant="outline" onClick={addCat}>
+                <Button type="button" variant="outline" onClick={addCat} aria-label="Agregar producto del catálogo">
                 <HugeIcon icon={Add01Icon} size={16} strokeWidth={2} />
               </Button>
             </div>
@@ -630,7 +630,7 @@ export default function AdminCajaRoute() {
               <div className="space-y-2">
                 <Label>Cuenta a cerrar</Label>
                 <Select value={closureAccId} onValueChange={setClosureAccId}>
-                  <SelectTrigger><SelectValue placeholder="Selecciona..." /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="Seleccioná..." /></SelectTrigger>
                   <SelectContent>
                     {activeAccounts.map(acc => (
                       <SelectItem key={acc.id} value={acc.id}>{acc.nombre}</SelectItem>
