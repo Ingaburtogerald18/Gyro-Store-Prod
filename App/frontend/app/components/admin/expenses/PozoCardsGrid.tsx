@@ -27,14 +27,14 @@ const POZO_ICONS: Record<string, any> = {
 };
 
 const POZO_COLORS: Record<string, string> = {
-  publicidad: 'bg-sky-500',
-  mantenimiento: 'bg-amber-500',
-  utiles: 'bg-teal-500',
-  garantias: 'bg-purple-500',
-  prestamos: 'bg-indigo-500',
-  suscripciones: 'bg-pink-500',
-  servicios: 'bg-slate-500',
-  salario: 'bg-emerald-500',
+  publicidad: 'bg-tone-sky',
+  mantenimiento: 'bg-warning',
+  utiles: 'bg-tone-emerald',
+  garantias: 'bg-tone-purple',
+  prestamos: 'bg-tone-indigo',
+  suscripciones: 'bg-tone-rose',
+  servicios: 'bg-muted-foreground',
+  salario: 'bg-success',
 };
 
 export function PozoCardsGrid({
@@ -83,7 +83,7 @@ export function PozoCardsGrid({
         <div className="space-y-3">
           {sorted.map((item) => {
             const IconComponent = POZO_ICONS[item.pozo] || FolderLibraryIcon;
-            const barColor = POZO_COLORS[item.pozo] || 'bg-gray-500';
+            const barColor = POZO_COLORS[item.pozo] || 'bg-muted-foreground';
             const percentOfTotal = totalRecogido > 0
               ? Math.round((item.recogido / totalRecogido) * 100)
               : 0;
@@ -159,7 +159,7 @@ export function PozoCardsGrid({
                 const percentOfGastado = totalGastado > 0
                   ? Math.round((item.gastado / totalGastado) * 100)
                   : 0;
-                const barColor = POZO_COLORS[item.pozo] || 'bg-gray-500';
+                const barColor = POZO_COLORS[item.pozo] || 'bg-muted-foreground';
 
                 return (
                   <div key={item.pozo} className="flex items-center gap-3 px-3 py-1.5">

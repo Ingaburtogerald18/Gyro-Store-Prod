@@ -136,7 +136,7 @@ export default function AdminDashboard() {
               key: 'prestamos',
               label: 'Pago de préstamos',
               value: kpis.total_prestamos,
-              fill: 'var(--color-chart-5, #f59e0b)',
+              fill: 'var(--color-chart-5)',
             },
           ]
         : []),
@@ -215,7 +215,7 @@ export default function AdminDashboard() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-9 gap-1.5 text-xs text-amber-500 hover:text-amber-400 hover:border-amber-500/40"
+                      className="h-9 gap-1.5 text-xs text-warning hover:text-warning/80 hover:border-warning/40"
                     >
                       <HugeIcon icon={Coins01Icon} size={15} strokeWidth={2} />
                       Pagar préstamo
@@ -335,7 +335,7 @@ export default function AdminDashboard() {
                     value={gananciaReal}
                     prev={kpis.ganancia_real_prev ?? kpis.ganancia_tienda_total_prev}
                     format={formatMoney}
-                    valueClassName={gananciaReal >= 0 ? 'text-emerald-500' : 'text-rose-500'}
+                    valueClassName={gananciaReal >= 0 ? 'text-success' : 'text-destructive'}
                     sub={isAdmin && (kpis.total_prestamos ?? 0) > 0 ? 'Después de préstamos' : undefined}
                     onClick={() => setDrilldown('ganancia')}
                   />

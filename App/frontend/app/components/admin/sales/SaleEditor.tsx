@@ -542,7 +542,7 @@ export function SaleEditor({
               <h3 className="text-sm font-semibold text-foreground">Fecha de venta</h3>
             </div>
             {isManualDate && (
-              <span className="inline-flex items-center rounded-full bg-amber-500/10 px-2.5 py-0.5 text-xs font-medium text-amber-600 dark:text-amber-400 border border-amber-500/20">
+              <span className="inline-flex items-center rounded-full bg-warning/10 px-2.5 py-0.5 text-xs font-medium text-warning border border-warning/20">
                 Fecha manual
               </span>
             )}

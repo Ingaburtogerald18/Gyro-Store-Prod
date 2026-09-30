@@ -15,18 +15,19 @@ import { formatCordobas, formatNumber } from '~/lib/formatters';
 import { useGetSalesBreakdownQuery } from '~/store/api/reportsApi';
 import type { PeriodRange } from './period';
 
+// Tonos de marca (tokens tone-*), no hex sueltos: siguen al tema claro/oscuro.
 const paymentMethodChartConfig = {
-  efectivo: { label: 'Efectivo', color: '#10b981' },
-  transferencia: { label: 'Transferencia', color: '#3b82f6' },
-  tarjeta: { label: 'Tarjeta', color: '#8b5cf6' },
-  sin_metodo: { label: 'Sin método', color: '#94a3b8' },
+  efectivo: { label: 'Efectivo', color: 'var(--color-tone-emerald)' },
+  transferencia: { label: 'Transferencia', color: 'var(--color-tone-sky)' },
+  tarjeta: { label: 'Tarjeta', color: 'var(--color-tone-purple)' },
+  sin_metodo: { label: 'Sin método', color: 'var(--color-muted-foreground)' },
 } satisfies ChartConfig;
 
 const METHOD_CONFIG: Record<string, { label: string; fill: string }> = {
-  efectivo: { label: 'Efectivo', fill: '#10b981' },
-  transferencia: { label: 'Transferencia', fill: '#3b82f6' },
-  tarjeta: { label: 'Tarjeta', fill: '#8b5cf6' },
-  sin_metodo: { label: 'Sin registrar', fill: '#94a3b8' },
+  efectivo: { label: 'Efectivo', fill: 'var(--color-tone-emerald)' },
+  transferencia: { label: 'Transferencia', fill: 'var(--color-tone-sky)' },
+  tarjeta: { label: 'Tarjeta', fill: 'var(--color-tone-purple)' },
+  sin_metodo: { label: 'Sin registrar', fill: 'var(--color-muted-foreground)' },
 };
 
 export function PaymentMethodDonut({
@@ -44,7 +45,7 @@ export function PaymentMethodDonut({
 
     return raw
       .map((g) => {
-        const conf = METHOD_CONFIG[g.key] || { label: g.key, fill: '#64748b' };
+        const conf = METHOD_CONFIG[g.key] || { label: g.key, fill: 'var(--color-muted-foreground)' };
         const pct = totalSum > 0 ? (g.total / totalSum) * 100 : 0;
         return {
           key: g.key,

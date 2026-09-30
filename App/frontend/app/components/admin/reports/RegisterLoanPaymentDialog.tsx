@@ -118,7 +118,7 @@ export function RegisterLoanPaymentDialog({
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <div className="flex items-center gap-2">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-500/10 text-amber-500">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-warning/10 text-warning">
                 <HugeIcon icon={Coins01Icon} size={20} strokeWidth={2} />
               </div>
               <div>
@@ -190,7 +190,7 @@ export function RegisterLoanPaymentDialog({
               </div>
               {errorMonto && <FieldError>{errorMonto}</FieldError>}
               {moneda === 'USD' && numMonto > 0 ? (
-                <p className="mt-1.5 text-xs font-medium text-amber-500">
+                <p className="mt-1.5 text-xs font-medium text-warning">
                   ≈ {formatCordobas(montoEnCordobas, 'C$', 2)} (Tasa oficial: C$ {exchangeRate.toFixed(2)})
                 </p>
               ) : (

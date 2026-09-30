@@ -215,7 +215,7 @@ export function RegisterExpenseDialog({
                 <div className="flex items-center justify-between">
                   <FieldLabel htmlFor="expense-fecha">Fecha del Gasto</FieldLabel>
                   {isManualDate && (
-                    <span className="inline-flex items-center rounded-full bg-amber-500/10 px-1.5 py-0.2 text-[10px] font-medium text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                    <span className="inline-flex items-center rounded-full bg-warning/10 px-1.5 py-0.2 text-[10px] font-medium text-warning border border-warning/20">
                       Fecha manual
                     </span>
                   )}

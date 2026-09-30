@@ -72,7 +72,7 @@ export function SaleDetailDrawer({
                 : 'Cargando…'}
             </span>
             {sale?.isManualDate && (
-              <span className="inline-flex items-center rounded-full bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-600 dark:text-amber-400 border border-amber-500/20">
+              <span className="inline-flex items-center rounded-full bg-warning/10 px-2 py-0.5 text-[11px] font-medium text-warning border border-warning/20">
                 Fecha manual
               </span>
             )}
@@ -110,7 +110,7 @@ export function SaleDetailDrawer({
                     <dd className="mt-0.5 font-medium text-foreground flex items-center gap-1.5 flex-wrap">
                       <span>{new Date(sale.createdAt).toLocaleDateString('es-NI')}</span>
                       {sale.isManualDate && (
-                        <span className="inline-flex items-center rounded-full bg-amber-500/10 px-1.5 py-0.2 text-[10px] font-medium text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                        <span className="inline-flex items-center rounded-full bg-warning/10 px-1.5 py-0.2 text-[10px] font-medium text-warning border border-warning/20">
                           Fecha manual
                         </span>
                       )}

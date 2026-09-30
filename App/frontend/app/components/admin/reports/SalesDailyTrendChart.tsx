@@ -269,7 +269,7 @@ function TooltipContent({
               <span className="size-2 rounded-full bg-[var(--color-chart-4)]" />
               Ganancia tienda:
             </span>
-            <span className="nums font-semibold text-emerald-400">
+            <span className="nums font-semibold text-success">
               {formatCordobas(data.ganancia, 'C$', 2)}
             </span>
           </div>

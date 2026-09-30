@@ -79,15 +79,15 @@ export function SellerRankingTable({
                     {/* Posición */}
                     <td className="py-2.5 pr-2 text-center">
                       {rank === 1 ? (
-                        <span className="inline-flex size-6 items-center justify-center rounded-full bg-amber-500/20 text-[11px] font-bold text-amber-400">
+                        <span className="inline-flex size-6 items-center justify-center rounded-full bg-warning/20 text-[11px] font-bold text-warning">
                           1
                         </span>
                       ) : rank === 2 ? (
-                        <span className="inline-flex size-6 items-center justify-center rounded-full bg-slate-300/20 text-[11px] font-bold text-slate-300">
+                        <span className="inline-flex size-6 items-center justify-center rounded-full bg-muted text-[11px] font-bold text-muted-foreground">
                           2
                         </span>
                       ) : rank === 3 ? (
-                        <span className="inline-flex size-6 items-center justify-center rounded-full bg-amber-700/20 text-[11px] font-bold text-amber-600">
+                        <span className="inline-flex size-6 items-center justify-center rounded-full bg-tone-amber/20 text-[11px] font-bold text-tone-amber">
                           3
                         </span>
                       ) : (
@@ -133,7 +133,7 @@ export function SellerRankingTable({
 
                     {/* Comisión */}
                     <td className="py-2.5 pl-3 text-right whitespace-nowrap">
-                      <span className="nums font-semibold text-emerald-400">
+                      <span className="nums font-semibold text-success">
                         {formatCordobas(seller.comision, 'C$', 2)}
                       </span>
                     </td>

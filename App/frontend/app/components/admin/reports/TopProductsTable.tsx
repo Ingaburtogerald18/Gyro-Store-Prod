@@ -93,10 +93,10 @@ export function TopProductsTable({
             <span
               className={`nums inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${
                 isHigh
-                  ? 'bg-emerald-500/15 text-emerald-400'
+                  ? 'bg-success/15 text-success'
                   : isMid
-                  ? 'bg-amber-500/15 text-amber-400'
-                  : 'bg-rose-500/15 text-rose-400'
+                  ? 'bg-warning/15 text-warning'
+                  : 'bg-destructive/15 text-destructive'
               }`}
             >
               {m.toFixed(1)}%

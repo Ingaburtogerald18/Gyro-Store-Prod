@@ -37,35 +37,35 @@ import {
 const POZO_BADGES: Record<string, { label: string; className: string }> = {
   publicidad: {
     label: 'Publicidad',
-    className: 'bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20',
+    className: 'bg-tone-sky/10 text-tone-sky border-tone-sky/20',
   },
   mantenimiento: {
     label: 'Mantenimiento',
-    className: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
+    className: 'bg-warning/10 text-warning border-warning/20',
   },
   utiles: {
     label: 'Útiles',
-    className: 'bg-teal-500/10 text-teal-600 dark:text-teal-400 border-teal-500/20',
+    className: 'bg-tone-emerald/10 text-tone-emerald border-tone-emerald/20',
   },
   garantias: {
     label: 'Garantías',
-    className: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20',
+    className: 'bg-tone-purple/10 text-tone-purple border-tone-purple/20',
   },
   prestamos: {
     label: 'Préstamos',
-    className: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20',
+    className: 'bg-tone-indigo/10 text-tone-indigo border-tone-indigo/20',
   },
   suscripciones: {
     label: 'Suscripciones',
-    className: 'bg-pink-500/10 text-pink-600 dark:text-pink-400 border-pink-500/20',
+    className: 'bg-tone-rose/10 text-tone-rose border-tone-rose/20',
   },
   servicios: {
     label: 'Servicios',
-    className: 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20',
+    className: 'bg-muted-foreground/10 text-muted-foreground border-muted-foreground/20',
   },
   salario: {
     label: 'Salario',
-    className: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
+    className: 'bg-success/10 text-success border-success/20',
   },
 };
 

@@ -59,7 +59,7 @@ export function FinancialHealthHero({
                 Excedido
               </span>
             ) : (
-              <span className="flex h-6 items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+              <span className="flex h-6 items-center gap-1 rounded-full bg-success/10 px-2.5 text-[11px] font-medium text-success border border-success/20">
                 <HugeIcon icon={CheckmarkCircle01Icon} size={13} strokeWidth={2} aria-hidden />
                 {percentUsed}% usado
               </span>
@@ -77,7 +77,7 @@ export function FinancialHealthHero({
                     className={cn(
                       'nums text-3xl font-bold tracking-tight sm:text-4xl',
                       presupuestoDisponible >= 0
-                        ? 'text-emerald-600 dark:text-emerald-400'
+                        ? 'text-success'
                         : 'text-destructive',
                     )}
                   >
@@ -100,8 +100,8 @@ export function FinancialHealthHero({
                     hasOverflow
                       ? 'bg-destructive'
                       : percentUsed > 80
-                      ? 'bg-amber-500'
-                      : 'bg-emerald-500',
+                      ? 'bg-warning'
+                      : 'bg-success',
                   )}
                   style={{ width: `${Math.min(percentUsed, 100)}%` }}
                 />
@@ -125,7 +125,7 @@ export function FinancialHealthHero({
                   className={cn(
                     'nums text-2xl font-bold',
                     gananciaReal > 0
-                      ? 'text-emerald-600 dark:text-emerald-400'
+                      ? 'text-success'
                       : gananciaReal < 0
                       ? 'text-destructive'
                       : 'text-foreground',
@@ -134,7 +134,7 @@ export function FinancialHealthHero({
                   {isLoading ? '…' : fmt(gananciaReal)}
                 </span>
                 {gananciaReal >= 0 ? (
-                  <HugeIcon icon={ArrowUp01Icon} size={14} strokeWidth={2} className="text-emerald-500" aria-hidden />
+                  <HugeIcon icon={ArrowUp01Icon} size={14} strokeWidth={2} className="text-success" aria-hidden />
                 ) : (
                   <HugeIcon icon={ArrowDown01Icon} size={14} strokeWidth={2} className="text-destructive" aria-hidden />
                 )}
