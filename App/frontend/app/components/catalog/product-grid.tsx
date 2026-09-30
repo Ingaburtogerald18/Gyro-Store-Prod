@@ -12,7 +12,6 @@
 // la barra de herramientas y esta grilla cuenten siempre lo mismo. Las
 // categorías se eligen desde el header (CategoryNav / CategoriesDrawer).
 import { useMemo } from 'react';
-import { motion, useReducedMotion } from 'framer-motion';
 import { HugeIcon } from '~/components/ui/icon';
 import { PackageSearchIcon } from '@hugeicons/core-free-icons';
 
@@ -144,23 +143,15 @@ export function ProductGrid({ products, categories = [], isLoading }: ProductGri
 
 // Grilla uniforme: todas las tarjetas del mismo tamaño y aspect-ratio, sin tiles
 // anchos. El `h-full` en cada celda ancla el CTA al fondo con alturas parejas.
+// La entrada animada (fade + subida, escalonada por fila) la hace ProductCard;
+// antes esta celda animaba lo mismo por encima y se sumaban dos transiciones.
 export function ProductResultsGrid({ products }: { products: CatalogProduct[] }) {
-  const reduce = useReducedMotion();
-
   return (
     <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-5 lg:grid-cols-4">
       {products.map((p, i) => (
-        <motion.div
-          key={p.id}
-          className="h-full"
-          initial={reduce ? false : { opacity: 0, y: 12 }}
-          whileInView={reduce ? undefined : { opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: '-40px' }}
-          // El stagger se reinicia por fila: si dependiera del índice absoluto,
-          // la tarjeta 40 entraría con segundos de retraso.
-          transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1], delay: (i % 4) * 0.06 }} >
+        <div key={p.id} className="h-full">
           <ProductCard product={p} index={i} />
-        </motion.div>
+        </div>
       ))}
     </div>
   );
@@ -171,7 +162,8 @@ function GridSkeleton() {
     <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-5 lg:grid-cols-4">
       {Array.from({ length: 8 }).map((_, i) => (
         <div key={i} className="flex flex-col gap-3">
-          <Skeleton className="aspect-[4/3] w-full rounded-xl" />
+          {/* Mismo aspect que el stage real de ProductCard: evita el salto de layout. */}
+          <Skeleton className="aspect-square w-full rounded-2xl" />
           <Skeleton className="h-4 w-3/4" />
           <Skeleton className="h-4 w-1/3" />
           <Skeleton className="h-11 w-full" />

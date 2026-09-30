@@ -1,6 +1,6 @@
 // ProductCard — estilo panel del V1: la tarjeta es una superficie con marco
 // hairline que se eleva entera al hover (no solo la foto), con la imagen en un
-// stage 4:3 y el CTA anclado al fondo para que toda la fila alinee parejo.
+// stage cuadrado y el CTA anclado al fondo para que toda la fila alinee parejo.
 // Con >1 combinación de variantes, el CTA abre el QuickAddSheet para elegir
 // antes de agregar; con una sola va directo al carrito.
 import { HugeIcon } from "~/components/ui/icon";
