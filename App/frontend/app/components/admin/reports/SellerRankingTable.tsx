@@ -39,7 +39,7 @@ export function SellerRankingTable({
           <h4 className="text-sm font-semibold text-foreground">Ranking de vendedores</h4>
         </div>
         <span className="nums text-xs font-medium text-muted-foreground">
-          {sortedSellers.length} {sortedSellers.length === 1 ? 'vendedor' : 'vendedores'} • {formatCordobas(totalTeamSales, 'C$', 0)}
+          {sortedSellers.length} {sortedSellers.length === 1 ? 'vendedor' : 'vendedores'} • {formatCordobas(totalTeamSales, 'C$', 2)}
         </span>
       </div>
 

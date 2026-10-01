@@ -73,7 +73,7 @@ export function PaymentMethodDonut({
           <h4 className="text-sm font-semibold text-foreground">Métodos de pago <span className="font-normal text-muted-foreground">(ventas facturadas)</span></h4>
         </div>
         <span className="nums text-xs font-medium text-muted-foreground">
-          {formatCordobas(totalAmount, 'C$', 0)}
+          {formatCordobas(totalAmount, 'C$', 2)}
         </span>
       </div>
 
@@ -133,7 +133,7 @@ export function PaymentMethodDonut({
                 Total
               </span>
               <span className="nums text-xs font-bold text-foreground">
-                {formatCordobas(totalAmount, 'C$', 0)}
+                {formatCordobas(totalAmount, 'C$', 2)}
               </span>
             </div>
           </div>

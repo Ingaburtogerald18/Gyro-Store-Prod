@@ -147,7 +147,7 @@ export function SalesDailyTrendChart({
         <div className="flex items-center gap-4 text-xs">
           <div className="flex items-center gap-1.5 text-muted-foreground">
             <span className="inline-block size-2 rounded-full bg-primary" />
-            <span>Vendido: <strong className="font-medium text-foreground">{formatCordobas(totalSoldInMonth, 'C$', 0)}</strong></span>
+            <span>Vendido: <strong className="font-medium text-foreground">{formatCordobas(totalSoldInMonth, 'C$', 2)}</strong></span>
           </div>
           {daysWithoutSalesCount > 0 && (
             <span className="rounded-md border border-border/80 bg-muted/50 px-2 py-0.5 text-muted-foreground">

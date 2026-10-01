@@ -42,7 +42,7 @@ export function PozoCardsGrid({
   onSelectPozo: (pozo: string) => void;
   isLoading?: boolean;
 }) {
-  const fmt = (n: number) => formatCordobas(n, 'C$', 0);
+  const fmt = (n: number) => formatCordobas(n, 'C$', 2);
 
   const totalRecogido = pozos?.reduce((sum, p) => sum + p.recogido, 0) ?? 0;
   const totalGastado = pozos?.reduce((sum, p) => sum + p.gastado, 0) ?? 0;

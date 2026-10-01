@@ -22,7 +22,7 @@ import {
 } from '~/store/api/reportsApi';
 import { useAppSelector } from '~/store/hooks';
 import { selectIsAdmin } from '~/store/slices/authSlice';
-import { formatCordobas } from '~/lib/formatters';
+import { formatCordobas, formatNumber } from '~/lib/formatters';
 import { pageTitle } from '~/lib/brand';
 import { HugeIcon } from '~/components/ui/icon';
 
@@ -313,7 +313,7 @@ export default function AdminDashboard() {
                     label="Número de ventas"
                     value={kpis.total_ventas}
                     prev={kpis.total_ventas_prev}
-                    sub={`${formatCordobas(kpis.total_unidades, '', 0)} unidades`}
+                    sub={`${formatNumber(kpis.total_unidades)} unidades`}
                     onClick={() => setDrilldown('ventas')}
                   />
 
