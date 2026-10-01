@@ -3,13 +3,17 @@
 // conecte la Cloud API de Meta.
 import { HugeIcon } from '~/components/ui/icon';
 import { Add01Icon, Cancel01Icon, CheckmarkCircle02Icon, UserMultiple02Icon } from '@hugeicons/core-free-icons';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { Controller, useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import type { MetaFunction } from '@remix-run/node';
 import { pageTitle } from '~/lib/brand';
-import { formatLongDate } from '~/lib/formatters';
+import { errMsg, formatLongDate } from '~/lib/formatters';
 import { toast } from 'sonner';
 
 import {
+  adminContactInputSchema,
   CONTACT_ORIGINS,
   CONTACT_ORIGIN_LABELS,
   CONTACT_STAGE_LABELS,
@@ -17,6 +21,8 @@ import {
   type ContactStage,
 } from '@shared/schemas';
 import { PageHeader } from '~/components/layout/PageHeader';
+import { Field, FieldError, FieldLabel } from '~/components/ui/field';
+import { Spinner } from '~/components/ui/spinner';
 import { Card, CardContent } from '~/components/ui/card';
 import { Button } from '~/components/ui/button';
 import { Input } from '~/components/ui/input';
@@ -222,6 +228,17 @@ function ContactsTab({ search, onOpen }: { search: string; onOpen: (id: string) 
   );
 }
 
+// Mismas reglas que adminContactInputSchema (el teléfono es la identidad del
+// contacto). Los errores van debajo de cada campo; el toast, al resultado.
+const contactFormSchema = adminContactInputSchema.pick({ phone: true, name: true, origin: true }).extend({
+  phone: z.string().trim().min(6, 'Escribí un teléfono válido (al menos 6 dígitos).').max(20, 'Máximo 20 caracteres.'),
+  name: z.string().trim().max(120, 'Máximo 120 caracteres.'),
+  origin: z.enum(CONTACT_ORIGINS),
+});
+type ContactValues = z.input<typeof contactFormSchema>;
+type ContactOutput = z.output<typeof contactFormSchema>;
+const EMPTY_CONTACT: ContactValues = { phone: '', name: '', origin: 'other' };
+
 function CreateContactDialog({
   open,
   onClose,
@@ -232,64 +249,78 @@ function CreateContactDialog({
   onCreated: (id: string) => void;
 }) {
   const [createContact, { isLoading }] = useCreateContactMutation();
-  const [phone, setPhone] = useState('');
-  const [name, setName] = useState('');
-  const [origin, setOrigin] = useState<ContactOrigin>('other');
+  const {
+    control,
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<ContactValues, unknown, ContactOutput>({ resolver: zodResolver(contactFormSchema), defaultValues: EMPTY_CONTACT });
 
-  async function handleCreate() {
-    if (phone.trim().length < 6) {
-      toast.error('Ingresá un teléfono válido.');
-      return;
-    }
+  useEffect(() => {
+    if (open) reset(EMPTY_CONTACT);
+  }, [open, reset]);
+
+  const onSubmit = handleSubmit(async (v) => {
     try {
-      const contact = await createContact({ phone: phone.trim(), name: name.trim(), origin }).unwrap();
+      const contact = await createContact({ phone: v.phone, name: v.name, origin: v.origin }).unwrap();
       toast.success('Contacto creado.');
-      setPhone('');
-      setName('');
-      setOrigin('other');
       onClose();
       onCreated(contact.id);
-    } catch (error: any) {
-      toast.error(error?.data?.error || 'No se pudo crear el contacto.');
+    } catch (error) {
+      toast.error(errMsg(error, 'No se pudo crear el contacto.'));
     }
-  }
+  });
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Nuevo contacto</DialogTitle>
-          <DialogDescription>El teléfono es la identidad del contacto. Si ya existe, se abre el que hay.</DialogDescription>
-        </DialogHeader>
-        <div className="space-y-3">
-          <div>
-            <label htmlFor="crm-new-phone" className="text-xs font-medium text-muted-foreground">Teléfono</label>
-            <Input id="crm-new-phone" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="8888 8888" />
+        <form onSubmit={onSubmit} noValidate>
+          <DialogHeader>
+            <DialogTitle>Nuevo contacto</DialogTitle>
+            <DialogDescription>El teléfono es la identidad del contacto. Si ya existe, se abre el que hay.</DialogDescription>
+          </DialogHeader>
+          <div className="mt-4 grid gap-4">
+            <Field data-invalid={!!errors.phone}>
+              <FieldLabel htmlFor="crm-new-phone" required>Teléfono</FieldLabel>
+              <Input id="crm-new-phone" type="tel" inputMode="tel" placeholder="8888 8888" aria-required aria-invalid={!!errors.phone} {...register('phone')} />
+              <FieldError errors={[errors.phone]} />
+            </Field>
+            <Field data-invalid={!!errors.name}>
+              <FieldLabel htmlFor="crm-new-name">Nombre (opcional)</FieldLabel>
+              <Input id="crm-new-name" placeholder="Juan Pérez" aria-invalid={!!errors.name} {...register('name')} />
+              <FieldError errors={[errors.name]} />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="crm-new-origin">Origen</FieldLabel>
+              <Controller
+                control={control}
+                name="origin"
+                render={({ field }) => (
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger id="crm-new-origin" className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CONTACT_ORIGINS.map((o) => (
+                        <SelectItem key={o} value={o}>
+                          {CONTACT_ORIGIN_LABELS[o]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+            </Field>
           </div>
-          <div>
-            <label htmlFor="crm-new-name" className="text-xs font-medium text-muted-foreground">Nombre (opcional)</label>
-            <Input id="crm-new-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Juan Pérez" />
-          </div>
-          <div>
-            <label htmlFor="crm-new-origin" className="text-xs font-medium text-muted-foreground">Origen</label>
-            <Select value={origin} onValueChange={(v) => setOrigin(v as ContactOrigin)}>
-              <SelectTrigger id="crm-new-origin" className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {CONTACT_ORIGINS.map((o) => (
-                  <SelectItem key={o} value={o}>
-                    {CONTACT_ORIGIN_LABELS[o]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="ghost" onClick={onClose}>Cancelar</Button>
-          <Button onClick={handleCreate} disabled={isLoading}>Crear</Button>
-        </DialogFooter>
+          <DialogFooter className="mt-4">
+            <Button type="button" variant="ghost" onClick={onClose}>Cancelar</Button>
+            <Button type="submit" disabled={isLoading}>
+              {isLoading && <Spinner className="mr-2" />}
+              Crear contacto
+            </Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );

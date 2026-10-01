@@ -4,8 +4,11 @@
 import { HugeIcon } from '~/components/ui/icon';
 import { Add01Icon, Cancel01Icon, CheckmarkCircle02Icon } from '@hugeicons/core-free-icons';
 import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { toast } from 'sonner';
-import { formatShortDate } from '~/lib/formatters';
+import { errMsg, formatShortDate } from '~/lib/formatters';
 
 import {
   CONTACT_ORIGIN_LABELS,
@@ -27,6 +30,7 @@ import { Input } from '~/components/ui/input';
 import { Textarea } from '~/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/components/ui/select';
 import { Spinner } from '~/components/ui/spinner';
+import { Field, FieldError, FieldLabel } from '~/components/ui/field';
 import { formatCordobas } from '~/lib/formatters';
 import {
   useAddContactActivityMutation,
@@ -40,6 +44,13 @@ import {
 // actividad de 2025 y una de 2026 se ven iguales.
 const fmtDate = (iso: string | null | undefined) => formatShortDate(iso, { withYear: true });
 
+// Mismas reglas que followUpInputSchema del backend (sin contactId: lo pone la ficha).
+const followUpFormSchema = z.object({
+  scheduledDate: z.string().min(1, 'Elegí una fecha.'),
+  reason: z.string().trim().min(1, 'Escribí el motivo.').max(280, 'Máximo 280 caracteres.'),
+});
+type FollowUpFormValues = z.infer<typeof followUpFormSchema>;
+
 export function Contact360Dialog({ contactId, onClose }: { contactId: string | null; onClose: () => void }) {
   const { data: ficha, isLoading, isError } = useGetContact360Query(contactId ?? '', { skip: !contactId });
   const [updateContact] = useUpdateContactMutation();
@@ -48,8 +59,14 @@ export function Contact360Dialog({ contactId, onClose }: { contactId: string | n
   const [updateFollowUp] = useUpdateFollowUpMutation();
 
   const [note, setNote] = useState('');
-  const [fuDate, setFuDate] = useState('');
-  const [fuReason, setFuReason] = useState('');
+  // Agendar seguimiento: react-hook-form + las reglas de followUpInputSchema.
+  // Antes el botón quedaba deshabilitado sin decir qué faltaba.
+  const {
+    register: registerFu,
+    handleSubmit: handleSubmitFu,
+    reset: resetFu,
+    formState: { errors: fuErrors },
+  } = useForm<FollowUpFormValues>({ resolver: zodResolver(followUpFormSchema), defaultValues: { scheduledDate: '', reason: '' } });
 
   async function handleStage(stage: ContactStage) {
     if (!contactId) return;
@@ -72,17 +89,16 @@ export function Contact360Dialog({ contactId, onClose }: { contactId: string | n
     }
   }
 
-  async function handleAddFollowUp() {
-    if (!contactId || !fuDate || !fuReason.trim()) return;
+  const handleAddFollowUp = handleSubmitFu(async (v) => {
+    if (!contactId) return;
     try {
-      await createFollowUp({ contactId, scheduledDate: fuDate, reason: fuReason.trim() }).unwrap();
-      setFuDate('');
-      setFuReason('');
+      await createFollowUp({ contactId, scheduledDate: v.scheduledDate, reason: v.reason }).unwrap();
+      resetFu({ scheduledDate: '', reason: '' });
       toast.success('Seguimiento agendado.');
-    } catch {
-      toast.error('No se pudo agendar el seguimiento.');
+    } catch (err) {
+      toast.error(errMsg(err, 'No se pudo agendar el seguimiento.'));
     }
-  }
+  });
 
   async function setFuStatus(id: string, status: 'completed' | 'cancelled') {
     try {
@@ -192,19 +208,26 @@ export function Contact360Dialog({ contactId, onClose }: { contactId: string | n
                   ))}
                 </ul>
               )}
-              <div className="flex flex-col gap-2 rounded-lg border bg-muted/30 p-3 sm:flex-row sm:items-end">
-                <div className="flex-1">
-                  <label htmlFor="contact360-fu-date" className="text-xs text-muted-foreground">Fecha</label>
-                  <Input id="contact360-fu-date" type="date" value={fuDate} onChange={(e) => setFuDate(e.target.value)} />
-                </div>
-                <div className="flex-[2]">
-                  <label htmlFor="contact360-fu-reason" className="text-xs text-muted-foreground">Motivo</label>
-                  <Input id="contact360-fu-reason" value={fuReason} onChange={(e) => setFuReason(e.target.value)} placeholder="Ej. Recordar cotización" />
-                </div>
-                <Button type="button" onClick={handleAddFollowUp} disabled={creatingFu || !fuDate || !fuReason.trim()}>
+              <form
+                onSubmit={handleAddFollowUp}
+                noValidate
+                className="flex flex-col gap-3 rounded-card border border-border bg-muted/30 p-3 sm:flex-row sm:items-start"
+              >
+                <Field className="flex-1" data-invalid={!!fuErrors.scheduledDate}>
+                  <FieldLabel htmlFor="contact360-fu-date" required>Fecha</FieldLabel>
+                  <Input id="contact360-fu-date" type="date" aria-required aria-invalid={!!fuErrors.scheduledDate} {...registerFu('scheduledDate')} />
+                  <FieldError errors={[fuErrors.scheduledDate]} />
+                </Field>
+                <Field className="flex-[2]" data-invalid={!!fuErrors.reason}>
+                  <FieldLabel htmlFor="contact360-fu-reason" required>Motivo</FieldLabel>
+                  <Input id="contact360-fu-reason" placeholder="Ej. Recordar cotización" aria-required aria-invalid={!!fuErrors.reason} {...registerFu('reason')} />
+                  <FieldError errors={[fuErrors.reason]} />
+                </Field>
+                <Button type="submit" disabled={creatingFu} className="sm:mt-6">
+                  {creatingFu && <Spinner className="mr-2" />}
                   Agendar
                 </Button>
-              </div>
+              </form>
             </section>
 
             <section className="space-y-2">
