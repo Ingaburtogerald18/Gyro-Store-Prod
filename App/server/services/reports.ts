@@ -8,7 +8,7 @@ import type { CreateExpenseInput } from '../../shared/schemas';
 import { getFinancialConfig } from './appConfig';
 import { businessDateStartIso, toBusinessDate } from '../utils/businessDay';
 import { fetchAllRows } from '../utils/fetchAllRows';
-import { getPozoLedger, ledgerMonthOf, type MonthLedger } from './pozoLedger';
+import { getPozoLedger, ledgerMonthOf, type LedgerPozo, type MonthLedger } from './pozoLedger';
 
 // ============================================================================
 // ── Esquemas Zod (Contratos) ──
@@ -602,6 +602,80 @@ export async function updateExpense(id: string, input: CreateExpenseInput): Prom
 
   if (error) throw error;
   return toExpenseRecord(data);
+}
+
+export interface ExpensePreview {
+  month: string;
+  pozo: string;
+  label: string;
+  montoCs: number;
+  /** Saldo del pozo antes de este gasto (heredado + recogido − otros gastos del mes). */
+  saldoPozo: number;
+  /** De dónde sale el monto. Suma = montoCs. */
+  cubre: {
+    propio: number;
+    extra: number;
+    pozos: { pozo: string; label: string; monto: number }[];
+    ganancia: number;
+  };
+  /** true si el gasto no cabe en su pozo y toma de otro lado. */
+  excede: boolean;
+  gananciaRealAntes: number;
+  gananciaRealDespues: number;
+}
+
+/**
+ * Qué pasaría si se guarda este gasto (nuevo, o `excludeId` editado): se
+ * calcula el mes sin él y con él, y la diferencia dice de dónde sale cada
+ * córdoba. No escribe nada.
+ */
+export async function previewExpense(input: CreateExpenseInput, excludeId?: string): Promise<ExpensePreview> {
+  let rate: number | null = null;
+  let createdAt = expenseCreatedAt(input.fecha);
+  if (excludeId) {
+    const { data: existing, error } = await db
+      .from('expenses')
+      .select('exchange_rate, created_at')
+      .eq('id', excludeId)
+      .maybeSingle();
+    if (error) throw error;
+    if (!existing) throw new NotFoundError('El gasto no existe.');
+    rate = existing.exchange_rate ? Number(existing.exchange_rate) : null;
+    createdAt ??= existing.created_at;
+  }
+  createdAt ??= new Date().toISOString();
+  const { monto_cs } = await expenseAmounts(input, rate);
+
+  const month = ledgerMonthOf(createdAt);
+  const pozo = input.pozo as LedgerPozo;
+  const [before, after] = await Promise.all([
+    getPozoLedger(month, { removeExpenseId: excludeId }),
+    getPozoLedger(month, { removeExpenseId: excludeId, add: { pozo, montoCs: monto_cs, createdAt } }),
+  ]);
+
+  const extra = Math.max(0, round(after.extraUsado - before.extraUsado, 2));
+  const ganancia = Math.max(0, round(after.deGanancia.total - before.deGanancia.total, 2));
+  const pozos = after.pozos
+    .map((row) => ({
+      pozo: row.pozo,
+      label: row.label,
+      monto: round(row.prestado - (before.pozos.find((b) => b.pozo === row.pozo)?.prestado ?? 0), 2),
+    }))
+    .filter((p) => p.monto > 0);
+  const deOtros = round(extra + ganancia + pozos.reduce((acc, p) => acc + p.monto, 0), 2);
+  const target = before.pozos.find((b) => b.pozo === pozo)!;
+
+  return {
+    month,
+    pozo,
+    label: target.label,
+    montoCs: monto_cs,
+    saldoPozo: target.disponible,
+    cubre: { propio: Math.max(0, round(monto_cs - deOtros, 2)), extra, pozos, ganancia },
+    excede: deOtros > 0,
+    gananciaRealAntes: before.gananciaReal,
+    gananciaRealDespues: after.gananciaReal,
+  };
 }
 
 /**

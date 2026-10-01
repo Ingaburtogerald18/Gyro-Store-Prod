@@ -26,6 +26,7 @@ import {
   getExpensesByPozo,
   createExpense,
   updateExpense,
+  previewExpense,
   deleteExpense,
   listExpenses,
   getExpensesOverflow,
@@ -347,6 +348,22 @@ router.post(
     const data = createExpenseInputSchema.parse(req.body);
     const expense = await createExpense(data, req.user!.uid);
     res.status(201).json(expense);
+  })
+);
+
+/**
+ * POST /api/reports/expenses/preview
+ * De dónde saldría un gasto si se guarda (su pozo, la bolsa extra, otros
+ * pozos, la ganancia). No escribe nada. `excludeId`: el gasto que se edita.
+ */
+const expensePreviewSchema = createExpenseInputSchema.extend({ excludeId: z.string().uuid().optional() });
+
+router.post(
+  '/expenses/preview',
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const { excludeId, ...data } = expensePreviewSchema.parse(req.body);
+    res.json(await previewExpense(data, excludeId));
   })
 );
 

@@ -55,6 +55,24 @@ export interface LoanPaymentsListResponse {
   total: number;
 }
 
+/** Respuesta de POST /reports/expenses/preview: de dónde saldría un gasto. */
+export interface ExpensePreview {
+  month: string;
+  pozo: string;
+  label: string;
+  montoCs: number;
+  saldoPozo: number;
+  cubre: {
+    propio: number;
+    extra: number;
+    pozos: { pozo: string; label: string; monto: number }[];
+    ganancia: number;
+  };
+  excede: boolean;
+  gananciaRealAntes: number;
+  gananciaRealDespues: number;
+}
+
 export interface KpiParams {
   startDate?: string;
   endDate?: string;
@@ -244,6 +262,10 @@ export const reportsApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ['Expense', 'Sale'],
     }),
+    // POST porque lleva cuerpo, pero no escribe nada: no invalida caché.
+    previewExpense: build.mutation<ExpensePreview, CreateExpensePayload & { excludeId?: string }>({
+      query: (body) => ({ url: 'reports/expenses/preview', method: 'POST', body }),
+    }),
     updateExpense: build.mutation<ExpenseItem, { id: string; body: CreateExpensePayload }>({
       query: ({ id, body }) => ({
         url: `reports/expenses/${id}`,
@@ -307,6 +329,7 @@ export const {
   useGetExpensesOverflowQuery,
   useGetExpensesListQuery,
   useCreateExpenseMutation,
+  usePreviewExpenseMutation,
   useUpdateExpenseMutation,
   useDeleteExpenseMutation,
   useGetLoanPaymentsSummaryQuery,

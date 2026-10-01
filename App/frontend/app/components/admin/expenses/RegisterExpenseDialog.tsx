@@ -3,7 +3,7 @@ import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { HugeIcon } from '~/components/ui/icon';
-import { Add01Icon, Coins01Icon } from '@hugeicons/core-free-icons';
+import { Add01Icon, Alert02Icon, Coins01Icon } from '@hugeicons/core-free-icons';
 import { toast } from 'sonner';
 import {
   Dialog,
@@ -30,9 +30,11 @@ import { formatCordobas, errMsg } from '~/lib/formatters';
 import { cn } from '~/lib/utils';
 import {
   useCreateExpenseMutation,
+  usePreviewExpenseMutation,
   useUpdateExpenseMutation,
   type CreateExpensePayload,
   type ExpenseItem,
+  type ExpensePreview,
 } from '~/store/api/reportsApi';
 import { useGetConfigQuery } from '~/store/api/sessionApi';
 
@@ -101,7 +103,11 @@ export function ExpenseFormDialog({
   const isEdit = !!expense;
   const [createExpense, { isLoading: creating }] = useCreateExpenseMutation();
   const [updateExpense, { isLoading: updating }] = useUpdateExpenseMutation();
-  const isLoading = creating || updating;
+  const [previewExpense, { isLoading: previewing }] = usePreviewExpenseMutation();
+  const isLoading = creating || updating || previewing;
+  // Aviso antes de guardar: si el gasto no cabe en su pozo, se muestra de
+  // dónde saldría y se pide confirmar.
+  const [pending, setPending] = useState<{ body: CreateExpensePayload; preview: ExpensePreview } | null>(null);
   const { data: config } = useGetConfigQuery();
   // Al editar un gasto en dólares se conserva la tasa con la que se registró.
   const exchangeRate = (isEdit && expense?.exchangeRate) || config?.exchangeRate || 37;
@@ -119,7 +125,10 @@ export function ExpenseFormDialog({
   });
 
   useEffect(() => {
-    if (open) reset(valuesFor(expense, defaultPozo));
+    if (open) {
+      reset(valuesFor(expense, defaultPozo));
+      setPending(null);
+    }
   }, [open, expense, defaultPozo, reset]);
 
   const moneda = watch('moneda');
@@ -143,6 +152,19 @@ export function ExpenseFormDialog({
       description: v.description || undefined,
     };
     try {
+      const preview = await previewExpense({ ...body, excludeId: expense?.id }).unwrap();
+      if (preview.excede) {
+        setPending({ body, preview });
+        return;
+      }
+    } catch {
+      // Sin vista previa se guarda igual: el aviso ayuda, no bloquea.
+    }
+    await save(body);
+  });
+
+  async function save(body: CreateExpensePayload) {
+    try {
       if (expense) {
         await updateExpense({ id: expense.id, body }).unwrap();
         toast.success('Gasto actualizado.');
@@ -155,7 +177,60 @@ export function ExpenseFormDialog({
     } catch (err) {
       toast.error(errMsg(err, isEdit ? 'No se pudo actualizar el gasto.' : 'No se pudo registrar el gasto.'));
     }
-  });
+  }
+
+  if (open && pending) {
+    const { preview } = pending;
+    const fmt = (n: number) => formatCordobas(n, 'C$', 2);
+    const fuentes = [
+      preview.cubre.propio > 0 && { label: `Pozo ${preview.label}`, monto: preview.cubre.propio },
+      preview.cubre.extra > 0 && { label: 'Bolsa extra (sobrante de salario)', monto: preview.cubre.extra },
+      ...preview.cubre.pozos.map((p) => ({ label: `Pozo ${p.label}`, monto: p.monto })),
+      preview.cubre.ganancia > 0 && { label: 'Ganancia del mes', monto: preview.cubre.ganancia, danger: true },
+    ].filter(Boolean) as { label: string; monto: number; danger?: boolean }[];
+
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <HugeIcon icon={Alert02Icon} size={18} strokeWidth={2} className="text-warning" aria-hidden />
+              Este gasto se pasa del pozo {preview.label}
+            </DialogTitle>
+            <DialogDescription>
+              El pozo tiene {fmt(Math.max(0, preview.saldoPozo))} disponibles y el gasto es de {fmt(preview.montoCs)}. Así se cubriría:
+            </DialogDescription>
+          </DialogHeader>
+
+          <ul className="divide-y divide-border rounded-card border border-border text-sm">
+            {fuentes.map((f) => (
+              <li key={f.label} className="flex items-center justify-between gap-3 px-3 py-2">
+                <span className={cn('text-muted-foreground', f.danger && 'font-medium text-destructive')}>{f.label}</span>
+                <span className={cn('nums font-semibold', f.danger ? 'text-destructive' : 'text-foreground')}>{fmt(f.monto)}</span>
+              </li>
+            ))}
+          </ul>
+
+          {preview.cubre.ganancia > 0 && (
+            <p className="text-xs text-muted-foreground">
+              La ganancia real del mes pasa de <span className="nums font-medium text-foreground">{fmt(preview.gananciaRealAntes)}</span> a{' '}
+              <span className="nums font-medium text-destructive">{fmt(preview.gananciaRealDespues)}</span>.
+            </p>
+          )}
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button type="button" variant="outline" onClick={() => setPending(null)} disabled={isLoading}>
+              Volver
+            </Button>
+            <Button type="button" onClick={() => save(pending.body)} disabled={isLoading} className="bg-primary-2 text-primary-2-foreground hover:bg-primary-2/90">
+              {isLoading && <Spinner className="mr-2" />}
+              {isEdit ? 'Guardar igual' : 'Registrar igual'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
