@@ -37,7 +37,6 @@ import { IncomeWaterfall, type WaterfallInput } from '~/components/admin/reports
 import { DashboardDrilldowns, type DrilldownType } from '~/components/admin/reports/DashboardDrilldowns';
 import { MonthSelector, getMonthRange, type MonthYear } from '~/components/admin/reports/MonthSelector';
 import { SalesDailyTrendChart } from '~/components/admin/reports/SalesDailyTrendChart';
-import { PaymentMethodDonut } from '~/components/admin/reports/PaymentMethodDonut';
 import { SellerRankingTable } from '~/components/admin/reports/SellerRankingTable';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs';
 import { ExpensesTab } from '~/components/admin/expenses/ExpensesTab';
@@ -341,12 +340,7 @@ export default function AdminDashboard() {
             {isAdmin && (
               <section className="space-y-3">
                 <SectionLabel>Cortes de ventas</SectionLabel>
-                <PaymentMethodDonut range={queryParams} className="p-5" />
-                <SalesBreakdownCards
-                  range={queryParams}
-                  excludeMethod
-                  className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"
-                />
+                <SalesBreakdownCards range={queryParams} />
               </section>
             )}
           </motion.div>

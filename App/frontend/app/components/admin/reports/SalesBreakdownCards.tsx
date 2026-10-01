@@ -1,22 +1,27 @@
-// Los cinco cortes del periodo. Cada grupo llega del backend como
-// {key, count, total}: acá solo se traduce la clave y se dibuja la proporción,
-// para que agregar un corte nuevo en el RPC no obligue a tocar este archivo más
-// que para ponerle nombre en español.
+// Cortes de ventas del período, en una sola tarjeta: una barra 100 % por corte
+// (origen, facturación, código de descuento, forma de cobro y método de pago),
+// con su leyenda debajo. Así se comparan los cortes de un vistazo.
+//
+// Todo es "ventas": un solo tono (emerald) en distinta intensidad, no un color
+// por grupo (DESIGN.md §2.4). Cada grupo llega del backend como
+// {key, count, total}; acá solo se traduce la clave.
+//
+// Todos suman el total vendido (sin delivery), salvo método de pago, que solo
+// existe en las ventas facturadas y lo dice en el título.
+import { motion, useReducedMotion } from 'framer-motion';
 import { HugeIcon } from '~/components/ui/icon';
-import { CreditCardIcon, Invoice01Icon, Store01Icon, Tag01Icon, Calendar03Icon } from '@hugeicons/core-free-icons';
+import { CreditCardIcon, Invoice01Icon, Store01Icon, Tag01Icon, Calendar03Icon, PieChartIcon } from '@hugeicons/core-free-icons';
 import type { IconSvgElement } from '@hugeicons/react';
-import { useMemo } from 'react';
 
 import { SpotlightCard } from '~/components/ui/stat-card';
 import { QueryState } from '~/components/ui/QueryState';
-import { Progress } from '~/components/ui/progress';
 import { formatCordobas, formatNumber } from '~/lib/formatters';
 import { useGetSalesBreakdownQuery, type BreakdownGroup, type SalesBreakdown } from '~/store/api/reportsApi';
 import type { PeriodRange } from './period';
+import { cn } from '~/lib/utils';
 
-// Traducción de las claves que emite `get_sales_breakdown`. Una clave sin
-// entrada acá se muestra tal cual: es preferible un rótulo feo a una tarjeta
-// vacía si mañana el enum de la base crece.
+// Una clave sin entrada acá se muestra tal cual: es preferible un rótulo feo a
+// un grupo vacío si mañana el enum de la base crece.
 const KEY_LABELS: Record<string, string> = {
   efectivo: 'Efectivo',
   transferencia: 'Transferencia',
@@ -32,97 +37,105 @@ const KEY_LABELS: Record<string, string> = {
   contado: 'De contado',
 };
 
-export interface BreakdownSection {
+interface Cut {
   key: keyof SalesBreakdown;
   title: string;
   icon: IconSvgElement;
   hint: string;
 }
 
-const SECTIONS: BreakdownSection[] = [
-  { key: 'by_method', title: 'Método de pago', icon: CreditCardIcon, hint: 'Solo ventas facturadas' },
+const CUTS: Cut[] = [
+  { key: 'by_invoiced', title: 'Facturación', icon: Invoice01Icon, hint: 'Ventas con factura emitida' },
+  { key: 'by_method', title: 'Métodos de pago (ventas facturadas)', icon: CreditCardIcon, hint: 'El método vive en la factura' },
   { key: 'by_origin', title: 'Origen del inventario', icon: Store01Icon, hint: 'Propio vs migrado' },
-  { key: 'by_invoiced', title: 'Facturación', icon: Invoice01Icon, hint: 'Ventas con papel emitido' },
   { key: 'by_discount', title: 'Código de descuento', icon: Tag01Icon, hint: 'El código se canjea al facturar' },
   { key: 'by_installment', title: 'Forma de cobro', icon: Calendar03Icon, hint: 'Plan de cuotas vs contado' },
 ];
 
-function GroupRows({ groups }: { groups: BreakdownGroup[] }) {
-  const max = Math.max(...groups.map((g) => g.total), 1);
+// Intensidad por posición (el grupo más grande, el más intenso).
+const SHADES = ['opacity-100', 'opacity-60', 'opacity-35', 'opacity-20'];
+const fmt = (n: number) => formatCordobas(n, 'C$', 2);
 
-  if (groups.length === 0) {
-    return <p className="py-4 text-center text-xs text-muted-foreground">Sin datos.</p>;
-  }
+function CutRow({ cut, groups, animKey }: { cut: Cut; groups: BreakdownGroup[]; animKey?: string }) {
+  const reduce = useReducedMotion();
+  const sorted = [...groups].filter((g) => g.total > 0 || g.count > 0).sort((a, b) => b.total - a.total);
+  const total = sorted.reduce((s, g) => s + g.total, 0);
 
   return (
-    <div className="space-y-3">
-      {groups.map((g) => (
-        <div key={g.key} className="flex flex-col gap-1.5">
-          <div className="flex items-baseline justify-between gap-2 text-sm">
-            <span className="font-medium text-foreground">{KEY_LABELS[g.key] ?? g.key}</span>
-            <span className="nums text-muted-foreground">
-              {formatCordobas(g.total, 'C$', 2)}
-            </span>
-          </div>
-          <Progress
-            value={(g.total / max) * 100}
-            aria-label={KEY_LABELS[g.key] ?? g.key}
-            className="h-1.5"
-          />
-          <span className="nums text-xs text-muted-foreground">
-            {formatNumber(g.count)} {g.count === 1 ? 'venta' : 'ventas'}
-          </span>
+    <div className="grid gap-x-6 gap-y-2 py-4 first:pt-0 last:pb-0 lg:grid-cols-[16rem_1fr]">
+      <div className="flex items-start gap-2">
+        <HugeIcon icon={cut.icon} size={16} strokeWidth={2} className="mt-0.5 shrink-0 text-muted-foreground" />
+        <div>
+          <p className="text-sm font-medium text-foreground">{cut.title}</p>
+          <p className="text-2xs text-muted-foreground">
+            {cut.hint} · <span className="nums">{fmt(total)}</span>
+          </p>
         </div>
-      ))}
+      </div>
+
+      {sorted.length === 0 ? (
+        <p className="text-xs text-muted-foreground">Sin datos.</p>
+      ) : (
+        <div className="space-y-2">
+          <motion.div
+            key={animKey}
+            className="flex h-3 w-full overflow-hidden rounded-full bg-muted"
+            style={{ originX: 0 }}
+            initial={reduce ? false : { scaleX: 0 }}
+            animate={{ scaleX: 1 }}
+            transition={{ duration: 0.5, ease: 'easeOut' }}
+          >
+            {sorted.map((g, i) => (
+              <div
+                key={g.key}
+                title={`${KEY_LABELS[g.key] ?? g.key}: ${fmt(g.total)}`}
+                className={cn('h-full bg-tone-emerald', SHADES[Math.min(i, SHADES.length - 1)], i > 0 && 'border-l-2 border-card')}
+                style={{ width: `${total > 0 ? (g.total / total) * 100 : 0}%` }}
+              />
+            ))}
+          </motion.div>
+          <ul className="flex flex-wrap gap-x-5 gap-y-1 text-xs">
+            {sorted.map((g, i) => (
+              <li key={g.key} className="flex items-center gap-1.5">
+                <span aria-hidden className={cn('size-2.5 rounded-sm bg-tone-emerald', SHADES[Math.min(i, SHADES.length - 1)])} />
+                <span className="text-muted-foreground">{KEY_LABELS[g.key] ?? g.key}</span>
+                <span className="nums font-medium text-foreground">{fmt(g.total)}</span>
+                <span className="nums text-muted-foreground">
+                  ({total > 0 ? ((g.total / total) * 100).toLocaleString('es-NI', { maximumFractionDigits: 1 }) : 0}% · {formatNumber(g.count)}{' '}
+                  {g.count === 1 ? 'venta' : 'ventas'})
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }
 
-export function SalesBreakdownCards({
-  range,
-  excludeMethod = false,
-  className,
-}: {
-  range: PeriodRange;
-  excludeMethod?: boolean;
-  className?: string;
-}) {
+export function SalesBreakdownCards({ range, className }: { range: PeriodRange; className?: string }) {
   const { data, isLoading, isError } = useGetSalesBreakdownQuery(range);
 
-  const activeSections = useMemo(() => {
-    if (!excludeMethod) return SECTIONS;
-    return SECTIONS.filter((s) => s.key !== 'by_method');
-  }, [excludeMethod]);
-
   return (
-    <QueryState
-      loading={isLoading}
-      error={isError}
-      empty={!data}
-      loadingFallback={
-        <div className={className || 'grid gap-4 sm:grid-cols-2 lg:grid-cols-4'}>
-          {activeSections.map((s) => (
-            <div key={s.key} className="h-48 animate-pulse rounded-card bg-muted" />
-          ))}
-        </div>
-      }
-    >
-      {data && (
-        <div className={className || 'grid gap-4 sm:grid-cols-2 lg:grid-cols-4'}>
-          {activeSections.map((s) => (
-            <SpotlightCard key={s.key} variant="default" className="p-5">
-              <div className="mb-4 flex items-start justify-between gap-2 border-b pb-3">
-                <div className="flex items-center gap-2">
-                  <HugeIcon icon={s.icon} size={18} strokeWidth={2} className="text-primary" />
-                  <h4 className="text-sm font-semibold text-foreground">{s.title}</h4>
-                </div>
-              </div>
-              <GroupRows groups={data[s.key]} />
-              <p className="mt-3 text-xs text-muted-foreground">{s.hint}</p>
-            </SpotlightCard>
-          ))}
-        </div>
-      )}
-    </QueryState>
+    <SpotlightCard variant="default" className={cn('p-5', className)}>
+      <div className="mb-4 flex items-center gap-2 border-b pb-3">
+        <HugeIcon icon={PieChartIcon} size={18} strokeWidth={2} className="text-primary" />
+        <h3 className="font-semibold text-foreground">Cómo se repartieron las ventas</h3>
+      </div>
+      <QueryState
+        loading={isLoading}
+        error={isError}
+        empty={!data}
+        loadingFallback={<div className="h-72 animate-pulse rounded-card bg-muted" />}
+      >
+        {data && (
+          <div className="divide-y divide-border/70">
+            {CUTS.map((cut) => (
+              <CutRow key={cut.key} cut={cut} groups={data[cut.key]} animKey={range.startDate} />
+            ))}
+          </div>
+        )}
+      </QueryState>
+    </SpotlightCard>
   );
 }
