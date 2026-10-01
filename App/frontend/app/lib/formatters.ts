@@ -8,7 +8,7 @@ export function formatNumber(value: number, decimals = 0): string {
 
 /**
  * Formatea un monto en córdobas: 1710 → "C$1,710".
- * `decimals` sube a 2 en los módulos que trabajan con centavos (caja, facturación,
+ * `decimals` sube a 2 en los módulos que trabajan con centavos (facturación,
  * costos de inventario); el storefront y los totales redondeados quedan en 0.
  */
 export function formatCordobas(amount: number, symbol = 'C$', decimals = 0): string {

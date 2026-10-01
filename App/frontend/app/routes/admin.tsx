@@ -1,6 +1,6 @@
 import type { IconSvgElement } from "@hugeicons/react";
 import { HugeIcon } from "~/components/ui/icon";
-import { Analytics01Icon, Coupon01Icon, CreditCardIcon, DashboardSquare01Icon, File01Icon, Logout03Icon, Package01Icon, PackageIcon, Settings02Icon, ShoppingCart02Icon, Store01Icon, UserCircleIcon, UserMultiple02Icon, UserSettings01Icon, Wallet01Icon } from "@hugeicons/core-free-icons";
+import { Analytics01Icon, Coupon01Icon, CreditCardIcon, DashboardSquare01Icon, File01Icon, Logout03Icon, Package01Icon, PackageIcon, Settings02Icon, ShoppingCart02Icon, Store01Icon, UserCircleIcon, UserMultiple02Icon, UserSettings01Icon } from "@hugeicons/core-free-icons";
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from '@remix-run/react';
 import type { User } from '@supabase/supabase-js';
@@ -66,7 +66,6 @@ const NAV_GROUPS: NavGroup[] = [
       { name: 'Mis Facturas', to: '/admin/mis-facturas', icon: File01Icon },
       { name: 'Ventas', to: '/admin/ventas', icon: ShoppingCart02Icon },
       { name: 'Cuotas', to: '/admin/cuotas', icon: CreditCardIcon },
-      { name: 'Caja y banco', to: '/admin/caja', icon: Wallet01Icon },
     ],
   },
   {

@@ -205,9 +205,9 @@ dinero distintos conviviendo en el panel.
 | Función | Para qué |
 |---|---|
 | `formatNumber(n, decimals)` | Cifra pelada con separador de miles. Base de las demás. |
-| `formatCordobas(n, symbol?, decimals?)` | Córdobas. `decimals` es 0 por defecto (storefront, totales) y 2 donde el módulo maneja centavos (caja, facturación, costos de inventario). |
+| `formatCordobas(n, symbol?, decimals?)` | Córdobas. `decimals` es 0 por defecto (storefront, totales) y 2 donde el módulo maneja centavos (facturación, costos de inventario). |
 | `formatUsd(n, max?, min?)` | Dólares (compras a China). |
-| `formatByCurrency(n, code, decimals?)` | Cuando la moneda es dato (Caja y Bancos guarda `"NIO"` / `"USD"` por cuenta). Devuelve símbolo, no el código pegado al número. |
+| `formatByCurrency(n, code, decimals?)` | Cuando la moneda es dato (`"NIO"` / `"USD"`). Devuelve símbolo, no el código pegado al número. |
 | `cordobasFromUsd(n)` | Conversión + formato para los `sub` de las StatCard. |
 | `roundTo(n, decimals?)` | Redondeo de **cálculo**, no de presentación. |
 
@@ -539,7 +539,7 @@ estructura, con las piezas de `components/admin/workspace.tsx`:
 
 1. **`PageHeader`**: migas "Grupo / Sección", título y UNA acción principal
    (con su atajo de teclado, `useShortcut('n', …)` + `<Kbd>N</Kbd>`). A lo sumo
-   una secundaria; el resto va a un menú "Más" (ver Caja).
+   una secundaria; el resto va a un menú "Más".
 2. **`<Workspace>`**: UNA tarjeta (`rounded-card`, `overflow-clip`) que contiene:
    - **`<WorkspaceToolbar>`**: una sola fila con `SegmentedControl` (la vista o el
      estado — reemplaza Tabs y AnimatedTabs), `ToolbarSearch` ("/" enfoca, Esc
