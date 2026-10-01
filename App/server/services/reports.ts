@@ -226,6 +226,42 @@ export async function getPrestamosPozoBudget(
 }
 
 /**
+ * Período contra el que se compara `[startDate, endDate]`.
+ *
+ * Si el rango es un mes calendario completo en hora de Nicaragua (lo que manda
+ * el selector de mes), el anterior es el MES CALENDARIO anterior. Para
+ * cualquier otro rango, el mismo largo justo antes (criterio del RPC).
+ */
+function previousPeriod(
+  startDate?: string,
+  endDate?: string,
+): { startIso: string; endIso: string; isCalendarMonth: boolean } | null {
+  if (!startDate || !endDate) return null;
+  const s = Date.parse(startDate);
+  const e = Date.parse(endDate);
+  if (isNaN(s) || isNaN(e) || e < s) return null;
+
+  const startLocal = toBusinessDate(new Date(s));
+  const monthStart = `${startLocal.slice(0, 8)}01`;
+  const [y, m] = monthStart.split('-').map(Number) as [number, number];
+  const nextMonthStart = new Date(Date.UTC(y, m, 1)).toISOString().slice(0, 10);
+  const prevMonthStart = new Date(Date.UTC(y, m - 2, 1)).toISOString().slice(0, 10);
+
+  const isCalendarMonth =
+    businessDateStartIso(monthStart) === new Date(s).toISOString() &&
+    Math.abs(Date.parse(businessDateStartIso(nextMonthStart)) - 1 - e) < 1000;
+
+  if (isCalendarMonth) {
+    return {
+      startIso: businessDateStartIso(prevMonthStart),
+      endIso: new Date(Date.parse(businessDateStartIso(monthStart)) - 1).toISOString(),
+      isCalendarMonth,
+    };
+  }
+  return { startIso: new Date(s - (e - s)).toISOString(), endIso: new Date(s).toISOString(), isCalendarMonth };
+}
+
+/**
  * Retorna los KPIs financieros (ventas, utilidad, comisiones, pozos).
  *
  * NOTA: Para calcular esto "con SQL puro (no agregados en memoria)" como exige
@@ -249,19 +285,28 @@ export async function getFinancialKPIs(
     throw error;
   }
 
-  let prevStartDate: string | undefined = undefined;
-  let prevEndDate: string | undefined = undefined;
-  if (startDate && endDate) {
-    const s = new Date(startDate).getTime();
-    const e = new Date(endDate).getTime();
-    if (!isNaN(s) && !isNaN(e) && e >= s) {
-      const duration = e - s;
-      prevEndDate = new Date(s).toISOString();
-      prevStartDate = new Date(s - duration).toISOString();
+  const prev = previousPeriod(startDate, endDate);
+  const prevStartDate = prev?.startIso;
+  const prevEndDate = prev?.endIso;
+
+  const rpcData = { ...((data ?? {}) as Record<string, any>) };
+
+  // El RPC calcula su "_prev" con la misma DURACIÓN justo antes del rango, y
+  // para un mes eso no es el mes anterior (septiembre comparaba contra 2–31 de
+  // agosto). Cuando el rango es un mes calendario, se pide el mes anterior
+  // completo y sus totales reemplazan los "_prev" del RPC.
+  if (prev?.isCalendarMonth) {
+    const { data: prevData, error: prevError } = await db.rpc('get_financial_kpis', {
+      p_start_date: prev.startIso,
+      p_end_date: prev.endIso,
+      p_seller_uid: sellerUid ?? null,
+    }).single();
+    if (prevError) throw prevError;
+    const p = (prevData ?? {}) as Record<string, any>;
+    for (const key of ['total_ventas', 'total_unidades', 'total_vendido', 'coste_total', 'comision_total', 'ganancia_tienda_total']) {
+      rpcData[`${key}_prev`] = p[key] ?? 0;
     }
   }
-
-  const rpcData = (data ?? {}) as Record<string, any>;
   const collectedPrestamos = round(Number(rpcData.pozos_recogidos?.prestamos || 0), 2);
 
   const [currentLoansTotal, prevLoansTotal, currentPrestamosBudget, prevPrestamosBudget] = await Promise.all([
