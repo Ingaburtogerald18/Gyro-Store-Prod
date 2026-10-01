@@ -130,20 +130,19 @@ export default function AdminDashboard() {
             },
           ]
         : []),
-      // costo + comisión + salario + ganancia tienda = total vendido. La parte de
-      // los préstamos que cubre el pozo Préstamos ya está dentro del costo; acá
-      // solo va la que sale de la ganancia. Antes se sumaba el pago completo
-      // además de la ganancia y el donut pasaba del total (agosto: 74,126.40
-      // contra 72,010).
-      ...(kpis.prestamos_de_ganancia
+      // costo + comisión + salario + ganancia tienda = total vendido. Lo que
+      // los gastos cubrieron con sus pozos ya está dentro del costo; acá solo
+      // va lo que tomaron de la ganancia (pozos que se pasaron, préstamos,
+      // salario). Ganancia real = ganancia tienda − eso.
+      ...(kpis.gastos_de_ganancia
         ? [
             {
               key: 'prestamos',
-              label: 'Préstamos pagados con ganancia',
-              value: Math.min(kpis.prestamos_de_ganancia, Math.max(0, kpis.ganancia_tienda_total ?? 0)),
+              label: 'Gastos pagados con ganancia',
+              value: Math.min(kpis.gastos_de_ganancia, Math.max(0, kpis.ganancia_tienda_total ?? 0)),
               fill: 'var(--color-chart-5)',
-              note: kpis.prestamos_cubierto_por_budget
-                ? `Otros ${formatMoney(kpis.prestamos_cubierto_por_budget)} salieron del pozo Préstamos`
+              note: kpis.prestamos_de_ganancia
+                ? `Incluye ${formatMoney(kpis.prestamos_de_ganancia)} de préstamos`
                 : undefined,
             },
           ]

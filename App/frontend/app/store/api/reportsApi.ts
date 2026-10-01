@@ -33,6 +33,8 @@ export interface FinancialKPIs {
   budget_prestamos_disponible?: number;
   prestamos_cubierto_por_budget?: number;
   prestamos_de_ganancia?: number;
+  /** Todo lo que los gastos del mes tomaron de la ganancia (pozos, préstamos y salario). */
+  gastos_de_ganancia?: number;
   ganancia_real?: number;
   ganancia_real_prev?: number;
 }
@@ -86,26 +88,32 @@ export interface ExpenseItem {
   createdAt: string;
 }
 
-export interface PozoOverflowItem {
+/** Una fila del libro de pozos del mes (server/services/pozoLedger.ts). */
+export interface PozoLedgerRow {
   pozo: string;
   label: string;
   recogido: number;
+  heredado: number;
   gastado: number;
+  /** heredado + recogido − gastado, antes de cubrir desbordes. Negativo = se pasó. */
   disponible: number;
-  desbordamiento: number;
-  gastadoMes: number;
-  recogidoMes: number;
+  tomadoExtra: number;
+  tomadoPozos: number;
+  tomadoGanancia: number;
+  prestado: number;
+  saldoFinal: number;
 }
 
-export interface ExpensesOverflowResponse {
-  pozos: PozoOverflowItem[];
-  totalDesbordamiento: number;
-  gananciaBruta: number;
+export interface MonthLedger {
+  month: string;
+  pozos: PozoLedgerRow[];
+  extraInicio: number;
+  extraUsado: number;
+  extraSiguiente: number;
+  sobranteSalario: number;
+  gananciaTienda: number;
+  deGanancia: { comunes: number; prestamos: number; salario: number; total: number };
   gananciaReal: number;
-  presupuestoDisponible: number;
-  totalRecogido: number;
-  totalGastado: number;
-  desbordamientoDetalle: { pozo: string; label: string; monto: number }[];
 }
 
 export interface ExpensesListResponse {
@@ -220,7 +228,7 @@ export const reportsApi = baseApi.injectEndpoints({
       query: (params) => ({ url: 'reports/expenses', params: params ?? undefined }),
       providesTags: ['Expense', 'Sale'],
     }),
-    getExpensesOverflow: build.query<ExpensesOverflowResponse, KpiParams | void>({
+    getExpensesOverflow: build.query<MonthLedger, KpiParams | void>({
       query: (params) => ({ url: 'reports/expenses/overflow', params: params ?? undefined }),
       providesTags: ['Expense', 'Sale'],
     }),

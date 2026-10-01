@@ -31,7 +31,7 @@ import { formatCordobas, errMsg } from '~/lib/formatters';
 import { cn } from '~/lib/utils';
 import {
   useCreateExpenseMutation,
-  type PozoOverflowItem,
+  type PozoLedgerRow,
 } from '~/store/api/reportsApi';
 import { useGetConfigQuery } from '~/store/api/sessionApi';
 
@@ -51,7 +51,7 @@ export function RegisterExpenseDialog({
   defaultPozo,
   onSuccess,
 }: {
-  pozos?: PozoOverflowItem[];
+  pozos?: PozoLedgerRow[];
   defaultPozo?: string;
   onSuccess?: () => void;
 }) {

@@ -8,6 +8,7 @@ import type { CreateExpenseInput, CreateLoanPaymentInput } from '../../shared/sc
 import { getFinancialConfig } from './appConfig';
 import { businessDateStartIso, toBusinessDate } from '../utils/businessDay';
 import { fetchAllRows } from '../utils/fetchAllRows';
+import { getPozoLedger, ledgerMonthOf, type MonthLedger } from './pozoLedger';
 
 // ============================================================================
 // ── Esquemas Zod (Contratos) ──
@@ -44,6 +45,8 @@ const kpiSchema = z.object({
   budget_prestamos_disponible: z.number().default(0),
   prestamos_cubierto_por_budget: z.number().default(0),
   prestamos_de_ganancia: z.number().default(0),
+  /** Todo lo que los gastos del mes tomaron de la ganancia (pozos que se pasaron, préstamos y salario). */
+  gastos_de_ganancia: z.number().default(0),
   ganancia_real: z.number().default(0),
   ganancia_real_prev: z.number().default(0),
 });
@@ -306,6 +309,32 @@ export async function getFinancialKPIs(
       rpcData[`${key}_prev`] = p[key] ?? 0;
     }
   }
+
+  // Mes calendario de la tienda completa: la Ganancia real sale del motor de
+  // pozos (pozoLedger.ts), la MISMA cifra que muestra la pestaña Gastos.
+  if (prev?.isCalendarMonth && !sellerUid && startDate) {
+    const month = ledgerMonthOf(startDate);
+    const [ledger, prevLedger] = await Promise.all([
+      getPozoLedger(month),
+      getPozoLedger(ledgerMonthOf(prev.startIso)),
+    ]);
+    const prestamos = ledger.pozos.find((r) => r.pozo === 'prestamos')!;
+    const prestamosPrev = prevLedger.pozos.find((r) => r.pozo === 'prestamos')!;
+    const parsedLedger = parseDbRows(kpiSchema, [{
+      ...rpcData,
+      total_prestamos: prestamos.gastado,
+      total_prestamos_prev: prestamosPrev.gastado,
+      budget_prestamos_disponible: round(prestamos.heredado + prestamos.recogido, 2),
+      prestamos_cubierto_por_budget: round(prestamos.gastado - prestamos.tomadoGanancia, 2),
+      prestamos_de_ganancia: prestamos.tomadoGanancia,
+      gastos_de_ganancia: ledger.deGanancia.total,
+      ganancia_real: ledger.gananciaReal,
+      ganancia_real_prev: prevLedger.gananciaReal,
+    }], 'getFinancialKPIs');
+    return parsedLedger[0]!;
+  }
+
+  // Otros rangos (o un solo vendedor): criterio anterior, solo préstamos.
   const collectedPrestamos = round(Number(rpcData.pozos_recogidos?.prestamos || 0), 2);
 
   const [currentLoansTotal, prevLoansTotal, currentPrestamosBudget, prevPrestamosBudget] = await Promise.all([
@@ -356,6 +385,7 @@ export async function getFinancialKPIs(
     budget_prestamos_disponible: budgetDisponible,
     prestamos_cubierto_por_budget: cubiertoPorBudget,
     prestamos_de_ganancia: excedenteDeGanancia,
+    gastos_de_ganancia: excedenteDeGanancia,
     ganancia_real: gananciaReal,
     ganancia_real_prev: gananciaRealPrev,
   };
@@ -661,138 +691,12 @@ export async function getExpensesByPozo(startDate?: string, endDate?: string) {
 }
 
 /**
- * Calcula el estado de desbordamiento (overflow) y salud financiera del negocio:
- * Saldo acumulativo = (Recogido histórico) - (Gastado histórico).
- * Si negativo = desbordamiento que se descuenta de la ganancia bruta del mes.
+ * Libro de pozos del mes (pestaña Gastos): herencia, desbordes, bolsa extra y
+ * Ganancia real según las reglas de pozoLedger.ts. El mes es el que contiene
+ * `startDate` (hora de Nicaragua).
  */
-export async function getExpensesOverflow(startDate?: string, endDate?: string): Promise<ExpensesOverflowResult> {
-  // 1. Recogido histórico acumulado de ventas aprobadas/pagadas
-  const orderItems = await fetchAllRows((from, to) =>
-    db
-      .from('order_items')
-      .select('pozos, salary, ganancia_tienda, orders!inner(status, created_at)')
-      .in('orders.status', ['approved', 'paid'])
-      .order('id')
-      .range(from, to),
-  );
-
-  const recogidoHistorico: Record<string, number> = {};
-  const recogidoMes: Record<string, number> = {};
-  ALL_POZOS.forEach((p) => {
-    recogidoHistorico[p] = 0;
-    recogidoMes[p] = 0;
-  });
-
-  let gananciaBruta = 0;
-  const startTs = startDate ? new Date(startDate).getTime() : null;
-  const endTs = endDate ? new Date(endDate).getTime() : null;
-
-  for (const item of orderItems) {
-    const orderCreatedAt = (item as any).orders?.created_at;
-    const itemDateTs = orderCreatedAt ? new Date(orderCreatedAt).getTime() : 0;
-    const inPeriod =
-      (startTs === null || itemDateTs >= startTs) &&
-      (endTs === null || itemDateTs <= endTs);
-
-    if (item.pozos && typeof item.pozos === 'object') {
-      for (const [key, val] of Object.entries(item.pozos)) {
-        const num = Number(val) || 0;
-        if (recogidoHistorico[key] !== undefined) {
-          recogidoHistorico[key] = (recogidoHistorico[key] ?? 0) + num;
-        }
-        if (inPeriod && recogidoMes[key] !== undefined) {
-          recogidoMes[key] = (recogidoMes[key] ?? 0) + num;
-        }
-      }
-    }
-
-    const sal = Number(item.salary) || 0;
-    recogidoHistorico['salario'] = (recogidoHistorico['salario'] ?? 0) + sal;
-    if (inPeriod) {
-      recogidoMes['salario'] = (recogidoMes['salario'] ?? 0) + sal;
-      gananciaBruta += Number(item.ganancia_tienda) || 0;
-    }
-  }
-
-  // 2. Gastado histórico acumulado y del mes
-  const expensesRows = await fetchAllRows((from, to) =>
-    db.from('expenses').select('pozo, monto_cs, created_at').order('id').range(from, to),
-  );
-
-  const gastadoHistorico: Record<string, number> = {};
-  const gastadoMes: Record<string, number> = {};
-  ALL_POZOS.forEach((p) => {
-    gastadoHistorico[p] = 0;
-    gastadoMes[p] = 0;
-  });
-
-  for (const exp of expensesRows) {
-    const pozo = exp.pozo;
-    const monto = Number(exp.monto_cs) || 0;
-    const expDateTs = exp.created_at ? new Date(exp.created_at).getTime() : 0;
-    const inPeriod =
-      (startTs === null || expDateTs >= startTs) &&
-      (endTs === null || expDateTs <= endTs);
-
-    if (gastadoHistorico[pozo] !== undefined) {
-      gastadoHistorico[pozo] = (gastadoHistorico[pozo] ?? 0) + monto;
-    }
-    if (inPeriod && gastadoMes[pozo] !== undefined) {
-      gastadoMes[pozo] = (gastadoMes[pozo] ?? 0) + monto;
-    }
-  }
-
-  // 3. Presupuesto UNIFICADO del período seleccionado.
-  //    Cada mes empieza en cero: solo cuenta lo recogido y gastado en el período.
-  //    Solo hay desbordamiento si el gasto del período supera lo recogido del período.
-  let totalRecogido = 0;
-  let totalGastado = 0;
-
-  const pozosResult: PozoOverflowItem[] = ALL_POZOS.map((p) => {
-    const recogido = round(recogidoMes[p] || 0, 2);
-    const gastado = round(gastadoMes[p] || 0, 2);
-    const disponible = round(recogido - gastado, 2);
-    totalRecogido += recogido;
-    totalGastado += gastado;
-
-    return {
-      pozo: p,
-      label: POZO_LABELS[p] || p,
-      recogido,
-      gastado,
-      disponible,
-      desbordamiento: 0,
-      gastadoMes: round(gastadoMes[p] || 0, 2),
-      recogidoMes: round(recogidoMes[p] || 0, 2),
-    };
-  });
-
-  totalRecogido = round(totalRecogido, 2);
-  totalGastado = round(totalGastado, 2);
-  const presupuestoDisponible = round(totalRecogido - totalGastado, 2);
-  const totalDesbordamiento = presupuestoDisponible < 0 ? round(Math.abs(presupuestoDisponible), 2) : 0;
-
-  gananciaBruta = round(gananciaBruta, 2);
-  const gananciaReal = round(gananciaBruta - totalDesbordamiento, 2);
-
-  const desbordamientoDetalle = totalDesbordamiento > 0
-    ? [{
-        pozo: 'consolidado',
-        label: 'Presupuesto consolidado',
-        monto: totalDesbordamiento,
-      }]
-    : [];
-
-  return {
-    pozos: pozosResult,
-    totalDesbordamiento,
-    gananciaBruta,
-    gananciaReal,
-    presupuestoDisponible,
-    totalRecogido,
-    totalGastado,
-    desbordamientoDetalle,
-  };
+export async function getExpensesOverflow(startDate?: string): Promise<MonthLedger> {
+  return getPozoLedger(ledgerMonthOf(startDate));
 }
 
 // ============================================================================
