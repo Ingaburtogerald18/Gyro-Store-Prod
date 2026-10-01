@@ -531,3 +531,34 @@ falta un color que no existe, primero se agrega el token en `:root` y
 
 Ojo con `border`: **a secas fija el ancho en los CUATRO lados**. Para un
 subrayado va `border-b border-border`, nunca `border-b border`.
+
+### 11.11 La superficie de trabajo (patrón de cada sección)
+
+Desde el rediseño de Inventario, cada sección de operación sigue la misma
+estructura, con las piezas de `components/admin/workspace.tsx`:
+
+1. **`PageHeader`**: migas "Grupo / Sección", título y UNA acción principal
+   (con su atajo de teclado, `useShortcut('n', …)` + `<Kbd>N</Kbd>`). A lo sumo
+   una secundaria; el resto va a un menú "Más" (ver Caja).
+2. **`<Workspace>`**: UNA tarjeta (`rounded-card`, `overflow-clip`) que contiene:
+   - **`<WorkspaceToolbar>`**: una sola fila con `SegmentedControl` (la vista o el
+     estado — reemplaza Tabs y AnimatedTabs), `ToolbarSearch` ("/" enfoca, Esc
+     limpia) y `ToolbarSelect` para filtros con su rótulo adentro.
+   - **`<MetricStrip>`** con hasta 4 `<Metric>`: números en Chivo
+     (`font-display`), en color de texto; el dato secundario va en `sub`. Nunca
+     una tarjeta por número ni un color por tarjeta.
+   - La tabla o el contenido, con `DataTable hideSearch globalFilterValue={…}`
+     cuando la búsqueda vive en la barra.
+
+**Radios:** 8 px en controles (`rounded-md`), 12 px en contenedores
+(`rounded-card`), píldora solo en estados (`StatusBadge`).
+**Fechas:** `formatLongDate` → "28 abr 2026". **Nombres de producto:**
+`splitProductName` → modelo en negrita y variante debajo.
+**Estados:** verde = terminado/en regla, azul = en curso, ámbar = atención,
+rojo = problema real, gris = inactivo. Un dato histórico (ej. "llegó en 92 días")
+va neutro.
+**Carga:** skeletons (`QueryState shape=…`), no el loader de marca.
+**Tablas anchas:** `defaultHiddenColumns` para que entren en una laptop.
+
+Reportería y Analítica son pantallas de gráficos: no usan `Workspace`, pero sí
+los montos en Chivo, los radios y los colores con significado.
