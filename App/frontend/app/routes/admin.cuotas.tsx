@@ -13,7 +13,7 @@
 // fecha de la primera cuota.
 import { HugeIcon } from "~/components/ui/icon";
 import { Add01Icon, ArrowDown01Icon, ArrowUp01Icon, CreditCardIcon } from "@hugeicons/core-free-icons";
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import type { MetaFunction } from '@remix-run/node';
 import { pageTitle } from '~/lib/brand';
 import { toast } from 'sonner';
@@ -30,7 +30,6 @@ import {
 import { PageHeader } from '~/components/layout/PageHeader';
 import { Button } from '~/components/ui/button';
 import { Input } from '~/components/ui/input';
-import { Label } from '~/components/ui/label';
 import { Badge } from '~/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '~/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/components/ui/select';
@@ -45,6 +44,11 @@ import {
 } from '~/store/api/installmentsApi';
 import { useGetSalesQuery, type SaleListItem } from '~/store/api/salesApi';
 import { Spinner } from "~/components/ui/spinner";
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { Field, FieldDescription, FieldError, FieldLabel } from '~/components/ui/field';
+
 
 export const meta: MetaFunction = () => [{ title: pageTitle('Cuotas', { admin: true }) }];
 
@@ -61,88 +65,119 @@ function ProgressBar({ paid, total }: { paid: number; total: number }) {
   );
 }
 
+// ── Formularios (react-hook-form + zod, DESIGN.md §6b) ──
+// La validación de cada campo va en su FieldError; el toast queda para el
+// resultado. Mismas reglas que registerInstallmentPaymentInputSchema y
+// createInstallmentPlanInputSchema del backend.
+
+/** Número obligatorio desde un <input>: vacío falla (no se convierte en 0). */
+const requiredNumber = (message: string) =>
+  z.preprocess((v) => (v === '' || v === null || v === undefined ? NaN : Number(v)), z.number({ message }));
+
+const paymentFormSchema = z.object({
+  amount: requiredNumber('Escribí el monto recibido.').pipe(z.number().positive('El monto tiene que ser mayor a 0.')),
+  method: z.enum(['efectivo', 'transferencia', 'tarjeta']),
+  note: z.string().trim().max(300, 'Máximo 300 caracteres.'),
+});
+type PaymentValues = z.input<typeof paymentFormSchema>;
+type PaymentOutput = z.output<typeof paymentFormSchema>;
+const EMPTY_PAYMENT: PaymentValues = { amount: '', method: 'efectivo', note: '' };
+
 function PaymentDialog({ plan, onClose }: { plan: InstallmentPlan | null; onClose: () => void }) {
   const [registerPayment, { isLoading }] = useRegisterInstallmentPaymentMutation();
-  const [amount, setAmount] = useState(0);
-  const [method, setMethod] = useState<'efectivo' | 'transferencia' | 'tarjeta'>('efectivo');
-  const [note, setNote] = useState('');
+  const {
+    control,
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<PaymentValues, unknown, PaymentOutput>({ resolver: zodResolver(paymentFormSchema), defaultValues: EMPTY_PAYMENT });
 
-  async function handleSubmit() {
-    if (!plan || amount <= 0) {
-      toast.error('El monto debe ser mayor a 0.');
-      return;
-    }
+  useEffect(() => {
+    if (plan) reset(EMPTY_PAYMENT);
+  }, [plan, reset]);
+
+  const onSubmit = handleSubmit(async (v) => {
+    if (!plan) return;
     try {
-      const res = await registerPayment({ id: plan.id, body: { amount, method, note: note.trim() || undefined } }).unwrap();
+      const res = await registerPayment({ id: plan.id, body: { amount: v.amount, method: v.method, note: v.note || undefined } }).unwrap();
       toast.success(
         res.completed
           ? '¡Plan completamente pagado!'
-          : `Pago registrado. Pendiente: ${formatCordobas(res.amountPending)}`,
+          : `Pago registrado. Pendiente: ${formatCordobas(res.amountPending)}.`,
       );
-      setAmount(0);
-      setNote('');
       onClose();
     } catch (err) {
       toast.error(errMsg(err, 'No se pudo registrar el pago.'));
     }
-  }
+  });
 
   return (
     <Dialog open={!!plan} onOpenChange={(open) => !open && onClose()}>
       <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Registrar pago{plan?.phone ? ` · ${plan.phone}` : ''}</DialogTitle>
-        </DialogHeader>
-        {plan && (
-          <div className="space-y-4">
-            <div className="space-y-1 rounded-lg border bg-muted p-3 text-sm">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Total</span>
-                <span className="font-semibold">{formatCordobas(plan.total)}</span>
+        <form onSubmit={onSubmit} noValidate>
+          <DialogHeader>
+            <DialogTitle>Registrar pago{plan?.phone ? ` · ${plan.phone}` : ''}</DialogTitle>
+          </DialogHeader>
+          {plan && (
+            <div className="mt-4 space-y-4">
+              <div className="space-y-1 rounded-card border border-border bg-muted p-3 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Total</span>
+                  <span className="font-semibold">{formatCordobas(plan.total)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Pagado</span>
+                  <span className="font-semibold text-success">{formatCordobas(plan.amountPaid)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Pendiente</span>
+                  <span className="font-bold text-foreground">{formatCordobas(plan.amountPending)}</span>
+                </div>
+                <ProgressBar paid={plan.amountPaid} total={plan.total} />
               </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Pagado</span>
-                <span className="font-semibold text-primary-2">{formatCordobas(plan.amountPaid)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Pendiente</span>
-                <span className="font-bold text-warning">{formatCordobas(plan.amountPending)}</span>
-              </div>
-              <ProgressBar paid={plan.amountPaid} total={plan.total} />
-            </div>
 
-            <div className="space-y-1.5">
-              <Label>Monto recibido (C$) *</Label>
-              <Input type="number" min={1} step="0.01" value={amount} onChange={(e) => setAmount(Math.max(0, Number(e.target.value) || 0))} />
+              <Field data-invalid={!!errors.amount}>
+                <FieldLabel htmlFor="pay-amount" required>Monto recibido (C$)</FieldLabel>
+                <Input id="pay-amount" type="number" min={0} step="0.01" inputMode="decimal" aria-required aria-invalid={!!errors.amount} {...register('amount')} />
+                <FieldError errors={[errors.amount]} />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="pay-method">Método de pago</FieldLabel>
+                <Controller
+                  control={control}
+                  name="method"
+                  render={({ field }) => (
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger id="pay-method" className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="efectivo">Efectivo</SelectItem>
+                        <SelectItem value="transferencia">Transferencia</SelectItem>
+                        <SelectItem value="tarjeta">Tarjeta</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+              </Field>
+              <Field data-invalid={!!errors.note}>
+                <FieldLabel htmlFor="pay-note">Notas (opcional)</FieldLabel>
+                <Input id="pay-note" aria-invalid={!!errors.note} {...register('note')} />
+                <FieldError errors={[errors.note]} />
+              </Field>
             </div>
-            <div className="space-y-1.5">
-              <Label>Método de pago</Label>
-              <Select value={method} onValueChange={(v) => setMethod(v as typeof method)}>
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="efectivo">Efectivo</SelectItem>
-                  <SelectItem value="transferencia">Transferencia</SelectItem>
-                  <SelectItem value="tarjeta">Tarjeta</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Notas (opcional)</Label>
-              <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Opcional…" />
-            </div>
+          )}
+          <div className="mt-4 flex justify-end gap-2">
+            <Button type="button" variant="ghost" onClick={onClose}>
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={isLoading}>
+              {isLoading && <Spinner className="mr-2" />}
+              Registrar pago
+            </Button>
           </div>
-        )}
-        <div className="mt-4 flex justify-end gap-2">
-          <Button variant="ghost" onClick={onClose}>
-            Cancelar
-          </Button>
-          <Button onClick={handleSubmit} disabled={isLoading}>
-        {isLoading && <Spinner className="mr-2" />}
-        Registrar pago
-      </Button>
-        </div>
+        </form>
       </DialogContent>
     </Dialog>
   );
@@ -243,64 +278,82 @@ function PlanCard({ plan, onPay }: { plan: InstallmentPlan; onPay: () => void })
   );
 }
 
+const planFormSchema = z.object({
+  numCuotas: requiredNumber('Escribí la cantidad de cuotas.').pipe(
+    z.number().int('Tiene que ser un número entero.').min(2, 'Mínimo 2 cuotas.').max(36, 'Máximo 36 cuotas.'),
+  ),
+  firstDue: z.string().min(1, 'Elegí la fecha de la primera cuota.'),
+});
+type PlanValues = z.input<typeof planFormSchema>;
+type PlanOutput = z.output<typeof planFormSchema>;
+const EMPTY_PLAN: PlanValues = { numCuotas: '2', firstDue: '' };
+
 function CreatePlanDialog({ sale, onClose }: { sale: SaleListItem | null; onClose: () => void }) {
   const [createPlan, { isLoading }] = useCreateInstallmentPlanMutation();
-  const [numCuotas, setNumCuotas] = useState(2);
-  const [firstDue, setFirstDue] = useState('');
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<PlanValues, unknown, PlanOutput>({ resolver: zodResolver(planFormSchema), defaultValues: EMPTY_PLAN });
 
-  async function handleSubmit() {
-    if (!sale || numCuotas < 2 || !firstDue) {
-      toast.error('Completá cantidad de cuotas (mín. 2) y fecha de la primera.');
-      return;
-    }
+  useEffect(() => {
+    if (sale) reset(EMPTY_PLAN);
+  }, [sale, reset]);
+
+  const onSubmit = handleSubmit(async (v) => {
+    if (!sale) return;
     try {
-      await createPlan({ orderId: sale.id, numCuotas, firstDue }).unwrap();
+      await createPlan({ orderId: sale.id, numCuotas: v.numCuotas, firstDue: v.firstDue }).unwrap();
       toast.success('Plan de cuotas creado.');
-      setNumCuotas(2);
-      setFirstDue('');
       onClose();
     } catch (err) {
       toast.error(errMsg(err, 'No se pudo crear el plan de cuotas.'));
     }
-  }
+  });
 
   return (
     <Dialog open={!!sale} onOpenChange={(open) => !open && onClose()}>
       <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Nuevo plan de cuotas</DialogTitle>
-        </DialogHeader>
-        {sale && (
-          <div className="space-y-4">
-            <div className="rounded-lg border bg-muted p-3 text-sm">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Cliente</span>
-                <span className="font-medium text-foreground">{sale.phone ?? '—'}</span>
+        <form onSubmit={onSubmit} noValidate>
+          <DialogHeader>
+            <DialogTitle>Nuevo plan de cuotas</DialogTitle>
+          </DialogHeader>
+          {sale && (
+            <div className="mt-4 space-y-4">
+              <div className="rounded-card border border-border bg-muted p-3 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Cliente</span>
+                  <span className="font-medium text-foreground">{sale.phone ?? '—'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Total</span>
+                  <span className="font-semibold text-foreground">{formatCordobas(sale.total)}</span>
+                </div>
               </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Total</span>
-                <span className="font-semibold text-foreground">{formatCordobas(sale.total)}</span>
-              </div>
+              <Field data-invalid={!!errors.numCuotas}>
+                <FieldLabel htmlFor="plan-cuotas" required>Cantidad de cuotas</FieldLabel>
+                <Input id="plan-cuotas" type="number" min={2} max={36} step={1} aria-required aria-invalid={!!errors.numCuotas} {...register('numCuotas')} />
+                <FieldDescription>Entre 2 y 36.</FieldDescription>
+                <FieldError errors={[errors.numCuotas]} />
+              </Field>
+              <Field data-invalid={!!errors.firstDue}>
+                <FieldLabel htmlFor="plan-first" required>Fecha de la primera cuota</FieldLabel>
+                <Input id="plan-first" type="date" aria-required aria-invalid={!!errors.firstDue} {...register('firstDue')} />
+                <FieldError errors={[errors.firstDue]} />
+              </Field>
             </div>
-            <div className="space-y-1.5">
-              <Label>Cantidad de cuotas (mín. 2)</Label>
-              <Input type="number" min={2} max={36} value={numCuotas} onChange={(e) => setNumCuotas(Math.max(2, Number(e.target.value) || 2))} />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Fecha de la primera cuota</Label>
-              <Input type="date" value={firstDue} onChange={(e) => setFirstDue(e.target.value)} />
-            </div>
+          )}
+          <div className="mt-4 flex justify-end gap-2">
+            <Button type="button" variant="ghost" onClick={onClose}>
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={isLoading}>
+              {isLoading && <Spinner className="mr-2" />}
+              Crear plan
+            </Button>
           </div>
-        )}
-        <div className="mt-4 flex justify-end gap-2">
-          <Button variant="ghost" onClick={onClose}>
-            Cancelar
-          </Button>
-          <Button onClick={handleSubmit} disabled={isLoading}>
-        {isLoading && <Spinner className="mr-2" />}
-        Crear plan
-      </Button>
-        </div>
+        </form>
       </DialogContent>
     </Dialog>
   );
