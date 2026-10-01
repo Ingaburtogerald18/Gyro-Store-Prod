@@ -4,7 +4,7 @@ import { parseDbRows } from '../utils/parseDbRows';
 import { buildPage, type PaginationParams, type PaginatedResult } from '../utils/pagination';
 import { BadRequestError, NotFoundError } from '../utils/httpError';
 import { round } from './finance';
-import type { CreateExpenseInput, CreateLoanPaymentInput } from '../../shared/schemas';
+import type { CreateExpenseInput } from '../../shared/schemas';
 import { getFinancialConfig } from './appConfig';
 import { businessDateStartIso, toBusinessDate } from '../utils/businessDay';
 import { fetchAllRows } from '../utils/fetchAllRows';
@@ -447,6 +447,12 @@ export interface ExpenseRecord {
   createdByName: string | null;
   createdByEmail: string | null;
   createdAt: string;
+  /**
+   * `loan_payment`: pago de préstamo todavía en la tabla vieja (antes de correr
+   * 0018_loan_payments_a_gastos.sql). Se muestra en el historial como gasto de
+   * Préstamos, pero no se edita ni se borra desde acá.
+   */
+  source: 'expense' | 'loan_payment';
 }
 
 export interface PozoOverflowItem {
@@ -549,6 +555,7 @@ export async function createExpense(input: CreateExpenseInput, authorUid: string
     createdByName: null,
     createdByEmail: null,
     createdAt: data.created_at,
+    source: 'expense',
   };
 }
 
@@ -583,31 +590,21 @@ export async function listExpenses(filters: {
   page?: number;
   pageSize?: number;
 }): Promise<{ expenses: ExpenseRecord[]; total: number; page: number; pageSize: number }> {
-  let query = db
-    .from('expenses')
-    .select('id, pozo, monto_cs, monto_usd, exchange_rate, category, description, created_by, created_at, profiles(name, email)', { count: 'exact' });
+  const pozo = filters.pozo && filters.pozo !== 'todos' ? filters.pozo : undefined;
 
-  if (filters.pozo && filters.pozo !== 'todos') {
-    query = query.eq('pozo', filters.pozo);
-  }
-  if (filters.startDate) {
-    query = query.gte('created_at', filters.startDate);
-  }
-  if (filters.endDate) {
-    query = query.lte('created_at', filters.endDate);
-  }
+  // Se trae el período completo (un mes son decenas de gastos) para poder
+  // intercalar por fecha los pagos de préstamo que siguen en `loan_payments`.
+  const rows = await fetchAllRows((from, to) => {
+    let query = db
+      .from('expenses')
+      .select('id, pozo, monto_cs, monto_usd, exchange_rate, category, description, created_by, created_at, profiles(name, email)');
+    if (pozo) query = query.eq('pozo', pozo);
+    if (filters.startDate) query = query.gte('created_at', filters.startDate);
+    if (filters.endDate) query = query.lte('created_at', filters.endDate);
+    return query.order('created_at', { ascending: false }).order('id').range(from, to);
+  });
 
-  const page = filters.page && filters.page > 0 ? filters.page : 1;
-  const pageSize = filters.pageSize && filters.pageSize > 0 ? filters.pageSize : 50;
-  const from = (page - 1) * pageSize;
-  const to = from + pageSize - 1;
-
-  query = query.order('created_at', { ascending: false }).range(from, to);
-
-  const { data, error, count } = await query;
-  if (error) throw error;
-
-  const expenses: ExpenseRecord[] = (data || []).map((row: any) => {
+  const all: ExpenseRecord[] = rows.map((row: any) => {
     const profile = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
     return {
       id: row.id,
@@ -621,15 +618,55 @@ export async function listExpenses(filters: {
       createdByName: profile?.name ?? null,
       createdByEmail: profile?.email ?? null,
       createdAt: row.created_at,
+      source: 'expense' as const,
     };
   });
 
+  if (!pozo || pozo === 'prestamos') {
+    all.push(...(await listPendingLoanPaymentsAsExpenses(filters.startDate, filters.endDate)));
+    all.sort((x, y) => Date.parse(y.createdAt) - Date.parse(x.createdAt));
+  }
+
+  const page = filters.page && filters.page > 0 ? filters.page : 1;
+  const pageSize = filters.pageSize && filters.pageSize > 0 ? filters.pageSize : 50;
+  const from = (page - 1) * pageSize;
+
   return {
-    expenses,
-    total: count ?? expenses.length,
+    expenses: all.slice(from, from + pageSize),
+    total: all.length,
     page,
     pageSize,
   };
+}
+
+/** Pagos de `loan_payments` que la migración todavía no pasó a `expenses`, con forma de gasto. */
+async function listPendingLoanPaymentsAsExpenses(startDate?: string, endDate?: string): Promise<ExpenseRecord[]> {
+  const [{ payments }, migrated] = await Promise.all([
+    listLoanPayments(startDate, endDate),
+    fetchAllRows((from, to) =>
+      db.from('expenses').select('description').like('description', '%[loan_payment:%').order('id').range(from, to),
+    ),
+  ]);
+  const migratedIds = new Set(
+    migrated.map((m) => /\[loan_payment:([0-9a-f-]{36})\]/i.exec(String(m.description))?.[1]?.toLowerCase()).filter(Boolean),
+  );
+  return payments
+    .filter((p) => !migratedIds.has(p.id.toLowerCase()))
+    .map((p) => ({
+      id: `loan:${p.id}`,
+      pozo: 'prestamos',
+      monto: p.monto_cs,
+      montoUsd: p.monto_usd,
+      exchangeRate: p.exchange_rate,
+      category: 'Pago de préstamo',
+      description: p.nota,
+      createdBy: p.created_by,
+      createdByName: null,
+      createdByEmail: null,
+      // Mediodía de Nicaragua del día del pago: mismo criterio que la migración.
+      createdAt: new Date(Date.parse(`${p.fecha}T12:00:00.000Z`) + 6 * 60 * 60 * 1000).toISOString(),
+      source: 'loan_payment' as const,
+    }));
 }
 
 /**
@@ -1067,98 +1104,5 @@ export async function getLoanPaymentsSummary(
 ): Promise<number> {
   const res = await listLoanPayments(startDate, endDate);
   return res.total;
-}
-
-/**
- * Registra un nuevo pago de préstamo (soporta Córdobas y Dólares con conversión).
- */
-export async function createLoanPayment(
-  input: CreateLoanPaymentInput,
-  authorUid: string
-): Promise<LoanPaymentRecord> {
-  const inputMonto = Number(input.monto ?? input.monto_cs);
-  let montoCs = round(inputMonto, 2);
-  let montoOriginalUsd: number | null = null;
-  let tasaUsada: number | null = null;
-
-  if (input.moneda === 'USD') {
-    const config = await getFinancialConfig();
-    tasaUsada = config.exchangeRate;
-    montoOriginalUsd = montoCs;
-    montoCs = round(inputMonto * tasaUsada, 2);
-  }
-
-  let { data, error } = await db
-    .from('loan_payments')
-    .insert({
-      monto_cs: montoCs,
-      monto_usd: montoOriginalUsd,
-      exchange_rate: tasaUsada,
-      fecha: input.fecha,
-      nota: input.nota?.trim() || null,
-      created_by: authorUid,
-    })
-    .select('id, monto_cs, monto_usd, exchange_rate, fecha, nota, created_by, created_at')
-    .single();
-
-  let resultRow: any = data;
-  if (error && (error.message?.includes('monto_usd') || error.message?.includes('column'))) {
-    // Fallback si las columnas monto_usd / exchange_rate aún no están en la tabla
-    const fallbackRes = await db
-      .from('loan_payments')
-      .insert({
-        monto_cs: montoCs,
-        fecha: input.fecha,
-        nota: input.nota?.trim() || null,
-        created_by: authorUid,
-      })
-      .select('id, monto_cs, fecha, nota, created_by, created_at')
-      .single();
-
-    if (fallbackRes.error) throw fallbackRes.error;
-    resultRow = {
-      ...fallbackRes.data,
-      monto_usd: montoOriginalUsd,
-      exchange_rate: tasaUsada,
-    };
-  } else if (error) {
-    throw error;
-  }
-
-  if (!resultRow) {
-    throw new Error('No se pudo registrar el pago de préstamo');
-  }
-
-  return {
-    id: resultRow.id,
-    monto_cs: Number(resultRow.monto_cs),
-    monto_usd: resultRow.monto_usd ? Number(resultRow.monto_usd) : null,
-    exchange_rate: resultRow.exchange_rate ? Number(resultRow.exchange_rate) : null,
-    fecha: resultRow.fecha,
-    nota: resultRow.nota ?? null,
-    created_by: resultRow.created_by ?? null,
-    created_at: resultRow.created_at,
-  };
-}
-
-/**
- * Elimina un pago de préstamo por su ID.
- */
-export async function deleteLoanPayment(id: string): Promise<{ success: boolean; id: string }> {
-  const { data: existing, error: checkError } = await db
-    .from('loan_payments')
-    .select('id')
-    .eq('id', id)
-    .maybeSingle();
-
-  if (checkError) throw checkError;
-  if (!existing) {
-    throw new NotFoundError('El pago de préstamo no existe.');
-  }
-
-  const { error } = await db.from('loan_payments').delete().eq('id', id);
-  if (error) throw error;
-
-  return { success: true, id };
 }
 

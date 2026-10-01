@@ -5,13 +5,11 @@ import {
   ShoppingCart02Icon,
   Invoice02Icon,
   ChartLineData01Icon,
-  Coins01Icon,
 } from '@hugeicons/core-free-icons';
 import { useState, useMemo, useEffect } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { QueryState } from '~/components/ui/QueryState';
 import { BrandLoader } from '~/components/ui/module-loader';
-import { Button } from '~/components/ui/button';
 
 import type { MetaFunction } from '@remix-run/node';
 import {
@@ -35,7 +33,6 @@ import { ExportSalesCsvButton } from '~/components/admin/reports/ExportSalesCsvB
 import { CostDistributionCard } from '~/components/admin/reports/CostDistributionCard';
 import { IncomeBreakdownCard, type IncomeSlice } from '~/components/admin/reports/IncomeBreakdownCard';
 import { DashboardDrilldowns, type DrilldownType } from '~/components/admin/reports/DashboardDrilldowns';
-import { RegisterLoanPaymentDialog } from '~/components/admin/reports/RegisterLoanPaymentDialog';
 import { MonthSelector, getMonthRange, type MonthYear } from '~/components/admin/reports/MonthSelector';
 import { SalesDailyTrendChart } from '~/components/admin/reports/SalesDailyTrendChart';
 import { PaymentMethodDonut } from '~/components/admin/reports/PaymentMethodDonut';
@@ -217,22 +214,7 @@ export default function AdminDashboard() {
           <div className="flex flex-wrap items-center gap-2.5">
             <MonthSelector value={selectedMonth} onChange={setSelectedMonth} />
             {isAdmin && activeTab === 'resumen' && (
-              <>
-                <RegisterLoanPaymentDialog
-                  trigger={
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-9 gap-1.5 rounded-md text-xs"
-                    >
-                      <HugeIcon icon={Coins01Icon} size={15} strokeWidth={2} />
-                      Pagar préstamo
-                    </Button>
-                  }
-                  defaultDate={queryParams.startDate?.slice(0, 10)}
-                />
-                <ExportSalesCsvButton range={queryParams} />
-              </>
+              <ExportSalesCsvButton range={queryParams} />
             )}
           </div>
         }

@@ -55,14 +55,6 @@ export interface LoanPaymentsListResponse {
   total: number;
 }
 
-export interface CreateLoanPaymentPayload {
-  monto?: number;
-  monto_cs?: number;
-  moneda?: 'COR' | 'USD';
-  fecha: string;
-  nota?: string | null;
-}
-
 export interface KpiParams {
   startDate?: string;
   endDate?: string;
@@ -86,6 +78,8 @@ export interface ExpenseItem {
   createdByName: string | null;
   createdByEmail: string | null;
   createdAt: string;
+  /** `loan_payment`: pago de préstamo aún sin migrar; no se edita ni se borra. */
+  source: 'expense' | 'loan_payment';
 }
 
 /** Una fila del libro de pozos del mes (server/services/pozoLedger.ts). */
@@ -266,21 +260,6 @@ export const reportsApi = baseApi.injectEndpoints({
       query: (params) => ({ url: 'reports/loan-payments', params: params ?? undefined }),
       providesTags: ['LoanPayment'],
     }),
-    createLoanPayment: build.mutation<LoanPaymentItem, CreateLoanPaymentPayload>({
-      query: (body) => ({
-        url: 'reports/loan-payments',
-        method: 'POST',
-        body,
-      }),
-      invalidatesTags: ['LoanPayment', 'Sale'],
-    }),
-    deleteLoanPayment: build.mutation<{ success: boolean; id: string }, string>({
-      query: (id) => ({
-        url: `reports/loan-payments/${id}`,
-        method: 'DELETE',
-      }),
-      invalidatesTags: ['LoanPayment', 'Sale'],
-    }),
 
     getSalesTrend: build.query<SalesTrendPoint[], KpiParams & { bucket?: TrendBucket }>({
       query: (params) => ({ url: 'reports/trend', params }),
@@ -323,8 +302,6 @@ export const {
   useDeleteExpenseMutation,
   useGetLoanPaymentsSummaryQuery,
   useGetLoanPaymentsListQuery,
-  useCreateLoanPaymentMutation,
-  useDeleteLoanPaymentMutation,
   useGetSalesTrendQuery,
   useGetSellerPerformanceQuery,
   useGetTopProductsQuery,

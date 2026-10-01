@@ -1180,16 +1180,6 @@ export const loanPaymentSchema = z.object({
 });
 export type LoanPayment = z.infer<typeof loanPaymentSchema>;
 
-export const createLoanPaymentSchema = z.object({
-  monto: z.coerce.number().positive('El monto debe ser mayor a 0.').optional(),
-  monto_cs: z.coerce.number().positive('El monto debe ser mayor a 0.').optional(),
-  moneda: z.enum(['COR', 'USD']).default('COR'),
-  fecha: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Formato de fecha inválido (YYYY-MM-DD)'),
-  nota: z.string().trim().max(300, 'Máximo 300 caracteres.').optional().nullable(),
-}).refine((data) => data.monto !== undefined || data.monto_cs !== undefined, {
-  message: 'El monto es obligatorio y debe ser mayor a 0.',
-});
-export type CreateLoanPaymentInput = z.infer<typeof createLoanPaymentSchema>;
 
 
 

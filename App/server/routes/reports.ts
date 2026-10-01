@@ -37,13 +37,11 @@ import {
   getDeliveryInvoices,
   listLoanPayments,
   getLoanPaymentsSummary,
-  createLoanPayment,
-  deleteLoanPayment,
 } from '../services/reports';
 import { parseCursor } from '../utils/pagination';
 import { BadRequestError } from '../utils/httpError';
 import { parseUuidParam } from '../utils/params';
-import { createExpenseInputSchema, createLoanPaymentSchema } from '../../shared/schemas';
+import { createExpenseInputSchema } from '../../shared/schemas';
 
 const router = Router();
 
@@ -417,34 +415,6 @@ router.get(
     const startDate = typeof req.query.startDate === 'string' ? req.query.startDate : (typeof req.query.desde === 'string' ? req.query.desde : undefined);
     const endDate = typeof req.query.endDate === 'string' ? req.query.endDate : (typeof req.query.hasta === 'string' ? req.query.hasta : undefined);
     const result = await listLoanPayments(startDate, endDate);
-    res.json(result);
-  })
-);
-
-/**
- * POST /api/reports/loan-payments
- * Registra un pago de préstamo (monto_cs, fecha, nota).
- */
-router.post(
-  '/loan-payments',
-  requireAdmin,
-  asyncHandler(async (req, res) => {
-    const data = createLoanPaymentSchema.parse(req.body);
-    const payment = await createLoanPayment(data, req.user!.uid);
-    res.status(201).json(payment);
-  })
-);
-
-/**
- * DELETE /api/reports/loan-payments/:id
- * Elimina un pago de préstamo.
- */
-router.delete(
-  '/loan-payments/:id',
-  requireAdmin,
-  asyncHandler(async (req, res) => {
-    const id = parseUuidParam(req.params.id, 'Pago no encontrado');
-    const result = await deleteLoanPayment(id);
     res.json(result);
   })
 );

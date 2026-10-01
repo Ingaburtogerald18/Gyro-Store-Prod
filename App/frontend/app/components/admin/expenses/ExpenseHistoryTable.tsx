@@ -258,6 +258,13 @@ export function ExpenseHistoryTable({
 
                       {/* Acciones */}
                       <td className="whitespace-nowrap px-4 py-3 text-center">
+                        {item.source === 'loan_payment' ? (
+                          // Pago de la tabla vieja de préstamos: cuenta como gasto de
+                          // Préstamos, pero se edita recién cuando se migre a gastos.
+                          <span className="text-2xs text-muted-foreground" title="Pago de préstamo registrado antes de que los préstamos fueran gastos. Se podrá editar cuando se migre.">
+                            Registro anterior
+                          </span>
+                        ) : (
                         <Button
                           type="button"
                           variant="ghost"
@@ -268,6 +275,7 @@ export function ExpenseHistoryTable({
                         >
                           <HugeIcon icon={Delete01Icon} size={15} strokeWidth={2} aria-hidden />
                         </Button>
+                        )}
                       </td>
                     </tr>
                   );
