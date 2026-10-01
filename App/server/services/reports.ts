@@ -176,14 +176,14 @@ export async function getPrestamosPozoExpenses(
   startDate?: string,
   endDate?: string
 ): Promise<number> {
-  let query = db.from('expenses').select('monto_cs').eq('pozo', 'prestamos');
-  if (startDate) query = query.gte('created_at', startDate);
-  if (endDate) query = query.lte('created_at', endDate);
+  const data = await fetchAllRows((from, to) => {
+    let query = db.from('expenses').select('monto_cs').eq('pozo', 'prestamos');
+    if (startDate) query = query.gte('created_at', startDate);
+    if (endDate) query = query.lte('created_at', endDate);
+    return query.order('id').range(from, to);
+  });
 
-  const { data, error } = await query;
-  if (error) throw error;
-
-  const total = (data || []).reduce((acc, row: any) => acc + (Number(row.monto_cs) || 0), 0);
+  const total = data.reduce((acc, row: any) => acc + (Number(row.monto_cs) || 0), 0);
   return round(total, 2);
 }
 
@@ -199,19 +199,18 @@ export async function getPrestamosPozoBudget(
 ): Promise<{ collected: number; expenses: number; available: number }> {
   let collected = collectedOverride;
   if (collected === undefined) {
-    let itemsQuery = db
-      .from('order_items')
-      .select('pozos, orders!inner(status, created_at)')
-      .in('orders.status', ['approved', 'paid']);
-
-    if (startDate) itemsQuery = itemsQuery.gte('orders.created_at', startDate);
-    if (endDate) itemsQuery = itemsQuery.lte('orders.created_at', endDate);
-
-    const { data: orderItems, error: itemsError } = await itemsQuery;
-    if (itemsError) throw itemsError;
+    const orderItems = await fetchAllRows((from, to) => {
+      let itemsQuery = db
+        .from('order_items')
+        .select('pozos, orders!inner(status, created_at)')
+        .in('orders.status', ['approved', 'paid']);
+      if (startDate) itemsQuery = itemsQuery.gte('orders.created_at', startDate);
+      if (endDate) itemsQuery = itemsQuery.lte('orders.created_at', endDate);
+      return itemsQuery.order('id').range(from, to);
+    });
 
     let totalCollected = 0;
-    for (const it of orderItems || []) {
+    for (const it of orderItems) {
       if (it.pozos && typeof it.pozos === 'object') {
         totalCollected += Number((it.pozos as Record<string, any>)['prestamos']) || 0;
       }
@@ -607,42 +606,41 @@ export async function listExpenses(filters: {
  * Obtiene los "gastos por pozo" agrupados, incluyendo el pozo virtual 'salario'.
  */
 export async function getExpensesByPozo(startDate?: string, endDate?: string) {
-  let expensesQuery = db.from('expenses').select('pozo, monto_cs');
-  if (startDate) expensesQuery = expensesQuery.gte('created_at', startDate);
-  if (endDate) expensesQuery = expensesQuery.lte('created_at', endDate);
-
-  const { data: expRows, error: expError } = await expensesQuery;
-  if (expError) throw expError;
+  const expRows = await fetchAllRows((from, to) => {
+    let expensesQuery = db.from('expenses').select('pozo, monto_cs');
+    if (startDate) expensesQuery = expensesQuery.gte('created_at', startDate);
+    if (endDate) expensesQuery = expensesQuery.lte('created_at', endDate);
+    return expensesQuery.order('id').range(from, to);
+  });
 
   const gastadoByPozo: Record<string, number> = {};
   ALL_POZOS.forEach((p) => {
     gastadoByPozo[p] = 0;
   });
 
-  for (const row of expRows || []) {
+  for (const row of expRows) {
     if (row.pozo && ALL_POZOS.includes(row.pozo as any)) {
       gastadoByPozo[row.pozo] = (gastadoByPozo[row.pozo] ?? 0) + (Number(row.monto_cs) || 0);
     }
   }
 
   // Recogido en el periodo
-  let itemsQuery = db
-    .from('order_items')
-    .select('pozos, salary, orders!inner(status, created_at)')
-    .in('orders.status', ['approved', 'paid']);
-
-  if (startDate) itemsQuery = itemsQuery.gte('orders.created_at', startDate);
-  if (endDate) itemsQuery = itemsQuery.lte('orders.created_at', endDate);
-
-  const { data: orderItems, error: itemsError } = await itemsQuery;
-  if (itemsError) throw itemsError;
+  const orderItems = await fetchAllRows((from, to) => {
+    let itemsQuery = db
+      .from('order_items')
+      .select('pozos, salary, orders!inner(status, created_at)')
+      .in('orders.status', ['approved', 'paid']);
+    if (startDate) itemsQuery = itemsQuery.gte('orders.created_at', startDate);
+    if (endDate) itemsQuery = itemsQuery.lte('orders.created_at', endDate);
+    return itemsQuery.order('id').range(from, to);
+  });
 
   const recogidoByPozo: Record<string, number> = {};
   ALL_POZOS.forEach((p) => {
     recogidoByPozo[p] = 0;
   });
 
-  for (const it of orderItems || []) {
+  for (const it of orderItems) {
     if (it.pozos && typeof it.pozos === 'object') {
       for (const [key, val] of Object.entries(it.pozos)) {
         const num = Number(val) || 0;
@@ -669,12 +667,14 @@ export async function getExpensesByPozo(startDate?: string, endDate?: string) {
  */
 export async function getExpensesOverflow(startDate?: string, endDate?: string): Promise<ExpensesOverflowResult> {
   // 1. Recogido histórico acumulado de ventas aprobadas/pagadas
-  const { data: orderItems, error: itemsError } = await db
-    .from('order_items')
-    .select('pozos, salary, ganancia_tienda, orders!inner(status, created_at)')
-    .in('orders.status', ['approved', 'paid']);
-
-  if (itemsError) throw itemsError;
+  const orderItems = await fetchAllRows((from, to) =>
+    db
+      .from('order_items')
+      .select('pozos, salary, ganancia_tienda, orders!inner(status, created_at)')
+      .in('orders.status', ['approved', 'paid'])
+      .order('id')
+      .range(from, to),
+  );
 
   const recogidoHistorico: Record<string, number> = {};
   const recogidoMes: Record<string, number> = {};
@@ -687,7 +687,7 @@ export async function getExpensesOverflow(startDate?: string, endDate?: string):
   const startTs = startDate ? new Date(startDate).getTime() : null;
   const endTs = endDate ? new Date(endDate).getTime() : null;
 
-  for (const item of orderItems || []) {
+  for (const item of orderItems) {
     const orderCreatedAt = (item as any).orders?.created_at;
     const itemDateTs = orderCreatedAt ? new Date(orderCreatedAt).getTime() : 0;
     const inPeriod =
@@ -715,11 +715,9 @@ export async function getExpensesOverflow(startDate?: string, endDate?: string):
   }
 
   // 2. Gastado histórico acumulado y del mes
-  const { data: expensesRows, error: expError } = await db
-    .from('expenses')
-    .select('pozo, monto_cs, created_at');
-
-  if (expError) throw expError;
+  const expensesRows = await fetchAllRows((from, to) =>
+    db.from('expenses').select('pozo, monto_cs, created_at').order('id').range(from, to),
+  );
 
   const gastadoHistorico: Record<string, number> = {};
   const gastadoMes: Record<string, number> = {};
@@ -728,7 +726,7 @@ export async function getExpensesOverflow(startDate?: string, endDate?: string):
     gastadoMes[p] = 0;
   });
 
-  for (const exp of expensesRows || []) {
+  for (const exp of expensesRows) {
     const pozo = exp.pozo;
     const monto = Number(exp.monto_cs) || 0;
     const expDateTs = exp.created_at ? new Date(exp.created_at).getTime() : 0;
@@ -925,18 +923,18 @@ export async function getTopProducts(
   // 2. Margen calculado a partir de order_items en el periodo
   const costMap = new Map<string, { totalCost: number; totalRevenue: number }>();
   try {
-    let itemsQuery = db
-      .from('order_items')
-      .select('sku, quantity, precio_unit, coste_final_snap, orders!inner(status, created_at, seller_uid)')
-      .in('sku', skus)
-      .in('orders.status', ['approved', 'paid']);
-
-    if (startDate) itemsQuery = itemsQuery.gte('orders.created_at', startDate);
-    if (endDate) itemsQuery = itemsQuery.lte('orders.created_at', endDate);
-    if (sellerUid) itemsQuery = itemsQuery.eq('orders.seller_uid', sellerUid);
-
-    const { data: items } = await itemsQuery;
-    if (items) {
+    const items = await fetchAllRows((from, to) => {
+      let itemsQuery = db
+        .from('order_items')
+        .select('sku, quantity, precio_unit, coste_final_snap, orders!inner(status, created_at, seller_uid)')
+        .in('sku', skus)
+        .in('orders.status', ['approved', 'paid']);
+      if (startDate) itemsQuery = itemsQuery.gte('orders.created_at', startDate);
+      if (endDate) itemsQuery = itemsQuery.lte('orders.created_at', endDate);
+      if (sellerUid) itemsQuery = itemsQuery.eq('orders.seller_uid', sellerUid);
+      return itemsQuery.order('id').range(from, to);
+    });
+    {
       for (const item of items) {
         const key = item.sku;
         if (!key) continue;
@@ -1014,13 +1012,17 @@ export async function getSalesLedger(
   endDate?: string,
   sellerUid?: string,
 ): Promise<SalesLedgerRow[]> {
-  const { data, error } = await db.rpc('get_sales_ledger', {
-    p_start_date: startDate ?? null,
-    p_end_date: endDate ?? null,
-    p_seller_uid: sellerUid ?? null,
-  });
-
-  if (error) throw error;
+  const data = await fetchAllRows((from, to) =>
+    db
+      .rpc('get_sales_ledger', {
+        p_start_date: startDate ?? null,
+        p_end_date: endDate ?? null,
+        p_seller_uid: sellerUid ?? null,
+      })
+      .order('created_at', { ascending: false })
+      .order('order_id', { ascending: false })
+      .range(from, to),
+  );
   return parseDbRows(salesLedgerRowSchema, data, 'getSalesLedger');
 }
 
