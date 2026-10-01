@@ -6,6 +6,8 @@ import { BadRequestError, NotFoundError } from '../utils/httpError';
 import { round } from './finance';
 import type { CreateExpenseInput, CreateLoanPaymentInput } from '../../shared/schemas';
 import { getFinancialConfig } from './appConfig';
+import { businessDateStartIso, toBusinessDate } from '../utils/businessDay';
+import { fetchAllRows } from '../utils/fetchAllRows';
 
 // ============================================================================
 // ── Esquemas Zod (Contratos) ──
@@ -759,6 +761,14 @@ export async function getExpensesOverflow(startDate?: string, endDate?: string):
 /**
  * Serie temporal de ventas para el gráfico de tendencia.
  * `sellerUid` recorta a un vendedor (la ruta lo fuerza para los no-admin).
+ *
+ * Los cortes se arman en HORA DE NICARAGUA. El RPC `get_sales_trend` hace
+ * `date_trunc` en UTC, y Nicaragua es UTC−6: una venta de las 18:00 en adelante
+ * caía en la barra del día siguiente (y la del último día del mes, en el mes
+ * siguiente). Sin tocar la base, se agrupan acá las filas de `get_sales_ledger`
+ * (una por venta, mismos totales) por fecha local.
+ *
+ * `bucket_start` es la medianoche LOCAL del corte, en ISO UTC (`…T06:00:00.000Z`).
  */
 export async function getSalesTrend(
   startDate?: string,
@@ -766,15 +776,49 @@ export async function getSalesTrend(
   bucket: TrendBucket = 'month',
   sellerUid?: string,
 ): Promise<SalesTrendPoint[]> {
-  const { data, error } = await db.rpc('get_sales_trend', {
-    p_start_date: startDate ?? null,
-    p_end_date: endDate ?? null,
-    p_bucket: bucket,
-    p_seller_uid: sellerUid ?? null,
-  });
+  const raw = await fetchAllRows((from, to) =>
+    db
+      .rpc('get_sales_ledger', {
+        p_start_date: startDate ?? null,
+        p_end_date: endDate ?? null,
+        p_seller_uid: sellerUid ?? null,
+      })
+      .order('created_at', { ascending: true })
+      .order('order_id', { ascending: true })
+      .range(from, to),
+  );
+  const rows = parseDbRows(salesLedgerRowSchema, raw, 'getSalesTrend');
 
-  if (error) throw error;
-  return parseDbRows(trendRowSchema, data, 'getSalesTrend');
+  const byBucket = new Map<string, SalesTrendPoint>();
+  for (const row of rows) {
+    const key = bucketDate(toBusinessDate(row.created_at), bucket);
+    const point = byBucket.get(key) ?? { bucket_start: businessDateStartIso(key), total_vendido: 0, ganancia: 0, comision: 0, num_ventas: 0 };
+    point.total_vendido += row.total_vendido;
+    point.ganancia += row.ganancia;
+    point.comision += row.comision;
+    point.num_ventas += 1;
+    byBucket.set(key, point);
+  }
+
+  return [...byBucket.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([, p]) => ({
+      ...p,
+      total_vendido: round(p.total_vendido, 2),
+      ganancia: round(p.ganancia, 2),
+      comision: round(p.comision, 2),
+    }));
+}
+
+/** Inicio del corte que contiene la fecha local `date` (semana = lunes, como `date_trunc`). */
+function bucketDate(date: string, bucket: TrendBucket): string {
+  if (bucket === 'month') return `${date.slice(0, 8)}01`;
+  if (bucket === 'week') {
+    const d = new Date(`${date}T00:00:00.000Z`);
+    const sinceMonday = (d.getUTCDay() + 6) % 7;
+    return new Date(d.getTime() - sinceMonday * 86_400_000).toISOString().slice(0, 10);
+  }
+  return date;
 }
 
 /**

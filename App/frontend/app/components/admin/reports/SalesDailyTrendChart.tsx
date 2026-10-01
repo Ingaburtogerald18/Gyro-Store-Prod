@@ -60,6 +60,8 @@ export interface DailyPoint {
   hasSales: boolean;
 }
 
+const DAY_IN_MANAGUA = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Managua', day: 'numeric' });
+
 export function SalesDailyTrendChart({
   range,
   year,
@@ -88,10 +90,9 @@ export function SalesDailyTrendChart({
     // Indexar datos existentes por número de día local
     const dataByDay = new Map<number, { total_vendido: number; ganancia: number; num_ventas: number }>();
     for (const p of data) {
-      const d = new Date(p.bucket_start);
-      // El bucket_start de postgres viene en UTC o timestamptz
-      // Extraemos el día
-      const dayNum = d.getUTCDate();
+      // bucket_start es la medianoche de Nicaragua en UTC (…T06:00Z): el día se
+      // lee en esa zona, no en UTC ni en la del navegador.
+      const dayNum = Number(DAY_IN_MANAGUA.format(new Date(p.bucket_start)));
       dataByDay.set(dayNum, {
         total_vendido: p.total_vendido,
         ganancia: p.ganancia ?? 0,

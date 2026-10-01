@@ -113,8 +113,8 @@ export function formatBucketLabel(iso: string, bucket: TrendBucket): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
   if (bucket === 'month') {
-    return d.toLocaleDateString('es-NI', { month: 'short', year: '2-digit' });
+    return d.toLocaleDateString('es-NI', { month: 'short', year: '2-digit', timeZone: 'America/Managua' });
   }
   // Día y semana comparten formato: la semana se rotula con su día de inicio.
-  return d.toLocaleDateString('es-NI', { day: '2-digit', month: 'short' });
+  return d.toLocaleDateString('es-NI', { day: '2-digit', month: 'short', timeZone: 'America/Managua' });
 }
