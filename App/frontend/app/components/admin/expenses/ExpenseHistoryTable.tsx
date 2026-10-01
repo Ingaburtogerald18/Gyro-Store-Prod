@@ -3,6 +3,7 @@ import { HugeIcon } from '~/components/ui/icon';
 import {
   Calendar03Icon,
   Delete01Icon,
+  Edit02Icon,
   FilterIcon,
   FolderLibraryIcon,
   Search01Icon,
@@ -33,6 +34,7 @@ import {
   useDeleteExpenseMutation,
   type ExpenseItem,
 } from '~/store/api/reportsApi';
+import { ExpenseFormDialog } from './RegisterExpenseDialog';
 
 const POZO_BADGES: Record<string, { label: string; className: string }> = {
   publicidad: {
@@ -84,6 +86,10 @@ export function ExpenseHistoryTable({
   const pageSize = 20;
 
   const [expenseToDelete, setExpenseToDelete] = useState<ExpenseItem | null>(null);
+  // El gasto se conserva al cerrar: si se limpiara, el diálogo pasaría a
+  // "Registrar gasto" durante la animación de salida.
+  const [expenseToEdit, setExpenseToEdit] = useState<ExpenseItem | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
 
   const { data, isLoading, isFetching } = useGetExpensesListQuery({
     pozo: selectedPozo && selectedPozo !== 'todos' ? selectedPozo : undefined,
@@ -265,6 +271,21 @@ export function ExpenseHistoryTable({
                             Registro anterior
                           </span>
                         ) : (
+                        <div className="flex items-center justify-center gap-1">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setExpenseToEdit(item);
+                            setEditOpen(true);
+                          }}
+                          className="h-8 w-8 p-0 text-muted-foreground hover:bg-accent hover:text-foreground"
+                          title="Editar gasto"
+                          aria-label="Editar gasto"
+                        >
+                          <HugeIcon icon={Edit02Icon} size={15} strokeWidth={2} aria-hidden />
+                        </Button>
                         <Button
                           type="button"
                           variant="ghost"
@@ -275,6 +296,7 @@ export function ExpenseHistoryTable({
                         >
                           <HugeIcon icon={Delete01Icon} size={15} strokeWidth={2} aria-hidden />
                         </Button>
+                        </div>
                         )}
                       </td>
                     </tr>
@@ -314,6 +336,12 @@ export function ExpenseHistoryTable({
           </div>
         )}
       </div>
+
+      <ExpenseFormDialog
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        expense={expenseToEdit}
+      />
 
       {/* Delete Confirmation Modal */}
       <Dialog open={!!expenseToDelete} onOpenChange={(open) => !open && setExpenseToDelete(null)}>

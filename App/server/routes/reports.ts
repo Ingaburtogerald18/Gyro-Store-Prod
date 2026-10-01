@@ -25,6 +25,7 @@ import {
   exportSales,
   getExpensesByPozo,
   createExpense,
+  updateExpense,
   deleteExpense,
   listExpenses,
   getExpensesOverflow,
@@ -346,6 +347,20 @@ router.post(
     const data = createExpenseInputSchema.parse(req.body);
     const expense = await createExpense(data, req.user!.uid);
     res.status(201).json(expense);
+  })
+);
+
+/**
+ * PATCH /api/reports/expenses/:id
+ * Edita un gasto operativo (mismos campos que al registrarlo).
+ */
+router.patch(
+  '/expenses/:id',
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const id = parseUuidParam(req.params.id, 'Gasto no encontrado');
+    const data = createExpenseInputSchema.parse(req.body);
+    res.json(await updateExpense(id, data));
   })
 );
 

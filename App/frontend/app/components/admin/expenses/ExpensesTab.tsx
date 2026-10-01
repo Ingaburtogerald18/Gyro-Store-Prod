@@ -31,7 +31,6 @@ export function ExpensesTab({
 
         <div>
           <RegisterExpenseDialog
-            pozos={overflowData?.pozos}
             defaultPozo={selectedPozo !== 'todos' ? selectedPozo : undefined}
             onSuccess={refetch}
           />

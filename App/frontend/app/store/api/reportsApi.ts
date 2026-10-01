@@ -244,6 +244,14 @@ export const reportsApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ['Expense', 'Sale'],
     }),
+    updateExpense: build.mutation<ExpenseItem, { id: string; body: CreateExpensePayload }>({
+      query: ({ id, body }) => ({
+        url: `reports/expenses/${id}`,
+        method: 'PATCH',
+        body,
+      }),
+      invalidatesTags: ['Expense', 'Sale'],
+    }),
     deleteExpense: build.mutation<{ success: boolean; id: string }, string>({
       query: (id) => ({
         url: `reports/expenses/${id}`,
@@ -299,6 +307,7 @@ export const {
   useGetExpensesOverflowQuery,
   useGetExpensesListQuery,
   useCreateExpenseMutation,
+  useUpdateExpenseMutation,
   useDeleteExpenseMutation,
   useGetLoanPaymentsSummaryQuery,
   useGetLoanPaymentsListQuery,

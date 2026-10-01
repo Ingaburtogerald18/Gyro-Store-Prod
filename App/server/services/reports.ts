@@ -499,50 +499,35 @@ export const ALL_POZOS = [
   'salario',
 ] as const;
 
+const EXPENSE_COLUMNS = 'id, pozo, monto_cs, monto_usd, exchange_rate, category, description, created_by, created_at';
+
+/** Fecha opcional del gasto → `created_at`. No se aceptan fechas futuras. */
+function expenseCreatedAt(fecha?: string): string | undefined {
+  if (!fecha) return undefined;
+  const d = new Date(fecha);
+  if (isNaN(d.getTime())) {
+    throw new BadRequestError('Fecha de gasto inválida.');
+  }
+  if (d.getTime() > Date.now() + 5 * 60 * 1000) {
+    throw new BadRequestError('La fecha del gasto no puede ser futura.');
+  }
+  return d.toISOString();
+}
+
 /**
- * Registra un nuevo gasto operativo en la tabla `expenses`.
+ * Monto en córdobas del gasto. En dólares se convierte con `rate` (al editar,
+ * la tasa con la que se registró; si no, la del día).
  */
-export async function createExpense(input: CreateExpenseInput, authorUid: string): Promise<ExpenseRecord> {
-  let customCreatedAt: string | undefined = undefined;
-  if (input.fecha) {
-    const d = new Date(input.fecha);
-    if (isNaN(d.getTime())) {
-      throw new BadRequestError('Fecha de gasto inválida.');
-    }
-    if (d.getTime() > Date.now() + 5 * 60 * 1000) {
-      throw new BadRequestError('La fecha del gasto no puede ser futura.');
-    }
-    customCreatedAt = d.toISOString();
-  }
+async function expenseAmounts(
+  input: Pick<CreateExpenseInput, 'monto' | 'moneda'>,
+  rate?: number | null,
+): Promise<{ monto_cs: number; monto_usd: number | null; exchange_rate: number | null }> {
+  if (input.moneda !== 'USD') return { monto_cs: round(input.monto, 2), monto_usd: null, exchange_rate: null };
+  const tasa = rate ?? (await getFinancialConfig()).exchangeRate;
+  return { monto_cs: round(input.monto * tasa, 2), monto_usd: round(input.monto, 2), exchange_rate: tasa };
+}
 
-  let montoCs = round(input.monto, 2);
-  let montoOriginalUsd: number | null = null;
-  let tasaUsada: number | null = null;
-
-  if (input.moneda === 'USD') {
-    const config = await getFinancialConfig();
-    tasaUsada = config.exchangeRate;
-    montoOriginalUsd = montoCs;
-    montoCs = round(input.monto * tasaUsada, 2);
-  }
-
-  const { data, error } = await db
-    .from('expenses')
-    .insert({
-      pozo: input.pozo,
-      monto_cs: montoCs,
-      monto_usd: montoOriginalUsd,
-      exchange_rate: tasaUsada,
-      category: input.category,
-      description: input.description?.trim() || null,
-      created_by: authorUid,
-      ...(customCreatedAt ? { created_at: customCreatedAt } : {}),
-    })
-    .select('id, pozo, monto_cs, monto_usd, exchange_rate, category, description, created_by, created_at')
-    .single();
-
-  if (error) throw error;
-
+function toExpenseRecord(data: any): ExpenseRecord {
   return {
     id: data.id,
     pozo: data.pozo,
@@ -557,6 +542,66 @@ export async function createExpense(input: CreateExpenseInput, authorUid: string
     createdAt: data.created_at,
     source: 'expense',
   };
+}
+
+/**
+ * Registra un nuevo gasto operativo en la tabla `expenses`.
+ */
+export async function createExpense(input: CreateExpenseInput, authorUid: string): Promise<ExpenseRecord> {
+  const createdAt = expenseCreatedAt(input.fecha);
+  const amounts = await expenseAmounts(input);
+
+  const { data, error } = await db
+    .from('expenses')
+    .insert({
+      pozo: input.pozo,
+      ...amounts,
+      category: input.category,
+      description: input.description?.trim() || null,
+      created_by: authorUid,
+      ...(createdAt ? { created_at: createdAt } : {}),
+    })
+    .select(EXPENSE_COLUMNS)
+    .single();
+
+  if (error) throw error;
+  return toExpenseRecord(data);
+}
+
+/**
+ * Edita un gasto. Sin `fecha` conserva la que tenía. Un gasto en dólares
+ * conserva la tasa con la que se registró: editar la descripción no debe
+ * cambiar cuántos córdobas costó.
+ */
+export async function updateExpense(id: string, input: CreateExpenseInput): Promise<ExpenseRecord> {
+  const { data: existing, error: checkError } = await db
+    .from('expenses')
+    .select('id, exchange_rate')
+    .eq('id', id)
+    .maybeSingle();
+  if (checkError) throw checkError;
+  if (!existing) {
+    throw new NotFoundError('El gasto no existe.');
+  }
+
+  const createdAt = expenseCreatedAt(input.fecha);
+  const amounts = await expenseAmounts(input, existing.exchange_rate ? Number(existing.exchange_rate) : null);
+
+  const { data, error } = await db
+    .from('expenses')
+    .update({
+      pozo: input.pozo,
+      ...amounts,
+      category: input.category,
+      description: input.description?.trim() || null,
+      ...(createdAt ? { created_at: createdAt } : {}),
+    })
+    .eq('id', id)
+    .select(EXPENSE_COLUMNS)
+    .single();
+
+  if (error) throw error;
+  return toExpenseRecord(data);
 }
 
 /**

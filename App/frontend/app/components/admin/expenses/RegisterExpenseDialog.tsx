@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { Controller, useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { HugeIcon } from '~/components/ui/icon';
-import {
-  Add01Icon,
-  Coins01Icon,
-} from '@hugeicons/core-free-icons';
+import { Add01Icon, Coins01Icon } from '@hugeicons/core-free-icons';
 import { toast } from 'sonner';
 import {
   Dialog,
@@ -12,7 +12,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '~/components/ui/dialog';
 import { Button } from '~/components/ui/button';
 import { Input } from '~/components/ui/input';
@@ -31,166 +30,202 @@ import { formatCordobas, errMsg } from '~/lib/formatters';
 import { cn } from '~/lib/utils';
 import {
   useCreateExpenseMutation,
-  type PozoLedgerRow,
+  useUpdateExpenseMutation,
+  type CreateExpensePayload,
+  type ExpenseItem,
 } from '~/store/api/reportsApi';
 import { useGetConfigQuery } from '~/store/api/sessionApi';
 
-const POZO_OPTIONS = [
+const POZOS = ['publicidad', 'mantenimiento', 'utiles', 'garantias', 'prestamos', 'suscripciones', 'servicios', 'salario'] as const;
+
+const POZO_OPTIONS: { value: (typeof POZOS)[number]; label: string; hint?: string }[] = [
   { value: 'publicidad', label: 'Publicidad' },
   { value: 'mantenimiento', label: 'Mantenimiento' },
   { value: 'utiles', label: 'Útiles de oficina' },
   { value: 'garantias', label: 'Garantías' },
-  { value: 'prestamos', label: 'Préstamos' },
+  { value: 'prestamos', label: 'Préstamos', hint: 'Pagos de préstamo. Usa su propio pozo y lo que falte sale de la ganancia.' },
   { value: 'suscripciones', label: 'Suscripciones' },
   { value: 'servicios', label: 'Servicios básicos' },
-  { value: 'salario', label: 'Fondo salario' },
+  { value: 'salario', label: 'Fondo salario', hint: 'Solo usa el fondo salario; si no alcanza, lo que falte sale de la ganancia.' },
 ];
 
-export function RegisterExpenseDialog({
-  pozos,
+/** Número obligatorio desde un <input>: vacío falla (no se convierte en 0). */
+const requiredNumber = (message: string) =>
+  z.preprocess((v) => (v === '' || v === null || v === undefined ? NaN : Number(v)), z.number({ message }));
+
+// Mismas reglas que createExpenseInputSchema del backend.
+const expenseFormSchema = z.object({
+  pozo: z.enum(POZOS),
+  moneda: z.enum(['COR', 'USD']),
+  monto: requiredNumber('Escribí el monto.').pipe(z.number().positive('El monto tiene que ser mayor a 0.')),
+  fecha: z.string().min(1, 'Elegí la fecha del gasto.'),
+  category: z.string().trim().min(1, 'Escribí el concepto.').max(60, 'Máximo 60 caracteres.'),
+  description: z.string().trim().max(200, 'Máximo 200 caracteres.'),
+});
+type ExpenseValues = z.input<typeof expenseFormSchema>;
+type ExpenseOutput = z.output<typeof expenseFormSchema>;
+
+function valuesFor(expense: ExpenseItem | null | undefined, defaultPozo?: string): ExpenseValues {
+  if (expense) {
+    const usd = expense.montoUsd != null;
+    return {
+      pozo: expense.pozo as ExpenseValues['pozo'],
+      moneda: usd ? 'USD' : 'COR',
+      monto: String(usd ? expense.montoUsd : expense.monto),
+      fecha: toYmd(new Date(expense.createdAt)),
+      category: expense.category,
+      description: expense.description ?? '',
+    };
+  }
+  const pozo = POZOS.includes(defaultPozo as (typeof POZOS)[number]) ? (defaultPozo as ExpenseValues['pozo']) : 'publicidad';
+  return { pozo, moneda: 'COR', monto: '', fecha: toYmd(new Date()), category: '', description: '' };
+}
+
+/**
+ * Formulario de gasto, para registrar uno nuevo o editar uno existente
+ * (`expense`). Controlado desde afuera (`open`).
+ */
+export function ExpenseFormDialog({
+  open,
+  onOpenChange,
+  expense,
   defaultPozo,
   onSuccess,
 }: {
-  pozos?: PozoLedgerRow[];
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  expense?: ExpenseItem | null;
   defaultPozo?: string;
   onSuccess?: () => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const [pozo, setPozo] = useState<string>(defaultPozo && defaultPozo !== 'todos' ? defaultPozo : 'publicidad');
-  const [monto, setMonto] = useState<string>('');
-  const [moneda, setMoneda] = useState<'COR' | 'USD'>('COR');
-  const [fecha, setFecha] = useState<string>(() => toYmd(new Date()));
-  const [category, setCategory] = useState<string>('');
-  const [description, setDescription] = useState<string>('');
-
-  const [createExpense, { isLoading }] = useCreateExpenseMutation();
+  const isEdit = !!expense;
+  const [createExpense, { isLoading: creating }] = useCreateExpenseMutation();
+  const [updateExpense, { isLoading: updating }] = useUpdateExpenseMutation();
+  const isLoading = creating || updating;
   const { data: config } = useGetConfigQuery();
-  const exchangeRate = config?.exchangeRate ?? 37;
+  // Al editar un gasto en dólares se conserva la tasa con la que se registró.
+  const exchangeRate = (isEdit && expense?.exchangeRate) || config?.exchangeRate || 37;
 
-  const formatMoney = (n: number) => formatCordobas(n, 'C$', 2);
+  const {
+    control,
+    register,
+    handleSubmit,
+    reset,
+    watch,
+    formState: { errors },
+  } = useForm<ExpenseValues, unknown, ExpenseOutput>({
+    resolver: zodResolver(expenseFormSchema),
+    defaultValues: valuesFor(expense, defaultPozo),
+  });
 
-  const numMonto = parseFloat(monto) || 0;
+  useEffect(() => {
+    if (open) reset(valuesFor(expense, defaultPozo));
+  }, [open, expense, defaultPozo, reset]);
+
+  const moneda = watch('moneda');
+  const pozo = watch('pozo');
+  const fecha = watch('fecha');
+  const numMonto = Number(watch('monto')) || 0;
   const montoEnCordobas = moneda === 'USD' ? numMonto * exchangeRate : numMonto;
+  const originalYmd = expense ? toYmd(new Date(expense.createdAt)) : toYmd(new Date());
+  const isManualDate = fecha !== originalYmd;
+  const pozoHint = POZO_OPTIONS.find((o) => o.value === pozo)?.hint;
 
-  const isManualDate = fecha !== toYmd(new Date());
-
-  const resetForm = () => {
-    setMonto('');
-    setMoneda('COR');
-    setFecha(toYmd(new Date()));
-    setCategory('');
-    setDescription('');
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!monto || numMonto <= 0) {
-      toast.error('El monto debe ser un número mayor a 0.');
-      return;
-    }
-
-    if (!category.trim()) {
-      toast.error('La categoría es obligatoria.');
-      return;
-    }
-
+  const onSubmit = handleSubmit(async (v) => {
+    const body: CreateExpensePayload = {
+      pozo: v.pozo,
+      monto: v.monto,
+      moneda: v.moneda,
+      // Sin cambio de fecha no se manda: hoy queda con la hora real; al editar,
+      // conserva la que tenía.
+      fecha: v.fecha !== originalYmd ? toLocalNoonIso(v.fecha) : undefined,
+      category: v.category,
+      description: v.description || undefined,
+    };
     try {
-      await createExpense({
-        pozo,
-        monto: numMonto,
-        moneda,
-        fecha: isManualDate ? toLocalNoonIso(fecha) : undefined,
-        category: category.trim(),
-        description: description.trim() || undefined,
-      }).unwrap();
-
-      toast.success('Gasto registrado exitosamente.');
-
-      resetForm();
-      setOpen(false);
+      if (expense) {
+        await updateExpense({ id: expense.id, body }).unwrap();
+        toast.success('Gasto actualizado.');
+      } else {
+        await createExpense(body).unwrap();
+        toast.success('Gasto registrado.');
+      }
+      onOpenChange(false);
       onSuccess?.();
     } catch (err) {
-      toast.error(errMsg(err, 'No se pudo registrar el gasto.'));
+      toast.error(errMsg(err, isEdit ? 'No se pudo actualizar el gasto.' : 'No se pudo registrar el gasto.'));
     }
-  };
+  });
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button className="gap-2 bg-primary-2 text-primary-2-foreground hover:bg-primary-2/90 shadow-sm">
-          <HugeIcon icon={Add01Icon} size={16} strokeWidth={2} aria-hidden />
-          Registrar gasto
-        </Button>
-      </DialogTrigger>
-
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={onSubmit} noValidate className="space-y-5">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <HugeIcon icon={Coins01Icon} size={18} strokeWidth={2} className="text-primary-2" aria-hidden />
-              Registrar gasto operativo
+              {isEdit ? 'Editar gasto' : 'Registrar gasto'}
             </DialogTitle>
             <DialogDescription>
-              Registrá un gasto y asignalo a una categoría. Se descuenta del presupuesto consolidado.
+              Se paga con su pozo. Si no alcanza, toma de la bolsa extra, de los otros pozos y, al final, de la ganancia.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
-            {/* Pozo selection */}
             <Field>
-              <FieldLabel htmlFor="expense-pozo">Categoría de gasto</FieldLabel>
-              <Select value={pozo} onValueChange={setPozo} disabled={isLoading}>
-                <SelectTrigger id="expense-pozo">
-                  <SelectValue placeholder="Seleccioná una categoría" />
-                </SelectTrigger>
-                <SelectContent>
-                  {POZO_OPTIONS.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <FieldLabel htmlFor="expense-pozo">Pozo</FieldLabel>
+              <Controller
+                control={control}
+                name="pozo"
+                render={({ field }) => (
+                  <Select value={field.value} onValueChange={field.onChange} disabled={isLoading}>
+                    <SelectTrigger id="expense-pozo" className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {POZO_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+              {pozoHint && <FieldDescription>{pozoHint}</FieldDescription>}
             </Field>
 
-            {/* Moneda toggle */}
             <Field>
               <FieldLabel>Moneda</FieldLabel>
-              <div className="flex gap-1 rounded-lg border p-1">
-                <button
-                  type="button"
-                  className={cn(
-                    'flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
-                    moneda === 'COR'
-                      ? 'bg-primary-2 text-primary-2-foreground shadow-sm'
-                      : 'text-muted-foreground hover:text-foreground',
-                  )}
-                  onClick={() => setMoneda('COR')}
-                  disabled={isLoading}
-                >
-                  C$ Córdobas
-                </button>
-                <button
-                  type="button"
-                  className={cn(
-                    'flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
-                    moneda === 'USD'
-                      ? 'bg-primary-2 text-primary-2-foreground shadow-sm'
-                      : 'text-muted-foreground hover:text-foreground',
-                  )}
-                  onClick={() => setMoneda('USD')}
-                  disabled={isLoading}
-                >
-                  $ Dólares
-                </button>
-              </div>
+              <Controller
+                control={control}
+                name="moneda"
+                render={({ field }) => (
+                  <div className="flex gap-1 rounded-md border p-1">
+                    {(['COR', 'USD'] as const).map((m) => (
+                      <button
+                        key={m}
+                        type="button"
+                        className={cn(
+                          'flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+                          field.value === m
+                            ? 'bg-primary-2 text-primary-2-foreground shadow-sm'
+                            : 'text-muted-foreground hover:text-foreground',
+                        )}
+                        onClick={() => field.onChange(m)}
+                        disabled={isLoading}
+                      >
+                        {m === 'COR' ? 'C$ Córdobas' : '$ Dólares'}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              />
             </Field>
 
-            {/* Monto and Fecha side by side */}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Field>
-                <FieldLabel htmlFor="expense-monto">
+              <Field data-invalid={!!errors.monto}>
+                <FieldLabel htmlFor="expense-monto" required>
                   Monto ({moneda === 'USD' ? '$' : 'C$'})
                 </FieldLabel>
                 <Input
@@ -198,90 +233,106 @@ export function RegisterExpenseDialog({
                   type="number"
                   step="0.01"
                   min="0.01"
+                  inputMode="decimal"
                   placeholder="0.00"
-                  value={monto}
-                  onChange={(e) => setMonto(e.target.value)}
+                  aria-required
+                  aria-invalid={!!errors.monto}
                   disabled={isLoading}
-                  required
+                  {...register('monto')}
                 />
                 {moneda === 'USD' && numMonto > 0 && (
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    ≈ {formatCordobas(montoEnCordobas, 'C$', 2)} (tasa: {exchangeRate})
-                  </p>
+                  <FieldDescription>
+                    ≈ {formatCordobas(montoEnCordobas, 'C$', 2)} (tasa {exchangeRate})
+                  </FieldDescription>
                 )}
+                <FieldError errors={[errors.monto]} />
               </Field>
 
-              <Field>
+              <Field data-invalid={!!errors.fecha}>
                 <div className="flex items-center justify-between">
-                  <FieldLabel htmlFor="expense-fecha">Fecha del gasto</FieldLabel>
+                  <FieldLabel htmlFor="expense-fecha" required>Fecha del gasto</FieldLabel>
                   {isManualDate && (
-                    <span className="inline-flex items-center rounded-full bg-warning/10 px-1.5 py-0.2 text-2xs font-medium text-warning border border-warning/20">
-                      Fecha manual
+                    <span className="inline-flex items-center rounded-full border border-warning/20 bg-warning/10 px-1.5 text-2xs font-medium text-warning">
+                      Fecha cambiada
                     </span>
                   )}
                 </div>
-                <DatePicker
-                  id="expense-fecha"
-                  value={fecha}
-                  onChange={setFecha}
-                  disabled={isLoading}
-                  disableFuture
+                <Controller
+                  control={control}
+                  name="fecha"
+                  render={({ field }) => (
+                    <DatePicker id="expense-fecha" value={field.value} onChange={field.onChange} disabled={isLoading} disableFuture />
+                  )}
                 />
+                <FieldError errors={[errors.fecha]} />
               </Field>
             </div>
 
-            {/* Categoría (texto libre, max 60) */}
-            <Field>
-              <FieldLabel htmlFor="expense-category">Categoría o Concepto</FieldLabel>
+            <Field data-invalid={!!errors.category}>
+              <FieldLabel htmlFor="expense-category" required>Concepto</FieldLabel>
               <Input
                 id="expense-category"
-                type="text"
-                placeholder="Ej. Anuncios Facebook, Alquiler, Reparación equipo..."
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
+                placeholder={pozo === 'prestamos' ? 'Ej. Cuota préstamo Ficohsa' : 'Ej. Anuncios de Facebook, alquiler, reparación…'}
                 maxLength={60}
+                aria-required
+                aria-invalid={!!errors.category}
                 disabled={isLoading}
-                required
+                {...register('category')}
               />
-              <FieldDescription>Máximo 60 caracteres.</FieldDescription>
+              <FieldError errors={[errors.category]} />
             </Field>
 
-            {/* Descripción opcional (max 200) */}
-            <Field>
-              <FieldLabel htmlFor="expense-description">Descripción (Opcional)</FieldLabel>
+            <Field data-invalid={!!errors.description}>
+              <FieldLabel htmlFor="expense-description">Descripción (opcional)</FieldLabel>
               <Textarea
                 id="expense-description"
-                placeholder="Detalles adicionales, proveedor o número de recibo..."
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Proveedor, número de recibo u otro detalle"
                 maxLength={200}
                 rows={2}
+                aria-invalid={!!errors.description}
                 disabled={isLoading}
+                {...register('description')}
               />
-              <FieldDescription>Máximo 200 caracteres.</FieldDescription>
+              <FieldError errors={[errors.description]} />
             </Field>
           </div>
 
           <DialogFooter className="gap-2 sm:gap-0">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setOpen(false)}
-              disabled={isLoading}
-            >
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isLoading}>
               Cancelar
             </Button>
-            <Button
-              type="submit"
-              disabled={isLoading || !monto || numMonto <= 0 || !category.trim()}
-              className="bg-primary-2 text-primary-2-foreground hover:bg-primary-2/90"
-            >
-              {isLoading ? <Spinner className="mr-2" /> : null}
-              Registrar gasto
+            <Button type="submit" disabled={isLoading} className="bg-primary-2 text-primary-2-foreground hover:bg-primary-2/90">
+              {isLoading && <Spinner className="mr-2" />}
+              {isEdit ? 'Guardar cambios' : 'Registrar gasto'}
             </Button>
           </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/** Botón "Registrar gasto" + formulario. */
+export function RegisterExpenseDialog({
+  defaultPozo,
+  onSuccess,
+}: {
+  defaultPozo?: string;
+  onSuccess?: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <Button onClick={() => setOpen(true)} className="gap-2 bg-primary-2 text-primary-2-foreground shadow-sm hover:bg-primary-2/90">
+        <HugeIcon icon={Add01Icon} size={16} strokeWidth={2} aria-hidden />
+        Registrar gasto
+      </Button>
+      <ExpenseFormDialog
+        open={open}
+        onOpenChange={setOpen}
+        defaultPozo={defaultPozo && defaultPozo !== 'todos' ? defaultPozo : undefined}
+        onSuccess={onSuccess}
+      />
+    </>
   );
 }
