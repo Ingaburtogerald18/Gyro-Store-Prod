@@ -22,10 +22,10 @@ export function ExpensesTab({
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-lg font-bold tracking-tight text-foreground">
-            Control de Gastos y Presupuesto
+            Control de gastos y presupuesto
           </h2>
           <p className="text-xs text-muted-foreground">
-            Presupuesto consolidado del período. Registra gastos y monitorea el saldo disponible.
+            Presupuesto consolidado del período. Registrá gastos y seguí el saldo disponible.
           </p>
         </div>
 

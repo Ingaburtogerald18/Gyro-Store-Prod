@@ -122,7 +122,7 @@ export function RegisterLoanPaymentDialog({
                 <HugeIcon icon={Coins01Icon} size={20} strokeWidth={2} />
               </div>
               <div>
-                <DialogTitle>Registrar Pago de Préstamo</DialogTitle>
+                <DialogTitle>Registrar pago de préstamo</DialogTitle>
                 <DialogDescription>
                   Se deducirá directamente de la ganancia real de la tienda.
                 </DialogDescription>
@@ -133,7 +133,7 @@ export function RegisterLoanPaymentDialog({
           <div className="space-y-4 py-4">
             {/* Selector de Moneda */}
             <Field>
-              <FieldLabel>Moneda de Pago</FieldLabel>
+              <FieldLabel>Moneda de pago</FieldLabel>
               <div className="flex gap-1 rounded-lg border border-border/70 bg-muted/30 p-1">
                 <button
                   type="button"
@@ -202,7 +202,7 @@ export function RegisterLoanPaymentDialog({
 
             {/* Fecha */}
             <Field>
-              <FieldLabel required>Fecha del Pago</FieldLabel>
+              <FieldLabel required>Fecha del pago</FieldLabel>
               <div className="flex items-center gap-2">
                 <DatePicker
                   value={fecha}
@@ -255,7 +255,7 @@ export function RegisterLoanPaymentDialog({
               ) : (
                 <>
                   <HugeIcon icon={Add01Icon} size={16} strokeWidth={2} />
-                  Registrar Pago
+                  Registrar pago
                 </>
               )}
             </Button>

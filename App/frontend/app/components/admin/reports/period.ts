@@ -23,7 +23,7 @@ export const PERIOD_TABS: { id: PeriodId; label: string }[] = [
   { id: 'today', label: 'Hoy' },
   { id: '7d', label: '7 Días' },
   { id: '30d', label: '30 Días' },
-  { id: 'month', label: 'Este Mes' },
+  { id: 'month', label: 'Este mes' },
   { id: 'quarter', label: 'Trimestre' },
   { id: 'year', label: 'Año' },
   { id: 'range', label: 'Rango' },

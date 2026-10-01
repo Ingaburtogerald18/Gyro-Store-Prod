@@ -249,11 +249,11 @@ export default function AdminDashboard() {
             <TabsList className="bg-muted/80 p-1">
               <TabsTrigger value="resumen" className="gap-2 px-4 py-1.5 text-xs font-medium">
                 <HugeIcon icon={ChartLineData01Icon} size={15} />
-                Ventas y Rentabilidad
+                Ventas y rentabilidad
               </TabsTrigger>
               <TabsTrigger value="gastos" className="gap-2 px-4 py-1.5 text-xs font-medium">
                 <HugeIcon icon={DollarSquareIcon} size={15} />
-                Gastos y Presupuesto
+                Gastos y presupuesto
               </TabsTrigger>
             </TabsList>
           </div>

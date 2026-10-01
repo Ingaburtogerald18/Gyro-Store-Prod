@@ -38,12 +38,12 @@ import { useGetConfigQuery } from '~/store/api/sessionApi';
 const POZO_OPTIONS = [
   { value: 'publicidad', label: 'Publicidad' },
   { value: 'mantenimiento', label: 'Mantenimiento' },
-  { value: 'utiles', label: 'Útiles de Oficina' },
+  { value: 'utiles', label: 'Útiles de oficina' },
   { value: 'garantias', label: 'Garantías' },
   { value: 'prestamos', label: 'Préstamos' },
   { value: 'suscripciones', label: 'Suscripciones' },
-  { value: 'servicios', label: 'Servicios Básicos' },
-  { value: 'salario', label: 'Fondo Salario' },
+  { value: 'servicios', label: 'Servicios básicos' },
+  { value: 'salario', label: 'Fondo salario' },
 ];
 
 export function RegisterExpenseDialog({
@@ -120,7 +120,7 @@ export function RegisterExpenseDialog({
       <DialogTrigger asChild>
         <Button className="gap-2 bg-primary-2 text-primary-2-foreground hover:bg-primary-2/90 shadow-sm">
           <HugeIcon icon={Add01Icon} size={16} strokeWidth={2} aria-hidden />
-          Registrar Gasto
+          Registrar gasto
         </Button>
       </DialogTrigger>
 
@@ -129,10 +129,10 @@ export function RegisterExpenseDialog({
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <HugeIcon icon={Coins01Icon} size={18} strokeWidth={2} className="text-primary-2" aria-hidden />
-              Registrar Gasto Operativo
+              Registrar gasto operativo
             </DialogTitle>
             <DialogDescription>
-              Registra un gasto y asígnalo a una categoría. Se descuenta del presupuesto consolidado.
+              Registrá un gasto y asignalo a una categoría. Se descuenta del presupuesto consolidado.
             </DialogDescription>
           </DialogHeader>
 
@@ -213,7 +213,7 @@ export function RegisterExpenseDialog({
 
               <Field>
                 <div className="flex items-center justify-between">
-                  <FieldLabel htmlFor="expense-fecha">Fecha del Gasto</FieldLabel>
+                  <FieldLabel htmlFor="expense-fecha">Fecha del gasto</FieldLabel>
                   {isManualDate && (
                     <span className="inline-flex items-center rounded-full bg-warning/10 px-1.5 py-0.2 text-2xs font-medium text-warning border border-warning/20">
                       Fecha manual
@@ -277,7 +277,7 @@ export function RegisterExpenseDialog({
               className="bg-primary-2 text-primary-2-foreground hover:bg-primary-2/90"
             >
               {isLoading ? <Spinner className="mr-2" /> : null}
-              Registrar Gasto
+              Registrar gasto
             </Button>
           </DialogFooter>
         </form>

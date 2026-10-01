@@ -444,12 +444,12 @@ export interface ExpensesOverflowResult {
 export const POZO_LABELS: Record<string, string> = {
   publicidad: 'Publicidad',
   mantenimiento: 'Mantenimiento',
-  utiles: 'Útiles de Oficina',
+  utiles: 'Útiles de oficina',
   garantias: 'Garantías',
   prestamos: 'Préstamos',
   suscripciones: 'Suscripciones',
-  servicios: 'Servicios Básicos',
-  salario: 'Fondo Salario',
+  servicios: 'Servicios básicos',
+  salario: 'Fondo salario',
 };
 
 export const ALL_POZOS = [
@@ -778,7 +778,7 @@ export async function getExpensesOverflow(startDate?: string, endDate?: string):
   const desbordamientoDetalle = totalDesbordamiento > 0
     ? [{
         pozo: 'consolidado',
-        label: 'Presupuesto Consolidado',
+        label: 'Presupuesto consolidado',
         monto: totalDesbordamiento,
       }]
     : [];

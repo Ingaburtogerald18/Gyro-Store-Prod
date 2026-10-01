@@ -51,7 +51,7 @@ export function FinancialHealthHero({
           <div className="flex items-center gap-2 mb-4">
             <span className="flex h-6 items-center gap-1.5 rounded-full bg-primary-2/10 px-2.5 text-2xs font-medium text-primary-2">
               <HugeIcon icon={Coins01Icon} size={14} strokeWidth={2} aria-hidden />
-              Presupuesto Operativo {monthLabel ? `· ${monthLabel}` : ''}
+              Presupuesto operativo {monthLabel ? `· ${monthLabel}` : ''}
             </span>
             {hasOverflow ? (
               <span className="flex h-6 items-center gap-1 rounded-full bg-destructive/10 px-2.5 text-2xs font-medium text-destructive border border-destructive/20">
@@ -117,7 +117,7 @@ export function FinancialHealthHero({
             {/* Right: Ganancia Real */}
             <div className="lg:w-[220px] rounded-card border border-border/70 bg-card/60 p-4">
               <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>Ganancia Real</span>
+                <span>Ganancia real</span>
                 <HugeIcon icon={Coins02Icon} size={14} strokeWidth={2} className="text-muted-foreground" aria-hidden />
               </div>
               <div className="mt-1 flex items-baseline gap-2">

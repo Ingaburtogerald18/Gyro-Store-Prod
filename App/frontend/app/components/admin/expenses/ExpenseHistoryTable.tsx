@@ -117,7 +117,7 @@ export function ExpenseHistoryTable({
       {/* Header & Filter Controls */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h3 className="text-sm font-semibold text-foreground">Historial de Gastos</h3>
+          <h3 className="text-sm font-semibold text-foreground">Historial de gastos</h3>
           <p className="text-xs text-muted-foreground">
             {total} gasto{total === 1 ? '' : 's'} registrado{total === 1 ? '' : 's'}
           </p>
@@ -142,12 +142,12 @@ export function ExpenseHistoryTable({
                 <SelectItem value="todos">Todos los pozos</SelectItem>
                 <SelectItem value="publicidad">Publicidad</SelectItem>
                 <SelectItem value="mantenimiento">Mantenimiento</SelectItem>
-                <SelectItem value="utiles">Útiles de Oficina</SelectItem>
+                <SelectItem value="utiles">Útiles de oficina</SelectItem>
                 <SelectItem value="garantias">Garantías</SelectItem>
                 <SelectItem value="prestamos">Préstamos</SelectItem>
                 <SelectItem value="suscripciones">Suscripciones</SelectItem>
-                <SelectItem value="servicios">Servicios Básicos</SelectItem>
-                <SelectItem value="salario">Fondo Salario</SelectItem>
+                <SelectItem value="servicios">Servicios básicos</SelectItem>
+                <SelectItem value="salario">Fondo salario</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -332,7 +332,7 @@ export function ExpenseHistoryTable({
               disabled={isDeleting}
             >
               {isDeleting ? <Spinner className="mr-2" /> : null}
-              Eliminar Gasto
+              Eliminar gasto
             </Button>
           </DialogFooter>
         </DialogContent>

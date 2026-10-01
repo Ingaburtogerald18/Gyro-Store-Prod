@@ -246,11 +246,11 @@ export function ChainRow({
 const POZO_LABELS: Record<string, string> = {
   publicidad: 'Publicidad',
   mantenimiento: 'Mantenimiento',
-  utiles: 'Útiles de Oficina',
+  utiles: 'Útiles de oficina',
   garantias: 'Garantías',
   prestamos: 'Préstamos',
   suscripciones: 'Suscripciones',
-  servicios: 'Servicios Básicos',
+  servicios: 'Servicios básicos',
 };
 
 /** Los 7 pozos del doc 11 §2, en el orden en que se reparte el Costo F/U. */

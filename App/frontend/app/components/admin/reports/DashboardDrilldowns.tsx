@@ -286,7 +286,7 @@ export function DashboardDrilldowns({
       <DrilldownDialog
         open={drilldown === 'ganancia'}
         onOpenChange={(open) => !open && onClose()}
-        title="Rentabilidad y Ganancia Real"
+        title="Rentabilidad y ganancia real"
         icon={PlusSignSquareIcon}
         note="Los pagos de préstamos se amortizan primero con el fondo acumulado en el pozo préstamos (ventas menos gastos del pozo). Únicamente el excedente no cubierto se descuenta de la ganancia operativa de la tienda."
         footer={
@@ -399,7 +399,7 @@ export function DashboardDrilldowns({
             <div className="flex flex-wrap items-center justify-between gap-2 font-semibold text-foreground">
               <span className="flex items-center gap-1.5">
                 <HugeIcon icon={Coins01Icon} size={15} className="text-warning" />
-                Desglose de Amortización con Pozo Préstamos
+                Desglose de amortización con el pozo Préstamos
               </span>
               <span className="nums text-muted-foreground font-mono text-2xs">
                 {formatMoney(totalLoans)} pagados en el período
@@ -430,7 +430,7 @@ export function DashboardDrilldowns({
               <div className="flex items-center gap-1.5">
                 <HugeIcon icon={Coins01Icon} size={16} className="text-warning" />
                 <h4 className="text-xs font-semibold uppercase tracking-wider text-foreground">
-                  Pagos de Préstamos ({loanPayments.length})
+                  Pagos de préstamos ({loanPayments.length})
                 </h4>
               </div>
               <Button
@@ -510,7 +510,7 @@ export function DashboardDrilldowns({
           {/* Sección: Detalle de Ventas */}
           <div className="space-y-2.5">
             <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Ganancia por Venta ({totalCount} {totalCount === 1 ? 'transacción' : 'transacciones'})
+              Ganancia por venta ({totalCount} {totalCount === 1 ? 'transacción' : 'transacciones'})
             </h4>
 
             {ledger.length === 0 ? (
