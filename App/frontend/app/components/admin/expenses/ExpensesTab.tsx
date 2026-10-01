@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { FinancialHealthHero } from './FinancialHealthHero';
-import { PozoCardsGrid } from './PozoCardsGrid';
+import { PozoFlowBars } from './PozoFlowBars';
 import { RegisterExpenseDialog } from './RegisterExpenseDialog';
 import { ExpenseHistoryTable } from './ExpenseHistoryTable';
 import { useGetExpensesOverflowQuery } from '~/store/api/reportsApi';
@@ -48,8 +48,8 @@ export function ExpensesTab({
 
       {/* Section 2: Estado de Pozos (8 tarjetas en grid) */}
       <section>
-        <PozoCardsGrid
-          pozos={overflowData?.pozos}
+        <PozoFlowBars
+          ledger={overflowData}
           selectedPozo={selectedPozo}
           onSelectPozo={setSelectedPozo}
           isLoading={isLoading}

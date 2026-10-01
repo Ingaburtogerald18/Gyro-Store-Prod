@@ -6,7 +6,7 @@ import {
   Invoice02Icon,
   ChartLineData01Icon,
 } from '@hugeicons/core-free-icons';
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { QueryState } from '~/components/ui/QueryState';
 import { BrandLoader } from '~/components/ui/module-loader';
@@ -18,6 +18,7 @@ import {
   useGetSalesLedgerQuery,
   useGetSalesTrendQuery,
   useGetDeliverySummaryQuery,
+  useGetExpensesOverflowQuery,
 } from '~/store/api/reportsApi';
 import { useAppSelector } from '~/store/hooks';
 import { selectIsAdmin } from '~/store/slices/authSlice';
@@ -31,7 +32,7 @@ import { CompactKpi, HeroMetric } from '~/components/admin/reports/HeroMetric';
 import { TopProductsTable } from '~/components/admin/reports/TopProductsTable';
 import { SalesBreakdownCards } from '~/components/admin/reports/SalesBreakdownCards';
 import { ExportSalesCsvButton } from '~/components/admin/reports/ExportSalesCsvButton';
-import { CostDistributionCard } from '~/components/admin/reports/CostDistributionCard';
+import { PozoFlowBars } from '~/components/admin/expenses/PozoFlowBars';
 import { IncomeWaterfall, type WaterfallInput } from '~/components/admin/reports/IncomeWaterfall';
 import { DashboardDrilldowns, type DrilldownType } from '~/components/admin/reports/DashboardDrilldowns';
 import { MonthSelector, getMonthRange, type MonthYear } from '~/components/admin/reports/MonthSelector';
@@ -83,24 +84,7 @@ export default function AdminDashboard() {
   });
 
   const formatMoney = (n: number) => formatCordobas(n, 'C$', 2);
-
-  // Animación de barras de pozos
   const reduce = useReducedMotion();
-  const [barsReady, setBarsReady] = useState(false);
-
-  const pozosKey = kpis
-    ? Object.values(kpis.pozos_recogidos || {}).reduce((s, v) => s + (v || 0), 0)
-    : 0;
-
-  useEffect(() => {
-    if (reduce) {
-      setBarsReady(true);
-      return;
-    }
-    setBarsReady(false);
-    const id = requestAnimationFrame(() => setBarsReady(true));
-    return () => cancelAnimationFrame(id);
-  }, [reduce, pozosKey]);
 
   // Cascada "de lo vendido a la ganancia real". costo + comisión + salario +
   // ganancia bruta = total vendido; la ganancia real sale del motor de pozos.
@@ -119,6 +103,9 @@ export default function AdminDashboard() {
       gananciaReal: kpis.ganancia_real ?? gananciaBruta,
     };
   }, [kpis]);
+
+  // Libro de pozos del mes (mismo dato que la pestaña Gastos).
+  const { data: pozoLedger, isLoading: pozoLedgerLoading } = useGetExpensesOverflowQuery(queryParams, { skip: !isAdmin });
 
   // El total vendido no lleva delivery; se muestra aparte bajo el número.
   const { data: delivery } = useGetDeliverySummaryQuery(queryParams, { skip: !isAdmin });
@@ -313,14 +300,22 @@ export default function AdminDashboard() {
             </section>
 
             {/* 3. De lo vendido a la ganancia real */}
-            {isAdmin && waterfall && (
+            {isAdmin && waterfall && waterfall.totalVendido > 0 && (
               <section className="space-y-3">
                 <SectionLabel>De lo vendido a la ganancia</SectionLabel>
                 <IncomeWaterfall data={waterfall} formatMoney={formatMoney} />
               </section>
             )}
 
-            {/* 4. Gráfico de Tendencia Diaria del Mes */}
+            {/* 4. Pozos del mes: herencia, desbordes y bolsa extra */}
+            {isAdmin && (
+              <section className="space-y-3">
+                <SectionLabel>Pozos del mes</SectionLabel>
+                <PozoFlowBars ledger={pozoLedger} isLoading={pozoLedgerLoading} />
+              </section>
+            )}
+
+            {/* 5. Gráfico de Tendencia Diaria del Mes */}
             {isAdmin && (
               <section className="space-y-3">
                 <SectionLabel>Evolución diaria</SectionLabel>
@@ -355,18 +350,6 @@ export default function AdminDashboard() {
               <SectionLabel>Productos destacados</SectionLabel>
               <TopProductsTable range={queryParams} limit={10} />
             </section>
-
-            {/* 6. Distribución de Costos (Pozos) */}
-            {isAdmin && (
-              <section className="space-y-3">
-                <SectionLabel>Estructura de costos</SectionLabel>
-                <CostDistributionCard
-                  kpis={kpis}
-                  barsReady={barsReady}
-                  formatMoney={formatMoney}
-                />
-              </section>
-            )}
 
             {/* 7. Desglose Financiero (Donut ingresos + Tarjetas breakdown) */}
             {isAdmin && (
