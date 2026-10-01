@@ -14,30 +14,34 @@ const incomeChartConfig = {
   coste: { label: 'Costo de productos', color: 'var(--color-chart-1)' },
   comision: { label: 'Comisiones', color: 'var(--color-chart-2)' },
   salary: { label: 'Fondo salario', color: 'var(--color-chart-3)' },
-  prestamos: { label: 'Pago de préstamos', color: 'var(--color-chart-5)' },
+  prestamos: { label: 'Préstamos pagados con ganancia', color: 'var(--color-chart-5)' },
   ganancia: { label: 'Ganancia real', color: 'var(--color-chart-4)' },
 } satisfies ChartConfig;
 
 export interface IncomeSlice {
   key: string;
   label: string;
+  /** Negativo solo para la ganancia: va en la leyenda, sin porción en el donut. */
   value: number;
   fill: string;
+  /** Aclaración debajo de la etiqueta en la leyenda. */
+  note?: string;
 }
 
 export function IncomeBreakdownCard({
   incomeBreakdown,
+  total,
   formatMoney,
   className,
 }: {
   incomeBreakdown: IncomeSlice[];
+  /** Total vendido del período: el centro del donut y la base de los %. */
+  total: number;
   formatMoney: (n: number) => string;
   className?: string;
 }) {
-  const totalIncome = useMemo(
-    () => incomeBreakdown.reduce((s, slice) => s + slice.value, 0),
-    [incomeBreakdown],
-  );
+  // El donut solo dibuja lo positivo; una ganancia negativa no tiene porción.
+  const pieSlices = useMemo(() => incomeBreakdown.filter((s) => s.value > 0), [incomeBreakdown]);
 
   return (
     <SpotlightCard variant="default" className={className || 'p-5'}>
@@ -47,7 +51,7 @@ export function IncomeBreakdownCard({
           <h3 className="font-semibold text-foreground">Distribución de ingresos</h3>
         </div>
         <span className="nums text-xs font-medium text-muted-foreground">
-          {formatMoney(totalIncome)}
+          {formatMoney(total)}
         </span>
       </div>
 
@@ -79,7 +83,7 @@ export function IncomeBreakdownCard({
                   }
                 />
                 <Pie
-                  data={incomeBreakdown}
+                  data={pieSlices}
                   dataKey="value"
                   nameKey="label"
                   innerRadius={56}
@@ -87,7 +91,7 @@ export function IncomeBreakdownCard({
                   strokeWidth={3}
                   stroke="var(--color-card)"
                 >
-                  {incomeBreakdown.map((slice) => (
+                  {pieSlices.map((slice) => (
                     <Cell key={`cell-${slice.key}`} fill={slice.fill} />
                   ))}
                 </Pie>
@@ -95,11 +99,9 @@ export function IncomeBreakdownCard({
             </ChartContainer>
 
             <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-2xs uppercase tracking-wider text-muted-foreground">
-                Ingresos
-              </span>
+              <span className="text-2xs text-muted-foreground">Total vendido</span>
               <span className="nums text-xs font-bold text-foreground">
-                {formatMoney(totalIncome)}
+                {formatMoney(total)}
               </span>
             </div>
           </div>
@@ -107,7 +109,8 @@ export function IncomeBreakdownCard({
           {/* Leyenda con porcentaje y monto */}
           <ul className="mt-4 space-y-2">
             {incomeBreakdown.map((slice) => {
-              const pct = totalIncome > 0 ? (slice.value / totalIncome) * 100 : 0;
+              const negative = slice.value < 0;
+              const pct = total > 0 ? (slice.value / total) * 100 : 0;
               return (
                 <li
                   key={slice.key}
@@ -119,16 +122,21 @@ export function IncomeBreakdownCard({
                       className="size-2.5 shrink-0 rounded-full"
                       style={{ backgroundColor: slice.fill }}
                     />
-                    <span className="font-medium text-foreground">{slice.label}</span>
+                    <span className="flex flex-col">
+                      <span className="font-medium text-foreground">{slice.label}</span>
+                      {slice.note && <span className="text-2xs text-muted-foreground">{slice.note}</span>}
+                    </span>
                   </span>
 
-                  <div className="text-right">
-                    <span className="nums font-semibold text-foreground">
+                  <div className="shrink-0 text-right">
+                    <span className={`nums font-semibold ${negative ? 'text-destructive' : 'text-foreground'}`}>
                       {formatMoney(slice.value)}
                     </span>
-                    <span className="nums ml-2 text-2xs text-muted-foreground">
-                      ({pct.toFixed(1)}%)
-                    </span>
+                    {!negative && (
+                      <span className="nums ml-2 text-2xs text-muted-foreground">
+                        ({pct.toFixed(1)}%)
+                      </span>
+                    )}
                   </div>
                 </li>
               );

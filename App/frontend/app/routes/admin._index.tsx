@@ -33,7 +33,7 @@ import { TopProductsTable } from '~/components/admin/reports/TopProductsTable';
 import { SalesBreakdownCards } from '~/components/admin/reports/SalesBreakdownCards';
 import { ExportSalesCsvButton } from '~/components/admin/reports/ExportSalesCsvButton';
 import { CostDistributionCard } from '~/components/admin/reports/CostDistributionCard';
-import { IncomeBreakdownCard } from '~/components/admin/reports/IncomeBreakdownCard';
+import { IncomeBreakdownCard, type IncomeSlice } from '~/components/admin/reports/IncomeBreakdownCard';
 import { DashboardDrilldowns, type DrilldownType } from '~/components/admin/reports/DashboardDrilldowns';
 import { RegisterLoanPaymentDialog } from '~/components/admin/reports/RegisterLoanPaymentDialog';
 import { MonthSelector, getMonthRange, type MonthYear } from '~/components/admin/reports/MonthSelector';
@@ -105,7 +105,7 @@ export default function AdminDashboard() {
   }, [reduce, pozosKey]);
 
   // Desglose de ingresos para el donut financiero
-  const incomeBreakdown = useMemo(() => {
+  const incomeBreakdown = useMemo<IncomeSlice[]>(() => {
     if (!kpis) return [];
     return [
       {
@@ -130,23 +130,32 @@ export default function AdminDashboard() {
             },
           ]
         : []),
-      ...(kpis.total_prestamos
+      // costo + comisión + salario + ganancia tienda = total vendido. La parte de
+      // los préstamos que cubre el pozo Préstamos ya está dentro del costo; acá
+      // solo va la que sale de la ganancia. Antes se sumaba el pago completo
+      // además de la ganancia y el donut pasaba del total (agosto: 74,126.40
+      // contra 72,010).
+      ...(kpis.prestamos_de_ganancia
         ? [
             {
               key: 'prestamos',
-              label: 'Pago de préstamos',
-              value: kpis.total_prestamos,
+              label: 'Préstamos pagados con ganancia',
+              value: Math.min(kpis.prestamos_de_ganancia, Math.max(0, kpis.ganancia_tienda_total ?? 0)),
               fill: 'var(--color-chart-5)',
+              note: kpis.prestamos_cubierto_por_budget
+                ? `Otros ${formatMoney(kpis.prestamos_cubierto_por_budget)} salieron del pozo Préstamos`
+                : undefined,
             },
           ]
         : []),
       {
         key: 'ganancia',
         label: 'Ganancia real',
-        value: Math.max(0, kpis.ganancia_real ?? kpis.ganancia_tienda_total ?? (kpis.total_vendido - (kpis.coste_total ?? 0) - kpis.comision_total)),
+        // Puede ser negativa: se muestra así en la leyenda (sin porción).
+        value: kpis.ganancia_real ?? kpis.ganancia_tienda_total ?? 0,
         fill: 'var(--color-chart-4)',
       },
-    ].filter((slice) => slice.value > 0);
+    ].filter((slice) => slice.value !== 0);
   }, [kpis]);
 
   // Sparkline para la tarjeta hero (Total Vendido)
@@ -399,6 +408,7 @@ export default function AdminDashboard() {
                   <div className="lg:col-span-4">
                     <IncomeBreakdownCard
                       incomeBreakdown={incomeBreakdown}
+                      total={kpis?.total_vendido ?? 0}
                       formatMoney={formatMoney}
                       className="h-full p-5"
                     />
