@@ -13,7 +13,7 @@ import {
 const incomeChartConfig = {
   coste: { label: 'Costo de productos', color: 'var(--color-chart-1)' },
   comision: { label: 'Comisiones', color: 'var(--color-chart-2)' },
-  salary: { label: 'Salary', color: 'var(--color-chart-3)' },
+  salary: { label: 'Fondo salario', color: 'var(--color-chart-3)' },
   prestamos: { label: 'Pago de préstamos', color: 'var(--color-chart-5)' },
   ganancia: { label: 'Ganancia real', color: 'var(--color-chart-4)' },
 } satisfies ChartConfig;

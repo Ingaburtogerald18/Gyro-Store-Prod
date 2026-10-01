@@ -75,7 +75,7 @@ export function FinancialHealthHero({
                   <p className="text-xs text-muted-foreground">Disponible</p>
                   <span
                     className={cn(
-                      'nums text-3xl font-bold tracking-tight sm:text-4xl',
+                      'nums font-display text-3xl font-bold tracking-tight sm:text-4xl',
                       presupuestoDisponible >= 0
                         ? 'text-success'
                         : 'text-destructive',
@@ -123,7 +123,7 @@ export function FinancialHealthHero({
               <div className="mt-1 flex items-baseline gap-2">
                 <span
                   className={cn(
-                    'nums text-2xl font-bold',
+                    'nums font-display text-2xl font-bold',
                     gananciaReal > 0
                       ? 'text-success'
                       : gananciaReal < 0

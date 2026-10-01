@@ -242,6 +242,17 @@ export function ChainRow({
 
 // ── Pozos ──────────────────────────────────────────────────────────────────
 
+/** Nombre a mostrar de cada pozo: los mismos que usa Gastos (server/services/reports.ts). */
+const POZO_LABELS: Record<string, string> = {
+  publicidad: 'Publicidad',
+  mantenimiento: 'Mantenimiento',
+  utiles: 'Útiles de Oficina',
+  garantias: 'Garantías',
+  prestamos: 'Préstamos',
+  suscripciones: 'Suscripciones',
+  servicios: 'Servicios Básicos',
+};
+
 /** Los 7 pozos del doc 11 §2, en el orden en que se reparte el Costo F/U. */
 export const POZOS = [
   'publicidad',
@@ -313,7 +324,7 @@ export function PozosBars({
         return (
           <div key={pozoKey} className="flex flex-col gap-1">
             <div className="flex items-baseline justify-between gap-2 text-sm">
-              <span className="font-medium capitalize text-foreground">{pozoKey}</span>
+              <span className="font-medium text-foreground">{POZO_LABELS[pozoKey] ?? pozoKey}</span>
               <span className="nums text-muted-foreground">
                 {formatMoney(amount)}
                 <span className="ml-2 text-xs opacity-70">{pct.toFixed(1)}%</span>
@@ -324,7 +335,7 @@ export function PozosBars({
                 montar; con reduced-motion va directo al valor. */}
             <Progress
               value={barsReady ? pct : 0}
-              aria-label={`${pozoKey}: ${pct.toFixed(1)}% del costo fijo repartido`}
+              aria-label={`${POZO_LABELS[pozoKey] ?? pozoKey}: ${pct.toFixed(1)}% del costo fijo repartido`}
               className={cn(
                 'h-1.5 bg-primary/10',
                 destacado

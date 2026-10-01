@@ -26,16 +26,10 @@ const POZO_ICONS: Record<string, any> = {
   salario: UserDollarIcon,
 };
 
-const POZO_COLORS: Record<string, string> = {
-  publicidad: 'bg-tone-sky',
-  mantenimiento: 'bg-warning',
-  utiles: 'bg-tone-emerald',
-  garantias: 'bg-tone-purple',
-  prestamos: 'bg-tone-indigo',
-  suscripciones: 'bg-tone-rose',
-  servicios: 'bg-muted-foreground',
-  salario: 'bg-success',
-};
+// Un solo color para todas las barras: antes cada pozo tenía el suyo (ocho
+// en total) y el color no significaba nada. La barra dice cuánto; el nombre,
+// de qué. Se deja el mapa por si un pozo necesita una señal propia.
+const POZO_COLORS: Record<string, string> = {};
 
 export function PozoCardsGrid({
   pozos,
@@ -83,7 +77,7 @@ export function PozoCardsGrid({
         <div className="space-y-3">
           {sorted.map((item) => {
             const IconComponent = POZO_ICONS[item.pozo] || FolderLibraryIcon;
-            const barColor = POZO_COLORS[item.pozo] || 'bg-muted-foreground';
+            const barColor = POZO_COLORS[item.pozo] || 'bg-primary';
             const percentOfTotal = totalRecogido > 0
               ? Math.round((item.recogido / totalRecogido) * 100)
               : 0;
@@ -159,7 +153,7 @@ export function PozoCardsGrid({
                 const percentOfGastado = totalGastado > 0
                   ? Math.round((item.gastado / totalGastado) * 100)
                   : 0;
-                const barColor = POZO_COLORS[item.pozo] || 'bg-muted-foreground';
+                const barColor = POZO_COLORS[item.pozo] || 'bg-primary';
 
                 return (
                   <div key={item.pozo} className="flex items-center gap-3 px-3 py-1.5">

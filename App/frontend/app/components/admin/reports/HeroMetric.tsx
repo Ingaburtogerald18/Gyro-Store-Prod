@@ -53,7 +53,7 @@ export function HeroMetric({
       </div>
 
       {/* 48 px. Es el único número de la pantalla a este tamaño. */}
-      <p className="nums mt-3 font-heading text-5xl font-semibold tracking-tight text-foreground">
+      <p className="nums mt-3 font-display text-5xl font-bold tracking-tight text-foreground">
         <CountUp value={value} format={format} />
       </p>
 
@@ -155,7 +155,7 @@ export function CompactKpi({
           {label}
         </span>
       </div>
-      <p className={cn("nums mt-1.5 text-xl font-semibold text-foreground", valueClassName)}>
+      <p className={cn("nums mt-1.5 font-display text-xl font-bold text-foreground", valueClassName)}>
         {format ? format(value) : value.toLocaleString('es-NI')}
       </p>
       <div className="mt-1 flex items-baseline gap-2">

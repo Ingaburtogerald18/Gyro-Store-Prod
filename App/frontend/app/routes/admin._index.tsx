@@ -124,7 +124,7 @@ export default function AdminDashboard() {
         ? [
             {
               key: 'salary',
-              label: 'Salary acumulado',
+              label: 'Fondo salario',
               value: kpis.salary_acumulado,
               fill: 'var(--color-chart-3)',
             },
@@ -215,7 +215,7 @@ export default function AdminDashboard() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-9 gap-1.5 text-xs text-warning hover:text-warning/80 hover:border-warning/40"
+                      className="h-9 gap-1.5 rounded-md text-xs"
                     >
                       <HugeIcon icon={Coins01Icon} size={15} strokeWidth={2} />
                       Pagar préstamo
@@ -267,7 +267,7 @@ export default function AdminDashboard() {
           >
             {/* Si el mes está totalmente vacío, mostrar un banner informativo pero permitir explorar */}
             {isMonthEmpty && (
-              <div className="rounded-2xl border border-dashed border-border/80 bg-card/40 p-8 text-center shadow-xs">
+              <div className="rounded-card border border-dashed border-border/80 bg-card/40 p-8 text-center">
                 <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-full bg-muted/60 text-muted-foreground">
                   <HugeIcon icon={ChartLineData01Icon} size={22} strokeWidth={1.8} />
                 </div>
@@ -275,8 +275,8 @@ export default function AdminDashboard() {
                   Sin transacciones en este mes
                 </h3>
                 <p className="mx-auto mt-1 max-w-md text-xs text-muted-foreground">
-                  No se registraron ventas aprobadas durante el mes seleccionado. Puedes navegar a otros
-                  meses utilizando el selector del encabezado.
+                  No se registraron ventas aprobadas en el mes elegido. Podés ver otros meses con el
+                  selector del encabezado.
                 </p>
               </div>
             )}

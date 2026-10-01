@@ -59,7 +59,7 @@ export function CuadreBanner({ range }: { range: PeriodRange }) {
               <HugeIcon icon={CheckmarkCircle01Icon} size={16} strokeWidth={2} className="text-success" />
             )}
           </div>
-          <p className={cn('nums mt-2 text-2xl font-bold', hasPending ? 'text-destructive' : 'text-foreground')}>
+          <p className={cn('nums mt-2 font-display text-2xl font-bold', hasPending ? 'text-destructive' : 'text-foreground')}>
             {pendingCount}
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
@@ -80,7 +80,7 @@ export function CuadreBanner({ range }: { range: PeriodRange }) {
             <HugeIcon icon={TruckIcon} size={16} strokeWidth={2} />
             Delivery del periodo
           </span>
-          <p className="nums mt-2 text-2xl font-bold text-foreground">
+          <p className="nums mt-2 font-display text-2xl font-bold text-foreground">
             {formatCordobas(deliveryTotal)}
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
@@ -99,7 +99,7 @@ export function CuadreBanner({ range }: { range: PeriodRange }) {
               <HugeIcon icon={Wallet01Icon} size={16} strokeWidth={2} />
               {nombreCuenta(s.accountId)}
             </span>
-            <p className="nums mt-2 text-2xl font-bold text-foreground">{formatCordobas(s.balance)}</p>
+            <p className="nums mt-2 font-display text-2xl font-bold text-foreground">{formatCordobas(s.balance)}</p>
             <p className="mt-1 text-xs text-muted-foreground">Saldo actual</p>
           </div>
         ))}

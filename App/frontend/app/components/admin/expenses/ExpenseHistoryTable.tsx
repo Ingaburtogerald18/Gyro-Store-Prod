@@ -37,35 +37,35 @@ import {
 const POZO_BADGES: Record<string, { label: string; className: string }> = {
   publicidad: {
     label: 'Publicidad',
-    className: 'bg-tone-sky/10 text-tone-sky border-tone-sky/20',
+    className: 'bg-muted text-muted-foreground border-border',
   },
   mantenimiento: {
     label: 'Mantenimiento',
-    className: 'bg-warning/10 text-warning border-warning/20',
+    className: 'bg-muted text-muted-foreground border-border',
   },
   utiles: {
     label: 'Útiles',
-    className: 'bg-tone-emerald/10 text-tone-emerald border-tone-emerald/20',
+    className: 'bg-muted text-muted-foreground border-border',
   },
   garantias: {
     label: 'Garantías',
-    className: 'bg-tone-purple/10 text-tone-purple border-tone-purple/20',
+    className: 'bg-muted text-muted-foreground border-border',
   },
   prestamos: {
     label: 'Préstamos',
-    className: 'bg-tone-indigo/10 text-tone-indigo border-tone-indigo/20',
+    className: 'bg-muted text-muted-foreground border-border',
   },
   suscripciones: {
     label: 'Suscripciones',
-    className: 'bg-tone-rose/10 text-tone-rose border-tone-rose/20',
+    className: 'bg-muted text-muted-foreground border-border',
   },
   servicios: {
     label: 'Servicios',
-    className: 'bg-muted-foreground/10 text-muted-foreground border-muted-foreground/20',
+    className: 'bg-muted text-muted-foreground border-border',
   },
   salario: {
     label: 'Salario',
-    className: 'bg-success/10 text-success border-success/20',
+    className: 'bg-muted text-muted-foreground border-border',
   },
 };
 

@@ -26,7 +26,7 @@ import type { PeriodRange } from './period';
 
 const dailyChartConfig = {
   total_vendido: { label: 'Vendido', color: 'var(--color-chart-1)' },
-  ganancia: { label: 'Ganancia tienda', color: 'var(--color-chart-4)' },
+  ganancia: { label: 'Ganancia tienda', color: 'var(--color-chart-3)' },
 } satisfies ChartConfig;
 
 function compactAxis(value: number): string {
@@ -238,7 +238,7 @@ function TooltipContent({
   if (!data) return null;
 
   return (
-    <div className="z-50 min-w-[200px] rounded-xl border border-border/80 bg-popover/95 p-3 text-xs text-popover-foreground shadow-xl backdrop-blur-md">
+    <div className="z-50 min-w-[200px] rounded-card border border-border/80 bg-popover/95 p-3 text-xs text-popover-foreground shadow-xl backdrop-blur-md">
       <div className="mb-2 flex items-center justify-between border-b border-border/60 pb-1.5 font-medium">
         <span className="capitalize text-foreground font-semibold">{data.dateStr}</span>
         {data.hasSales ? (
@@ -266,7 +266,7 @@ function TooltipContent({
 
           <div className="flex items-center justify-between gap-4">
             <span className="flex items-center gap-1.5 text-muted-foreground">
-              <span className="size-2 rounded-full bg-[var(--color-chart-4)]" />
+              <span className="size-2 rounded-full bg-[var(--color-chart-3)]" />
               Ganancia tienda:
             </span>
             <span className="nums font-semibold text-success">
