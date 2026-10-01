@@ -1016,9 +1016,9 @@ export async function getTopProducts(
     let margen: number | undefined = undefined;
     if (costInfo && costInfo.totalRevenue > 0) {
       margen = Math.round(((costInfo.totalRevenue - costInfo.totalCost) / costInfo.totalRevenue) * 1000) / 10;
-    } else if (p.ingreso > 0) {
-      margen = 35.0; // Margen promedio estimado de referencia
     }
+    // Sin costo registrado no hay margen: antes se inventaba un 35% "de
+    // referencia" que la tabla mostraba como si fuera real.
 
     const nombre = nameMap.get(p.sku) || p.sku;
     return {

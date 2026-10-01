@@ -328,33 +328,20 @@ export default function AdminDashboard() {
               </section>
             )}
 
-            {/* 4. Ventas por método de pago + Ventas por vendedor (lado a lado en desktop) */}
-            {isAdmin && (
-              <section className="space-y-3">
-                <SectionLabel>Canales y equipo comercial</SectionLabel>
-                <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-                  <PaymentMethodDonut
-                    range={queryParams}
-                    className="p-5 lg:col-span-5"
-                  />
-                  <SellerRankingTable
-                    range={queryParams}
-                    className="p-5 lg:col-span-7"
-                  />
-                </div>
-              </section>
-            )}
-
-            {/* 5. Top 10 Productos Más Vendidos */}
+            {/* 6. Vendedores y productos */}
             <section className="space-y-3">
-              <SectionLabel>Productos destacados</SectionLabel>
-              <TopProductsTable range={queryParams} limit={10} />
+              <SectionLabel>{isAdmin ? 'Vendedores y productos' : 'Productos destacados'}</SectionLabel>
+              <div className={isAdmin ? 'grid grid-cols-1 gap-6 lg:grid-cols-2' : undefined}>
+                {isAdmin && <SellerRankingTable range={queryParams} />}
+                <TopProductsTable range={queryParams} limit={10} />
+              </div>
             </section>
 
-            {/* 7. Desglose Financiero (Donut ingresos + Tarjetas breakdown) */}
+            {/* 7. Cortes de ventas */}
             {isAdmin && (
               <section className="space-y-3">
                 <SectionLabel>Cortes de ventas</SectionLabel>
+                <PaymentMethodDonut range={queryParams} className="p-5" />
                 <SalesBreakdownCards
                   range={queryParams}
                   excludeMethod
