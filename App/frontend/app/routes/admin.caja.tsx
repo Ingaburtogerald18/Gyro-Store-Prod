@@ -2,7 +2,6 @@ import { HugeIcon } from "~/components/ui/icon";
 import {
   Add01Icon,
   ArrowDownRight01Icon,
-  ArrowRight01Icon,
   ArrowUpRight01Icon,
   Cancel01Icon,
   LockIcon,
@@ -18,8 +17,8 @@ import { PageHeader } from '~/components/layout/PageHeader';
 import { Button } from '~/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '~/components/ui/dialog';
 import { Input } from '~/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/components/ui/select';
-import { Label } from '~/components/ui/label';
+import { Field, FieldError } from '~/components/ui/field';
+import { AccountDialog, ClosureDialog, MovementDialog, TransferDialog } from '~/components/admin/caja/CajaForms';
 import { toast } from 'sonner';
 import { DataTable } from '~/components/ui/DataTable';
 import { QueryState } from '~/components/ui/QueryState';
@@ -42,15 +41,11 @@ import {
 import {
   useGetAccountsQuery,
   useGetMovementsQuery,
-  useRegisterMovementMutation,
-  useCreateAccountMutation,
   useGetCuadreQuery,
   useGetDailySummaryQuery,
-  useRegisterTransferMutation,
   useGetExpenseCategoriesQuery,
   useUpdateExpenseCategoriesMutation,
   useGetClosuresQuery,
-  useCreateClosureMutation,
 } from '~/store/api/cajaApi';
 import { formatByCurrency, formatLongDate } from '~/lib/formatters';
 import { format } from 'date-fns';
@@ -60,9 +55,6 @@ export const meta: MetaFunction = () => {
   return [{ title: pageTitle('Caja y bancos', { admin: true }) }];
 };
 
-// Sentinela del Select de categorías: "escribir una categoría suelta" sin
-// tocar el catálogo. Un string que ninguna categoría real puede tener.
-const CUSTOM_CAT = '__otra__';
 
 export default function AdminCajaRoute() {
   const { data: accounts = [], isLoading: isLoadingAcc } = useGetAccountsQuery();
@@ -72,11 +64,7 @@ export default function AdminCajaRoute() {
   const { data: expenseCategories = [] } = useGetExpenseCategoriesQuery();
   const { data: closures = [] } = useGetClosuresQuery();
 
-  const [registerMovMut, { isLoading: isRegistering }] = useRegisterMovementMutation();
-  const [createAccMut, { isLoading: isCreatingAcc }] = useCreateAccountMutation();
-  const [transferMut, { isLoading: isTransferring }] = useRegisterTransferMutation();
   const [updateCatsMut, { isLoading: isSavingCats }] = useUpdateExpenseCategoriesMutation();
-  const [closureMut, { isLoading: isClosing }] = useCreateClosureMutation();
 
   const [isMovOpen, setIsMovOpen] = useState(false);
   const [isAccOpen, setIsAccOpen] = useState(false);
@@ -88,34 +76,14 @@ export default function AdminCajaRoute() {
   const balanceOf = (accountId: string) =>
     cuadre?.saldosCuentas.find((s) => s.accountId === accountId)?.balance ?? 0;
 
-  // Form states Movimiento
-  const [accountId, setAccountId] = useState('');
-  const [tipo, setTipo] = useState<'ingreso' | 'egreso'>('ingreso');
-  const [monto, setMonto] = useState('');
-  const [categoria, setCategoria] = useState('');   // texto libre (ingreso o "Otra")
-  const [catSelect, setCatSelect] = useState('');   // categoría elegida del catálogo (egreso)
-  const [descripcion, setDescripcion] = useState('');
-
-  // Form states Account
-  const [accNombre, setAccNombre] = useState('');
-  const [accTipo, setAccTipo] = useState<'efectivo' | 'banco'>('efectivo');
-  const [accMoneda, setAccMoneda] = useState('NIO');
-  const [accSaldoInicial, setAccSaldoInicial] = useState('');
-
-  // Form states Traspaso
-  const [fromId, setFromId] = useState('');
-  const [toId, setToId] = useState('');
-  const [transferMonto, setTransferMonto] = useState('');
-  const [transferDesc, setTransferDesc] = useState('');
+  // Los formularios (movimiento, cuenta, traspaso, cierre) viven en
+  // components/admin/caja/CajaForms.tsx con react-hook-form.
 
   // Form states Categorías (borrador editable en el modal)
   const [catDraft, setCatDraft] = useState<string[]>([]);
   const [newCat, setNewCat] = useState('');
-
-  // Form states Cierre
-  const [closureAccId, setClosureAccId] = useState('');
-  const [closureContado, setClosureContado] = useState('');
-  const [closureNotas, setClosureNotas] = useState('');
+  // El duplicado se avisa DEBAJO del campo, no en un toast.
+  const [catError, setCatError] = useState('');
 
   const activeAccounts = useMemo(() => accounts.filter((a) => a.activo), [accounts]);
 
@@ -130,142 +98,39 @@ export default function AdminCajaRoute() {
   const accName = (id: string) => accounts.find((a) => a.id === id)?.nombre ?? 'Desconocida';
   const accMonedaOf = (id: string) => accounts.find((a) => a.id === id)?.moneda;
 
-  const handleRegisterMovement = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const finalCat =
-      tipo === 'egreso' && catSelect && catSelect !== CUSTOM_CAT ? catSelect : categoria.trim();
-    if (!accountId || !monto || !finalCat) {
-      toast.error('Llená cuenta, monto y categoría');
-      return;
-    }
-    try {
-      await registerMovMut({
-        account_id: accountId,
-        tipo,
-        monto: Number(monto),
-        categoria: finalCat,
-        descripcion: descripcion || undefined,
-      }).unwrap();
-      toast.success('Movimiento registrado');
-      setIsMovOpen(false);
-      setMonto('');
-      setCategoria('');
-      setCatSelect('');
-      setDescripcion('');
-    } catch (err: any) {
-      toast.error(err.data?.error || 'Error al registrar movimiento');
-    }
-  };
-
-  const handleCreateAccount = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!accNombre) return;
-    try {
-      await createAccMut({
-        nombre: accNombre,
-        tipo: accTipo,
-        moneda: accMoneda,
-        saldo_inicial: accSaldoInicial ? Number(accSaldoInicial) : 0,
-      }).unwrap();
-      toast.success('Cuenta creada');
-      setIsAccOpen(false);
-      setAccNombre('');
-      setAccSaldoInicial('');
-    } catch (err: any) {
-      toast.error(err.data?.error || 'Error al crear cuenta');
-    }
-  };
-
-  const handleTransfer = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!fromId || !toId || !transferMonto) {
-      toast.error('Elegí origen, destino y monto');
-      return;
-    }
-    if (fromId === toId) {
-      toast.error('El origen y el destino deben ser distintos');
-      return;
-    }
-    try {
-      await transferMut({
-        from_account_id: fromId,
-        to_account_id: toId,
-        monto: Number(transferMonto),
-        descripcion: transferDesc || undefined,
-      }).unwrap();
-      toast.success('Traspaso registrado');
-      setIsTransferOpen(false);
-      setTransferMonto('');
-      setTransferDesc('');
-    } catch (err: any) {
-      toast.error(err.data?.error || 'Error al registrar el traspaso');
-    }
-  };
-
   const openCategories = () => {
     setCatDraft(expenseCategories);
     setNewCat('');
+    setCatError('');
     setIsCatsOpen(true);
   };
 
   const addCat = () => {
     const v = newCat.trim();
-    if (!v) return;
+    if (!v) {
+      setCatError('Escribí el nombre de la categoría.');
+      return;
+    }
     if (catDraft.some((c) => c.toLowerCase() === v.toLowerCase())) {
-      toast.error('Esa categoría ya existe');
+      setCatError('Esa categoría ya existe.');
       return;
     }
     setCatDraft((prev) => [...prev, v]);
     setNewCat('');
+    setCatError('');
   };
 
   const handleSaveCategories = async () => {
     try {
       await updateCatsMut(catDraft).unwrap();
-      toast.success('Categorías guardadas');
+      toast.success('Categorías guardadas.');
       setIsCatsOpen(false);
     } catch (err: any) {
-      toast.error(err.data?.error || 'Error al guardar categorías');
+      toast.error(err.data?.error || 'No se pudieron guardar las categorías.');
     }
   };
 
-  const openClosure = () => {
-    const preferred = activeAccounts.find((a) => a.tipo === 'efectivo') ?? activeAccounts[0];
-    setClosureAccId(preferred?.id ?? '');
-    setClosureContado('');
-    setClosureNotas('');
-    setIsClosureOpen(true);
-  };
-
-  const closureExpected = closureAccId ? balanceOf(closureAccId) : 0;
-  const closureDiff =
-    closureContado.trim() === '' ? null : Number(closureContado) - closureExpected;
-
-  const handleClosure = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!closureAccId || closureContado.trim() === '') {
-      toast.error('Elegí la cuenta y escribí lo que contaste');
-      return;
-    }
-    try {
-      const res = await closureMut({
-        account_id: closureAccId,
-        saldo_contado: Number(closureContado),
-        notas: closureNotas || undefined,
-      }).unwrap();
-      const dif = res.diferencia;
-      if (Math.abs(dif) < 0.01) {
-        toast.success('Caja cuadrada — sin diferencia');
-      } else if (dif > 0) {
-        toast.success(`Cierre guardado. Sobrante de ${formatByCurrency(dif, accMonedaOf(closureAccId))}`);
-      } else {
-        toast.warning(`Cierre guardado. Faltante de ${formatByCurrency(Math.abs(dif), accMonedaOf(closureAccId))}`);
-      }
-      setIsClosureOpen(false);
-    } catch (err: any) {
-      toast.error(err.data?.error || 'Error al cerrar la caja');
-    }
-  };
+  const openClosure = () => setIsClosureOpen(true);
 
   const filteredMovements = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -498,178 +363,21 @@ export default function AdminCajaRoute() {
         </section>
       )}
 
-      {/* MODAL MOVIMIENTO */}
-      <Dialog open={isMovOpen} onOpenChange={setIsMovOpen}>
-        <DialogContent>
-          <form onSubmit={handleRegisterMovement}>
-            <DialogHeader>
-              <DialogTitle>Registrar movimiento</DialogTitle>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="space-y-2">
-                <Label>Tipo de movimiento</Label>
-                <Select value={tipo} onValueChange={(v: any) => { setTipo(v); setCatSelect(''); setCategoria(''); }}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ingreso">Ingreso de dinero</SelectItem>
-                    <SelectItem value="egreso">Egreso / Gasto</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Cuenta</Label>
-                <Select value={accountId} onValueChange={setAccountId}>
-                  <SelectTrigger><SelectValue placeholder="Seleccioná..." /></SelectTrigger>
-                  <SelectContent>
-                    {activeAccounts.map(acc => (
-                      <SelectItem key={acc.id} value={acc.id}>{acc.nombre} ({acc.moneda})</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Monto</Label>
-                <Input required type="number" step="0.01" min="0" value={monto} onChange={e => setMonto(e.target.value)} />
-              </div>
-
-              {/* Egreso con catálogo: Select de rubros + opción de escribir uno suelto.
-                  Ingreso: texto libre (depósito de venta, aporte, etc.). */}
-              <div className="space-y-2">
-                <Label>Categoría</Label>
-                {tipo === 'egreso' && expenseCategories.length > 0 ? (
-                  <>
-                    <Select value={catSelect} onValueChange={setCatSelect}>
-                      <SelectTrigger><SelectValue placeholder="Elegí un rubro..." /></SelectTrigger>
-                      <SelectContent>
-                        {expenseCategories.map((c) => (
-                          <SelectItem key={c} value={c}>{c}</SelectItem>
-                        ))}
-                        <SelectItem value={CUSTOM_CAT}>Otra…</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    {catSelect === CUSTOM_CAT && (
-                      <Input placeholder="Escribí la categoría" value={categoria} onChange={e => setCategoria(e.target.value)} />
-                    )}
-                  </>
-                ) : (
-                  <Input
-                    placeholder="Ej. Depósito venta, Aporte socio…"
-                    value={categoria}
-                    onChange={e => setCategoria(e.target.value)}
-                  />
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label>Descripción (opcional)</Label>
-                <Input value={descripcion} onChange={e => setDescripcion(e.target.value)} />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button type="submit" disabled={isRegistering}>Guardar</Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      {/* MODAL CUENTA */}
-      <Dialog open={isAccOpen} onOpenChange={setIsAccOpen}>
-        <DialogContent>
-          <form onSubmit={handleCreateAccount}>
-            <DialogHeader>
-              <DialogTitle>Nueva cuenta</DialogTitle>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="space-y-2">
-                <Label>Nombre</Label>
-                <Input required placeholder="Ej. BAC Lafise" value={accNombre} onChange={e => setAccNombre(e.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <Label>Tipo</Label>
-                <Select value={accTipo} onValueChange={(v: any) => setAccTipo(v)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="efectivo">Efectivo Físico</SelectItem>
-                    <SelectItem value="banco">Banco / Transferencia</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <Label>Moneda</Label>
-                  <Input required value={accMoneda} onChange={e => setAccMoneda(e.target.value.toUpperCase())} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Saldo inicial</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    placeholder="0.00"
-                    value={accSaldoInicial}
-                    onChange={e => setAccSaldoInicial(e.target.value)}
-                  />
-                </div>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                El saldo inicial es el dinero que ya tenés en esta cuenta hoy. Se suma al saldo desde el arranque.
-              </p>
-            </div>
-            <DialogFooter>
-              <Button type="submit" disabled={isCreatingAcc}>Crear cuenta</Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      {/* MODAL TRASPASO */}
-      <Dialog open={isTransferOpen} onOpenChange={setIsTransferOpen}>
-        <DialogContent>
-          <form onSubmit={handleTransfer}>
-            <DialogHeader>
-              <DialogTitle>Traspaso entre cuentas</DialogTitle>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="flex items-end gap-2">
-                <div className="flex-1 space-y-2">
-                  <Label>Desde</Label>
-                  <Select value={fromId} onValueChange={setFromId}>
-                    <SelectTrigger><SelectValue placeholder="Origen..." /></SelectTrigger>
-                    <SelectContent>
-                      {activeAccounts.map(acc => (
-                        <SelectItem key={acc.id} value={acc.id}>{acc.nombre}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <HugeIcon icon={ArrowRight01Icon} size={18} strokeWidth={2} className="mb-2.5 shrink-0 text-muted-foreground" />
-                <div className="flex-1 space-y-2">
-                  <Label>Hacia</Label>
-                  <Select value={toId} onValueChange={setToId}>
-                    <SelectTrigger><SelectValue placeholder="Destino..." /></SelectTrigger>
-                    <SelectContent>
-                      {activeAccounts.filter(a => a.id !== fromId).map(acc => (
-                        <SelectItem key={acc.id} value={acc.id}>{acc.nombre}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label>Monto</Label>
-                <Input required type="number" step="0.01" min="0" value={transferMonto} onChange={e => setTransferMonto(e.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <Label>Descripción (opcional)</Label>
-                <Input placeholder="Ej. Depósito del efectivo del día" value={transferDesc} onChange={e => setTransferDesc(e.target.value)} />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button type="submit" disabled={isTransferring}>Registrar traspaso</Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+      <MovementDialog
+        open={isMovOpen}
+        onOpenChange={setIsMovOpen}
+        accounts={activeAccounts}
+        expenseCategories={expenseCategories}
+      />
+      <AccountDialog open={isAccOpen} onOpenChange={setIsAccOpen} />
+      <TransferDialog open={isTransferOpen} onOpenChange={setIsTransferOpen} accounts={activeAccounts} />
+      <ClosureDialog
+        open={isClosureOpen}
+        onOpenChange={setIsClosureOpen}
+        accounts={activeAccounts}
+        balanceOf={balanceOf}
+        cashSalesToday={resumen?.ventas.efectivo}
+      />
 
       {/* MODAL CATEGORÍAS DE GASTO */}
       <Dialog open={isCatsOpen} onOpenChange={setIsCatsOpen}>
@@ -678,17 +386,22 @@ export default function AdminCajaRoute() {
             <DialogTitle>Categorías de gasto</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
+            <Field data-invalid={!!catError}>
             <div className="flex gap-2">
               <Input
                 placeholder="Nueva categoría (ej. Combustible)"
+                aria-label="Nueva categoría"
+                aria-invalid={!!catError}
                 value={newCat}
-                onChange={e => setNewCat(e.target.value)}
+                onChange={e => { setNewCat(e.target.value); setCatError(''); }}
                 onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCat(); } }}
               />
                 <Button type="button" variant="outline" onClick={addCat} aria-label="Agregar categoría">
                 <HugeIcon icon={Add01Icon} size={16} strokeWidth={2} />
               </Button>
             </div>
+            {catError && <FieldError>{catError}</FieldError>}
+            </Field>
             {catDraft.length === 0 ? (
               <p className="text-sm text-muted-foreground">Todavía no hay categorías. Agregá la primera arriba.</p>
             ) : (
@@ -712,89 +425,6 @@ export default function AdminCajaRoute() {
           <DialogFooter>
             <Button type="button" disabled={isSavingCats} onClick={handleSaveCategories}>Guardar</Button>
           </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* MODAL CIERRE DEL DÍA */}
-      <Dialog open={isClosureOpen} onOpenChange={setIsClosureOpen}>
-        <DialogContent>
-          <form onSubmit={handleClosure}>
-            <DialogHeader>
-              <DialogTitle>Cierre del día</DialogTitle>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="space-y-2">
-                <Label>Cuenta a cerrar</Label>
-                <Select value={closureAccId} onValueChange={setClosureAccId}>
-                  <SelectTrigger><SelectValue placeholder="Seleccioná..." /></SelectTrigger>
-                  <SelectContent>
-                    {activeAccounts.map(acc => (
-                      <SelectItem key={acc.id} value={acc.id}>{acc.nombre}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="flex items-center justify-between rounded-card border border-border bg-muted/40 px-4 py-3">
-                <span className="text-sm text-muted-foreground">El sistema espera</span>
-                <span className="text-lg font-bold tabular-nums text-foreground">
-                  {formatByCurrency(closureExpected, accMonedaOf(closureAccId))}
-                </span>
-              </div>
-
-              {/* Referencia: si estás cerrando una caja de efectivo, cuánto se
-                  vendió hoy en efectivo (lo que debería haber entrado). */}
-              {resumen && resumen.ventas.efectivo > 0 && accounts.find(a => a.id === closureAccId)?.tipo === 'efectivo' && (
-                <p className="text-xs text-muted-foreground">
-                  Referencia: hoy se vendieron{' '}
-                  <span className="font-semibold text-foreground">{formatByCurrency(resumen.ventas.efectivo)}</span>{' '}
-                  en efectivo. Si esas ventas no están cargadas como ingreso en esta caja, van a aparecer como sobrante.
-                </p>
-              )}
-
-              <div className="space-y-2">
-                <Label>¿Cuánto contaste físicamente?</Label>
-                <Input
-                  required
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  placeholder="0.00"
-                  value={closureContado}
-                  onChange={e => setClosureContado(e.target.value)}
-                  className="text-lg tabular-nums"
-                />
-              </div>
-
-              {closureDiff !== null && (
-                <div
-                  className={`flex items-center justify-between rounded-card px-4 py-3 text-sm font-semibold ${
-                    Math.abs(closureDiff) < 0.01
-                      ? 'bg-success/10 text-success'
-                      : closureDiff > 0
-                        ? 'bg-primary/10 text-primary'
-                        : 'bg-destructive/10 text-destructive'
-                  }`}
-                >
-                  <span>
-                    {Math.abs(closureDiff) < 0.01 ? 'Cuadra perfecto' : closureDiff > 0 ? 'Sobrante' : 'Faltante'}
-                  </span>
-                  <span className="tabular-nums">{formatByCurrency(Math.abs(closureDiff), accMonedaOf(closureAccId))}</span>
-                </div>
-              )}
-
-              <div className="space-y-2">
-                <Label>Notas (opcional)</Label>
-                <Input placeholder="Ej. Faltó vuelto de una venta" value={closureNotas} onChange={e => setClosureNotas(e.target.value)} />
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Al guardar, si hay diferencia se registra un ajuste para que el saldo quede igual a lo que contaste.
-              </p>
-            </div>
-            <DialogFooter>
-              <Button type="submit" disabled={isClosing}>Guardar cierre</Button>
-            </DialogFooter>
-          </form>
         </DialogContent>
       </Dialog>
 
