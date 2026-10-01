@@ -32,7 +32,7 @@ import { TopProductsTable } from '~/components/admin/reports/TopProductsTable';
 import { SalesBreakdownCards } from '~/components/admin/reports/SalesBreakdownCards';
 import { ExportSalesCsvButton } from '~/components/admin/reports/ExportSalesCsvButton';
 import { CostDistributionCard } from '~/components/admin/reports/CostDistributionCard';
-import { IncomeBreakdownCard, type IncomeSlice } from '~/components/admin/reports/IncomeBreakdownCard';
+import { IncomeWaterfall, type WaterfallInput } from '~/components/admin/reports/IncomeWaterfall';
 import { DashboardDrilldowns, type DrilldownType } from '~/components/admin/reports/DashboardDrilldowns';
 import { MonthSelector, getMonthRange, type MonthYear } from '~/components/admin/reports/MonthSelector';
 import { SalesDailyTrendChart } from '~/components/admin/reports/SalesDailyTrendChart';
@@ -102,57 +102,22 @@ export default function AdminDashboard() {
     return () => cancelAnimationFrame(id);
   }, [reduce, pozosKey]);
 
-  // Desglose de ingresos para el donut financiero
-  const incomeBreakdown = useMemo<IncomeSlice[]>(() => {
-    if (!kpis) return [];
-    return [
-      {
-        key: 'coste',
-        label: 'Costo de productos',
-        value: kpis.coste_total ?? 0,
-        fill: 'var(--color-chart-1)',
-      },
-      {
-        key: 'comision',
-        label: 'Comisiones',
-        value: kpis.comision_total,
-        fill: 'var(--color-chart-2)',
-      },
-      ...(kpis.salary_acumulado
-        ? [
-            {
-              key: 'salary',
-              label: 'Fondo salario',
-              value: kpis.salary_acumulado,
-              fill: 'var(--color-chart-3)',
-            },
-          ]
-        : []),
-      // costo + comisión + salario + ganancia tienda = total vendido. Lo que
-      // los gastos cubrieron con sus pozos ya está dentro del costo; acá solo
-      // va lo que tomaron de la ganancia (pozos que se pasaron, préstamos,
-      // salario). Ganancia real = ganancia tienda − eso.
-      ...(kpis.gastos_de_ganancia
-        ? [
-            {
-              key: 'prestamos',
-              label: 'Gastos pagados con ganancia',
-              value: Math.min(kpis.gastos_de_ganancia, Math.max(0, kpis.ganancia_tienda_total ?? 0)),
-              fill: 'var(--color-chart-5)',
-              note: kpis.prestamos_de_ganancia
-                ? `Incluye ${formatMoney(kpis.prestamos_de_ganancia)} de préstamos`
-                : undefined,
-            },
-          ]
-        : []),
-      {
-        key: 'ganancia',
-        label: 'Ganancia real',
-        // Puede ser negativa: se muestra así en la leyenda (sin porción).
-        value: kpis.ganancia_real ?? kpis.ganancia_tienda_total ?? 0,
-        fill: 'var(--color-chart-4)',
-      },
-    ].filter((slice) => slice.value !== 0);
+  // Cascada "de lo vendido a la ganancia real". costo + comisión + salario +
+  // ganancia bruta = total vendido; la ganancia real sale del motor de pozos.
+  const waterfall = useMemo<WaterfallInput | null>(() => {
+    if (!kpis || kpis.coste_total === undefined) return null;
+    const gananciaBruta = kpis.ganancia_tienda_total ?? 0;
+    return {
+      totalVendido: kpis.total_vendido,
+      coste: kpis.coste_total,
+      retencionPozos: Object.values(kpis.pozos_recogidos ?? {}).reduce((acc, v) => acc + (v || 0), 0),
+      comision: kpis.comision_total,
+      salario: kpis.salary_acumulado ?? 0,
+      gananciaBruta,
+      gastosDeGanancia: kpis.gastos_de_ganancia ?? 0,
+      prestamosDeGanancia: kpis.prestamos_de_ganancia ?? 0,
+      gananciaReal: kpis.ganancia_real ?? gananciaBruta,
+    };
   }, [kpis]);
 
   // El total vendido no lleva delivery; se muestra aparte bajo el número.
@@ -347,7 +312,15 @@ export default function AdminDashboard() {
               </div>
             </section>
 
-            {/* 3. Gráfico de Tendencia Diaria del Mes */}
+            {/* 3. De lo vendido a la ganancia real */}
+            {isAdmin && waterfall && (
+              <section className="space-y-3">
+                <SectionLabel>De lo vendido a la ganancia</SectionLabel>
+                <IncomeWaterfall data={waterfall} formatMoney={formatMoney} />
+              </section>
+            )}
+
+            {/* 4. Gráfico de Tendencia Diaria del Mes */}
             {isAdmin && (
               <section className="space-y-3">
                 <SectionLabel>Evolución diaria</SectionLabel>
@@ -398,24 +371,12 @@ export default function AdminDashboard() {
             {/* 7. Desglose Financiero (Donut ingresos + Tarjetas breakdown) */}
             {isAdmin && (
               <section className="space-y-3">
-                <SectionLabel>Desglose financiero</SectionLabel>
-                <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-                  <div className="lg:col-span-4">
-                    <IncomeBreakdownCard
-                      incomeBreakdown={incomeBreakdown}
-                      total={kpis?.total_vendido ?? 0}
-                      formatMoney={formatMoney}
-                      className="h-full p-5"
-                    />
-                  </div>
-                  <div className="lg:col-span-8">
-                    <SalesBreakdownCards
-                      range={queryParams}
-                      excludeMethod
-                      className="grid gap-4 sm:grid-cols-2"
-                    />
-                  </div>
-                </div>
+                <SectionLabel>Cortes de ventas</SectionLabel>
+                <SalesBreakdownCards
+                  range={queryParams}
+                  excludeMethod
+                  className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"
+                />
               </section>
             )}
           </motion.div>
