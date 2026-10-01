@@ -311,6 +311,10 @@ export const reportsApi = baseApi.injectEndpoints({
       query: (params) => ({ url: 'reports/sales-ledger', params: params ?? undefined }),
       providesTags: ['Sale', 'Invoice'],
     }),
+    getDeliverySummary: build.query<DeliverySummary, KpiParams | void>({
+      query: (params) => ({ url: 'reports/delivery', params: params ?? undefined }),
+      providesTags: ['Invoice'],
+    }),
     getDeliveryInvoices: build.query<DeliveryInvoiceRow[], KpiParams | void>({
       query: (params) => ({ url: 'reports/delivery-invoices', params: params ?? undefined }),
       providesTags: ['Invoice'],
@@ -339,5 +343,6 @@ export const {
   useGetTopProductsQuery,
   useGetSalesBreakdownQuery,
   useGetSalesLedgerQuery,
+  useGetDeliverySummaryQuery,
   useGetDeliveryInvoicesQuery,
 } = reportsApi;

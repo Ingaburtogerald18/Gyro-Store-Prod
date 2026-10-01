@@ -1049,7 +1049,55 @@ export async function getSalesBreakdown(
   // `parseDbRows` espera un array; acá el RPC devuelve un único objeto, así que
   // se envuelve para reusar el mismo manejo de "la base devolvió algo raro".
   const parsed = parseDbRows(salesBreakdownSchema, [data], 'getSalesBreakdown');
-  return parsed[0]!;
+  return withoutDelivery(parsed[0]!, startDate, endDate, sellerUid);
+}
+
+/**
+ * El RPC suma `orders.total`, que en una venta facturada incluye el delivery.
+ * El total vendido NO lleva delivery (va aparte, ver getDeliverySummary), así
+ * que acá se le resta a cada grupo el delivery de sus facturas vigentes. Son
+ * pocas filas: solo las ventas del período con envío cobrado.
+ */
+async function withoutDelivery(
+  breakdown: SalesBreakdown,
+  startDate?: string,
+  endDate?: string,
+  sellerUid?: string,
+): Promise<SalesBreakdown> {
+  const invoices = await fetchAllRows((from, to) => {
+    let q = db
+      .from('invoices')
+      .select('sale_id, method, discount_code, delivery_fee, orders!inner(status, created_at, sale_origin, seller_uid)')
+      .neq('status', 'void')
+      .gt('delivery_fee', 0)
+      .not('sale_id', 'is', null)
+      .in('orders.status', ['approved', 'paid']);
+    if (startDate) q = q.gte('orders.created_at', startDate);
+    if (endDate) q = q.lte('orders.created_at', endDate);
+    if (sellerUid) q = q.eq('orders.seller_uid', sellerUid);
+    return q.order('id').range(from, to);
+  });
+  if (invoices.length === 0) return breakdown;
+
+  const saleIds = invoices.map((i) => i.sale_id as string);
+  const { data: cuotas, error } = await db.from('installments').select('order_id').in('order_id', saleIds);
+  if (error) throw error;
+  const enCuotas = new Set((cuotas ?? []).map((c) => c.order_id));
+
+  const restar = (groups: SalesBreakdown['by_method'], key: string, fee: number) => {
+    const g = groups.find((x) => x.key === key);
+    if (g) g.total = round(g.total - fee, 2);
+  };
+  for (const inv of invoices) {
+    const fee = Number(inv.delivery_fee) || 0;
+    const order = Array.isArray(inv.orders) ? inv.orders[0] : inv.orders;
+    restar(breakdown.by_method, inv.method ?? 'sin_metodo', fee);
+    restar(breakdown.by_origin, String(order?.sale_origin ?? ''), fee);
+    restar(breakdown.by_invoiced, 'con_factura', fee);
+    restar(breakdown.by_discount, inv.discount_code && String(inv.discount_code).trim() ? 'con_codigo' : 'sin_codigo', fee);
+    restar(breakdown.by_installment, enCuotas.has(inv.sale_id) ? 'a_cuotas' : 'contado', fee);
+  }
+  return breakdown;
 }
 
 /**

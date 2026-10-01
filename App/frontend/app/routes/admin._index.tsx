@@ -17,6 +17,7 @@ import {
   useGetSellerPerformanceQuery,
   useGetSalesLedgerQuery,
   useGetSalesTrendQuery,
+  useGetDeliverySummaryQuery,
 } from '~/store/api/reportsApi';
 import { useAppSelector } from '~/store/hooks';
 import { selectIsAdmin } from '~/store/slices/authSlice';
@@ -154,6 +155,9 @@ export default function AdminDashboard() {
     ].filter((slice) => slice.value !== 0);
   }, [kpis]);
 
+  // El total vendido no lleva delivery; se muestra aparte bajo el número.
+  const { data: delivery } = useGetDeliverySummaryQuery(queryParams, { skip: !isAdmin });
+
   // Sparkline para la tarjeta hero (Total Vendido)
   const { data: trend = [] } = useGetSalesTrendQuery(
     { ...queryParams, bucket: 'day', sellerUid: undefined },
@@ -283,6 +287,16 @@ export default function AdminDashboard() {
                   prev={kpis.total_vendido_prev}
                   format={formatMoney}
                   series={heroSeries}
+                  note={
+                    isAdmin && delivery && delivery.num_deliveries > 0 ? (
+                      <>
+                        Sin delivery. Delivery cobrado aparte:{' '}
+                        <span className="nums font-medium text-foreground">{formatMoney(delivery.total_delivery)}</span>{' '}
+                        en {delivery.num_deliveries} {delivery.num_deliveries === 1 ? 'envío' : 'envíos'}
+                        {delivery.num_anuladas > 0 && ` (${delivery.num_anuladas} de facturas anuladas)`}.
+                      </>
+                    ) : undefined
+                  }
                   onClick={() => setDrilldown('vendido')}
                 />
 
@@ -326,7 +340,7 @@ export default function AdminDashboard() {
                     prev={kpis.ganancia_real_prev ?? kpis.ganancia_tienda_total_prev}
                     format={formatMoney}
                     valueClassName={gananciaReal >= 0 ? 'text-success' : 'text-destructive'}
-                    sub={isAdmin && (kpis.total_prestamos ?? 0) > 0 ? 'Después de préstamos' : undefined}
+                    sub={isAdmin && (kpis.gastos_de_ganancia ?? 0) > 0 ? 'Después de los gastos que no cubrieron los pozos' : undefined}
                     onClick={() => setDrilldown('ganancia')}
                   />
                 </div>

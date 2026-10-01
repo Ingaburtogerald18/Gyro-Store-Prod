@@ -8,6 +8,7 @@
 //
 // Por eso el resto de los KPIs pasan a versión compacta y sin CountUp. El peso
 // no se reparte.
+import type React from 'react';
 import type { IconSvgElement } from '@hugeicons/react';
 import { Area, AreaChart } from 'recharts';
 import { ChartContainer, type ChartConfig } from '~/components/ui/chart';
@@ -28,11 +29,14 @@ export function HeroMetric({
   prev,
   format,
   series,
+  note,
   onClick,
   className,
 }: {
   icon?: IconSvgElement;
   eyebrow: string;
+  /** Aclaración bajo la comparación (p. ej. el delivery, que va aparte). */
+  note?: React.ReactNode;
   value: number;
   prev?: number;
   format: (n: number) => string;
@@ -65,6 +69,7 @@ export function HeroMetric({
           </span>
         )}
       </div>
+      {note && <p className="mt-1 text-xs text-muted-foreground">{note}</p>}
 
       {/* Sparkline: sin ejes, sin grilla, sin tooltip. No es un gráfico para
           leer valores — es la forma de la tendencia, y compite con nada. */}
