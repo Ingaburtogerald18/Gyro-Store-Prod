@@ -21,7 +21,7 @@ const KEY_LABELS: Record<string, string> = {
   efectivo: 'Efectivo',
   transferencia: 'Transferencia',
   tarjeta: 'Tarjeta',
-  sin_metodo: 'Sin factura',
+  sin_metodo: 'Sin método',
   native: 'Inventario propio',
   migrated: 'Inventario migrado',
   con_factura: 'Con factura',
@@ -40,7 +40,7 @@ export interface BreakdownSection {
 }
 
 const SECTIONS: BreakdownSection[] = [
-  { key: 'by_method', title: 'Método de pago', icon: CreditCardIcon, hint: 'Todas las ventas; sin factura no hay método' },
+  { key: 'by_method', title: 'Método de pago', icon: CreditCardIcon, hint: 'Solo ventas facturadas' },
   { key: 'by_origin', title: 'Origen del inventario', icon: Store01Icon, hint: 'Propio vs migrado' },
   { key: 'by_invoiced', title: 'Facturación', icon: Invoice01Icon, hint: 'Ventas con papel emitido' },
   { key: 'by_discount', title: 'Código de descuento', icon: Tag01Icon, hint: 'El código se canjea al facturar' },
