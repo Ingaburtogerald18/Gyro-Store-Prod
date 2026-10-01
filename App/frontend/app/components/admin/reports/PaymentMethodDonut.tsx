@@ -20,14 +20,14 @@ const paymentMethodChartConfig = {
   efectivo: { label: 'Efectivo', color: 'var(--color-tone-emerald)' },
   transferencia: { label: 'Transferencia', color: 'var(--color-tone-sky)' },
   tarjeta: { label: 'Tarjeta', color: 'var(--color-tone-purple)' },
-  sin_metodo: { label: 'Sin método', color: 'var(--color-muted-foreground)' },
+  sin_metodo: { label: 'Sin factura', color: 'var(--color-muted-foreground)' },
 } satisfies ChartConfig;
 
 const METHOD_CONFIG: Record<string, { label: string; fill: string }> = {
   efectivo: { label: 'Efectivo', fill: 'var(--color-tone-emerald)' },
   transferencia: { label: 'Transferencia', fill: 'var(--color-tone-sky)' },
   tarjeta: { label: 'Tarjeta', fill: 'var(--color-tone-purple)' },
-  sin_metodo: { label: 'Sin registrar', fill: 'var(--color-muted-foreground)' },
+  sin_metodo: { label: 'Sin factura', fill: 'var(--color-muted-foreground)' },
 };
 
 export function PaymentMethodDonut({

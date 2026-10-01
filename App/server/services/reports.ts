@@ -989,7 +989,19 @@ export async function getSalesBreakdown(
   // `parseDbRows` espera un array; acá el RPC devuelve un único objeto, así que
   // se envuelve para reusar el mismo manejo de "la base devolvió algo raro".
   const parsed = parseDbRows(salesBreakdownSchema, [data], 'getSalesBreakdown');
-  return parsed[0]!;
+  const breakdown = parsed[0]!;
+
+  // `by_method` del RPC solo mira ventas facturadas: el método vive en la
+  // factura. Así el donut de Métodos de pago no sumaba lo mismo que el resto
+  // (septiembre: 12 de 169 ventas). Las ventas sin factura entran como su
+  // propio grupo; `orders.payment_method` no sirve para repartirlas porque
+  // nadie lo escribe y siempre queda en el default 'efectivo'.
+  const sinFactura = breakdown.by_invoiced.find((g) => g.key === 'sin_factura');
+  if (sinFactura && sinFactura.count > 0 && !breakdown.by_method.some((g) => g.key === 'sin_metodo')) {
+    breakdown.by_method = [...breakdown.by_method, { key: 'sin_metodo', count: sinFactura.count, total: sinFactura.total }]
+      .sort((a, b) => b.total - a.total);
+  }
+  return breakdown;
 }
 
 /**
