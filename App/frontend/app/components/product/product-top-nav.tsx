@@ -1,18 +1,19 @@
 // Nav sticky de la ficha de producto (patrón del V1): queda pegado bajo el
-// StoreHeader (h-16) con UNA acción de navegación — volver al catálogo — y las
+// StoreHeader (h-14, por eso top-14) con UNA acción de navegación — volver al catálogo — y las
 // acciones de la ficha a la derecha. Sin breadcrumbs duplicados.
 //
 // El V1 traía además un botón de favorito; acá no va: no existe sistema de
 // favoritos en el V2 (ni slice ni backend) y un control muerto es peor que
 // ninguno. Cuando exista, este es su lugar.
+//
+// Tampoco lleva carrito: el header ya tiene uno y dos íconos de carrito a 50px
+// de distancia solo hacían dudar cuál usar.
 import { HugeIcon } from '~/components/ui/icon';
-import { Share01Icon, ShoppingCart02Icon } from '@hugeicons/core-free-icons';
+import { Share01Icon } from '@hugeicons/core-free-icons';
 import { Link } from '@remix-run/react';
 import { toast } from 'sonner';
 
 import { Button } from '~/components/ui/button';
-import { useAppDispatch, useAppSelector } from '~/store/hooks';
-import { openCart, selectCartItems } from '~/store/slices/cartSlice';
 
 import {
   Breadcrumb,
@@ -32,8 +33,6 @@ export function ProductTopNav({
   categoryName?: string;
   categoryId?: string;
 }) {
-  const dispatch = useAppDispatch();
-  const cartCount = useAppSelector(selectCartItems).reduce((n, it) => n + it.quantity, 0);
 
   async function handleShare() {
     const url = window.location.href;
@@ -57,7 +56,7 @@ export function ProductTopNav({
   return (
     <nav
       aria-label="Navegación del producto"
-      className="sticky top-16 z-30 -mx-4 border-b bg-background/80 px-4 backdrop-blur-xl"
+      className="sticky top-14 z-30 -mx-4 border-b bg-background/80 px-4 backdrop-blur-xl"
     >
       <div className="mx-auto flex h-12 max-w-7xl items-center justify-between">
         <Breadcrumb className="ml-2">
@@ -101,20 +100,6 @@ export function ProductTopNav({
             className="h-11 w-11"
           >
             <HugeIcon icon={Share01Icon} size={18} strokeWidth={2} aria-hidden />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => dispatch(openCart())}
-            aria-label={cartCount > 0 ? `Abrir carrito (${cartCount})` : 'Abrir carrito'}
-            className="relative h-11 w-11"
-          >
-            <HugeIcon icon={ShoppingCart02Icon} size={18} strokeWidth={2} aria-hidden />
-            {cartCount > 0 && (
-              <span className="font-spec absolute -top-0.5 -right-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-primary px-1 text-2xs font-bold text-primary-foreground tabular-nums">
-                {cartCount}
-              </span>
-            )}
           </Button>
         </div>
       </div>

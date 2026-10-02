@@ -5,7 +5,7 @@
 // Construido sobre <Sheet> de shadcn/ui: el foco atrapado, el cierre con Escape
 // y el aria del diálogo vienen resueltos por Radix.
 import { HugeIcon } from "~/components/ui/icon";
-import { Add01Icon, Delete02Icon, ImageNotFound01Icon, MinusSignIcon, ShoppingBag02Icon, SparklesIcon } from "@hugeicons/core-free-icons";
+import { Add01Icon, Delete02Icon, ImageNotFound01Icon, MinusSignIcon, ShoppingBag02Icon } from "@hugeicons/core-free-icons";
 import { useState } from 'react';
 import { useNavigate } from '@remix-run/react';
 
@@ -26,6 +26,7 @@ import {
   closeCart,
   lineKey,
   removeItem,
+  selectCartCount,
   selectCartItems,
   selectCartOpen,
   selectCartSubtotal,
@@ -38,6 +39,7 @@ export function CartDrawer() {
   const navigate = useNavigate();
   const isOpen = useAppSelector(selectCartOpen);
   const items = useAppSelector(selectCartItems);
+  const count = useAppSelector(selectCartCount);
   const subtotal = useAppSelector(selectCartSubtotal);
   const { data: config } = useGetConfigQuery();
   const [checkoutOpen, setCheckoutOpen] = useState(false);
@@ -60,21 +62,18 @@ export function CartDrawer() {
   return (
     <>
       <Sheet open={isOpen} onOpenChange={(open) => !open && dispatch(closeCart())}>
+        {/* En móvil sube desde abajo (al alcance del pulgar), como el resto de
+            paneles de la tienda; antes bajaba desde arriba. */}
         <SheetContent
-          side={isDesktop ? 'right' : 'top'}
-          className="flex flex-col bg-card p-0 max-md:h-[85dvh] max-md:rounded-b-3xl md:max-w-md"
+          side={isDesktop ? 'right' : 'bottom'}
+          className="flex flex-col bg-card p-0 max-md:h-[85dvh] max-md:rounded-t-3xl md:max-w-md"
         >
           <SheetHeader className="shrink-0 border-b border-border p-4">
             <SheetTitle className="text-lg font-bold text-foreground">Tu carrito</SheetTitle>
             <SheetDescription className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              {items.length > 0 ? (
-                <>
-                  <HugeIcon icon={SparklesIcon} size={14} strokeWidth={2} aria-hidden className="shrink-0 text-primary" />
-                  Buena elección — revisalo y finalizalo cuando quieras.
-                </>
-              ) : (
-                'Todavía no agregaste nada.'
-              )}
+              {items.length > 0
+                ? `${count} artículo${count === 1 ? "" : "s"} · envío o retiro lo elegís al finalizar`
+                : "Todavía no agregaste nada."}
             </SheetDescription>
           </SheetHeader>
 
@@ -195,17 +194,16 @@ export function CartDrawer() {
           {items.length > 0 && (
             <footer className="shrink-0 border-t border-border p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
               <div className="mb-3 flex items-center justify-between">
-                <span className="text-muted-foreground">Total</span>
+                <span className="text-muted-foreground">Subtotal</span>
                 <span className="text-xl font-bold text-foreground tabular-nums">
                   {formatCordobas(subtotal, config?.currency)}
                 </span>
               </div>
               {/* El total definitivo lo recalcula el servidor al crear el pedido. */}
-              <Button
-                variant="whatsapp" className="w-full"
-                onClick={() => setCheckoutOpen(true)}
-              >
-                Finalizar pedido por WhatsApp
+              {/* Acción principal de la tienda (llena), no WhatsApp: este botón abre
+                  el formulario; WhatsApp recién entra al enviar el pedido. */}
+              <Button className="h-12 w-full" onClick={() => setCheckoutOpen(true)}>
+                Finalizar pedido
               </Button>
             </footer>
           )}

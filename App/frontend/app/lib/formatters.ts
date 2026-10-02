@@ -140,3 +140,19 @@ export function formatByCurrency(amount: number, code?: string | null, decimals 
   if (currency === 'NIO' || currency === 'C$') return formatCordobas(amount, 'C$', decimals);
   return `${formatNumber(amount, decimals)} ${currency}`;
 }
+
+/** Texto plano de una descripción con HTML, conservando los cortes de párrafo y
+ *  de línea. Borrar las etiquetas a secas pegaba los párrafos en un solo bloque
+ *  ("…con garantía.Incluye…"). Se pinta con `whitespace-pre-line`. */
+export function htmlToText(html: string | null | undefined): string {
+  if (!html) return '';
+  return html
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/(p|div|li|h[1-6])>/gi, '\n')
+    .replace(/<li[^>]*>/gi, '• ')
+    .replace(/<[^>]*>?/gm, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}

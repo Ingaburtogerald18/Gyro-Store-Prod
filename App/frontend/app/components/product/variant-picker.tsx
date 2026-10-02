@@ -47,6 +47,21 @@ export function resolveVariant(
   );
 }
 
+/**
+ * Selección inicial: los ejes que tienen UNA sola opción con stock se eligen
+ * solos. Sin datos de variantes no se puede saber, así que no se elige nada.
+ */
+export function autoSelection(axes: CatalogAxis[], variants: CatalogVariant[]): VariantSelection {
+  const selection: VariantSelection = {};
+  if (variants.length === 0) return selection;
+  axes.forEach((axis, i) => {
+    if (axis.options.length === 0) return;
+    const available = axis.options.filter((o) => variants.some((v) => valueAt(v, i) === o && v.stock > 0));
+    if (available.length === 1) selection[axis.key] = available[0];
+  });
+  return selection;
+}
+
 /** ¿Existe alguna combinación CON stock que use `value` en el eje `axisIndex`? */
 function isAvailable(
   axes: CatalogAxis[],
@@ -72,12 +87,15 @@ export function VariantPicker({
   variants = [],
   selection,
   onChange,
+  missingKey,
 }: {
   axes: CatalogAxis[];
   /** Combinaciones con stock. Vacío = sin datos, todas las opciones habilitadas. */
   variants?: CatalogVariant[];
   selection: VariantSelection;
   onChange: (next: VariantSelection) => void;
+  /** Eje que falta elegir al intentar agregar: se marca en rojo. */
+  missingKey?: string;
 }) {
   const pickable = pickableAxes(axes);
   if (pickable.length === 0) return null;
@@ -112,10 +130,18 @@ export function VariantPicker({
         const chosen = selection[axis.key];
 
         return (
-          <div key={axis.key} className="space-y-2 md:flex md:flex-col md:items-center">
-            <Label className="text-xs font-medium tracking-[0.08em] text-muted-foreground uppercase">
+          <div key={axis.key} className="space-y-2">
+            <Label
+              className={cn(
+                "text-xs font-medium tracking-[0.08em] text-muted-foreground uppercase",
+                missingKey === axis.key && "text-destructive",
+              )}
+            >
               {axis.label || axis.key}
               {chosen && <span className="ml-2 normal-case text-foreground">{chosen}</span>}
+              {missingKey === axis.key && (
+                <span className="ml-2 normal-case tracking-normal">Elegí una opción</span>
+              )}
             </Label>
 
             <div className="flex flex-wrap gap-2">

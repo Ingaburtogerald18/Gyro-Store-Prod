@@ -137,7 +137,9 @@ export function FilterBar({ products, categories = [] }: { products: CatalogProd
           </SelectContent>
         </Select>
 
-        <p className="flex items-baseline gap-1 text-sm text-muted-foreground">
+        {/* El conteo se esconde en móvil: a 375px no entraba junto a Filtros y
+            Orden y se salía del borde de la barra. */}
+        <p className="hidden items-baseline gap-1 text-sm text-muted-foreground sm:flex">
           <span className="font-bold text-foreground tabular-nums">{count}</span>
           {count === 1 ? 'producto' : 'productos'}
         </p>

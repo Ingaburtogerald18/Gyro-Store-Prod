@@ -18,7 +18,7 @@ export function stockTone(stock: number): StockTone {
 export function stockLabel(stock: number): string {
   if (stock <= 0) return 'Agotado';
   if (stock <= LOW_STOCK_THRESHOLD) {
-    return `Últimas ${stock} unidad${stock === 1 ? '' : 'es'}`;
+    return stock === 1 ? 'Última unidad' : `Últimas ${stock} unidades`;
   }
   return `${stock} unidades disponibles`;
 }

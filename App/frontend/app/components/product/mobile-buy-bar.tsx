@@ -6,7 +6,8 @@
 // `env(safe-area-inset-bottom)` para no quedar bajo la barra del navegador.
 import { motion, useReducedMotion } from 'framer-motion';
 import { HugeIcon } from '~/components/ui/icon';
-import { Message01Icon, ShoppingCart02Icon } from '@hugeicons/core-free-icons';
+import { ShoppingCart02Icon } from '@hugeicons/core-free-icons';
+import { WhatsappIcon } from '~/components/ui/whatsapp-icon';
 
 import { Button } from '~/components/ui/button';
 import { useElementInView } from '~/hooks/useElementInView';
@@ -55,7 +56,7 @@ export function MobileBuyBar({
           className="h-11 w-11 shrink-0 rounded-lg"
           tabIndex={hidden ? -1 : undefined}
         >
-          <HugeIcon icon={Message01Icon} size={18} strokeWidth={2} aria-hidden />
+          <WhatsappIcon className="h-[18px] w-[18px]" />
         </Button>
 
         <Button

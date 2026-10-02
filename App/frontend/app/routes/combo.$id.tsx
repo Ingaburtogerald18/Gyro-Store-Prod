@@ -126,7 +126,7 @@ export default function ComboDetail() {
 
   return (
     <StorefrontShell>
-      <main className="mx-auto max-w-7xl px-4 py-6">
+      <main className="mx-auto w-full max-w-7xl px-4 py-6">
         <Button variant="ghost" size="sm" asChild className="mb-4 -ml-2 text-muted-foreground">
           <Link to="/#catalogo" prefetch="intent">
             <HugeIcon icon={ArrowLeft01Icon} size={16} strokeWidth={2} aria-hidden /> Volver al catálogo

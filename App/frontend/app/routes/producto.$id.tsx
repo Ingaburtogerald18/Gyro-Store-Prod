@@ -5,7 +5,7 @@
 // El dato se carga en el SERVIDOR para que el título, la descripción y la foto
 // estén en el HTML (Open Graph al compartir por WhatsApp).
 import { HugeIcon } from "~/components/ui/icon";
-import { Message01Icon, ShoppingCart02Icon } from "@hugeicons/core-free-icons";
+import { ShoppingCart02Icon } from "@hugeicons/core-free-icons";
 import { useEffect, useMemo, useState } from 'react';
 import type { HeadersFunction, LoaderFunctionArgs, MetaFunction } from '@remix-run/node';
 import { getBrandName, pageTitle } from '~/lib/brand';
@@ -22,9 +22,11 @@ import { MobileBuyBar } from '~/components/product/mobile-buy-bar';
 import { QuantityStepper } from '~/components/product/quantity-stepper';
 import { StockIndicator } from '~/components/product/stock-indicator';
 import { TrustBox } from '~/components/product/trust-box';
+import { WhatsappIcon } from '~/components/ui/whatsapp-icon';
 import {
   VariantPicker,
   pickableAxes,
+  autoSelection,
   resolveVariant,
   variantLabel,
   type VariantSelection,
@@ -35,7 +37,7 @@ import { Separator } from '~/components/ui/separator';
 import type { StoreConfig } from '~/store/api/sessionApi';
 import { useAppDispatch } from '~/store/hooks';
 import { addItem, openCart } from '~/store/slices/cartSlice';
-import { buildWhatsappUrl, formatCordobas, getProductUrl } from "~/lib/formatters";
+import { buildWhatsappUrl, formatCordobas, getProductUrl, htmlToText } from "~/lib/formatters";
 import { trackProductView } from '~/lib/analytics.client';
 
 export const headers: HeadersFunction = () => ({
@@ -126,8 +128,22 @@ export const meta: MetaFunction<typeof loader> = ({ data }) => {
 export default function ProductDetail() {
   const { product, related, config } = useLoaderData<typeof loader>();
   const dispatch = useAppDispatch();
-  const [selection, setSelection] = useState<VariantSelection>({});
+  // Los ejes con una sola opción disponible ya vienen elegidos: obligar a tocar
+  // la única opción posible era un clic de más y un error al agregar.
+  const [selection, setSelection] = useState<VariantSelection>(() =>
+    autoSelection(product.axes, product.variants),
+  );
   const [quantity, setQuantity] = useState(1);
+  const [showMissing, setShowMissing] = useState(false);
+  // Al pasar de una ficha a otra (relacionados) Remix reusa el componente: la
+  // selección y la cantidad del producto anterior no deben arrastrarse.
+  const [shownId, setShownId] = useState(product.id);
+  if (shownId !== product.id) {
+    setShownId(product.id);
+    setSelection(autoSelection(product.axes, product.variants));
+    setQuantity(1);
+    setShowMissing(false);
+  }
 
   // Telemetría: una vista de producto por ficha abierta. El track descarta la
   // emisión si no hay consentimiento o si es staff (ver analytics.client).
@@ -163,6 +179,10 @@ export default function ProductDetail() {
 
   function handleAddToCart() {
     if (missingAxis) {
+      // Se marca el eje en la ficha y se lleva la vista hasta él: con la barra
+      // fija del móvil el selector puede estar fuera de pantalla.
+      setShowMissing(true);
+      document.getElementById("variantes")?.scrollIntoView({ behavior: "smooth", block: "center" });
       toast.error(`Elegí ${missingAxis.label || missingAxis.key} antes de agregar.`);
       return;
     }
@@ -178,9 +198,6 @@ export default function ProductDetail() {
       }),
     );
     dispatch(openCart());
-    toast.success(
-      quantity > 1 ? `Agregado al carrito (${quantity} uds)` : 'Agregado al carrito',
-    );
   }
 
   function handleWhatsApp() {
@@ -199,7 +216,7 @@ export default function ProductDetail() {
 
   return (
     <StorefrontShell>
-      <main key="product-detail" className="mx-auto max-w-7xl px-4">
+      <main key="product-detail" className="mx-auto w-full max-w-7xl px-4">
         <ProductTopNav 
           productName={product.name} 
           categoryName={product.category}
@@ -207,10 +224,10 @@ export default function ProductDetail() {
         />
 
         <div className="grid gap-8 py-6 md:grid-cols-2 md:gap-12">
-          {/* Galería sticky en desktop (header h-16 + top nav h-12 = top-32),
+          {/* Galería sticky en desktop (header h-14 + top nav h-12 = top-28),
               con el trust box debajo. En móvil el trust box baja después del
               bloque de compra (ver copia más abajo). */}
-          <div className="space-y-4 md:sticky md:top-32 md:self-start">
+          <div className="space-y-4 md:sticky md:top-28 md:self-start">
             <ProductGallery images={activeImages} name={product.name} soldOut={soldOut} />
             <div className="hidden md:block">
               <TrustBox />
@@ -230,7 +247,7 @@ export default function ProductDetail() {
                 </h1>
 
                 <div className="flex items-baseline gap-3 md:shrink-0">
-                  <span className="font-heading text-3xl font-extrabold tracking-tight text-primary-2 tabular-nums">
+                  <span className="font-heading text-3xl font-extrabold tracking-tight text-foreground tabular-nums">
                     {formatCordobas(price, currency)}
                   </span>
                   {onSale && (
@@ -247,12 +264,18 @@ export default function ProductDetail() {
             {axes.length > 0 && (
               <>
                 <Separator className="bg-border" />
-                <VariantPicker
-                  axes={product.axes}
-                  variants={product.variants}
-                  selection={selection}
-                  onChange={setSelection}
-                />
+                <div id="variantes" className="scroll-mt-32">
+                  <VariantPicker
+                    axes={product.axes}
+                    variants={product.variants}
+                    selection={selection}
+                    onChange={(next) => {
+                      setSelection(next);
+                      setShowMissing(false);
+                    }}
+                    missingKey={showMissing ? missingAxis?.key : undefined}
+                  />
+                </div>
               </>
             )}
 
@@ -267,7 +290,7 @@ export default function ProductDetail() {
               </p>
             )}
 
-            <div className="mt-auto flex flex-col gap-2 sm:flex-row">
+            <div className="flex flex-col gap-2 sm:flex-row">
               <Button
                 onClick={handleAddToCart}
                 disabled={soldOut}
@@ -281,7 +304,7 @@ export default function ProductDetail() {
                 onClick={handleWhatsApp}
                 className="h-12 justify-center rounded-md sm:w-auto sm:px-6"
               >
-                <HugeIcon icon={Message01Icon} size={16} strokeWidth={2} aria-hidden />
+                <WhatsappIcon className="h-4 w-4" />
                 {soldOut ? 'Avisame' : 'Pedir por WhatsApp'}
               </Button>
             </div>
@@ -294,7 +317,7 @@ export default function ProductDetail() {
 
             <Separator className="bg-border" />
             <ProductDetailTabs
-              description={product.description?.replace(/<[^>]*>?/gm, '') ?? ''}
+              description={htmlToText(product.description)}
               specs={product.specs}
             />
           </div>
@@ -303,7 +326,7 @@ export default function ProductDetail() {
         {related.length > 0 && (
           <div className="mt-12">
             <ProductCarousel
-              title="Tal vez te pueda interesar"
+              title="También te puede gustar"
               products={related}
               variant="showcase"
             />

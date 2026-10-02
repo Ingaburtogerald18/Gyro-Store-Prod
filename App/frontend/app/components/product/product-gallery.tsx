@@ -1,22 +1,19 @@
 // Galería de la ficha: foto grande + miniaturas.
 //
-// Tres formas de mirar de cerca, una por contexto:
-//   · Escritorio: LUPA al pasar el mouse — la foto escala desde el punto que se
-//     está mirando (`transform-origin` sigue al cursor).
+// Dos formas de mirar:
 //   · Móvil: SWIPE horizontal entre fotos, con puntos de paginación.
-//   · Ambos: clic/Enter abre el lightbox sobre <Dialog> (Escape, clic afuera y
-//     foco gestionado los da Radix).
+//   · Ambos: clic/Enter abre el lightbox sobre <Dialog>, con anterior y
+//     siguiente. Antes la foto se agrandaba 1.8× apenas pasaba el mouse y no
+//     se podía ver el producto entero con el cursor encima.
 import { useEffect, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { HugeIcon } from '~/components/ui/icon';
-import { ImageNotFound01Icon, ZoomInAreaIcon } from '@hugeicons/core-free-icons';
+import { ArrowLeft01Icon, ArrowRight01Icon, ImageNotFound01Icon, ZoomInAreaIcon } from '@hugeicons/core-free-icons';
 
 import { Badge } from '~/components/ui/badge';
 import { Dialog, DialogContent, DialogTitle } from '~/components/ui/dialog';
 import { cn } from '~/lib/utils';
 
-/** Cuánto escala la lupa. Más de esto y se ve el pixelado de la foto original. */
-const ZOOM = 1.8;
 /** Píxeles de arrastre para pasar de foto. Menos que esto es un toque, no swipe. */
 const SWIPE_THRESHOLD = 50;
 
@@ -31,8 +28,6 @@ export function ProductGallery({
 }) {
   const [active, setActive] = useState(0);
   const [zoomed, setZoomed] = useState(false);
-  const [hovering, setHovering] = useState(false);
-  const [origin, setOrigin] = useState({ x: 50, y: 50 });
   const reduce = useReducedMotion();
   const stageRef = useRef<HTMLButtonElement>(null);
 
@@ -42,14 +37,6 @@ export function ProductGallery({
 
   const current = images[active] ?? images[0];
   const hasMany = images.length > 1;
-
-  function handleMouseMove(e: React.MouseEvent<HTMLButtonElement>) {
-    const rect = e.currentTarget.getBoundingClientRect();
-    setOrigin({
-      x: ((e.clientX - rect.left) / rect.width) * 100,
-      y: ((e.clientY - rect.top) / rect.height) * 100,
-    });
-  }
 
   function step(direction: 1 | -1) {
     setActive((prev) => (prev + direction + images.length) % images.length);
@@ -62,12 +49,6 @@ export function ProductGallery({
           ref={stageRef}
           type="button"
           onClick={() => setZoomed(true)}
-          onMouseMove={reduce ? undefined : handleMouseMove}
-          onMouseEnter={() => setHovering(true)}
-          onMouseLeave={() => {
-            setHovering(false);
-            setOrigin({ x: 50, y: 50 });
-          }}
           aria-label={`Ampliar imagen de ${name}`}
           className="product-stage group relative block aspect-square w-full cursor-zoom-in overflow-hidden rounded-2xl bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
         >
@@ -87,13 +68,6 @@ export function ProductGallery({
               else if (info.offset.x > SWIPE_THRESHOLD) step(-1);
             }}
             className="h-full w-full touch-pan-y object-cover select-none"
-            style={{
-              transformOrigin: `${origin.x}% ${origin.y}%`,
-              // La lupa es transform puro: la resuelve el compositor, sin
-              // recalcular layout en cada movimiento del mouse.
-              transform: hovering && !reduce ? `scale(${ZOOM})` : 'scale(1)',
-              transition: 'transform 150ms ease-out',
-            } as React.CSSProperties}
           />
 
           {soldOut && (
@@ -102,10 +76,10 @@ export function ProductGallery({
             </Badge>
           )}
 
-          {/* Pista de zoom: aparece al hover, no compite con la foto. */}
+          {/* Pista de ampliar, siempre visible: es la única forma de ver la foto grande. */}
           <span
             aria-hidden
-            className="absolute right-3 bottom-3 grid h-9 w-9 place-items-center rounded-full bg-background/70 text-foreground opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
+            className="absolute right-3 bottom-3 grid h-9 w-9 place-items-center rounded-full bg-background/70 text-foreground backdrop-blur-sm"
           >
             <HugeIcon icon={ZoomInAreaIcon} size={18} strokeWidth={2} />
           </span>
@@ -141,8 +115,9 @@ export function ProductGallery({
         </div>
       )}
 
+      {/* Miniaturas solo en escritorio: en móvil los puntos ya cumplen esa función. */}
       {hasMany && (
-        <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="hidden gap-2 overflow-x-auto md:flex pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {images.map((src, i) => (
             <button
               key={src}
@@ -168,11 +143,36 @@ export function ProductGallery({
         >
           <DialogTitle className="sr-only">{name}</DialogTitle>
           {current && (
-            <img
-              src={current}
-              alt={name}
-              className="max-h-[85dvh] w-full rounded-xl object-contain"
-            />
+            <div className="relative">
+              <img
+                src={current}
+                alt={name}
+                className="max-h-[85dvh] w-full rounded-xl object-contain"
+              />
+              {hasMany && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => step(-1)}
+                    aria-label="Foto anterior"
+                    className="absolute top-1/2 left-2 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full bg-background/80 text-foreground backdrop-blur-sm transition-colors hover:bg-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                  >
+                    <HugeIcon icon={ArrowLeft01Icon} size={20} strokeWidth={2} aria-hidden />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => step(1)}
+                    aria-label="Foto siguiente"
+                    className="absolute top-1/2 right-2 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full bg-background/80 text-foreground backdrop-blur-sm transition-colors hover:bg-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                  >
+                    <HugeIcon icon={ArrowRight01Icon} size={20} strokeWidth={2} aria-hidden />
+                  </button>
+                  <span className="font-spec absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-background/80 px-2.5 py-0.5 text-xs text-foreground tabular-nums">
+                    {active + 1} / {images.length}
+                  </span>
+                </>
+              )}
+            </div>
           )}
         </DialogContent>
       </Dialog>

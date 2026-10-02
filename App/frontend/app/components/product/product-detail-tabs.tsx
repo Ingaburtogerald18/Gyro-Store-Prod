@@ -115,7 +115,7 @@ export function ProductDetailTabs({
 }
 
 function Details({ description }: { description: string }) {
-  return <p className="max-w-[65ch] leading-relaxed text-pretty text-muted-foreground">{description}</p>;
+  return <p className="max-w-[65ch] leading-relaxed whitespace-pre-line text-pretty text-muted-foreground">{description}</p>;
 }
 
 function Specs({ specs }: { specs: SpecRow[] }) {

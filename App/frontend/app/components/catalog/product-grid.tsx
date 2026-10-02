@@ -25,7 +25,8 @@ import { isDeal, useCatalogFilter } from '~/hooks/useCatalogFilter';
 import { useAppSelector } from '~/store/hooks';
 import { selectEditMode } from '~/store/slices/authSlice';
 import { selectDraftLandingConfig } from '~/store/slices/builderSlice';
-import { useGetLandingConfigQuery } from '~/store/api/storefrontApi';
+import { useStoreLanding } from '~/hooks/useStoreConfig';
+import { categoryHref } from '~/components/store/category-nav';
 import { InlineRailsEditor } from '~/components/store/inline-rails-editor';
 
 export { isDeal };
@@ -44,11 +45,13 @@ interface ProductGridProps {
 
 export function ProductGrid({ products, categories = [], isLoading }: ProductGridProps) {
   const { filtered, isDefault } = useCatalogFilter(products, categories);
-  const deals = useMemo(() => products.filter(isDeal), [products]);
+  // En la vista por defecto `filtered` es el catálogo completo ya ordenado: los
+  // carriles salen de ahí para que el selector de orden también los ordene.
+  const deals = useMemo(() => filtered.filter(isDeal), [filtered]);
 
   const editMode = useAppSelector(selectEditMode);
   const draftLanding = useAppSelector(selectDraftLandingConfig);
-  const { data: realLanding } = useGetLandingConfigQuery();
+  const realLanding = useStoreLanding();
 
   // Determinar qué categorías usar para los carriles según el estado
   const railCategoriesIds = useMemo(() => {
@@ -59,7 +62,7 @@ export function ProductGrid({ products, categories = [], isLoading }: ProductGri
   // Una fila por categoría CON productos, y las ofertas fuera.
   // Ahora usamos el orden de railCategoriesIds si existe, si no, caemos a todas.
   const rows = useMemo(() => {
-    const rest = products.filter((p) => !isDeal(p));
+    const rest = filtered.filter((p) => !isDeal(p));
     let orderedCategories = categories;
 
     if (railCategoriesIds.length > 0) {
@@ -71,13 +74,13 @@ export function ProductGrid({ products, categories = [], isLoading }: ProductGri
     return orderedCategories
       .map((c) => ({ category: c, items: rest.filter((p) => inCategory(p, c)) }))
       .filter((row) => row.items.length > 0);
-  }, [products, categories, railCategoriesIds]);
+  }, [filtered, categories, railCategoriesIds]);
 
   // Productos que no caen en ninguna categoría de la config
   const uncategorized = useMemo(() => {
     if (categories.length === 0) return [];
-    return products.filter((p) => !isDeal(p) && !categories.some((c) => inCategory(p, c)));
-  }, [products, categories]);
+    return filtered.filter((p) => !isDeal(p) && !categories.some((c) => inCategory(p, c)));
+  }, [filtered, categories]);
 
   if (isLoading) return <GridSkeleton />;
 
@@ -105,6 +108,7 @@ export function ProductGrid({ products, categories = [], isLoading }: ProductGri
           <ProductCarousel
             key={row.category.id}
             title={row.category.name}
+            href={categoryHref(row.category.slug)}
             products={row.items}
             variant="showcase"
           />

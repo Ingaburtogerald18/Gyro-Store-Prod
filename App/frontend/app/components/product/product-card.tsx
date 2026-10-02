@@ -9,24 +9,17 @@ import { useEffect, useRef, useState } from 'react';
 import { Link } from '@remix-run/react';
 import { motion, useReducedMotion } from 'framer-motion';
 
-import { toast } from 'sonner';
 import type { CatalogProduct } from '@shared/schemas';
 import { Badge } from '~/components/ui/badge';
 import { Button } from '~/components/ui/button';
 import { QuickAddSheet } from '~/components/product/quick-add-sheet';
-import { useGetConfigQuery } from '~/store/api/sessionApi';
+import { useStoreConfig } from '~/hooks/useStoreConfig';
+import { WhatsappIcon } from '~/components/ui/whatsapp-icon';
 import { useAppDispatch } from '~/store/hooks';
 import { addItem, openCart } from '~/store/slices/cartSlice';
 import { cn } from "~/lib/utils"
 import { buildWhatsappUrl, formatCordobas, getProductUrl } from "~/lib/formatters";
 
-function WhatsappIcon(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width={16} height={16} {...props}>
-      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.888-.788-1.489-1.761-1.663-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z" />
-    </svg>
-  );
-}
 
 export function ProductCard({
   product,
@@ -35,11 +28,11 @@ export function ProductCard({
 }: {
   product: CatalogProduct;
   layout?: 'grid' | 'list';
-  /** Posición en la grilla: escalona la entrada de las tarjetas visibles. */
+  /** Posición en la grilla: las primeras 4 fotos cargan sin lazy. */
   index?: number;
 }) {
   const dispatch = useAppDispatch();
-  const { data: config } = useGetConfigQuery();
+  const config = useStoreConfig();
   const reduce = useReducedMotion();
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   // El sheet se monta recién en el primer uso: con 40 tarjetas en pantalla, 40
@@ -98,7 +91,6 @@ export function ProductCard({
       }),
     );
     dispatch(openCart());
-    toast.success('Agregado al carrito');
   }
 
   // "Pedir por WhatsApp": camino de compra directo, sin pasar por el carrito. Si
@@ -142,9 +134,9 @@ export function ProductCard({
       {lowStock && (
         <Badge
           variant="destructive"
-          className="font-spec absolute top-2 right-2 z-10 text-2xs sm:px-2.5"
+          className="absolute top-2 right-2 z-10 text-2xs sm:px-2.5"
         >
-          {product.stock === 1 ? '¡Último disponible!' : `¡Últimas ${product.stock}!`}
+          {product.stock === 1 ? 'Última unidad' : `Quedan ${product.stock}`}
         </Badge>
       )}
 
@@ -213,7 +205,7 @@ export function ProductCard({
         <p className="font-spec line-clamp-1 text-2xs text-muted-foreground">{specLine}</p>
       )}
       <div className="mt-1.5 flex items-baseline gap-2">
-        <span className="font-heading text-lg font-extrabold tracking-tight text-primary-2 tabular-nums sm:text-xl">
+        <span className="font-heading text-lg font-extrabold tracking-tight text-foreground tabular-nums sm:text-xl">
           {formatCordobas(product.price, currency)}
         </span>
         {onSale && (
@@ -253,7 +245,7 @@ export function ProductCard({
         Agregar
       </Button>
       <Button
-        variant="whatsapp"
+        variant="whatsappOutline"
         size="icon"
         onClick={handleWhatsAppOrder}
         aria-label={`Pedir ${product.name} por WhatsApp`}
@@ -265,15 +257,9 @@ export function ProductCard({
     </div>
   );
 
+  // Sin entrada animada desde opacity 0: el SSR pintaba todas las tarjetas
+  // invisibles y, en una red lenta, la grilla quedaba vacía hasta hidratar.
   const motionProps = {
-    initial: reduce ? false : ({ opacity: 0, y: 20 } as const),
-    whileInView: { opacity: 1, y: 0 },
-    viewport: { once: true, margin: '-40px' },
-    transition: {
-      duration: 0.5,
-      delay: (index % 4) * 0.06,
-      ease: [0.16, 1, 0.3, 1] as const,
-    },
     whileHover: reduce
       ? undefined
       : { y: -4, transition: { type: 'spring' as const, stiffness: 260, damping: 24 } },

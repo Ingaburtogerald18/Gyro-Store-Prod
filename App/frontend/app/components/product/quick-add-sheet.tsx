@@ -90,7 +90,6 @@ export function QuickAddSheet({
     setSelection({});
     onOpenChange(false);
     dispatch(openCart());
-    toast.success('Agregado al carrito');
   }
 
   return (

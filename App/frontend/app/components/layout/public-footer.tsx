@@ -12,7 +12,9 @@
 import { HugeIcon } from '~/components/ui/icon';
 import { Location01Icon, Mail01Icon } from '@hugeicons/core-free-icons';
 
-import { useGetConfigQuery } from '~/store/api/sessionApi';
+import { useStoreConfig } from '~/hooks/useStoreConfig';
+import { Link } from '@remix-run/react';
+import { buildWhatsappUrl } from '~/lib/formatters';
 import { TRUST_SIGNALS } from '~/lib/trustSignals';
 import { getBrandName } from '~/lib/brand';
 
@@ -43,7 +45,7 @@ function TikTokIcon({ className }: { className?: string }) {
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 export function PublicFooter() {
-  const { data: config } = useGetConfigQuery();
+  const config = useStoreConfig();
   const year = new Date().getFullYear();
   const brand = config?.brandName || getBrandName();
   const address = config?.address?.trim();
@@ -62,8 +64,9 @@ export function PublicFooter() {
     >
       {/* ── Cuerpo principal ──────────────────────────────────────────────── */}
       <div className="mx-auto max-w-7xl px-4 py-10 md:py-14">
-        {/* Contenedor tipo card: alineado al preset (bg-card, border, rounded-xl) */}
-        <div className="rounded-xl border border-border bg-card px-6 py-8 md:px-10 md:py-10">
+        {/* Sin tarjeta propia: el pie ya es una superficie (bg-card); una tarjeta
+            adentro de otra solo sumaba un borde. */}
+        <div className="px-2 py-2 md:px-10">
           <div className="flex flex-col items-center text-center gap-6">
 
             {/* ── Logo ────────────────────────────────────────────────────── */}
@@ -157,6 +160,22 @@ export function PublicFooter() {
                 )}
               </div>
             )}
+
+            {/* ── Enlaces ─────────────────────────────────────────────────── */}
+            <nav aria-label="Enlaces del pie" className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-sm">
+              <Link to="/#catalogo" className="text-muted-foreground transition-colors hover:text-foreground">Catálogo</Link>
+              <Link to="/contacto" className="text-muted-foreground transition-colors hover:text-foreground">Contacto</Link>
+              {config?.whatsapp && (
+                <a
+                  href={buildWhatsappUrl(config.whatsapp, `Hola ${brand}, tengo una consulta`)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  WhatsApp
+                </a>
+              )}
+            </nav>
 
             {/* ── Contacto y ubicación ─────────────────────────────────────── */}
             {(address || email) && (
