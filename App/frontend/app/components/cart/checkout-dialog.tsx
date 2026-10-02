@@ -78,6 +78,9 @@ export function CheckoutDialog({
   // Código de descuento: el preview (validate) NO consume uso; el canje real lo
   // hace el servidor al crear el pedido. El monto acá es solo informativo.
   const [codeInput, setCodeInput] = useState('');
+  // El cupón es opcional: plegado detrás de un enlace pesa menos que nombre,
+  // teléfono y entrega, que son los campos que hacen falta.
+  const [couponOpen, setCouponOpen] = useState(false);
   const [appliedCode, setAppliedCode] = useState<DiscountCodeValidation | null>(null);
   const codeDiscount = appliedCode
     ? appliedCode.type === 'percent'
@@ -362,6 +365,15 @@ export function CheckoutDialog({
 
           {/* Código de descuento: fuera de `register` a propósito — no es un
               campo del pedido sino un canje que valida el servidor aparte. */}
+          {!appliedCode && !couponOpen ? (
+            <button
+              type="button"
+              onClick={() => setCouponOpen(true)}
+              className="self-start text-sm font-medium text-primary-2 underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+            >
+              ¿Tenés un código de descuento?
+            </button>
+          ) : (
           <Field>
             <FieldLabel htmlFor="discountCode">Código de descuento (opcional)</FieldLabel>
             {appliedCode ? (
@@ -387,6 +399,7 @@ export function CheckoutDialog({
               <div className="flex gap-2">
                 <Input
                   id="discountCode"
+                  autoFocus
                   value={codeInput}
                   onChange={(e) => setCodeInput(e.target.value.toUpperCase())}
                   onKeyDown={(e) => {
@@ -405,6 +418,7 @@ export function CheckoutDialog({
               </div>
             )}
           </Field>
+          )}
 
           <div className="space-y-1 border-t border-border pt-3">
             {codeDiscount > 0 && (
@@ -420,11 +434,14 @@ export function CheckoutDialog({
               </>
             )}
             <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Total estimado</span>
+              <span className="text-sm text-muted-foreground">Total del pedido</span>
               <span className="text-lg font-bold text-foreground tabular-nums">
                 {formatCordobas(totalWithDiscount, config?.currency)}
               </span>
             </div>
+            <p className="text-xs text-muted-foreground">
+              Si elegís envío a domicilio, el costo del envío se confirma por WhatsApp.
+            </p>
           </div>
 
           <DialogFooter>

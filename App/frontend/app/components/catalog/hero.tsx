@@ -262,6 +262,7 @@ export function Hero({ initialLanding }: { initialLanding?: LandingConfig | null
             <SlideMedia
               key={activeSlide.id}
               slide={activeSlide}
+              paused={!playing}
               className={cn(
                 'absolute inset-0 h-full w-full object-contain transition-opacity duration-700 ease-out',
                 safeIndex === 0 ? 'p-2 sm:p-6' : 'p-6 max-md:scale-125 max-md:p-0',
@@ -309,7 +310,7 @@ export function Hero({ initialLanding }: { initialLanding?: LandingConfig | null
                       variant="default"
                       size="lg"
                       onClick={handlePrimaryAction}
-                      className="group/cta w-full justify-center text-xs sm:w-auto sm:text-sm"
+                      className="group/cta h-11 w-full justify-center text-xs sm:w-auto sm:text-sm"
                     >
                       <span className="truncate">{activeSlide.buttonText || 'Ver catálogo'}</span>
                       <HugeIcon icon={ArrowRight02Icon} size={14} strokeWidth={2} aria-hidden className="shrink-0 transition-transform duration-300 group-hover/cta:translate-x-1" />
@@ -319,7 +320,7 @@ export function Hero({ initialLanding }: { initialLanding?: LandingConfig | null
                       variant="whatsappOutline"
                       size="lg"
                       onClick={() => window.open(whatsappOrderUrl, '_blank', 'noopener,noreferrer')}
-                      className="group/wa w-full justify-center text-xs sm:w-auto sm:text-sm"
+                      className="group/wa h-11 w-full justify-center text-xs sm:w-auto sm:text-sm"
                     >
                       <WhatsappIcon aria-hidden className="shrink-0 transition-transform duration-300 group-hover/wa:scale-110" />
                       <span className="truncate">WhatsApp</span>

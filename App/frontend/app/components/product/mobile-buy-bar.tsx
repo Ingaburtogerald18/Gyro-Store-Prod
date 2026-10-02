@@ -53,7 +53,7 @@ export function MobileBuyBar({
           onClick={onWhatsApp}
           aria-label={`Consultar por ${name} por WhatsApp`}
           // 44px: mínimo táctil, aunque el botón se vea compacto al lado del CTA.
-          className="h-11 w-11 shrink-0 rounded-lg"
+          className="h-11 w-11 shrink-0"
           tabIndex={hidden ? -1 : undefined}
         >
           <WhatsappIcon className="h-[18px] w-[18px]" />

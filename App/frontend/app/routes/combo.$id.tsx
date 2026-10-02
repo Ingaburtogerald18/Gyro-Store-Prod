@@ -174,7 +174,7 @@ export default function ComboDetail() {
               <Button
                 variant="whatsappOutline"
                 onClick={handleWhatsApp}
-                className="h-12 justify-center rounded-md sm:w-auto sm:px-6"
+                className="h-12 justify-center sm:w-auto sm:px-6"
               >
                 <HugeIcon icon={Message01Icon} size={16} strokeWidth={2} aria-hidden />
                 Pedir por WhatsApp

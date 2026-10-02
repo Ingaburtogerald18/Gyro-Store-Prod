@@ -165,7 +165,8 @@ export function ProductCard({
           onError={() => setImageLoaded(true)}
           className={cn(
             'ease-expo relative h-full w-full object-cover transition duration-[600ms] will-change-transform',
-            'group-hover:scale-[1.06]',
+            // Sin zoom al pasar el mouse: con la tarjeta que se eleva y el cambio a la
+            // segunda foto ya hay respuesta suficiente, y la foto se examina mejor quieta.
             // El blur-up no se anima con `motion`: es una transición CSS sobre
             // filter+scale, que el compositor resuelve sin trabajo de JS.
             !imageLoaded && !reduce && 'scale-[1.04] blur-lg',
@@ -198,7 +199,7 @@ export function ProductCard({
         isList ? 'flex-1 justify-center gap-1.5 py-1' : 'flex-1 pt-3 sm:pt-4',
       )}
     >
-      <h3 className="line-clamp-2 text-sm leading-snug font-semibold text-foreground transition-colors group-hover:text-primary-2 sm:text-lg">
+      <h3 className="line-clamp-2 text-sm leading-snug font-semibold text-foreground sm:text-lg">
         {product.name}
       </h3>
       {specLine && (
@@ -241,8 +242,15 @@ export function ProductCard({
         onClick={handleCta}
         className="h-11 flex-1 text-xs sm:text-sm"
       >
-        <HugeIcon icon={ShoppingCart02Icon} size={14} strokeWidth={2} aria-hidden />
-        Agregar
+        {/* Con variantes, el botón abre el selector: la etiqueta lo anticipa. */}
+        {product.variantCount > 1 ? (
+          "Elegir opciones"
+        ) : (
+          <>
+            <HugeIcon icon={ShoppingCart02Icon} size={14} strokeWidth={2} aria-hidden />
+            Agregar
+          </>
+        )}
       </Button>
       <Button
         variant="whatsappOutline"
@@ -250,7 +258,7 @@ export function ProductCard({
         onClick={handleWhatsAppOrder}
         aria-label={`Pedir ${product.name} por WhatsApp`}
         title="Pedir por WhatsApp"
-        className="h-11 w-11 rounded-lg"
+        className="h-11 w-11"
       >
         <WhatsappIcon aria-hidden className="h-[15px] w-[15px] sm:h-[18px] sm:w-[18px]" />
       </Button>

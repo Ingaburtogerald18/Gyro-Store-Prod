@@ -302,7 +302,7 @@ export default function ProductDetail() {
               <Button
                 variant="whatsappOutline"
                 onClick={handleWhatsApp}
-                className="h-12 justify-center rounded-md sm:w-auto sm:px-6"
+                className="h-12 justify-center sm:w-auto sm:px-6"
               >
                 <WhatsappIcon className="h-4 w-4" />
                 {soldOut ? 'Avisame' : 'Pedir por WhatsApp'}

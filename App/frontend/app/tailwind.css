@@ -188,7 +188,10 @@ body {
   --secondary: oklch(0.967 0.001 286.375);
   --secondary-foreground: oklch(0.21 0.006 285.885);
   --muted: oklch(0.90 0.010 166);
-  --muted-foreground: oklch(0.56 0.021 213.5);
+  /* Texto secundario: L 0.56 → 0.50. Con 0.56 daba 4.6:1 sobre blanco y 3.9:1
+     sobre --card (descripciones, metadatos y textos de confianza). Con 0.50:
+     ~6:1 sobre blanco y ~5:1 sobre --card. */
+  --muted-foreground: oklch(0.50 0.021 213.5);
   --accent: oklch(0.90 0.010 166);
   --accent-foreground: oklch(0.218 0.008 223.9);
   --destructive: oklch(0.577 0.245 27.325);

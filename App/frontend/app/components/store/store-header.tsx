@@ -28,20 +28,22 @@ function CartButton() {
   const dispatch = useAppDispatch();
   const count = useAppSelector(selectCartCount);
   const controls = useAnimationControls();
+  // Con movimiento reducido el contador cambia sin "pop" ni escalas al hover.
+  const reduce = useReducedMotion();
   const prev = useRef(count);
 
   useEffect(() => {
-    if (count > prev.current) {
+    if (count > prev.current && !reduce) {
       controls.start({ scale: [1, 1.25, 0.95, 1], transition: { duration: 0.4, ease: "easeOut" } });
     }
     prev.current = count;
-  }, [count, controls]);
+  }, [count, controls, reduce]);
 
   return (
     <motion.button
       animate={controls}
-      whileHover={{ scale: 1.06 }}
-      whileTap={{ scale: 0.92 }}
+      whileHover={reduce ? undefined : { scale: 1.06 }}
+      whileTap={reduce ? undefined : { scale: 0.92 }}
       onClick={() => dispatch(toggleCart())}
       aria-label={count > 0 ? `Abrir carrito, ${count} artículo${count === 1 ? "" : "s"}` : "Abrir carrito"}
       className="relative grid h-10 w-10 place-items-center rounded-full border bg-card text-muted-foreground shadow-sm backdrop-blur-sm transition-colors hover:border-primary/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
@@ -54,7 +56,7 @@ function CartButton() {
             initial={{ scale: 0, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0, opacity: 0 }}
-            transition={{ type: "spring", stiffness: 520, damping: 20 }}
+            transition={reduce ? { duration: 0 } : { type: "spring", stiffness: 520, damping: 20 }}
             // ring-background lo separa del header con un halo del color de fondo → "flota".
             className="font-spec absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-primary px-1 text-2xs font-bold tabular-nums text-primary-foreground ring-2 ring-background shadow-lg"
           >
