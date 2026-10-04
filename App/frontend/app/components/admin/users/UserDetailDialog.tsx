@@ -217,7 +217,7 @@ export function UserDetailDialog({
                     <Field>
                       <FieldLabel htmlFor="edit-correo">Correo Corporativo</FieldLabel>
                       <Input id="edit-correo" type="email" value={user.email} disabled readOnly />
-                      <p className="mt-1 text-[10px] text-muted-foreground">
+                      <p className="mt-1 text-2xs text-muted-foreground">
                         El correo está vinculado a Microsoft Entra ID y no se puede modificar.
                       </p>
                     </Field>
@@ -283,7 +283,7 @@ export function UserDetailDialog({
                       </SelectContent>
                     </Select>
                     {isProtectedUser(user) && (
-                      <p className="mt-1 text-[10px] text-muted-foreground">
+                      <p className="mt-1 text-2xs text-muted-foreground">
                         Este usuario está protegido por el sistema: su rol no se puede cambiar.
                       </p>
                     )}

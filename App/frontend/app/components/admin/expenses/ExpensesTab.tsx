@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { FinancialHealthHero } from './FinancialHealthHero';
-import { PozoCardsGrid } from './PozoCardsGrid';
+import { PozoFlowBars } from './PozoFlowBars';
 import { RegisterExpenseDialog } from './RegisterExpenseDialog';
 import { ExpenseHistoryTable } from './ExpenseHistoryTable';
 import { useGetExpensesOverflowQuery } from '~/store/api/reportsApi';
@@ -22,16 +22,15 @@ export function ExpensesTab({
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-lg font-bold tracking-tight text-foreground">
-            Control de Gastos y Presupuesto
+            Control de gastos y presupuesto
           </h2>
           <p className="text-xs text-muted-foreground">
-            Presupuesto consolidado del período. Registra gastos y monitorea el saldo disponible.
+            Presupuesto consolidado del período. Registrá gastos y seguí el saldo disponible.
           </p>
         </div>
 
         <div>
           <RegisterExpenseDialog
-            pozos={overflowData?.pozos}
             defaultPozo={selectedPozo !== 'todos' ? selectedPozo : undefined}
             onSuccess={refetch}
           />
@@ -49,8 +48,8 @@ export function ExpensesTab({
 
       {/* Section 2: Estado de Pozos (8 tarjetas en grid) */}
       <section>
-        <PozoCardsGrid
-          pozos={overflowData?.pozos}
+        <PozoFlowBars
+          ledger={overflowData}
           selectedPozo={selectedPozo}
           onSelectPozo={setSelectedPozo}
           isLoading={isLoading}

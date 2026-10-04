@@ -162,22 +162,22 @@ export function TemplatesPanel({ categories }: { categories: Category[] }) {
                   <div className="space-y-1.5">
                     {template.axes.map((axis) => (
                       <div key={axis.key} className="flex flex-wrap items-center gap-1">
-                        <span className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+                        <span className="text-2xs font-bold uppercase tracking-wide text-muted-foreground">
                           {axis.label}:
                         </span>
                         {axis.options.slice(0, 4).map((option) => (
-                          <Badge key={option} variant="secondary" className="text-[10px]">
+                          <Badge key={option} variant="secondary" className="text-2xs">
                             {option}
                           </Badge>
                         ))}
                         {axis.options.length > 4 && (
-                          <span className="text-[10px] text-muted-foreground">
+                          <span className="text-2xs text-muted-foreground">
                             +{axis.options.length - 4}
                           </span>
                         )}
                       </div>
                     ))}
-                    <p className="pt-1 text-[11px] text-muted-foreground">
+                    <p className="pt-1 text-2xs text-muted-foreground">
                       {template.axes.reduce((total, a) => total * a.options.length, 1)} combinaciones
                     </p>
                   </div>
@@ -513,7 +513,7 @@ function AxisOptionsField({
   return (
     <Field data-invalid={!!raw}>
       <FieldLabel
-        className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground"
+        className="text-2xs font-bold uppercase tracking-wide text-muted-foreground"
         required
       >
         Opciones

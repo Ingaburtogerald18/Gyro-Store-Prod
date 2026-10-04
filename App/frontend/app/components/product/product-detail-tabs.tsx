@@ -55,6 +55,9 @@ export function ProductDetailTabs({
 
   return (
     <div>
+      {/* Patrón roving tabindex del WAI-ARIA: el foco lo reciben los tabs, y las
+          flechas burbujean hasta acá. El tablist en sí no debe ser enfocable. */}
+      {/* eslint-disable-next-line jsx-a11y/interactive-supports-focus */}
       <div
         ref={listRef}
         role="tablist"
@@ -112,14 +115,14 @@ export function ProductDetailTabs({
 }
 
 function Details({ description }: { description: string }) {
-  return <p className="max-w-[65ch] leading-relaxed text-pretty text-muted-foreground">{description}</p>;
+  return <p className="max-w-[65ch] leading-relaxed whitespace-pre-line text-pretty text-muted-foreground">{description}</p>;
 }
 
 function Specs({ specs }: { specs: SpecRow[] }) {
   return (
     // Grilla con hairlines: el gap de 1px sobre el borde dibuja las líneas,
     // sin bordes por celda.
-    <dl className="grid grid-cols-1 gap-px overflow-hidden rounded-xl bg-border sm:grid-cols-2">
+    <dl className="font-spec grid grid-cols-1 gap-px overflow-hidden rounded-xl bg-border sm:grid-cols-2">
       {specs.map((spec) => (
         <div key={spec.label} className="bg-card px-4 py-3">
           <dt className="text-xs text-muted-foreground capitalize">{spec.label}</dt>

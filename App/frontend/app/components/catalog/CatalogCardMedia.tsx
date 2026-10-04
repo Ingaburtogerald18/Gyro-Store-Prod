@@ -32,7 +32,7 @@ export function CatalogCardMedia({
           primero que se busca es cuáles están publicados. */}
       <div className="absolute bottom-2 right-2">
         {published ? (
-          <Badge variant="secondary" className="bg-emerald-600 text-white shadow-sm">
+          <Badge variant="secondary" className="bg-primary text-primary-foreground shadow-sm">
             <HugeIcon icon={GlobeIcon} size={12} strokeWidth={2} className="mr-1" /> Público
           </Badge>
         ) : (

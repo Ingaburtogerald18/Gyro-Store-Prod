@@ -123,7 +123,7 @@ export function EditPurchaseModal({ purchase, onClose }: { purchase: Purchase | 
               {...register("category")}
             >
               <NativeSelectOption value="" disabled>
-                {categories.length === 0 ? 'No hay categorías creadas' : 'Selecciona una categoría'}
+                {categories.length === 0 ? 'No hay categorías creadas' : 'Seleccioná una categoría'}
               </NativeSelectOption>
               {legacyCategory && (
                 <NativeSelectOption value={legacyCategory}>

@@ -99,7 +99,7 @@ const DialogContent = React.forwardRef<
             size="icon-sm"
           >
             <HugeIcon icon={Cancel01Icon} size={16} strokeWidth={2} />
-            <span className="sr-only">Close</span>
+            <span className="sr-only">Cerrar</span>
           </Button>
         </DialogPrimitive.Close>
       )}

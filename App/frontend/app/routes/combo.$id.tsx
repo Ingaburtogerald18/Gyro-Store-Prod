@@ -126,7 +126,7 @@ export default function ComboDetail() {
 
   return (
     <StorefrontShell>
-      <main className="mx-auto max-w-7xl px-4 py-6">
+      <main className="mx-auto w-full max-w-7xl px-4 py-6">
         <Button variant="ghost" size="sm" asChild className="mb-4 -ml-2 text-muted-foreground">
           <Link to="/#catalogo" prefetch="intent">
             <HugeIcon icon={ArrowLeft01Icon} size={16} strokeWidth={2} aria-hidden /> Volver al catálogo
@@ -151,11 +151,11 @@ export default function ComboDetail() {
                 Combo
               </Badge>
 
-              <h1 className="text-2xl leading-tight font-black tracking-tight text-balance text-foreground sm:text-4xl">
+              <h1 className="font-heading text-3xl leading-[1.05] font-extrabold tracking-tight text-balance text-foreground sm:text-4xl">
                 {name}
               </h1>
 
-              <p className="text-3xl font-extrabold text-primary-2 tabular-nums">
+              <p className="font-heading text-3xl font-extrabold tracking-tight text-primary-2 tabular-nums">
                 {formatCordobas(price, config?.currency)}
               </p>
 
@@ -174,7 +174,7 @@ export default function ComboDetail() {
               <Button
                 variant="whatsappOutline"
                 onClick={handleWhatsApp}
-                className="h-12 justify-center rounded-md sm:w-auto sm:px-6"
+                className="h-12 justify-center sm:w-auto sm:px-6"
               >
                 <HugeIcon icon={Message01Icon} size={16} strokeWidth={2} aria-hidden />
                 Pedir por WhatsApp

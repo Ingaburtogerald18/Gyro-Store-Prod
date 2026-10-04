@@ -5,7 +5,7 @@
 // schema Zod que valida el backend (shared/schemas.ts): una sola fuente de
 // verdad, sin reglas duplicadas que se desincronicen.
 import { HugeIcon } from "~/components/ui/icon";
-import { Location01Icon, Store01Icon, TruckIcon, Coupon01Icon, Cancel01Icon } from "@hugeicons/core-free-icons";
+import { Location01Icon, Store01Icon, TruckIcon, Coupon01Icon, Cancel01Icon, CheckmarkCircle02Icon } from "@hugeicons/core-free-icons";
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -29,8 +29,9 @@ import {
 import { Field, FieldError, FieldLabel } from '~/components/ui/field';
 import { Input } from '~/components/ui/input';
 import { Textarea } from '~/components/ui/textarea';
-import { useGetConfigQuery } from '~/store/api/sessionApi';
-import { useCreatePublicOrderMutation } from '~/store/api/storefrontApi';
+import { useStoreConfig } from '~/hooks/useStoreConfig';
+import { WhatsappIcon } from '~/components/ui/whatsapp-icon';
+import { useCreatePublicOrderMutation, type CreatedPublicOrder } from '~/store/api/storefrontApi';
 import {
   useValidateDiscountCodeMutation,
   type DiscountCodeValidation,
@@ -68,7 +69,8 @@ export function CheckoutDialog({
   const dispatch = useAppDispatch();
   const items = useAppSelector(selectCartItems);
   const subtotal = useAppSelector(selectCartSubtotal);
-  const { data: config } = useGetConfigQuery();
+  const config = useStoreConfig();
+  const [placed, setPlaced] = useState<CreatedPublicOrder | null>(null);
   const [createOrder, { isLoading }] = useCreatePublicOrderMutation();
   const [validateCode, { isLoading: validatingCode }] = useValidateDiscountCodeMutation();
   const [geoLoading, setGeoLoading] = useState(false);
@@ -76,6 +78,9 @@ export function CheckoutDialog({
   // Código de descuento: el preview (validate) NO consume uso; el canje real lo
   // hace el servidor al crear el pedido. El monto acá es solo informativo.
   const [codeInput, setCodeInput] = useState('');
+  // El cupón es opcional: plegado detrás de un enlace pesa menos que nombre,
+  // teléfono y entrega, que son los campos que hacen falta.
+  const [couponOpen, setCouponOpen] = useState(false);
   const [appliedCode, setAppliedCode] = useState<DiscountCodeValidation | null>(null);
   const codeDiscount = appliedCode
     ? appliedCode.type === 'percent'
@@ -165,12 +170,10 @@ export function CheckoutDialog({
       reset();
       removeCode();
       dispatch(clearCart());
-      dispatch(closeCart());
-      onOpenChange(false);
-      // En móvil el navegador puede bloquear window.open después de un await;
-      // si pasa, se navega en la misma pestaña para que WhatsApp igual abra.
-      const opened = window.open(order.whatsappUrl, '_blank', 'noopener,noreferrer');
-      if (!opened) window.location.href = order.whatsappUrl;
+      setPlaced(order);
+      // Se intenta abrir WhatsApp de una; si el navegador lo bloquea (pasa en
+      // móvil después de un await), la confirmación tiene el botón a mano.
+      window.open(order.whatsappUrl, "_blank", "noopener,noreferrer");
     } catch (err) {
       const message =
         (err as { data?: { error?: string } })?.data?.error ??
@@ -179,9 +182,57 @@ export function CheckoutDialog({
     }
   }
 
+  // Pantalla de confirmación. Antes, al enviar, se vaciaba el carrito, se
+  // cerraba todo y se saltaba a WhatsApp: si el navegador bloqueaba la ventana o
+  // el cliente no mandaba el mensaje, quedaba sin carrito y sin saber si había
+  // comprado. Ahora la tienda confirma el pedido con su número y deja el botón
+  // de WhatsApp a mano.
+  function handleOpenChange(next: boolean) {
+    if (!next && placed) {
+      setPlaced(null);
+      dispatch(closeCart());
+    }
+    onOpenChange(next);
+  }
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-h-[90dvh] overflow-y-auto bg-card sm:max-w-md">
+        {placed ? (
+          <div className="flex flex-col gap-5">
+            <DialogHeader>
+              <span className="mb-1 grid size-12 place-items-center rounded-full bg-success/15 text-success" aria-hidden>
+                <HugeIcon icon={CheckmarkCircle02Icon} size={26} strokeWidth={2} />
+              </span>
+              <DialogTitle className="text-foreground">¡Pedido recibido!</DialogTitle>
+              <DialogDescription className="text-muted-foreground">
+                Tu número de pedido es{' '}
+                <span className="font-spec font-semibold text-foreground">#{placed.id.slice(0, 8).toUpperCase()}</span>.
+                Mandanos el mensaje por WhatsApp para confirmar la entrega y el pago.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="flex items-center justify-between rounded-xl border p-3">
+              <span className="text-sm text-muted-foreground">Total</span>
+              <span className="text-lg font-bold text-foreground tabular-nums">
+                {formatCordobas(placed.total, config?.currency)}
+              </span>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <Button variant="whatsapp" className="h-12 w-full" asChild>
+                <a href={placed.whatsappUrl} target="_blank" rel="noopener noreferrer">
+                  <WhatsappIcon className="h-4 w-4" />
+                  Enviar mensaje por WhatsApp
+                </a>
+              </Button>
+              <Button variant="ghost" className="w-full" onClick={() => handleOpenChange(false)}>
+                Seguir comprando
+              </Button>
+            </div>
+          </div>
+        ) : (
+        <>
         <DialogHeader>
           <DialogTitle className="text-foreground">Finalizar pedido</DialogTitle>
           <DialogDescription className="text-muted-foreground">
@@ -234,7 +285,7 @@ export function CheckoutDialog({
                 <label
                   key={value}
                   className={cn(
-                    'flex cursor-pointer flex-col items-center gap-1.5 rounded-xl border p-3 text-center text-xs font-medium transition-colors',
+                    'flex cursor-pointer flex-col items-center gap-1.5 rounded-xl border p-3 text-center text-xs font-medium transition-colors focus-within:ring-2 focus-within:ring-ring',
                     deliveryMethod === value
                       ? 'border-primary bg-primary/10 text-primary'
                       : 'border text-muted-foreground hover:border-primary/40 hover:text-foreground',
@@ -252,6 +303,24 @@ export function CheckoutDialog({
               ))}
             </div>
           </fieldset>
+
+          {/* Retiro: dónde y cómo llegar, sin que el cliente tenga que preguntar. */}
+          {deliveryMethod === 'retiro' && config?.address && (
+            <p className="flex items-start gap-2 rounded-xl bg-muted/50 p-3 text-xs text-muted-foreground">
+              <HugeIcon icon={Store01Icon} size={14} strokeWidth={2} aria-hidden className="mt-0.5 shrink-0" />
+              <span>
+                Retirás en <span className="font-medium text-foreground">{config.address}</span>.
+                {config.locationUrl && (
+                  <>
+                    {' '}
+                    <a href={config.locationUrl} target="_blank" rel="noreferrer" className="font-medium text-primary-2 underline-offset-4 hover:underline">
+                      Ver en el mapa
+                    </a>
+                  </>
+                )}
+              </span>
+            </p>
+          )}
 
           {deliveryMethod === 'envio' && (
             <Field data-invalid={Boolean(errors.address)}>
@@ -296,6 +365,15 @@ export function CheckoutDialog({
 
           {/* Código de descuento: fuera de `register` a propósito — no es un
               campo del pedido sino un canje que valida el servidor aparte. */}
+          {!appliedCode && !couponOpen ? (
+            <button
+              type="button"
+              onClick={() => setCouponOpen(true)}
+              className="self-start text-sm font-medium text-primary-2 underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+            >
+              ¿Tenés un código de descuento?
+            </button>
+          ) : (
           <Field>
             <FieldLabel htmlFor="discountCode">Código de descuento (opcional)</FieldLabel>
             {appliedCode ? (
@@ -312,6 +390,7 @@ export function CheckoutDialog({
                   onClick={removeCode}
                   className="grid size-6 place-items-center rounded-full text-muted-foreground hover:bg-primary/10 hover:text-foreground"
                   title="Quitar código"
+                  aria-label={`Quitar el código ${appliedCode.code}`}
                 >
                   <HugeIcon icon={Cancel01Icon} size={14} strokeWidth={2} aria-hidden />
                 </button>
@@ -320,6 +399,7 @@ export function CheckoutDialog({
               <div className="flex gap-2">
                 <Input
                   id="discountCode"
+                  autoFocus
                   value={codeInput}
                   onChange={(e) => setCodeInput(e.target.value.toUpperCase())}
                   onKeyDown={(e) => {
@@ -328,7 +408,7 @@ export function CheckoutDialog({
                       applyCode();
                     }
                   }}
-                  placeholder="Tenés un código?"
+                  placeholder="¿Tenés un código?"
                   className="uppercase"
                   maxLength={30}
                 />
@@ -338,6 +418,7 @@ export function CheckoutDialog({
               </div>
             )}
           </Field>
+          )}
 
           <div className="space-y-1 border-t border-border pt-3">
             {codeDiscount > 0 && (
@@ -353,11 +434,14 @@ export function CheckoutDialog({
               </>
             )}
             <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Total estimado</span>
+              <span className="text-sm text-muted-foreground">Total del pedido</span>
               <span className="text-lg font-bold text-foreground tabular-nums">
                 {formatCordobas(totalWithDiscount, config?.currency)}
               </span>
             </div>
+            <p className="text-xs text-muted-foreground">
+              Si elegís envío a domicilio, el costo del envío se confirma por WhatsApp.
+            </p>
           </div>
 
           <DialogFooter>
@@ -371,6 +455,8 @@ export function CheckoutDialog({
             </Button>
           </DialogFooter>
         </form>
+        </>
+        )}
       </DialogContent>
     </Dialog>
   );

@@ -1,4 +1,3 @@
-import { useState } from "react";
 import {
   DollarSquareIcon,
   Package01Icon,
@@ -6,27 +5,17 @@ import {
   PlusSignSquareIcon,
   ShoppingCart02Icon,
   Invoice02Icon,
-  Add01Icon,
-  Delete02Icon,
-  Coins01Icon,
 } from "@hugeicons/core-free-icons";
-import { formatNumber, errMsg } from "~/lib/formatters";
+import { formatNumber } from "~/lib/formatters";
 import { cn } from "~/lib/utils";
-import { Button } from "~/components/ui/button";
-import { HugeIcon } from "~/components/ui/icon";
-import { ConfirmDialog } from "~/components/ui/confirm-dialog";
-import { toast } from "sonner";
 import {
-  useGetLoanPaymentsListQuery,
-  useDeleteLoanPaymentMutation,
+  useGetExpensesOverflowQuery,
   useGetKpisQuery,
   type SalesLedgerRow,
   type SellerPerformanceRow,
-  type LoanPaymentItem,
   type FinancialKPIs,
 } from "~/store/api/reportsApi";
 import { DrilldownDialog } from "./DrilldownDialog";
-import { RegisterLoanPaymentDialog } from "./RegisterLoanPaymentDialog";
 
 export type DrilldownType =
   | 'vendido'
@@ -65,31 +54,16 @@ export function DashboardDrilldowns({
   });
   const kpis = kpisProp ?? queriedKpis;
 
-  const { data: loanPaymentsData } = useGetLoanPaymentsListQuery(queryParams, {
+  // La ganancia real y lo que se tomó de ella salen del libro de pozos del mes
+  // (server/services/pozoLedger.ts), la misma cifra que la pestaña Gastos.
+  const { data: pozoLedger } = useGetExpensesOverflowQuery(queryParams, {
     skip: drilldown !== 'ganancia',
   });
-  const [deleteLoanPayment, { isLoading: isDeletingLoan }] = useDeleteLoanPaymentMutation();
-  const [isRegisterLoanOpen, setIsRegisterLoanOpen] = useState(false);
-  const [paymentToDelete, setPaymentToDelete] = useState<LoanPaymentItem | null>(null);
-
-  const totalLoans = loanPaymentsData?.total ?? kpis?.total_prestamos ?? 0;
-  const loanPayments = loanPaymentsData?.payments ?? [];
-  const gananciaTienda = kpis?.ganancia_tienda_total ?? ledgerTotalGanancia;
-  const budgetPrestamosDisponible = kpis?.budget_prestamos_disponible ?? 0;
-  const prestamosCubierto = kpis?.prestamos_cubierto_por_budget ?? Math.min(totalLoans, Math.max(0, budgetPrestamosDisponible));
-  const prestamosDeGanancia = kpis?.prestamos_de_ganancia ?? Math.max(0, totalLoans - prestamosCubierto);
-  const gananciaReal = kpis?.ganancia_real ?? (gananciaTienda - prestamosDeGanancia);
-
-  const handleConfirmDelete = async () => {
-    if (!paymentToDelete) return;
-    try {
-      await deleteLoanPayment(paymentToDelete.id).unwrap();
-      toast.success('Pago de préstamo eliminado');
-      setPaymentToDelete(null);
-    } catch (err) {
-      toast.error(errMsg(err, 'No se pudo eliminar el pago'));
-    }
-  };
+  const gananciaTienda = pozoLedger?.gananciaTienda ?? kpis?.ganancia_tienda_total ?? ledgerTotalGanancia;
+  const gastosDeGanancia = pozoLedger?.deGanancia.total ?? kpis?.gastos_de_ganancia ?? 0;
+  const gananciaReal = pozoLedger?.gananciaReal ?? kpis?.ganancia_real ?? gananciaTienda;
+  const pozosQueTomaron = (pozoLedger?.pozos ?? []).filter((p) => p.tomadoGanancia > 0);
+  const deGananciaRows = pozosQueTomaron.map((p) => ({ label: `${p.label} (se pasó)`, value: p.tomadoGanancia }));
 
   return (
     <>
@@ -125,7 +99,7 @@ export function DashboardDrilldowns({
                     {row.cliente || 'Cliente sin nombre'}
                   </span>
                   {row.invoice_number && (
-                    <span className="ml-2 rounded-sm bg-muted px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground">
+                    <span className="ml-2 rounded-sm bg-muted px-1.5 py-0.5 text-2xs font-mono text-muted-foreground">
                       #{row.invoice_number}
                     </span>
                   )}
@@ -172,7 +146,7 @@ export function DashboardDrilldowns({
                     {row.cliente || 'Cliente no especificado'}
                   </span>
                   {row.invoice_number && (
-                    <span className="ml-2 rounded-sm bg-muted px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground">
+                    <span className="ml-2 rounded-sm bg-muted px-1.5 py-0.5 text-2xs font-mono text-muted-foreground">
                       #{row.invoice_number}
                     </span>
                   )}
@@ -227,8 +201,8 @@ export function DashboardDrilldowns({
                       {formatMoney(row.total_vendido)}
                     </span>
                     <span
-                      className={`nums block text-[10px] font-medium ${
-                        isAbove ? 'text-emerald-400' : 'text-muted-foreground'
+                      className={`nums block text-2xs font-medium ${
+                        isAbove ? 'text-success' : 'text-muted-foreground'
                       }`}
                     >
                       {isAbove ? `+${formatMoney(diff)}` : formatMoney(diff)} vs promedio
@@ -273,7 +247,7 @@ export function DashboardDrilldowns({
                     {formatNumber(row.num_ventas)} {row.num_ventas === 1 ? 'venta' : 'ventas'}
                   </span>
                 </div>
-                <span className="nums shrink-0 font-semibold text-emerald-400">
+                <span className="nums shrink-0 font-semibold text-success">
                   {formatMoney(row.comision)}
                 </span>
               </div>
@@ -282,43 +256,28 @@ export function DashboardDrilldowns({
         )}
       </DrilldownDialog>
 
-      {/* 5. Ganancia Neta y Real */}
+      {/* 5. Ganancia real */}
       <DrilldownDialog
         open={drilldown === 'ganancia'}
         onOpenChange={(open) => !open && onClose()}
-        title="Rentabilidad y Ganancia Real"
+        title="Rentabilidad y ganancia real"
         icon={PlusSignSquareIcon}
-        note="Los pagos de préstamos se amortizan primero con el fondo acumulado en el pozo préstamos (ventas menos gastos del pozo). Únicamente el excedente no cubierto se descuenta de la ganancia operativa de la tienda."
+        note="Cada gasto se paga primero con su pozo (más lo heredado). Si un pozo común se pasa, toma de la bolsa extra y después de los otros pozos; Préstamos y el fondo salario no comparten. Solo lo que no alcanzan a cubrir los pozos se resta de la ganancia."
         footer={
-          <div className="flex flex-col gap-1.5 text-xs sm:text-sm font-medium w-full">
+          <div className="flex w-full flex-col gap-1.5 text-xs font-medium sm:text-sm">
             <div className="flex items-center justify-between text-muted-foreground">
-              <span>Ganancia operativa (tienda)</span>
+              <span>Ganancia tienda</span>
               <span className="nums font-semibold text-foreground">{formatMoney(gananciaTienda)}</span>
             </div>
-            <div className="flex items-center justify-between text-muted-foreground">
-              <span>Total pagos de préstamos ({loanPayments.length})</span>
-              <span className="nums font-semibold text-amber-500">{formatMoney(totalLoans)}</span>
-            </div>
-            <div className="flex items-center justify-between text-muted-foreground text-xs pl-3 border-l-2 border-border/80">
-              <span>• Budget pozo disponible</span>
-              <span className="nums font-medium text-foreground">{formatMoney(budgetPrestamosDisponible)}</span>
-            </div>
-            <div className="flex items-center justify-between text-muted-foreground text-xs pl-3 border-l-2 border-emerald-500/50">
-              <span>• Cubierto por budget del pozo</span>
-              <span className="nums font-medium text-emerald-500">-{formatMoney(prestamosCubierto)}</span>
-            </div>
-            <div className="flex items-center justify-between text-muted-foreground text-xs pl-3 border-l-2 border-rose-500/50">
-              <span>• Restado de ganancia (excedente)</span>
-              <span className="nums font-semibold text-rose-500">-{formatMoney(prestamosDeGanancia)}</span>
-            </div>
-            <div className="flex items-center justify-between border-t border-border/60 pt-2 text-sm sm:text-base font-bold text-foreground">
-              <span>Ganancia real final</span>
-              <span
-                className={cn(
-                  'nums',
-                  gananciaReal >= 0 ? 'text-emerald-500' : 'text-rose-500',
-                )}
-              >
+            {deGananciaRows.map((r) => (
+              <div key={r.label} className="flex items-center justify-between border-l-2 border-destructive/50 pl-3 text-xs text-muted-foreground">
+                <span>{r.label}</span>
+                <span className="nums font-medium text-destructive">−{formatMoney(r.value)}</span>
+              </div>
+            ))}
+            <div className="flex items-center justify-between border-t border-border/60 pt-2 text-sm font-bold text-foreground sm:text-base">
+              <span>Ganancia real</span>
+              <span className={cn('nums', gananciaReal >= 0 ? 'text-success' : 'text-destructive')}>
                 {formatMoney(gananciaReal)}
               </span>
             </div>
@@ -326,191 +285,49 @@ export function DashboardDrilldowns({
         }
       >
         <div className="space-y-6 py-2">
-          {/* Tarjetas resumen de 4 columnas */}
-          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
-            <div className="rounded-lg border border-border/60 bg-muted/20 p-3">
-              <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-                Ganancia tienda
-              </span>
-              <p className="nums mt-1 text-base sm:text-lg font-semibold text-foreground">
-                {formatMoney(gananciaTienda)}
-              </p>
-              <span className="text-[11px] text-muted-foreground">
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+            <div className="rounded-md border border-border/60 bg-muted/20 p-3">
+              <span className="text-2xs font-medium text-muted-foreground">Ganancia tienda</span>
+              <p className="nums mt-1 text-base font-semibold text-foreground sm:text-lg">{formatMoney(gananciaTienda)}</p>
+              <span className="text-2xs text-muted-foreground">
                 {totalCount} {totalCount === 1 ? 'venta' : 'ventas'}
               </span>
             </div>
-
-            <div className="rounded-lg border border-blue-500/20 bg-blue-500/5 p-3">
-              <span className="text-[11px] font-medium uppercase tracking-wider text-blue-400">
-                Pozo préstamos
-              </span>
-              <p className="nums mt-1 text-base sm:text-lg font-semibold text-blue-400">
-                {formatMoney(budgetPrestamosDisponible)}
-              </p>
-              <span className="text-[11px] text-muted-foreground">
-                Budget disponible
+            <div className="rounded-md border border-warning/20 bg-warning/5 p-3">
+              <span className="text-2xs font-medium text-warning">Gastos pagados con ganancia</span>
+              <p className="nums mt-1 text-base font-semibold text-warning sm:text-lg">−{formatMoney(gastosDeGanancia)}</p>
+              <span className="text-2xs text-muted-foreground">
+                {gastosDeGanancia === 0 ? 'Los pozos cubrieron todo' : 'Lo que los pozos no alcanzaron'}
               </span>
             </div>
-
-            <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-3">
-              <span className="text-[11px] font-medium uppercase tracking-wider text-amber-500">
-                Deducido de ganancia
-              </span>
-              <p className="nums mt-1 text-base sm:text-lg font-semibold text-amber-500">
-                -{formatMoney(prestamosDeGanancia)}
-              </p>
-              <span className="text-[11px] text-muted-foreground">
-                {prestamosDeGanancia === 0 ? 'Cubierto por pozo' : 'Excedente'}
-              </span>
-            </div>
-
-            <div
-              className={cn(
-                'rounded-lg border p-3',
-                gananciaReal >= 0
-                  ? 'border-emerald-500/30 bg-emerald-500/5'
-                  : 'border-rose-500/30 bg-rose-500/5',
-              )}
-            >
-              <span
-                className={cn(
-                  'text-[11px] font-medium uppercase tracking-wider',
-                  gananciaReal >= 0 ? 'text-emerald-500' : 'text-rose-500',
-                )}
-              >
-                Ganancia real
-              </span>
-              <p
-                className={cn(
-                  'nums mt-1 text-base sm:text-lg font-semibold',
-                  gananciaReal >= 0 ? 'text-emerald-500' : 'text-rose-500',
-                )}
-              >
+            <div className={cn('rounded-md border p-3', gananciaReal >= 0 ? 'border-success/30 bg-success/5' : 'border-destructive/30 bg-destructive/5')}>
+              <span className={cn('text-2xs font-medium', gananciaReal >= 0 ? 'text-success' : 'text-destructive')}>Ganancia real</span>
+              <p className={cn('nums mt-1 text-base font-semibold sm:text-lg', gananciaReal >= 0 ? 'text-success' : 'text-destructive')}>
                 {formatMoney(gananciaReal)}
               </p>
-              <span className="text-[11px] text-muted-foreground">
-                {gananciaReal >= 0 ? 'Balance positivo' : 'Operando en rojo'}
-              </span>
+              <span className="text-2xs text-muted-foreground">{gananciaReal >= 0 ? 'Balance positivo' : 'Operando en rojo'}</span>
             </div>
           </div>
 
-          {/* Desglose de Amortización con Pozo */}
-          <div className="rounded-lg border border-border/70 bg-card/60 p-3.5 text-xs space-y-2.5">
-            <div className="flex flex-wrap items-center justify-between gap-2 font-semibold text-foreground">
-              <span className="flex items-center gap-1.5">
-                <HugeIcon icon={Coins01Icon} size={15} className="text-amber-500" />
-                Desglose de Amortización con Pozo Préstamos
-              </span>
-              <span className="nums text-muted-foreground font-mono text-[11px]">
-                {formatMoney(totalLoans)} pagados en el período
-              </span>
+          {pozosQueTomaron.length > 0 && (
+            <div className="space-y-1.5 rounded-md border border-border/70 bg-card/60 p-3.5 text-xs">
+              <p className="font-semibold text-foreground">Pozos que tomaron de la ganancia</p>
+              {pozosQueTomaron.map((p) => (
+                <div key={p.pozo} className="flex items-center justify-between text-muted-foreground">
+                  <span>
+                    {p.label}: gastó {formatMoney(p.gastado)} con {formatMoney(Math.max(0, p.heredado + p.recogido))} de presupuesto
+                  </span>
+                  <span className="nums font-medium text-destructive">−{formatMoney(p.tomadoGanancia)}</span>
+                </div>
+              ))}
+              <p className="pt-1 text-2xs text-muted-foreground">Los pagos de préstamo se registran como gasto del pozo Préstamos, en Gastos y presupuesto.</p>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-border/50">
-              <div className="space-y-0.5">
-                <span className="text-[11px] text-muted-foreground">1. Budget pozo disponible</span>
-                <p className="nums text-sm font-semibold text-foreground">{formatMoney(budgetPrestamosDisponible)}</p>
-                <p className="text-[10px] text-muted-foreground">Recaudado menos gastos del pozo</p>
-              </div>
-              <div className="space-y-0.5">
-                <span className="text-[11px] text-emerald-500 font-medium">2. Cubierto por budget</span>
-                <p className="nums text-sm font-semibold text-emerald-500">-{formatMoney(prestamosCubierto)}</p>
-                <p className="text-[10px] text-muted-foreground">Absorbido sin tocar ganancia</p>
-              </div>
-              <div className="space-y-0.5">
-                <span className="text-[11px] text-rose-500 font-medium">3. Restado de ganancia</span>
-                <p className="nums text-sm font-semibold text-rose-500">-{formatMoney(prestamosDeGanancia)}</p>
-                <p className="text-[10px] text-muted-foreground">Excedente descontado de utilidad</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Sección: Pagos de Préstamos */}
-          <div className="space-y-2.5">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5">
-                <HugeIcon icon={Coins01Icon} size={16} className="text-amber-500" />
-                <h4 className="text-xs font-semibold uppercase tracking-wider text-foreground">
-                  Pagos de Préstamos ({loanPayments.length})
-                </h4>
-              </div>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() => setIsRegisterLoanOpen(true)}
-                className="h-7 gap-1 px-2.5 text-xs text-amber-500 hover:text-amber-400"
-              >
-                <HugeIcon icon={Add01Icon} size={13} strokeWidth={2} />
-                Registrar pago
-              </Button>
-            </div>
-
-            {loanPayments.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-border/80 p-4 text-center">
-                <p className="text-xs text-muted-foreground">
-                  No hay pagos de préstamos registrados en este período.
-                </p>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => setIsRegisterLoanOpen(true)}
-                  className="mt-2 text-xs text-amber-500 hover:text-amber-400"
-                >
-                  + Registrar primer pago
-                </Button>
-              </div>
-            ) : (
-              <div className="divide-y divide-border/60 rounded-lg border border-border/60 bg-card/40">
-                {loanPayments.map((p) => (
-                  <div
-                    key={p.id}
-                    className="flex items-center justify-between gap-3 px-3 py-2 text-sm"
-                  >
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-xs text-muted-foreground">
-                          {p.fecha}
-                        </span>
-                        {p.nota && (
-                          <span className="truncate text-xs font-medium text-foreground">
-                            {p.nota}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-3 shrink-0">
-                      <div className="text-right">
-                        <span className="nums font-semibold text-amber-500">
-                          -{formatMoney(p.monto_cs)}
-                        </span>
-                        {p.monto_usd && (
-                          <p className="nums text-[11px] text-muted-foreground font-mono">
-                            (${p.monto_usd.toLocaleString('es-NI', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD)
-                          </p>
-                        )}
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setPaymentToDelete(p)}
-                        disabled={isDeletingLoan}
-                        className="rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
-                        title="Eliminar pago de préstamo"
-                      >
-                        <HugeIcon icon={Delete02Icon} size={15} strokeWidth={2} />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          )}
 
           {/* Sección: Detalle de Ventas */}
           <div className="space-y-2.5">
             <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Ganancia por Venta ({totalCount} {totalCount === 1 ? 'transacción' : 'transacciones'})
+              Ganancia por venta ({totalCount} {totalCount === 1 ? 'transacción' : 'transacciones'})
             </h4>
 
             {ledger.length === 0 ? (
@@ -532,7 +349,7 @@ export function DashboardDrilldowns({
                         {row.cliente || (row.invoice_number ? `#${row.invoice_number}` : 'Venta')}
                       </span>
                     </div>
-                    <span className="nums shrink-0 font-semibold text-emerald-400">
+                    <span className="nums shrink-0 font-semibold text-success">
                       {formatMoney(row.ganancia)}
                     </span>
                   </div>
@@ -582,34 +399,6 @@ export function DashboardDrilldowns({
         )}
       </DrilldownDialog>
 
-      {/* Sub-diálogo para registrar pago de préstamo */}
-      <RegisterLoanPaymentDialog
-        open={isRegisterLoanOpen}
-        onOpenChange={setIsRegisterLoanOpen}
-        defaultDate={queryParams?.startDate ? queryParams.startDate.slice(0, 10) : undefined}
-      />
-
-      {/* Diálogo de confirmación para eliminar pago */}
-      <ConfirmDialog
-        open={!!paymentToDelete}
-        onOpenChange={(open) => !open && setPaymentToDelete(null)}
-        title="Eliminar pago de préstamo"
-        description={
-          paymentToDelete ? (
-            <span>
-              ¿Estás seguro de eliminar el pago de{' '}
-              <strong className="text-foreground font-mono">
-                {paymentToDelete.monto_usd
-                  ? `$${paymentToDelete.monto_usd.toFixed(2)} USD (${formatMoney(paymentToDelete.monto_cs)})`
-                  : formatMoney(paymentToDelete.monto_cs)}
-              </strong>{' '}
-              del {paymentToDelete.fecha}? La ganancia real se recalculará automáticamente.
-            </span>
-          ) : null
-        }
-        confirmText="Eliminar pago"
-        onConfirm={handleConfirmDelete}
-      />
     </>
   );
 }

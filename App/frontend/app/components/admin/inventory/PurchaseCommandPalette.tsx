@@ -142,7 +142,7 @@ export function PurchaseCommandPalette({ open, onOpenChange, purchases, onSelect
             </div>
 
             {/* Footer hint */}
-            <div className="flex items-center gap-3 border-t border-border/40 px-4 py-2 text-[11px] text-muted-foreground/60">
+            <div className="flex items-center gap-3 border-t border-border/40 px-4 py-2 text-2xs text-muted-foreground/60">
               <span><kbd className="font-mono">↵</kbd> seleccionar</span>
               <span><kbd className="font-mono">Esc</kbd> cerrar</span>
               <span className="ml-auto"><kbd className="font-mono">⌘K</kbd> abrir</span>

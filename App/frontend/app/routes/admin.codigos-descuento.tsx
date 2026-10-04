@@ -1,24 +1,19 @@
 // Códigos de descuento (Centro de Administración).
 // Incluye historial completo de canjes y KPIs.
 import { HugeIcon } from '~/components/ui/icon';
-import { 
-  Add01Icon, 
-  Coupon01Icon, 
-  Copy01Icon, 
+import {
+  Add01Icon,
+  Coupon01Icon,
+  Copy01Icon,
   PowerServiceIcon,
   ShoppingCart01Icon,
   Invoice01Icon,
-  Tag01Icon,
-  Ticket01Icon,
-  CheckmarkBadge01Icon,
-  DollarCircleIcon,
 } from '@hugeicons/core-free-icons';
 import { useState } from 'react';
 import type { MetaFunction } from '@remix-run/node';
 import { pageTitle } from '~/lib/brand';
 import { toast } from 'sonner';
 
-import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
 import { PageHeader } from '~/components/layout/PageHeader';
 import { Button } from '~/components/ui/button';
 import { Input } from '~/components/ui/input';
@@ -27,11 +22,20 @@ import { DatePicker } from '~/components/ui/date-picker';
 import { Label } from '~/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/components/ui/select';
 import { Spinner } from '~/components/ui/spinner';
-import { BrandLoader } from '~/components/ui/module-loader';
-import { StatCard } from '~/components/ui/stat-card';
+import { Skeleton } from '~/components/ui/skeleton';
+import {
+  Kbd,
+  Metric,
+  MetricStrip,
+  SegmentedControl,
+  ToolbarSearch,
+  Workspace,
+  WorkspaceToolbar,
+  useShortcut,
+} from '~/components/admin/workspace';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '~/components/ui/dialog';
 import { cn } from '~/lib/utils';
-import { errMsg, formatCordobas } from '~/lib/formatters';
+import { errMsg, formatCordobas, formatLongDate } from '~/lib/formatters';
 import {
   useGetDiscountCodesQuery,
   useCreateDiscountCodeMutation,
@@ -51,6 +55,8 @@ export default function AdminDiscountCodes() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [filter, setFilter] = useState<'all' | 'redeemed' | 'pending' | 'expired'>('all');
   const [modalOpen, setModalOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  useShortcut('n', () => setModalOpen(true));
 
   const set = (k: keyof typeof EMPTY_FORM, v: string) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -95,11 +101,13 @@ export default function AdminDiscountCodes() {
   const totalDescontado = data.reduce((acc, d) => acc + (d.redeemedAmount || 0), 0);
 
   // Filtrado
+  const q = search.trim().toLowerCase();
   const filteredData = data.filter((d) => {
+    if (q && ![d.code, d.note, d.redeemedLabel].filter(Boolean).some((v) => String(v).toLowerCase().includes(q))) return false;
     if (filter === 'all') return true;
     const exhausted = d.maxUses > 0 && d.usedCount >= d.maxUses;
     const expired = d.expiresAt ? new Date(d.expiresAt).getTime() < Date.now() : false;
-    
+
     if (filter === 'redeemed') return exhausted;
     if (filter === 'pending') return !exhausted && !expired && d.active;
     if (filter === 'expired') return expired || !d.active;
@@ -111,20 +119,22 @@ export default function AdminDiscountCodes() {
       <PageHeader
         eyebrow="Tienda"
         title="Códigos de descuento"
-        description="Gestión de cupones de único uso. Rastrea canjes en pedidos web y punto de venta."
+        description="Cupones de un solo uso. Seguí sus canjes en pedidos web y facturas."
+        className="mb-0"
         actions={
         <Dialog open={modalOpen} onOpenChange={setModalOpen}>
           <DialogTrigger asChild>
-            <Button>
-              <HugeIcon icon={Add01Icon} size={16} strokeWidth={2.5} className="mr-1.5" aria-hidden />
-              Generar Código
+            <Button className="h-9 gap-2 rounded-md">
+              <HugeIcon icon={Add01Icon} size={16} strokeWidth={2} aria-hidden />
+              Generar código
+              <Kbd>N</Kbd>
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
               <DialogTitle>Nuevo código de descuento</DialogTitle>
               <DialogDescription>
-                Se creará un código de único uso. 
+                Se creará un código de único uso.
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={submit} className="grid gap-4 mt-2">
@@ -173,7 +183,7 @@ export default function AdminDiscountCodes() {
                   maxLength={200}
                 />
               </div>
-              
+
               <div className="pt-2 flex justify-end">
                 <Button type="submit" disabled={creating} className="w-full sm:w-auto">
                   {creating && <Spinner className="mr-2" />}
@@ -186,60 +196,40 @@ export default function AdminDiscountCodes() {
         }
       />
 
-      {/* KPIs */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          icon={Ticket01Icon}
-          label="Emitidos"
-          countTo={totalEmitidos}
-          delay={0}
-        />
-        <StatCard
-          icon={CheckmarkBadge01Icon}
-          label="Canjeados"
-          countTo={totalCanjeados}
-          color="emerald"
-          delay={0.1}
-        />
-        <StatCard
-          icon={Tag01Icon}
-          label="Tasa de canje"
-          value={`${tasaCanje.toFixed(1)}%`}
-          color="indigo"
-          delay={0.2}
-        />
-        <StatCard
-          icon={DollarCircleIcon}
-          label="Total descontado"
-          value={formatCordobas(totalDescontado)}
-          color="amber"
-          delay={0.3}
-        />
-      </div>
+      <Workspace>
+        <WorkspaceToolbar>
+          <SegmentedControl
+            label="Estado del código"
+            value={filter}
+            onChange={setFilter}
+            options={[
+              { value: 'all', label: 'Todos' },
+              { value: 'pending', label: 'Pendientes' },
+              { value: 'redeemed', label: 'Canjeados' },
+              { value: 'expired', label: 'Vencidos o desactivados' },
+            ]}
+          />
+          <ToolbarSearch value={search} onChange={setSearch} placeholder="Buscar código o descripción" />
+        </WorkspaceToolbar>
 
-      {/* Lista */}
-      <Card className="bg-card border shadow-sm">
-        <CardHeader className="flex flex-row items-center justify-between border-b pb-4">
-          <CardTitle className="text-lg text-foreground">Historial de Códigos</CardTitle>
-          <Select value={filter} onValueChange={(v: any) => setFilter(v)}>
-            <SelectTrigger className="w-[160px] h-8 text-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
-              <SelectItem value="pending">Pendientes</SelectItem>
-              <SelectItem value="redeemed">Canjeados</SelectItem>
-              <SelectItem value="expired">Vencidos / Desact.</SelectItem>
-            </SelectContent>
-          </Select>
-        </CardHeader>
-        <CardContent className="p-0">
+        <MetricStrip>
+          <Metric label="Emitidos" value={totalEmitidos} />
+          <Metric label="Canjeados" value={totalCanjeados} />
+          <Metric label="Tasa de canje" value={`${tasaCanje.toFixed(1)} %`} />
+          <Metric label="Total descontado" value={formatCordobas(totalDescontado)} />
+        </MetricStrip>
+
+        <div>
           {isLoading ? (
-            <div className="py-8"><BrandLoader text="Cargando códigos..." /></div>
+            <div className="space-y-2 p-4">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Skeleton key={i} className="h-14 w-full rounded-md" />
+              ))}
+            </div>
           ) : filteredData.length === 0 ? (
             <div className="py-12 flex flex-col items-center justify-center text-muted-foreground">
               <HugeIcon icon={Coupon01Icon} size={32} className="mb-2 opacity-50" />
-              <p className="text-sm">No se encontraron códigos.</p>
+              <p className="text-sm">{data.length === 0 ? 'Todavía no se generó ningún código.' : 'Ningún código coincide con la búsqueda o el filtro.'}</p>
             </div>
           ) : (
             <div className="divide-y">
@@ -247,7 +237,7 @@ export default function AdminDiscountCodes() {
                 const exhausted = d.maxUses > 0 && d.usedCount >= d.maxUses;
                 const expired = d.expiresAt ? new Date(d.expiresAt).getTime() < Date.now() : false;
                 const effectivelyOff = !d.active || exhausted || expired;
-                
+
                 return (
                   <div
                     key={d.code}
@@ -264,22 +254,19 @@ export default function AdminDiscountCodes() {
                           onClick={() => copyCode(d.code)}
                           title="Copiar código"
                           className={cn(
-                            "flex items-center gap-1.5 rounded bg-muted/60 px-2 py-1 font-mono text-sm font-bold tracking-wide transition-colors hover:bg-muted",
+                            "flex items-center gap-1.5 rounded-md bg-muted/60 px-2 py-1 font-spec text-sm font-semibold tracking-wide transition-colors hover:bg-muted",
                             effectivelyOff ? "text-muted-foreground line-through" : "text-foreground"
                           )}
                         >
                           {d.code}
                           <HugeIcon icon={Copy01Icon} size={12} className="text-muted-foreground" aria-hidden />
                         </button>
-                        <span className={cn(
-                          "rounded-full px-2 py-0.5 text-xs font-semibold",
-                          d.type === 'percent' ? 'bg-tone-sky/10 text-tone-sky' : 'bg-tone-emerald/10 text-tone-emerald'
-                        )}>
-                          {d.type === 'percent' ? `${d.value}% DTO` : `C$${d.value} DTO`}
+                        <span className="rounded-md border border-border px-2 py-0.5 text-xs text-muted-foreground">
+                          {d.type === 'percent' ? `−${d.value} %` : `−C$${d.value}`}
                         </span>
                       </div>
                       <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
-                        {d.expiresAt && <span>Vence: {new Date(d.expiresAt).toLocaleDateString('es-NI')}</span>}
+                        {d.expiresAt && <span>Vence el {formatLongDate(d.expiresAt)}</span>}
                         {d.note && (
                           <>
                             {d.expiresAt && <span>•</span>}
@@ -295,25 +282,25 @@ export default function AdminDiscountCodes() {
                         <div className="flex items-start gap-2">
                           <div className={cn(
                             "mt-0.5 rounded-full p-1.5",
-                            d.redeemedSource === 'checkout' ? "bg-tone-indigo/10 text-tone-indigo" : "bg-tone-amber/10 text-tone-amber"
+                            "bg-muted text-muted-foreground"
                           )}>
-                            <HugeIcon 
-                              icon={d.redeemedSource === 'checkout' ? ShoppingCart01Icon : Invoice01Icon} 
-                              size={14} 
+                            <HugeIcon
+                              icon={d.redeemedSource === 'checkout' ? ShoppingCart01Icon : Invoice01Icon}
+                              size={14}
                             />
                           </div>
                           <div className="text-sm">
                             <p className="font-medium text-foreground flex items-center gap-1">
-                              {d.redeemedLabel || (d.redeemedSource === 'checkout' ? 'Pedido Web' : 'Factura POS')}
+                              {d.redeemedLabel || (d.redeemedSource === 'checkout' ? 'Pedido web' : 'Factura de caja')}
                             </p>
                             <p className="text-xs text-muted-foreground">
-                              Canjeado el {new Date(d.redeemedAt).toLocaleDateString('es-NI')}
+                              Canjeado el {formatLongDate(d.redeemedAt)}
                               {d.redeemedAmount != null && ` • Ahorro: C$${d.redeemedAmount}`}
                             </p>
                           </div>
                         </div>
                       ) : (
-                        <div className="text-sm text-muted-foreground italic flex items-center gap-1.5">
+                        <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
                           Sin usar
                         </div>
                       )}
@@ -323,11 +310,11 @@ export default function AdminDiscountCodes() {
                     <div className="flex items-center gap-4 sm:ml-auto shrink-0">
                       <span
                         className={cn(
-                          'rounded-full px-2.5 py-1 text-xs font-bold whitespace-nowrap',
-                          !d.active ? 'bg-tone-red/10 text-tone-red' 
-                            : exhausted ? 'bg-tone-emerald/10 text-tone-emerald' 
-                            : expired ? 'bg-tone-rose/10 text-tone-rose' 
-                            : 'bg-primary/10 text-primary',
+                          'rounded-full px-2.5 py-0.5 text-xs font-medium whitespace-nowrap',
+                          !d.active ? 'bg-muted text-muted-foreground'
+                            : exhausted ? 'bg-success/10 text-success'
+                            : expired ? 'bg-warning/10 text-warning'
+                            : 'bg-info/10 text-info',
                         )}
                       >
                         {!d.active ? 'Desactivado' : exhausted ? 'Canjeado' : expired ? 'Vencido' : 'Pendiente'}
@@ -338,9 +325,10 @@ export default function AdminDiscountCodes() {
                           type="button"
                           onClick={() => toggleActive(d.code, !d.active)}
                           title={d.active ? 'Desactivar' : 'Reactivar'}
+                          aria-label={d.active ? `Desactivar ${d.code}` : `Reactivar ${d.code}`}
                           className={cn(
-                            "grid h-8 w-8 shrink-0 place-items-center rounded-full transition-colors",
-                            d.active ? "text-muted-foreground hover:bg-tone-red/10 hover:text-tone-red" : "text-tone-emerald hover:bg-tone-emerald/10"
+                            "grid h-8 w-8 shrink-0 place-items-center rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                            d.active ? "text-muted-foreground hover:bg-destructive/10 hover:text-destructive" : "text-success hover:bg-success/10"
                           )}
                         >
                           <HugeIcon icon={PowerServiceIcon} size={16} strokeWidth={2} aria-hidden />
@@ -352,8 +340,11 @@ export default function AdminDiscountCodes() {
               })}
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </Workspace>
     </div>
   );
 }
+
+// Error dentro de la sección: se muestra en el área de contenido y la barra lateral sigue viva.
+export { AdminRouteError as ErrorBoundary } from '~/components/layout/route-error';

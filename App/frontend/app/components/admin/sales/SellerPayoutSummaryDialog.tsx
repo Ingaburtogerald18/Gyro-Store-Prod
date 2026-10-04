@@ -54,7 +54,7 @@ export function SellerPayoutSummaryDialog({
           </div>
 
           <div className="space-y-2 rounded-card border border-border px-4 py-3 text-sm">
-            <div className="mb-1 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+            <div className="mb-1 flex items-center gap-1.5 text-2xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
               <HugeIcon icon={Wallet01Icon} size={14} strokeWidth={2} />
               Total pendiente de pago
             </div>

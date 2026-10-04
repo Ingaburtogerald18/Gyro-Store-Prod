@@ -18,7 +18,7 @@ export function stockTone(stock: number): StockTone {
 export function stockLabel(stock: number): string {
   if (stock <= 0) return 'Agotado';
   if (stock <= LOW_STOCK_THRESHOLD) {
-    return `Últimas ${stock} unidad${stock === 1 ? '' : 'es'}`;
+    return stock === 1 ? 'Última unidad' : `Últimas ${stock} unidades`;
   }
   return `${stock} unidades disponibles`;
 }
@@ -39,7 +39,7 @@ export function StockIndicator({ stock, className }: { stock: number; className?
   const tone = stockTone(stock);
 
   return (
-    <p className={cn('inline-flex items-center gap-2 text-sm font-medium', TEXT[tone], className)}>
+    <p className={cn('font-spec inline-flex items-center gap-2 text-sm font-medium', TEXT[tone], className)}>
       <span aria-hidden className={cn('size-1.5 shrink-0 rounded-full', DOT[tone])} />
       {stockLabel(stock)}
     </p>

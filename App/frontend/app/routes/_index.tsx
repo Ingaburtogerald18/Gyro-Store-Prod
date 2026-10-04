@@ -40,6 +40,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
     if (configRes.ok) config = (await configRes.json()) as StoreConfig;
     if (landingRes.ok) landing = (await landingRes.json()) as LandingConfig;
   } catch {
+    // API caída: se renderiza la home con lo que haya (catálogo vacío) en vez
+    // de tumbar la página entera.
   }
 
   return { origin, products, config, landing };

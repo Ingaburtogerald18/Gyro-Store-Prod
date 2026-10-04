@@ -8,22 +8,36 @@ import {
   Outlet,
   Scripts,
   ScrollRestoration,
+  useLocation,
   useRouteLoaderData,
 } from '@remix-run/react';
 import type { ReactNode } from 'react';
 import { Provider } from 'react-redux';
 import { Toaster } from 'sonner';
 import { store } from '~/store/store';
+import { useAppDispatch } from '~/store/hooks';
+import { themeSet } from '~/store/slices/uiSlice';
+import { DEFAULT_THEME, restoreTheme, THEME_INIT_SCRIPT } from '~/lib/theme';
 import tailwindHref from './tailwind.css?url';
+import chivoWoff2 from '@fontsource-variable/chivo/files/chivo-latin-wght-normal.woff2?url';
 
-// Sin Google Fonts: Geist (body y headings, según el preset Rhea) se sirve
-// localmente vía @fontsource-variable, importado desde tailwind.css.
+// Sin Google Fonts: Chivo (tienda), Chivo Mono (datos técnicos) y Geist (panel)
+// se sirven localmente vía @fontsource-variable, importadas desde tailwind.css.
+// Se precarga el woff2 latino de Chivo: es la fuente del primer paint de la
+// tienda y, sin preload, el titular del hero salta de fuente al cargar.
 //
 // Favicon: NO va en links — se carga dinámicamente desde la config del admin
 // (Recursos de imágenes → Favicon) con el componente DynamicFavicon.
 export const links: LinksFunction = () => [
   { rel: 'stylesheet', href: tailwindHref },
+  { rel: 'preload', href: chivoWoff2, as: 'font', type: 'font/woff2', crossOrigin: 'anonymous' },
 ];
+
+/** Área de la app según la ruta: define la tipografía (ver `[data-area]` en
+ *  tailwind.css). El panel y el acceso del personal usan Geist; el resto, Chivo. */
+function areaFor(pathname: string): 'admin' | 'store' {
+  return /^\/(admin|login|auth)(\/|$)/.test(pathname) ? 'admin' : 'store';
+}
 
 // Único lugar donde el server pasa config al cliente. Solo llaves PÚBLICAS:
 // la service_role vive exclusivamente en el backend Express.
@@ -50,13 +64,16 @@ export function Layout({ children }: { children: ReactNode }) {
   const data = useRouteLoaderData<typeof loader>('root');
   const env = JSON.stringify(data?.ENV ?? {}).replace(/</g, '\\u003c');
   const nonce = data?.cspNonce ?? '';
+  const { pathname } = useLocation();
 
   return (
     // suppressHydrationWarning: el script anti-flash puede cambiar data-theme
     // antes de que React hidrate; ese "mismatch" es intencional.
     <html
       lang="es"
+      data-theme={DEFAULT_THEME}
       data-skin="store"
+      data-area={areaFor(pathname)}
       suppressHydrationWarning
     >
       <head>
@@ -75,12 +92,11 @@ export function Layout({ children }: { children: ReactNode }) {
             __html: `globalThis.__zod_globalConfig=Object.assign(globalThis.__zod_globalConfig||{},{jitless:true});`,
           }}
         />
-        {/* Anti-flash de tema: aplica el tema guardado ANTES del primer paint.
-            Debe ir primero en <head>. Clave sincronizada con useTheme. */}
+        {/* Anti-flash de tema: aplica el tema guardado ANTES del primer paint. */}
         <script
           nonce={nonce}
           dangerouslySetInnerHTML={{
-            __html: `try{var t=localStorage.getItem('gyro:theme')||'dark';document.documentElement.dataset.theme=t}catch(e){}`,
+            __html: THEME_INIT_SCRIPT,
           }}
         />
         <meta charSet="utf-8" />
@@ -104,6 +120,22 @@ import { GlobalProgress } from '~/components/ui/global-progress';
 import { TooltipProvider } from '~/components/ui/tooltip';
 import { StorefrontAnalytics } from '~/components/layout/storefront-analytics';
 import { useGetConfigQuery } from '~/store/api/sessionApi';
+import { RouteError } from '~/components/layout/route-error';
+
+// Se renderiza dentro de Layout pero SIN el <Provider> de App: RouteError no
+// toca el store. Cubre 404 y errores de cualquier ruta sin boundary propio.
+export function ErrorBoundary() {
+  return <RouteError />;
+}
+
+/** Sincroniza DOM y Redux después de hidratar, sin depender de un botón visible. */
+function ThemeSync() {
+  const dispatch = useAppDispatch();
+  useEffect(() => {
+    dispatch(themeSet(restoreTheme()));
+  }, [dispatch]);
+  return null;
+}
 
 /** Favicon dinámico: lee la URL desde la config del admin (Recursos de imágenes)
  *  y la inyecta como `<link rel="icon">` en el `<head>`. Si no hay favicon
@@ -136,6 +168,7 @@ function DynamicFavicon() {
 export default function App() {
   return (
     <Provider store={store}>
+      <ThemeSync />
       {/* TooltipProvider va acá y no dentro de cada vista: las primitivas del
           registry montan <Tooltip> sin proveedor propio (el `tooltip` de
           SidebarMenuButton, por ejemplo) y Radix lanza si no encuentra uno.

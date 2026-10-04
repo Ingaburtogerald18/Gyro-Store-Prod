@@ -28,9 +28,9 @@ function toCsv(rows: Record<string, unknown>[]): string {
     'Vendedor': r.seller_email ?? '',
     'Producto (SKU)': r.item_sku ?? '',
     'Cantidad': r.item_quantity ?? '',
-    'Precio Unitario': r.item_price ?? '',
-    'Monto Total': (Number(r.item_price || 0) * Number(r.item_quantity || 1)).toFixed(2),
-    'Método de Pago': r.payment_method ?? '',
+    'Precio unitario': r.item_price ?? '',
+    'Monto total': (Number(r.item_price || 0) * Number(r.item_quantity || 1)).toFixed(2),
+    'Método de pago': r.payment_method ?? '',
     'Factura': r.invoice_number ? `#${r.invoice_number}` : 'Sin factura',
     'Estado': r.order_status ?? '',
   }));

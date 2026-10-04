@@ -30,16 +30,25 @@ import { Input } from '~/components/ui/input';
 import { Label } from '~/components/ui/label';
 import { DataTable } from '~/components/ui/DataTable';
 import { QueryState } from '~/components/ui/QueryState';
-import { BrandLoader } from '~/components/ui/module-loader';
 import { SkeletonCard } from '~/components/ui/skeletons';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '~/components/ui/dialog';
 import { StatusBadge } from '~/components/ui/StatusBadge';
-import { FilterSelect, type FilterSelectOption } from '~/components/ui/FilterSelect';
+import type { FilterSelectOption } from '~/components/ui/FilterSelect';
 import { SALE_STATUS, statusMeta } from '~/lib/status';
-import { Tabs, TabsList, TabsTrigger } from '~/components/ui/tabs';
+import {
+  Kbd,
+  Metric,
+  MetricStrip,
+  SegmentedControl,
+  ToolbarSearch,
+  ToolbarSelect,
+  Workspace,
+  WorkspaceToolbar,
+  useShortcut,
+} from '~/components/admin/workspace';
 import { useAppSelector } from '~/store/hooks';
 import { selectIsAdmin } from '~/store/slices/authSlice';
-import { errMsg, formatCordobas } from "~/lib/formatters";
+import { errMsg, formatCordobas, formatLongDate } from "~/lib/formatters";
 import {
   useApproveSaleMutation,
   useGetSalesQuery,
@@ -66,7 +75,7 @@ const STATUS_TABS = [
   { value: 'approved', label: 'Aprobadas' },
   { value: 'rejected', label: 'Rechazadas' },
   { value: 'all', label: 'Todas' },
-];
+] as const;
 
 export default function AdminVentas() {
   const isAdmin = useAppSelector(selectIsAdmin);
@@ -150,6 +159,10 @@ export default function AdminVentas() {
   // no de `filteredSales`: si no, elegir un vendedor haría desaparecer al resto
   // de la lista de opciones.
   const [sellerFilter, setSellerFilter] = useState('all');
+  // Búsqueda de la barra (vendedor, factura…): la resuelve el filtro global
+  // de la tabla sobre el valor de cada celda.
+  const [search, setSearch] = useState('');
+  useShortcut('n', () => setIsEditorOpen(true));
   const sellerOptions = useMemo<FilterSelectOption[]>(() => {
     const names = new Set(sales.map((s) => s.sellerName || s.sellerEmail));
     return [
@@ -323,7 +336,7 @@ export default function AdminVentas() {
       {
         accessorKey: 'createdAt',
         header: 'Fecha',
-        cell: ({ row }) => new Date(row.original.createdAt).toLocaleDateString('es-NI'),
+        cell: ({ row }) => <span className="whitespace-nowrap">{formatLongDate(row.original.createdAt)}</span>,
       },
       {
         id: 'vendedor',
@@ -363,16 +376,16 @@ export default function AdminVentas() {
       },
       {
         accessorKey: 'totalComision',
-        header: 'Comisión Total',
+        header: 'Comisión',
         meta: { align: 'right' },
-        cell: ({ row }) => <span className="text-primary-2 font-medium">{formatCordobas(row.original.totalComision)}</span>,
+        cell: ({ row }) => <span className="font-medium text-foreground">{formatCordobas(row.original.totalComision)}</span>,
       },
     ];
 
     if (isAdmin) {
       cols.push({
         accessorKey: 'totalSalary',
-        header: 'Fondo Empresa',
+        header: 'Fondo empresa',
         meta: { align: 'right' },
         cell: ({ row }) => (
           <span className="font-medium text-foreground">
@@ -383,7 +396,7 @@ export default function AdminVentas() {
 
       cols.push({
         accessorKey: 'totalGananciaTienda',
-        header: 'Ganancia Tienda',
+        header: 'Ganancia tienda',
         meta: { align: 'right' },
         cell: ({ row }) => (
           <span className="font-medium text-foreground">
@@ -421,10 +434,12 @@ export default function AdminVentas() {
         eyebrow="Operación"
         title="Ventas"
         description="Listado general y registro de ventas."
+        className="mb-0"
         actions={
-          <Button onClick={() => setIsEditorOpen(true)}>
-            <HugeIcon icon={Add01Icon} size={16} strokeWidth={2} className="mr-2" />
-            Registrar Venta
+          <Button onClick={() => setIsEditorOpen(true)} className="h-9 gap-2 rounded-md">
+            <HugeIcon icon={Add01Icon} size={16} strokeWidth={2} aria-hidden />
+            Registrar venta
+            <Kbd>N</Kbd>
           </Button>
         }
       />
@@ -458,70 +473,54 @@ export default function AdminVentas() {
           el equipo) en /admin. */}
       {!isAdmin && <SellerPerformance />}
 
-      <div className="space-y-4">
-        <Tabs value={statusFilter} onValueChange={setStatusFilter}>
-          <TabsList className="bg-muted border">
-            {STATUS_TABS.map((t) => (
-              <TabsTrigger key={t.value} value={t.value}>
-                {t.label}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
+      <Workspace>
+        <WorkspaceToolbar>
+          <SegmentedControl
+            label="Estado de la venta"
+            value={statusFilter as (typeof STATUS_TABS)[number]['value']}
+            onChange={setStatusFilter}
+            options={STATUS_TABS}
+          />
+          <ToolbarSearch value={search} onChange={setSearch} placeholder="Buscar vendedor o factura" />
+          <ToolbarSelect label="Vendedor" value={sellerFilter} onChange={setSellerFilter} options={sellerOptions} />
+        </WorkspaceToolbar>
 
-        {/* Filtro por vendedor + resumen de dinero de lo que se está VIENDO
-            (pestaña + filtro), no del total sin filtrar — mismo criterio que
-            el resumen de Compras en Inventario (`filteredPurchases`). */}
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="sm:w-64">
-            <FilterSelect
-              value={sellerFilter}
-              onChange={setSellerFilter}
-              options={sellerOptions}
-              placeholder="Todos los vendedores"
-            />
-          </div>
-          <div className="flex items-center divide-x divide-border self-start rounded-xl border bg-card px-1 py-1 sm:self-auto">
-            <SummaryPill label="Ventas" value={filteredSales.length.toString()} />
-            <SummaryPill
-              label="Importe"
-              value={formatCordobas(
-                filteredSales.reduce((sum, s) => sum + Math.max(0, s.total - (s.deliveryFee ?? 0)), 0),
-              )}
-            />
-            {/* Una venta rechazada no genera comisión ni ganancia real: mostrarlas
-                en esa pestaña sería plata que nunca se movió. */}
-            {statusFilter !== 'rejected' && (
-              <>
-                <SummaryPill
-                  label={comisionLabel}
-                  value={formatCordobas(filteredSales.reduce((sum, s) => sum + s.totalComision, 0))}
-                  accent
-                />
-                {/* Fondo de empresa y ganancia de tienda: datos sensibles, solo
-                    admin (el backend tampoco los manda a un vendedor común,
-                    ver routes/sales.ts). */}
-                {isAdmin && (
-                  <>
-                    <SummaryPill
-                      label="Fondo empresa"
-                      value={formatCordobas(
-                        filteredSales.reduce((sum, s) => sum + (s.totalSalary ?? 0), 0),
-                      )}
-                    />
-                    <SummaryPill
-                      label="Ganancia tienda"
-                      value={formatCordobas(
-                        filteredSales.reduce((sum, s) => sum + (s.totalGananciaTienda ?? 0), 0),
-                      )}
-                    />
-                  </>
-                )}
-              </>
+        {/* Resumen de dinero de lo que se está VIENDO (estado + vendedor), no
+            del total sin filtrar. La cantidad de ventas va como dato del
+            importe para que la franja quepa en cuatro. */}
+        <MetricStrip columns={statusFilter === 'rejected' || !isAdmin ? 2 : 4}>
+          <Metric
+            label="Importe"
+            value={formatCordobas(
+              filteredSales.reduce((sum, s) => sum + Math.max(0, s.total - (s.deliveryFee ?? 0)), 0),
             )}
-          </div>
-        </div>
+            sub={`${filteredSales.length} ${filteredSales.length === 1 ? 'venta' : 'ventas'} · sin delivery`}
+          />
+          {/* Una venta rechazada no genera comisión ni ganancia real: mostrarlas
+              en esa pestaña sería plata que nunca se movió. */}
+          {statusFilter !== 'rejected' && (
+            <Metric
+              label={comisionLabel}
+              value={formatCordobas(filteredSales.reduce((sum, s) => sum + s.totalComision, 0))}
+            />
+          )}
+          {/* Fondo de empresa y ganancia de tienda: datos sensibles, solo admin
+              (el backend tampoco los manda a un vendedor común). */}
+          {statusFilter !== 'rejected' && isAdmin && (
+            <Metric
+              label="Fondo empresa"
+              value={formatCordobas(filteredSales.reduce((sum, s) => sum + (s.totalSalary ?? 0), 0))}
+            />
+          )}
+          {statusFilter !== 'rejected' && isAdmin && (
+            <Metric
+              label="Ganancia tienda"
+              value={formatCordobas(filteredSales.reduce((sum, s) => sum + (s.totalGananciaTienda ?? 0), 0))}
+            />
+          )}
+        </MetricStrip>
 
+        <div className="space-y-3 p-4">
         {/* Barra de acciones masivas: solo aparece con algo seleccionado
             (que a su vez solo es posible en Pendientes, para admin). */}
         {canBulkSelect && selectedIds.size > 0 && (
@@ -558,13 +557,15 @@ export default function AdminVentas() {
           fetching={fetchingSales}
           error={salesError}
           onRetry={refetchSales}
-          loadingFallback={<BrandLoader text="Cargando ventas..." />}
+          shape="table"
         >
           <DataTable
             tableId="ventas"
             columns={columns}
             data={filteredSales}
             hideSearch
+            globalFilterValue={search}
+            onGlobalFilterChange={setSearch}
             exportFilename="ventas"
             emptyText="No hay ventas en este estado."
             onRowClick={(row) => openSale(row.id)}
@@ -574,7 +575,8 @@ export default function AdminVentas() {
             allSelected={canBulkSelect && filteredSales.length > 0 && filteredSales.every((s) => selectedIds.has(s.id))}
           />
         </QueryState>
-      </div>
+        </div>
+      </Workspace>
 
       <SaleDetailDrawer
         saleId={openSaleId}
@@ -611,10 +613,10 @@ export default function AdminVentas() {
             <Button variant="ghost" onClick={() => setRejectFor(null)}>
               Cancelar
             </Button>
-            <Button onClick={handleReject} disabled={rejecting} className="bg-destructive/90">
-        {rejecting && <Spinner className="mr-2" />}
-        Rechazar
-      </Button>
+            <Button variant="destructive" onClick={handleReject} disabled={rejecting}>
+              {rejecting && <Spinner className="mr-2" />}
+              Rechazar
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -625,14 +627,5 @@ export default function AdminVentas() {
   );
 }
 
-// Mismo widget que `PurchasesTable` en Inventario (duplicado a propósito: son
-// 10 líneas sin estado propio, no vale la pena una dependencia compartida por
-// esto solo).
-function SummaryPill({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
-  return (
-    <div className="flex flex-col items-center px-3 py-0.5 min-w-[72px]">
-      <span className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</span>
-      <span className={`text-sm font-bold ${accent ? "text-primary-2" : "text-foreground"}`}>{value}</span>
-    </div>
-  );
-}
+// Error dentro de la sección: se muestra en el área de contenido y la barra lateral sigue viva.
+export { AdminRouteError as ErrorBoundary } from '~/components/layout/route-error';

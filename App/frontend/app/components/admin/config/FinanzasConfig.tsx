@@ -58,7 +58,7 @@ function CeilingField({
           <Input
             id={id}
             type="number"
-            placeholder="Infinito"
+            placeholder="Sin límite"
             aria-invalid={!!error}
             value={field.value === null || field.value === undefined ? '' : String(field.value)}
             onBlur={field.onBlur}
@@ -121,10 +121,10 @@ export function FinanzasConfig() {
     <div className="space-y-6">
       <form onSubmit={submit} className="space-y-8">
 
-        <Section title="Configuración General" description="Parámetros base que aplican a todos los módulos.">
+        <Section title="Configuración general" description="Parámetros base que aplican a todos los módulos.">
           <div className="space-y-4">
             <Field data-invalid={!!errors.exchangeRate}>
-              <FieldLabel htmlFor="cfg-exchange-rate" required>Tasa de Cambio (C$ por USD)</FieldLabel>
+              <FieldLabel htmlFor="cfg-exchange-rate" required>Tasa de cambio (C$ por USD)</FieldLabel>
               <Input
                 id="cfg-exchange-rate"
                 type="number" step="0.01"
@@ -136,7 +136,7 @@ export function FinanzasConfig() {
               <FieldError errors={[errors.exchangeRate]} />
             </Field>
             <Field data-invalid={!!errors.salaryPercentage}>
-              <FieldLabel htmlFor="cfg-salary" required>Fondo de la Empresa (Salary %)</FieldLabel>
+              <FieldLabel htmlFor="cfg-salary" required>Fondo de la empresa (%)</FieldLabel>
               <Input
                 id="cfg-salary"
                 type="number" step="0.01"
@@ -149,7 +149,7 @@ export function FinanzasConfig() {
               <FieldError errors={[errors.salaryPercentage]} />
             </Field>
             <Field data-invalid={!!errors.minMarginMultiplier}>
-              <FieldLabel htmlFor="cfg-min-margin" required>Margen de Precio Mínimo (Múltiplo)</FieldLabel>
+              <FieldLabel htmlFor="cfg-min-margin" required>Margen de precio mínimo (múltiplo)</FieldLabel>
               <Input
                 id="cfg-min-margin"
                 type="number" step="0.01"
@@ -164,7 +164,7 @@ export function FinanzasConfig() {
           </div>
         </Section>
 
-        <Section title="Distribución de Pozos" description="Los porcentajes asignados a cada fondo (deben sumar exactamente 1.00).">
+        <Section title="Distribución de pozos" description="Los porcentajes asignados a cada fondo (deben sumar exactamente 1.00).">
           <div className="grid gap-4 md:grid-cols-3">
             {POZO_KEYS.map(key => (
               <Field key={key} data-invalid={!!errors.pozos?.[key]}>
@@ -185,7 +185,7 @@ export function FinanzasConfig() {
           <FieldError className="mt-3" errors={[errors.pozos]} />
         </Section>
 
-        <Section title="Escala de Costo F/U" description="Escala escalonada por costo real (C$).">
+        <Section title="Escala de costo F/U" description="Escala escalonada por costo real (C$).">
           <div className="space-y-2">
             <FieldError errors={[errors.costoFUScale]} />
             {costoFUScale.fields.map((row, i) => (
@@ -227,7 +227,7 @@ export function FinanzasConfig() {
           </div>
         </Section>
 
-        <Section title="Escala de Márgenes (PVP)" description="Márgenes de venta sugeridos basados en Coste Final (C$).">
+        <Section title="Escala de márgenes (PVP)" description="Márgenes de venta sugeridos según el costo final (C$).">
           <div className="space-y-2">
             <FieldError errors={[errors.marginScale]} />
             {marginScale.fields.map((row, i) => (
@@ -269,7 +269,7 @@ export function FinanzasConfig() {
           </div>
         </Section>
 
-        <Section title="Escala de Comisiones" description="Comisión del vendedor basada en Utilidad Neta (C$).">
+        <Section title="Escala de comisiones" description="Comisión del vendedor según la utilidad neta (C$).">
           <div className="space-y-2">
             <FieldError errors={[errors.commissionScale]} />
             {commissionScale.fields.map((row, i) => (
@@ -311,13 +311,13 @@ export function FinanzasConfig() {
           </div>
         </Section>
 
-        <Section title="Descuentos por Mayoreo (inactivo)" description="Retirado del cotizador: los descuentos por volumen ahora se dan con un código de descuento al facturar. La configuración se conserva por si se reactiva.">
+        <Section title="Descuentos por mayoreo (inactivo)" description="Retirado del cotizador: los descuentos por volumen ahora se dan con un código de descuento al facturar. La configuración se conserva por si se reactiva.">
           <div className="space-y-2">
             <FieldError errors={[errors.wholesaleDiscounts]} />
             {wholesaleDiscounts.fields.map((row, i) => (
               <div key={row.id} className="flex items-end gap-4">
                 <Field className="flex-1" data-invalid={!!errors.wholesaleDiscounts?.[i]?.minQty}>
-                  <FieldLabel htmlFor={`whs-qty-${row.id}`} className="text-xs" required>Cantidad Mínima</FieldLabel>
+                  <FieldLabel htmlFor={`whs-qty-${row.id}`} className="text-xs" required>Cantidad mínima</FieldLabel>
                   <Input
                     id={`whs-qty-${row.id}`}
                     type="number"

@@ -42,7 +42,7 @@ export function SpotlightCard({
   //  · Sin `shadow-2xl`: la elevación va por borde y fondo (ver Fase 7.1).
   const baseStyles =
     "rounded-card border bg-card shadow-sm transition-colors duration-200 hover:border-border/80";
-  
+
   // Sin `hover:-translate-y-1`: mover el elemento al pasar el mouse desplaza el
   // layout y, en una grilla, hace que las tarjetas vecinas parezcan temblar.
   // La elevación va por borde (ver `baseStyles`).
@@ -134,7 +134,7 @@ export function StatCard({
         {Icon && <HugeIcon icon={Icon} size={16} strokeWidth={2} className={theme.icon} />}
         <span className={`stat-card-label text-xs uppercase tracking-wide font-medium ${theme.label}`}>{label}</span>
       </div>
-      <p className={`stat-card-value nums mt-2 font-heading text-2xl font-bold ${theme.value}`}>
+      <p className={`stat-card-value nums mt-2 font-display text-2xl font-bold ${theme.value}`}>
         {countTo !== undefined ? <CountUp value={countTo} format={format} /> : value}
       </p>
       {sub && <p className="nums mt-0.5 text-sm font-medium text-muted-foreground">{sub}</p>}

@@ -82,6 +82,12 @@ interface DataTableProps<T> {
    * visibles por tabla; sin él, todas compartirían la misma preferencia.
    */
   tableId?: string;
+  /**
+   * Columnas ocultas de entrada (por id). Para tablas con muchas columnas que
+   * no entran en una laptop: se pueden volver a mostrar desde el botón de
+   * columnas, y esa elección (con `tableId`) queda guardada.
+   */
+  defaultHiddenColumns?: string[];
   /** Vacío por FILTRO, distinto del vacío real. Ver nota en el render. */
   emptyFilteredText?: ReactNode;
   /** Si se pasa, el vacío por filtro ofrece limpiar. */
@@ -129,6 +135,7 @@ export function DataTable<T>({
   mobileCard,
   paginated = true,
   tableId,
+  defaultHiddenColumns,
   emptyFilteredText,
   onClearFilters,
   exportFilename,
@@ -144,7 +151,9 @@ export function DataTable<T>({
   // render del cliente rompe la hidratación.
   useEffect(() => {
     setDensityState(readDensity());
-    setColumnVisibility(readColumnVisibility(tableId));
+    const defaults = Object.fromEntries((defaultHiddenColumns ?? []).map((id) => [id, false]));
+    setColumnVisibility({ ...defaults, ...readColumnVisibility(tableId) });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- defaults de entrada: solo al montar.
   }, [tableId]);
 
   const setDensity = (next: Density) => {
@@ -245,7 +254,7 @@ export function DataTable<T>({
     ];
     // BOM: sin él Excel en Windows abre el archivo en ANSI y "Audífonos" sale
     // como "AudÃ­fonos".
-    const blob = new Blob([`﻿${lines.join("\r\n")}`], { type: "text/csv;charset=utf-8;" });
+    const blob = new Blob([`\uFEFF${lines.join("\r\n")}`], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -258,7 +267,7 @@ export function DataTable<T>({
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
         {!hideSearch && (
-          <div className="flex flex-1 items-center gap-2 rounded-pill border border-border bg-card px-3 transition-colors focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/15 sm:max-w-xs sm:flex-none">
+          <div className="flex h-9 flex-1 items-center gap-2 rounded-md border border-border bg-card px-2.5 transition-colors focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/30 sm:max-w-xs sm:flex-none">
             <HugeIcon icon={Search01Icon} size={16} strokeWidth={2} className="text-muted-foreground" />
             <input
               ref={searchRef}
@@ -268,7 +277,7 @@ export function DataTable<T>({
               aria-label={searchPlaceholder}
               className="w-full bg-transparent py-2 text-sm outline-none placeholder:text-muted-foreground"
             />
-            <kbd className="hidden shrink-0 rounded border border-border px-1 text-[10px] text-muted-foreground sm:inline">
+            <kbd className="hidden shrink-0 rounded border border-border px-1 text-2xs text-muted-foreground sm:inline">
               /
             </kbd>
           </div>
@@ -289,7 +298,7 @@ export function DataTable<T>({
             title={compact ? "Filas normales" : "Filas compactas"}
             aria-label={compact ? "Cambiar a filas normales" : "Cambiar a filas compactas"}
             aria-pressed={compact}
-            className="grid size-8 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <HugeIcon icon={MenuSquareIcon} size={16} strokeWidth={2} />
           </button>
@@ -300,7 +309,7 @@ export function DataTable<T>({
                 type="button"
                 title="Columnas"
                 aria-label="Elegir columnas visibles"
-                className="grid size-8 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <HugeIcon icon={LayoutTable01Icon} size={16} strokeWidth={2} />
               </button>
@@ -331,7 +340,7 @@ export function DataTable<T>({
               onClick={exportCsv}
               title="Exportar CSV"
               aria-label="Exportar a CSV lo que se ve en la tabla"
-              className="grid size-8 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <HugeIcon icon={Download04Icon} size={16} strokeWidth={2} />
             </button>
@@ -362,16 +371,22 @@ export function DataTable<T>({
                 {selectable && (
                   <th className="w-10 px-3 py-2.5">
                     {onSelectAll && (
-                      <div
+                      // <button role="checkbox"> y no <div onClick>: así llega el
+                      // teclado (Tab + Espacio) y el lector anuncia el estado.
+                      <button
+                        type="button"
+                        role="checkbox"
+                        aria-checked={allSelected}
+                        aria-label="Seleccionar todas las filas"
                         onClick={() => onSelectAll(!allSelected)}
-                        className={`flex h-[18px] w-[18px] cursor-pointer items-center justify-center rounded border transition-colors ${
+                        className={`flex h-[18px] w-[18px] cursor-pointer items-center justify-center rounded border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                           allSelected
                             ? "border-primary-2 bg-primary-2 text-primary-foreground"
                             : "border bg-card hover:bg-muted"
                         }`}
                       >
-                        {allSelected && <HugeIcon icon={Tick01Icon} size={14} strokeWidth={2} />}
-                      </div>
+                        {allSelected && <HugeIcon icon={Tick01Icon} size={14} strokeWidth={2} aria-hidden />}
+                      </button>
                     )}
                   </th>
                 )}
@@ -383,7 +398,9 @@ export function DataTable<T>({
                       key={header.id}
                       aria-sort={sorted === "asc" ? "ascending" : sorted === "desc" ? "descending" : undefined}
                       className={cn(
-                        "whitespace-nowrap px-3 py-2.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground",
+                        // Un solo estilo de encabezado, en frase: las MAYÚSCULAS
+                        // en negrita competían con los datos.
+                        "whitespace-nowrap px-3 py-2.5 text-xs font-medium text-muted-foreground",
                         align === "right" && "text-right",
                         align === "center" && "text-center",
                         header.column.columnDef.meta?.className
@@ -577,10 +594,21 @@ export function DataTable<T>({
             const isSelected =
               (selectedRowIds && selectedRowIds.has(rowId)) || (selectedRowId && rowId === selectedRowId);
             return (
+              // Tarjeta clickeable: también se abre con Enter/Espacio. Se ignoran
+              // las teclas que vienen de controles internos (botones del card).
               <div
                 key={row.id}
+                role={onRowClick ? "button" : undefined}
+                tabIndex={onRowClick ? 0 : undefined}
                 onClick={() => onRowClick?.(row.original)}
-                className={`${onRowClick ? "cursor-pointer " : ""}${isSelected ? "rounded-card ring-2 ring-primary-2" : ""}`}
+                onKeyDown={(e) => {
+                  if (!onRowClick || e.target !== e.currentTarget) return;
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    onRowClick(row.original);
+                  }
+                }}
+                className={`${onRowClick ? "cursor-pointer rounded-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring " : ""}${isSelected ? "rounded-card ring-2 ring-primary-2" : ""}`}
               >
                 {mobileCard ? (
                   mobileCard(row.original)

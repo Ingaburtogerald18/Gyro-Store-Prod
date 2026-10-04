@@ -18,7 +18,7 @@ export type ContactInput = z.infer<typeof contactSchema>;
 
 export const checkoutSchema = z
   .object({
-    customerName: z.string().min(2, "Ingresa tu nombre").max(80),
+    customerName: z.string().min(2, "Ingresá tu nombre").max(80),
     customerPhone: z.string().min(7, "Teléfono inválido").max(20),
     deliveryMethod: z.enum(["retiro", "envio"]),
     address: z.string().max(200).optional().or(z.literal("")),

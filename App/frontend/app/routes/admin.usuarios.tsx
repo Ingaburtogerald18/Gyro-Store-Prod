@@ -3,7 +3,7 @@
 // en useUserActions. Acá solo se resuelve la lista, el filtro activos/papelera
 // y qué usuario está seleccionado.
 import { HugeIcon } from "~/components/ui/icon";
-import { Shield01Icon, UserRemove01Icon, UserSettings01Icon } from "@hugeicons/core-free-icons";
+import { UserSettings01Icon } from "@hugeicons/core-free-icons";
 import { useState, useMemo } from "react";
 import type { MetaFunction } from "@remix-run/node";
 import { pageTitle } from '~/lib/brand';
@@ -17,11 +17,9 @@ import {
 import { useAppSelector } from "~/store/hooks";
 import { selectIsAdmin } from "~/store/slices/authSlice";
 
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "~/components/ui/card";
 import { PageHeader } from "~/components/layout/PageHeader";
-import { AnimatedTabs } from "~/components/ui/AnimatedTabs";
+import { SegmentedControl, ToolbarSearch, Workspace, WorkspaceToolbar } from "~/components/admin/workspace";
 import { QueryState } from "~/components/ui/QueryState";
-import { BrandLoader } from "~/components/ui/module-loader";
 
 import { UserCard } from "~/components/admin/users/UserCard";
 import { CreateUserDialog } from "~/components/admin/users/CreateUserDialog";
@@ -56,7 +54,8 @@ export default function AdminUsuarios() {
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const [viewedUser, setViewedUser] = useState<UserProfile | null>(null);
   const [detailTab, setDetailTab] = useState<"editar" | "rendimiento">("editar");
-  const [currentTab, setCurrentTab] = useState("activos");
+  const [currentTab, setCurrentTab] = useState<"activos" | "inactivos">("activos");
+  const [search, setSearch] = useState("");
 
   function openDetail(user: UserProfile, tab: "editar" | "rendimiento") {
     setSelectedUser(user);
@@ -65,61 +64,56 @@ export default function AdminUsuarios() {
 
   const activeUsers = useMemo(() => users.filter((u) => !u.deleted_at), [users]);
   const deletedUsers = useMemo(() => users.filter((u) => u.deleted_at), [users]);
-  const displayedUsers = currentTab === "activos" ? activeUsers : deletedUsers;
-
-  const tabs = [
-    { id: "activos", label: "Personal Activo" },
-    { id: "inactivos", label: "Papelera (Inactivos)" },
-  ];
+  const displayedUsers = useMemo(() => {
+    const list = currentTab === "activos" ? activeUsers : deletedUsers;
+    const q = search.trim().toLowerCase();
+    if (!q) return list;
+    return list.filter((u) =>
+      [u.name, u.email].filter(Boolean).some((v) => String(v).toLowerCase().includes(q)),
+    );
+  }, [currentTab, activeUsers, deletedUsers, search]);
 
   return (
     <div className="space-y-6">
       <PageHeader
         eyebrow="Análisis y sistema"
-        title={isAdmin ? "Gestión de Personal" : "Personal"}
+        title="Personal"
+        className="mb-0"
         description={
           isAdmin
-            ? "Administra los roles y el acceso del equipo a Gyro Store."
+            ? "Administrá los roles y el acceso del equipo."
             : "Directorio del equipo. Para cambiar tus propios datos, entrá a «Mi perfil» desde tu avatar."
         }
         actions={isAdmin ? <CreateUserDialog /> : undefined}
       />
 
-      <AnimatedTabs items={tabs} value={currentTab} onChange={setCurrentTab} layoutId="users-tabs" />
+      <Workspace>
+        <WorkspaceToolbar>
+          <SegmentedControl
+            label="Personal"
+            value={currentTab}
+            onChange={setCurrentTab}
+            options={[
+              { value: "activos", label: `Activos (${activeUsers.length})` },
+              { value: "inactivos", label: `Dados de baja (${deletedUsers.length})` },
+            ]}
+          />
+          <ToolbarSearch value={search} onChange={setSearch} placeholder="Buscar por nombre o correo" />
+        </WorkspaceToolbar>
 
-      <Card>
-        <CardHeader className="border-b border-border pb-4">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            {currentTab === "activos" ? (
-              <>
-                <HugeIcon icon={Shield01Icon} size={20} strokeWidth={2} className="text-primary" />
-                Personal Activo
-              </>
-            ) : (
-              <>
-                <HugeIcon icon={UserRemove01Icon} size={20} strokeWidth={2} className="text-destructive" />
-                Papelera (30 días)
-              </>
-            )}
-          </CardTitle>
-          <CardDescription>
+        <div className="space-y-4 p-4">
+          <p className="text-xs text-muted-foreground">
             {currentTab === "activos"
-              ? "Personal con acceso al sistema mediante Microsoft Entra ID."
+              ? "Acceden al sistema con su cuenta de Microsoft."
               : isAdmin
-                ? "Usuarios dados de baja. Serán eliminados permanentemente después de 30 días."
+                ? "Se eliminan definitivamente 30 días después de la baja."
                 : "Compañeros que ya no tienen acceso al sistema."}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="p-4 sm:p-6">
+          </p>
           <QueryState
             loading={isLoading}
             error={isError}
             empty={displayedUsers.length === 0}
-            loadingFallback={
-              <div className="flex justify-center p-12">
-                <BrandLoader text="Cargando perfiles..." />
-              </div>
-            }
+            shape="card"
             emptyFallback={
               <div className="p-12 text-center text-muted-foreground">
                 <HugeIcon
@@ -129,7 +123,11 @@ export default function AdminUsuarios() {
                   className="mx-auto mb-2 opacity-50"
                   aria-hidden
                 />
-                {currentTab === "activos" ? "Sin usuarios registrados" : "La papelera está vacía"}
+                {search.trim()
+                  ? "Nadie coincide con la búsqueda."
+                  : currentTab === "activos"
+                    ? "Todavía no hay personas registradas."
+                    : "No hay nadie dado de baja."}
               </div>
             }
           >
@@ -162,8 +160,8 @@ export default function AdminUsuarios() {
               </AnimatePresence>
             </div>
           </QueryState>
-        </CardContent>
-      </Card>
+        </div>
+      </Workspace>
 
       {/* Los diálogos de administración solo se MONTAN para el admin. Renderizarlos
           siempre y confiar en que nadie los abra deja el formulario de edición y las
@@ -190,3 +188,6 @@ export default function AdminUsuarios() {
     </div>
   );
 }
+
+// Error dentro de la sección: se muestra en el área de contenido y la barra lateral sigue viva.
+export { AdminRouteError as ErrorBoundary } from '~/components/layout/route-error';

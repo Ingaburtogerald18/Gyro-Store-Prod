@@ -1,5 +1,5 @@
 // Envuelve el patrón repetido loading/error/vacío de los listados admin
-// (ventas, facturación, cuotas, caja, inventario).
+// (ventas, facturación, cuotas, inventario).
 //
 // ── `shape` en vez de un fallback a mano por vista ──
 // Antes cada vista inventaba su esqueleto y ninguno coincidía con la forma

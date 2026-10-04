@@ -82,7 +82,7 @@ export function QuoteSummary({
           {/* Totales de la venta: solo aportan cuando hay más de un producto. */}
           {result.lines.length > 1 && (
             <div className="space-y-1 rounded-lg border-2 border-primary/20 bg-primary/5 p-3">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-primary-2">
+              <span className="text-2xs font-bold uppercase tracking-wider text-primary-2">
                 Totales de la venta
               </span>
               <dl className="nums divide-y divide-border/60">
@@ -156,7 +156,7 @@ function InvoiceTotalBreakdown({ invoice }: { invoice: Invoice }) {
       </span>
 
       {deliveryFee > 0 && (
-        <p className="mt-2 text-[11px] leading-snug text-muted-foreground">
+        <p className="mt-2 text-2xs leading-snug text-muted-foreground">
           El envío no genera comisión ni entra en las ventas de reportería: se
           informa aparte, en el reporte de Delivery.
         </p>

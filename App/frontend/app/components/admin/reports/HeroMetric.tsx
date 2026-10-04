@@ -8,6 +8,7 @@
 //
 // Por eso el resto de los KPIs pasan a versión compacta y sin CountUp. El peso
 // no se reparte.
+import type React from 'react';
 import type { IconSvgElement } from '@hugeicons/react';
 import { Area, AreaChart } from 'recharts';
 import { ChartContainer, type ChartConfig } from '~/components/ui/chart';
@@ -28,11 +29,14 @@ export function HeroMetric({
   prev,
   format,
   series,
+  note,
   onClick,
   className,
 }: {
   icon?: IconSvgElement;
   eyebrow: string;
+  /** Aclaración bajo la comparación (p. ej. el delivery, que va aparte). */
+  note?: React.ReactNode;
   value: number;
   prev?: number;
   format: (n: number) => string;
@@ -47,13 +51,13 @@ export function HeroMetric({
         {icon && (
           <HugeIcon icon={icon} size={16} strokeWidth={2} className="text-primary" />
         )}
-        <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+        <span className="text-2xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
           {eyebrow}
         </span>
       </div>
 
       {/* 48 px. Es el único número de la pantalla a este tamaño. */}
-      <p className="nums mt-3 font-heading text-5xl font-semibold tracking-tight text-foreground">
+      <p className="nums mt-3 font-display text-5xl font-bold tracking-tight text-foreground">
         <CountUp value={value} format={format} />
       </p>
 
@@ -65,6 +69,7 @@ export function HeroMetric({
           </span>
         )}
       </div>
+      {note && <p className="mt-1 text-xs text-muted-foreground">{note}</p>}
 
       {/* Sparkline: sin ejes, sin grilla, sin tooltip. No es un gráfico para
           leer valores — es la forma de la tendencia, y compite con nada. */}
@@ -151,11 +156,11 @@ export function CompactKpi({
             className="text-muted-foreground/70"
           />
         )}
-        <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+        <span className="text-2xs font-medium uppercase tracking-wide text-muted-foreground">
           {label}
         </span>
       </div>
-      <p className={cn("nums mt-1.5 text-xl font-semibold text-foreground", valueClassName)}>
+      <p className={cn("nums mt-1.5 font-display text-xl font-bold text-foreground", valueClassName)}>
         {format ? format(value) : value.toLocaleString('es-NI')}
       </p>
       <div className="mt-1 flex items-baseline gap-2">

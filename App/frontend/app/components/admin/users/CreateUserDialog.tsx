@@ -60,13 +60,13 @@ export function CreateUserDialog() {
       <DialogTrigger asChild>
         <Button variant="default">
           <HugeIcon icon={UserAdd01Icon} size={16} strokeWidth={2} className="mr-2" />
-          Agregar Empleado
+          Agregar persona
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <form onSubmit={handleCreate}>
           <DialogHeader>
-            <DialogTitle>Pre-crear Empleado</DialogTitle>
+            <DialogTitle>Agregar persona al equipo</DialogTitle>
             <DialogDescription>
               Registra al empleado y asigna su rol. Podrá iniciar sesión con Microsoft Entra ID
               y el sistema lo enlazará automáticamente.
@@ -97,7 +97,7 @@ export function CreateUserDialog() {
               <FieldLabel>Rol Inicial</FieldLabel>
               <Select value={newRole} onValueChange={(v) => setNewRole(v as AppRole)}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Selecciona un rol" />
+                  <SelectValue placeholder="Seleccioná un rol" />
                 </SelectTrigger>
                 <SelectContent>
                   {Object.entries(ROLE_LABELS).map(([key, label]) => (

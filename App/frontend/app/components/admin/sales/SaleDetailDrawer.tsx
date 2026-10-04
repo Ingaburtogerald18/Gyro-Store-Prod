@@ -72,7 +72,7 @@ export function SaleDetailDrawer({
                 : 'Cargando…'}
             </span>
             {sale?.isManualDate && (
-              <span className="inline-flex items-center rounded-full bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-600 dark:text-amber-400 border border-amber-500/20">
+              <span className="inline-flex items-center rounded-full bg-warning/10 px-2 py-0.5 text-2xs font-medium text-warning border border-warning/20">
                 Fecha manual
               </span>
             )}
@@ -110,7 +110,7 @@ export function SaleDetailDrawer({
                     <dd className="mt-0.5 font-medium text-foreground flex items-center gap-1.5 flex-wrap">
                       <span>{new Date(sale.createdAt).toLocaleDateString('es-NI')}</span>
                       {sale.isManualDate && (
-                        <span className="inline-flex items-center rounded-full bg-amber-500/10 px-1.5 py-0.2 text-[10px] font-medium text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                        <span className="inline-flex items-center rounded-full bg-warning/10 px-1.5 py-0.2 text-2xs font-medium text-warning border border-warning/20">
                           Fecha manual
                         </span>
                       )}
@@ -119,7 +119,7 @@ export function SaleDetailDrawer({
                 </dl>
 
                 <section>
-                  <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                  <h3 className="mb-2 text-2xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
                     Productos
                   </h3>
                   <div className="divide-y divide-border rounded-card border border-border">
@@ -281,10 +281,10 @@ function FinancialSection({ sale }: { sale: SaleWithItems }) {
 
   return (
     <section>
-      <h3 className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+      <h3 className="mb-2 flex items-center gap-2 text-2xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
         Desglose financiero
         {!definitivo && (
-          <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium normal-case tracking-normal text-muted-foreground">
+          <span className="rounded-full bg-muted px-1.5 py-0.5 text-2xs font-medium normal-case tracking-normal text-muted-foreground">
             Estimado
           </span>
         )}
@@ -326,7 +326,7 @@ function FinancialSection({ sale }: { sale: SaleWithItems }) {
       {expanded && (
         <div className="mt-3 space-y-3">
           {!definitivo && (
-            <p className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-[11px] leading-snug text-muted-foreground">
+            <p className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-2xs leading-snug text-muted-foreground">
               Estos números son una <span className="font-medium">estimación</span>: el costo sale del
               stock disponible, no de los lotes que se van a consumir. Al aprobar la venta se
               recalculan con el costo real y pueden moverse.
@@ -361,7 +361,7 @@ function FinancialSection({ sale }: { sale: SaleWithItems }) {
                   como una tajada que compite con la ganancia. Es ninguna de las
                   dos: el Costo F/U ya venía descontado dentro del costo del
                   producto (doc 11 §2). */}
-              <p className="mt-3 text-[11px] leading-snug text-muted-foreground">
+              <p className="mt-3 text-2xs leading-snug text-muted-foreground">
                 Ya está incluido en el costo de mercadería de arriba —{' '}
                 <span className="font-medium">no sale de la ganancia</span>. Cada venta recoge el
                 Costo F/U de sus unidades y lo reserva para estos gastos.

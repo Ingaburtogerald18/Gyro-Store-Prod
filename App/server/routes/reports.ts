@@ -25,6 +25,8 @@ import {
   exportSales,
   getExpensesByPozo,
   createExpense,
+  updateExpense,
+  previewExpense,
   deleteExpense,
   listExpenses,
   getExpensesOverflow,
@@ -37,13 +39,11 @@ import {
   getDeliveryInvoices,
   listLoanPayments,
   getLoanPaymentsSummary,
-  createLoanPayment,
-  deleteLoanPayment,
 } from '../services/reports';
 import { parseCursor } from '../utils/pagination';
 import { BadRequestError } from '../utils/httpError';
 import { parseUuidParam } from '../utils/params';
-import { createExpenseInputSchema, createLoanPaymentSchema } from '../../shared/schemas';
+import { createExpenseInputSchema } from '../../shared/schemas';
 
 const router = Router();
 
@@ -120,6 +120,7 @@ router.get(
         budget_prestamos_disponible,
         prestamos_cubierto_por_budget,
         prestamos_de_ganancia,
+        gastos_de_ganancia,
         ganancia_real,
         ganancia_real_prev,
         ...rest
@@ -331,7 +332,7 @@ router.get(
   asyncHandler(async (req, res) => {
     const startDate = typeof req.query.startDate === 'string' ? req.query.startDate : (typeof req.query.desde === 'string' ? req.query.desde : undefined);
     const endDate = typeof req.query.endDate === 'string' ? req.query.endDate : (typeof req.query.hasta === 'string' ? req.query.hasta : undefined);
-    const overflow = await getExpensesOverflow(startDate, endDate);
+    const overflow = await getExpensesOverflow(startDate);
     res.json(overflow);
   })
 );
@@ -347,6 +348,36 @@ router.post(
     const data = createExpenseInputSchema.parse(req.body);
     const expense = await createExpense(data, req.user!.uid);
     res.status(201).json(expense);
+  })
+);
+
+/**
+ * POST /api/reports/expenses/preview
+ * De dónde saldría un gasto si se guarda (su pozo, la bolsa extra, otros
+ * pozos, la ganancia). No escribe nada. `excludeId`: el gasto que se edita.
+ */
+const expensePreviewSchema = createExpenseInputSchema.extend({ excludeId: z.string().uuid().optional() });
+
+router.post(
+  '/expenses/preview',
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const { excludeId, ...data } = expensePreviewSchema.parse(req.body);
+    res.json(await previewExpense(data, excludeId));
+  })
+);
+
+/**
+ * PATCH /api/reports/expenses/:id
+ * Edita un gasto operativo (mismos campos que al registrarlo).
+ */
+router.patch(
+  '/expenses/:id',
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const id = parseUuidParam(req.params.id, 'Gasto no encontrado');
+    const data = createExpenseInputSchema.parse(req.body);
+    res.json(await updateExpense(id, data));
   })
 );
 
@@ -416,34 +447,6 @@ router.get(
     const startDate = typeof req.query.startDate === 'string' ? req.query.startDate : (typeof req.query.desde === 'string' ? req.query.desde : undefined);
     const endDate = typeof req.query.endDate === 'string' ? req.query.endDate : (typeof req.query.hasta === 'string' ? req.query.hasta : undefined);
     const result = await listLoanPayments(startDate, endDate);
-    res.json(result);
-  })
-);
-
-/**
- * POST /api/reports/loan-payments
- * Registra un pago de préstamo (monto_cs, fecha, nota).
- */
-router.post(
-  '/loan-payments',
-  requireAdmin,
-  asyncHandler(async (req, res) => {
-    const data = createLoanPaymentSchema.parse(req.body);
-    const payment = await createLoanPayment(data, req.user!.uid);
-    res.status(201).json(payment);
-  })
-);
-
-/**
- * DELETE /api/reports/loan-payments/:id
- * Elimina un pago de préstamo.
- */
-router.delete(
-  '/loan-payments/:id',
-  requireAdmin,
-  asyncHandler(async (req, res) => {
-    const id = parseUuidParam(req.params.id, 'Pago no encontrado');
-    const result = await deleteLoanPayment(id);
     res.json(result);
   })
 );

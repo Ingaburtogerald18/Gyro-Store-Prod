@@ -92,7 +92,7 @@ export function LineBreakdown({
           <span className="block truncate text-xs font-semibold text-foreground">
             {line.productName}
           </span>
-          <span className="nums block text-[11px] text-muted-foreground">
+          <span className="nums block text-2xs text-muted-foreground">
             {line.quantity} × {formatCordobas(line.precioUnit)} = {formatCordobas(importe)}
           </span>
         </span>
@@ -118,7 +118,7 @@ export function LineBreakdown({
               el porcentaje. En móvil no entran dos columnas de cifras: queda
               solo la de totales. */}
           <dl className="nums divide-y divide-border/40 text-xs">
-            <div className="flex items-center justify-end gap-4 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            <div className="flex items-center justify-end gap-4 pb-1 text-2xs font-semibold uppercase tracking-wider text-muted-foreground">
               <span className="hidden w-20 text-right sm:block">Unitario</span>
               <span className="w-24 text-right">Total ×{line.quantity}</span>
             </div>
@@ -187,7 +187,7 @@ export function LineBreakdown({
           </dl>
 
           {!hasFinancials && (
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-2xs text-muted-foreground">
               El desglose de costos solo lo ve un administrador.
             </p>
           )}
@@ -229,8 +229,8 @@ export function ChainRow({
 
   return (
     <div className={cn('flex items-center justify-between gap-2 py-1', sub && 'pl-3')}>
-      <dt className={cn('min-w-0 flex-1 text-[11px]', tone)}>{label}</dt>
-      <dd className="flex shrink-0 items-center gap-4 text-[11px]">
+      <dt className={cn('min-w-0 flex-1 text-2xs', tone)}>{label}</dt>
+      <dd className="flex shrink-0 items-center gap-4 text-2xs">
         <span className={cn('hidden w-20 text-right tabular-nums sm:block', valueTone, 'opacity-80')}>
           {unit ?? ''}
         </span>
@@ -241,6 +241,17 @@ export function ChainRow({
 }
 
 // ── Pozos ──────────────────────────────────────────────────────────────────
+
+/** Nombre a mostrar de cada pozo: los mismos que usa Gastos (server/services/reports.ts). */
+const POZO_LABELS: Record<string, string> = {
+  publicidad: 'Publicidad',
+  mantenimiento: 'Mantenimiento',
+  utiles: 'Útiles de oficina',
+  garantias: 'Garantías',
+  prestamos: 'Préstamos',
+  suscripciones: 'Suscripciones',
+  servicios: 'Servicios básicos',
+};
 
 /** Los 7 pozos del doc 11 §2, en el orden en que se reparte el Costo F/U. */
 export const POZOS = [
@@ -313,7 +324,7 @@ export function PozosBars({
         return (
           <div key={pozoKey} className="flex flex-col gap-1">
             <div className="flex items-baseline justify-between gap-2 text-sm">
-              <span className="font-medium capitalize text-foreground">{pozoKey}</span>
+              <span className="font-medium text-foreground">{POZO_LABELS[pozoKey] ?? pozoKey}</span>
               <span className="nums text-muted-foreground">
                 {formatMoney(amount)}
                 <span className="ml-2 text-xs opacity-70">{pct.toFixed(1)}%</span>
@@ -324,7 +335,7 @@ export function PozosBars({
                 montar; con reduced-motion va directo al valor. */}
             <Progress
               value={barsReady ? pct : 0}
-              aria-label={`${pozoKey}: ${pct.toFixed(1)}% del costo fijo repartido`}
+              aria-label={`${POZO_LABELS[pozoKey] ?? pozoKey}: ${pct.toFixed(1)}% del costo fijo repartido`}
               className={cn(
                 'h-1.5 bg-primary/10',
                 destacado

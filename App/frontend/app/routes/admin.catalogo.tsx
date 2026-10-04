@@ -311,7 +311,7 @@ export default function AdminCatalogo() {
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-6">
               <div className="space-y-1">
                 <CardTitle className="text-xl font-bold text-foreground">Administrar Categorías</CardTitle>
-                <CardDescription className="text-muted-foreground">Crea o edita las categorías del catálogo público.</CardDescription>
+                <CardDescription className="text-muted-foreground">Creá o editá las categorías del catálogo público.</CardDescription>
               </div>
               <Button onClick={handleOpenCreateCategory}>
                 <HugeIcon icon={Add01Icon} size={18} strokeWidth={2} className="mr-2" />
@@ -343,6 +343,7 @@ export default function AdminCatalogo() {
                           variant="ghost" 
                           size="icon" 
                           onClick={() => { setEditingCategoryId(c.id); setCategoryFormData({ name: c.name, slug: c.slug, icon: c.icon ?? '' }); setIsCategoryDialogOpen(true); }}
+                          aria-label={`Editar categoría ${c.name}`}
                         >
                           <HugeIcon icon={Edit02Icon} size={16} strokeWidth={2} className="text-muted-foreground" />
                         </Button>
@@ -351,6 +352,7 @@ export default function AdminCatalogo() {
                           size="icon" 
                           className="hover:bg-destructive/20 hover:text-destructive"
                           onClick={() => handleDeleteCategory(c.id)}
+                          aria-label={`Eliminar categoría ${c.name}`}
                         >
                           <HugeIcon icon={Delete02Icon} size={16} strokeWidth={2} />
                         </Button>
@@ -398,7 +400,7 @@ export default function AdminCatalogo() {
             <DialogHeader>
               <DialogTitle>{editingCategoryId ? 'Editar Categoría' : 'Nueva Categoría'}</DialogTitle>
               <DialogDescription>
-                {editingCategoryId ? 'Modifica los detalles de esta categoría.' : 'Ingresa los detalles para la nueva categoría.'}
+                {editingCategoryId ? 'Modificá los detalles de esta categoría.' : 'Ingresá los detalles para la nueva categoría.'}
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
@@ -467,3 +469,6 @@ export default function AdminCatalogo() {
     </div>
   );
 }
+
+// Error dentro de la sección: se muestra en el área de contenido y la barra lateral sigue viva.
+export { AdminRouteError as ErrorBoundary } from '~/components/layout/route-error';

@@ -1,32 +1,25 @@
 // ProductCard — estilo panel del V1: la tarjeta es una superficie con marco
 // hairline que se eleva entera al hover (no solo la foto), con la imagen en un
-// stage 4:3 y el CTA anclado al fondo para que toda la fila alinee parejo.
+// stage cuadrado y el CTA anclado al fondo para que toda la fila alinee parejo.
 // Con >1 combinación de variantes, el CTA abre el QuickAddSheet para elegir
 // antes de agregar; con una sola va directo al carrito.
 import { HugeIcon } from "~/components/ui/icon";
 import { ImageNotFound01Icon, ShoppingCart02Icon } from "@hugeicons/core-free-icons";
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from '@remix-run/react';
 import { motion, useReducedMotion } from 'framer-motion';
 
-import { toast } from 'sonner';
 import type { CatalogProduct } from '@shared/schemas';
 import { Badge } from '~/components/ui/badge';
 import { Button } from '~/components/ui/button';
 import { QuickAddSheet } from '~/components/product/quick-add-sheet';
-import { useGetConfigQuery } from '~/store/api/sessionApi';
+import { useStoreConfig } from '~/hooks/useStoreConfig';
+import { WhatsappIcon } from '~/components/ui/whatsapp-icon';
 import { useAppDispatch } from '~/store/hooks';
 import { addItem, openCart } from '~/store/slices/cartSlice';
 import { cn } from "~/lib/utils"
 import { buildWhatsappUrl, formatCordobas, getProductUrl } from "~/lib/formatters";
 
-function WhatsappIcon(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width={16} height={16} {...props}>
-      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.888-.788-1.489-1.761-1.663-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z" />
-    </svg>
-  );
-}
 
 export function ProductCard({
   product,
@@ -35,22 +28,25 @@ export function ProductCard({
 }: {
   product: CatalogProduct;
   layout?: 'grid' | 'list';
-  /** Posición en la grilla: escalona la entrada de las tarjetas visibles. */
+  /** Posición en la grilla: las primeras 4 fotos cargan sin lazy. */
   index?: number;
 }) {
   const dispatch = useAppDispatch();
-  const { data: config } = useGetConfigQuery();
+  const config = useStoreConfig();
   const reduce = useReducedMotion();
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   // El sheet se monta recién en el primer uso: con 40 tarjetas en pantalla, 40
   // portales vacíos son 40 nodos y 40 suscripciones que nadie pidió.
   const [quickAddMounted, setQuickAddMounted] = useState(false);
-  // Blur-up: la foto entra desenfocada y se resuelve al cargar, en vez de
-  // aparecer de golpe sobre un hueco. `onLoad` cubre también la imagen que ya
-  // venía del caché del navegador (dispara igual, solo que de inmediato).
+  // onLoad puede ocurrir antes de hidratar: comprobar también la imagen del DOM.
   const [imageLoaded, setImageLoaded] = useState(false);
+  const imageRef = useRef<HTMLImageElement>(null);
 
   const image = product.images[0];
+  useEffect(() => {
+    const img = imageRef.current;
+    setImageLoaded(Boolean(img?.complete && img.naturalWidth > 0));
+  }, [image]);
   // Segunda foto: si existe, hace crossfade al pasar el mouse (patrón del V1).
   const hoverImage = product.images[1];
   const soldOut = product.stock <= 0;
@@ -64,6 +60,15 @@ export function ProductCard({
   const description = product.description
     ? product.description.replace(/<[^>]*>?/gm, '').trim()
     : '';
+  // Línea técnica (Chivo Mono): hasta tres valores CORTOS de la ficha, tipo
+  // "1DD+1BA · 23 Ω · 110 dB". Los valores largos ("Hasta 15 metros (en
+  // espacios abiertos)") son explicación, no dato: van a la ficha, no acá.
+  // Sin specs cargadas no se muestra nada.
+  const specLine = product.specs
+    .map((s) => s.value.trim())
+    .filter((v) => v && v.length <= 16)
+    .slice(0, 3)
+    .join(' · ');
 
   function handleCta(e: React.MouseEvent) {
     e.preventDefault();
@@ -86,7 +91,6 @@ export function ProductCard({
       }),
     );
     dispatch(openCart());
-    toast.success('Agregado al carrito');
   }
 
   // "Pedir por WhatsApp": camino de compra directo, sin pasar por el carrito. Si
@@ -108,23 +112,20 @@ export function ProductCard({
   // La tarjeta entera se eleva al hover (ver `shell` más abajo); acá la foto
   // solo hace zoom por separado, sin trasladarse.
   const Stage = (
-    <Link
-      to={productUrl}
-      prefetch="intent"
-      aria-label={product.name}
+    <div
       className={cn(
-        'product-stage relative block overflow-hidden rounded-2xl focus-visible:outline-none',
+        'product-stage relative block overflow-hidden rounded-2xl',
         isList ? 'aspect-square h-full w-full shrink-0' : 'aspect-square w-full',
       )}
     >
       <div className="absolute top-3 left-3 z-10 flex flex-col items-start gap-1.5">
         {onSale && (
-          <Badge variant="promo" className="text-[10px] tabular-nums sm:px-2.5 sm:text-[11px]">
+          <Badge variant="promo" className="text-2xs tabular-nums sm:px-2.5">
             −{discountPct}%
           </Badge>
         )}
         {product.isPromo && !onSale && (
-          <Badge variant="promo" className="text-[10px] sm:px-2.5 sm:text-[11px]">
+          <Badge variant="promo" className="text-2xs sm:px-2.5">
             Oferta
           </Badge>
         )}
@@ -133,9 +134,9 @@ export function ProductCard({
       {lowStock && (
         <Badge
           variant="destructive"
-          className="absolute top-2 right-2 z-10 text-[10px] sm:px-2.5 sm:text-[11px]"
+          className="absolute top-2 right-2 z-10 text-2xs sm:px-2.5"
         >
-          ¡Últimas {product.stock}!
+          {product.stock === 1 ? 'Última unidad' : `Quedan ${product.stock}`}
         </Badge>
       )}
 
@@ -153,6 +154,7 @@ export function ProductCard({
 
       {image ? (
         <img
+          ref={imageRef}
           src={image}
           alt={product.name}
           loading={index < 4 ? 'eager' : 'lazy'}
@@ -163,7 +165,8 @@ export function ProductCard({
           onError={() => setImageLoaded(true)}
           className={cn(
             'ease-expo relative h-full w-full object-cover transition duration-[600ms] will-change-transform',
-            'group-hover:scale-[1.06]',
+            // Sin zoom al pasar el mouse: con la tarjeta que se eleva y el cambio a la
+            // segunda foto ya hay respuesta suficiente, y la foto se examina mejor quieta.
             // El blur-up no se anima con `motion`: es una transición CSS sobre
             // filter+scale, que el compositor resuelve sin trabajo de JS.
             !imageLoaded && !reduce && 'scale-[1.04] blur-lg',
@@ -181,28 +184,29 @@ export function ProductCard({
       {soldOut && (
         <Badge
           variant="secondary"
-          className="absolute bottom-2 left-1/2 -translate-x-1/2 py-1 text-[10px] sm:bottom-3 sm:px-3 sm:text-[11px]"
+          className="font-spec absolute bottom-2 left-1/2 -translate-x-1/2 py-1 text-2xs sm:bottom-3 sm:px-3"
         >
           Agotado
         </Badge>
       )}
-    </Link>
+    </div>
   );
 
   const Info = (
-    <Link
-      to={productUrl}
-      prefetch="intent"
+    <div
       className={cn(
-        'flex min-w-0 flex-col gap-1 focus-visible:outline-none',
+        'flex min-w-0 flex-col gap-1',
         isList ? 'flex-1 justify-center gap-1.5 py-1' : 'flex-1 pt-3 sm:pt-4',
       )}
     >
-      <h3 className="line-clamp-2 text-[13px] leading-snug font-bold tracking-tight text-foreground transition-colors group-hover:text-primary-2 sm:text-xl">
+      <h3 className="line-clamp-2 text-sm leading-snug font-semibold text-foreground sm:text-lg">
         {product.name}
       </h3>
+      {specLine && (
+        <p className="font-spec line-clamp-1 text-2xs text-muted-foreground">{specLine}</p>
+      )}
       <div className="mt-1.5 flex items-baseline gap-2">
-        <span className="text-[13px] font-extrabold text-primary-2 tabular-nums sm:text-lg">
+        <span className="font-heading text-lg font-extrabold tracking-tight text-foreground tabular-nums sm:text-xl">
           {formatCordobas(product.price, currency)}
         </span>
         {onSale && (
@@ -212,50 +216,58 @@ export function ProductCard({
         )}
       </div>
       {description && (
-        <p className="mt-1.5 line-clamp-2 text-[11px] leading-relaxed font-light text-muted-foreground sm:text-sm">
+        <p className="mt-1.5 line-clamp-2 text-xs leading-relaxed text-muted-foreground sm:text-sm">
           {description}
         </p>
       )}
-    </Link>
+    </div>
   );
 
-  const Cta = (
+  // Agotado: el badge de la foto ya dice "Agotado"; repetirlo en un botón
+  // deshabilitado no aporta. El CTA principal pasa a ser el aviso de reposición
+  // por WhatsApp — el lead no se pierde — y el ícono aparte sobra.
+  const Cta = soldOut ? (
+    <Button
+      variant="whatsappOutline"
+      onClick={handleWhatsAppOrder}
+      aria-label={`Avisame cuando ${product.name} esté disponible, por WhatsApp`}
+      className="h-11 w-full text-xs sm:text-sm"
+    >
+      <WhatsappIcon aria-hidden className="h-[15px] w-[15px]" />
+      Avisame
+    </Button>
+  ) : (
     <div className="flex items-center gap-2">
       <Button
         onClick={handleCta}
-        disabled={soldOut}
         className="h-11 flex-1 text-xs sm:text-sm"
       >
-        <HugeIcon icon={ShoppingCart02Icon} size={14} strokeWidth={2} aria-hidden />
-        {soldOut ? 'Agotado' : 'Agregar'}
+        {/* Con variantes, el botón abre el selector: la etiqueta lo anticipa. */}
+        {product.variantCount > 1 ? (
+          "Elegir opciones"
+        ) : (
+          <>
+            <HugeIcon icon={ShoppingCart02Icon} size={14} strokeWidth={2} aria-hidden />
+            Agregar
+          </>
+        )}
       </Button>
-      {/* Nunca se deshabilita, ni agotado: "avísame" sigue siendo un lead. */}
       <Button
-        variant="whatsapp"
+        variant="whatsappOutline"
         size="icon"
         onClick={handleWhatsAppOrder}
-        aria-label={
-          soldOut
-            ? `Avísame cuando ${product.name} esté disponible, por WhatsApp`
-            : `Pedir ${product.name} por WhatsApp`
-        }
-        title={soldOut ? 'Avísame por WhatsApp' : 'Pedir por WhatsApp'}
-        className="h-11 w-11 rounded-lg"
+        aria-label={`Pedir ${product.name} por WhatsApp`}
+        title="Pedir por WhatsApp"
+        className="h-11 w-11"
       >
         <WhatsappIcon aria-hidden className="h-[15px] w-[15px] sm:h-[18px] sm:w-[18px]" />
       </Button>
     </div>
   );
 
+  // Sin entrada animada desde opacity 0: el SSR pintaba todas las tarjetas
+  // invisibles y, en una red lenta, la grilla quedaba vacía hasta hidratar.
   const motionProps = {
-    initial: reduce ? false : ({ opacity: 0, y: 20 } as const),
-    whileInView: { opacity: 1, y: 0 },
-    viewport: { once: true, margin: '-40px' },
-    transition: {
-      duration: 0.5,
-      delay: (index % 4) * 0.06,
-      ease: [0.16, 1, 0.3, 1] as const,
-    },
     whileHover: reduce
       ? undefined
       : { y: -4, transition: { type: 'spring' as const, stiffness: 260, damping: 24 } },
@@ -274,8 +286,10 @@ export function ProductCard({
     return (
       <>
         <motion.article {...motionProps} className={cn(shell, 'gap-3 sm:gap-4')}>
+          <Link to={productUrl} prefetch="intent" aria-label={product.name} className="flex w-full gap-3 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:gap-4">
           <div className="relative w-[40%] max-w-[200px] shrink-0 self-center">{Stage}</div>
           {Info}
+          </Link>
         </motion.article>
         {quickAdd}
       </>
@@ -285,8 +299,10 @@ export function ProductCard({
   return (
     <>
       <motion.article {...motionProps} className={cn(shell, 'h-full flex-col')}>
+        <Link to={productUrl} prefetch="intent" aria-label={product.name} className="flex flex-1 flex-col rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background">
         {Stage}
         {Info}
+        </Link>
         <div className="pt-3">{Cta}</div>
       </motion.article>
       {quickAdd}

@@ -25,9 +25,12 @@ export interface FilterSelectProps {
   icon?: React.ReactNode;
   /** "ghost" = sin bordes ni fondo, para usar como título de columna. */
   variant?: "default" | "ghost";
+  /** `id` del botón, para asociarlo a un <label htmlFor>. */
+  id?: string;
 }
 
 export function FilterSelect({
+  id,
   value,
   onChange,
   options,
@@ -68,6 +71,7 @@ export function FilterSelect({
   return (
     <div className="relative" ref={ref}>
       <button
+        id={id}
         type="button"
         onClick={() => setOpen((o) => !o)}
         className={cn(
@@ -75,7 +79,7 @@ export function FilterSelect({
           variant === "ghost"
             ? "bg-transparent border-none p-0 text-sm font-semibold text-foreground hover:text-primary-2"
             : cn(
-                "flex w-full items-center justify-between gap-2 rounded-pill border bg-muted px-4 py-2 text-sm text-foreground transition-all duration-200 hover:bg-muted/80 focus:outline-none focus:ring-2 focus:ring-primary/20",
+                "flex h-9 w-full items-center justify-between gap-2 rounded-md border border-border bg-card px-3 text-sm text-foreground transition-all duration-200 hover:bg-muted/80 focus:outline-none focus:ring-2 focus:ring-primary/20",
                 open && "border-primary/50 ring-2 ring-primary/20"
               ),
         )}

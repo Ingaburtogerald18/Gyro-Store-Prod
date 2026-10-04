@@ -8,7 +8,7 @@ export function formatNumber(value: number, decimals = 0): string {
 
 /**
  * Formatea un monto en córdobas: 1710 → "C$1,710".
- * `decimals` sube a 2 en los módulos que trabajan con centavos (caja, facturación,
+ * `decimals` sube a 2 en los módulos que trabajan con centavos (facturación,
  * costos de inventario); el storefront y los totales redondeados quedan en 0.
  */
 export function formatCordobas(amount: number, symbol = 'C$', decimals = 0): string {
@@ -74,6 +74,35 @@ export function formatShortDate(
   });
 }
 
+/**
+ * Fecha canónica del panel: "28 abr 2026". Antes convivían tres formatos
+ * (2026-04-28, 18/9/2026 y "20 sept 2026") según la pantalla.
+ *
+ * Un 'yyyy-MM-dd' suelto se lee como fecha LOCAL: `new Date('2026-04-28')` es
+ * UTC y en Nicaragua (UTC−6) se muestra como el 27. Con hora, se respeta.
+ */
+export function formatLongDate(value: string | null | undefined): string {
+  if (!value) return '—';
+  const onlyDate = /^\d{4}-\d{2}-\d{2}$/.test(value);
+  const date = onlyDate
+    ? new Date(Number(value.slice(0, 4)), Number(value.slice(5, 7)) - 1, Number(value.slice(8, 10)))
+    : new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  return date
+    .toLocaleDateString('es-NI', { day: 'numeric', month: 'short', year: 'numeric' })
+    .replace('.', '');
+}
+
+/**
+ * "KZ EDX Pro | Jack 3.5mm | Mic | Turquesa" → { model: "KZ EDX Pro",
+ * variant: "Jack 3.5mm · Mic · Turquesa" }. Solo para MOSTRAR: el nombre
+ * guardado no cambia. En una celda, el modelo va en negrita y la variante abajo.
+ */
+export function splitProductName(name: string): { model: string; variant: string } {
+  const [model, ...rest] = (name ?? '').split(' | ');
+  return { model: model.trim(), variant: rest.map((s) => s.trim()).join(' · ') };
+}
+
 // Mensaje de error de una respuesta RTK Query fallida (`{ data: { error } }`),
 // con fallback si no vino en ese shape.
 export function errMsg(err: unknown, fallback: string): string {
@@ -110,4 +139,20 @@ export function formatByCurrency(amount: number, code?: string | null, decimals 
   if (currency === 'USD') return formatUsd(amount, decimals, decimals);
   if (currency === 'NIO' || currency === 'C$') return formatCordobas(amount, 'C$', decimals);
   return `${formatNumber(amount, decimals)} ${currency}`;
+}
+
+/** Texto plano de una descripción con HTML, conservando los cortes de párrafo y
+ *  de línea. Borrar las etiquetas a secas pegaba los párrafos en un solo bloque
+ *  ("…con garantía.Incluye…"). Se pinta con `whitespace-pre-line`. */
+export function htmlToText(html: string | null | undefined): string {
+  if (!html) return '';
+  return html
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/(p|div|li|h[1-6])>/gi, '\n')
+    .replace(/<li[^>]*>/gi, '• ')
+    .replace(/<[^>]*>?/gm, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
 }

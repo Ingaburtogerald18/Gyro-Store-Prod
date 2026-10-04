@@ -1,6 +1,6 @@
 import type { IconSvgElement } from "@hugeicons/react";
 import { HugeIcon } from "~/components/ui/icon";
-import { Analytics01Icon, Coupon01Icon, CreditCardIcon, DashboardSquare01Icon, File01Icon, Logout03Icon, Package01Icon, PackageIcon, Settings02Icon, ShoppingCart02Icon, Store01Icon, TruckIcon, UserCircleIcon, UserMultiple02Icon, UserSettings01Icon, Wallet01Icon } from "@hugeicons/core-free-icons";
+import { Analytics01Icon, Coupon01Icon, CreditCardIcon, DashboardSquare01Icon, File01Icon, Logout03Icon, Package01Icon, PackageIcon, Settings02Icon, ShoppingCart02Icon, Store01Icon, UserCircleIcon, UserMultiple02Icon, UserSettings01Icon } from "@hugeicons/core-free-icons";
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from '@remix-run/react';
 import type { User } from '@supabase/supabase-js';
@@ -47,7 +47,6 @@ interface NavItem {
   to: string;
   icon: IconSvgElement;
   end?: boolean;
-  ready?: boolean;
   external?: boolean;
 }
 
@@ -60,35 +59,31 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: 'Operación',
     items: [
-      { name: 'Inventario', to: '/admin/inventario', icon: PackageIcon, ready: true },
-      { name: 'Ver tienda', to: '/', icon: Store01Icon, end: true, ready: true, external: true },
+      { name: 'Inventario', to: '/admin/inventario', icon: PackageIcon },
+      { name: 'Ver tienda', to: '/', icon: Store01Icon, end: true, external: true },
       // Solo vendedor (ver el filtro de rol más abajo): sus facturas de solo
       // lectura, para copiar el número y registrar la venta en Ventas.
-      { name: 'Mis Facturas', to: '/admin/mis-facturas', icon: File01Icon, ready: true },
-      { name: 'Ventas', to: '/admin/ventas', icon: ShoppingCart02Icon, ready: true },
-      { name: 'Cuotas', to: '/admin/cuotas', icon: CreditCardIcon, ready: true },
-      { name: 'Caja y banco', to: '/admin/caja', icon: Wallet01Icon, ready: true },
+      { name: 'Mis Facturas', to: '/admin/mis-facturas', icon: File01Icon },
+      { name: 'Ventas', to: '/admin/ventas', icon: ShoppingCart02Icon },
+      { name: 'Cuotas', to: '/admin/cuotas', icon: CreditCardIcon },
     ],
   },
   {
     label: 'Tienda',
     items: [
-      { name: 'Catálogo', to: '/admin/catalogo', icon: Package01Icon, ready: true },
-      { name: 'Facturación', to: '/admin/facturacion', icon: File01Icon, ready: true },
-      { name: 'Códigos de descuento', to: '/admin/codigos-descuento', icon: Coupon01Icon, ready: true },
+      { name: 'Catálogo', to: '/admin/catalogo', icon: Package01Icon },
+      { name: 'Facturación', to: '/admin/facturacion', icon: File01Icon },
+      { name: 'Códigos de descuento', to: '/admin/codigos-descuento', icon: Coupon01Icon },
     ],
   },
   {
     label: 'Análisis y sistema',
     items: [
-      { name: 'Reportería', to: '/admin', icon: DashboardSquare01Icon, end: true, ready: true },
-      // Logística sigue apagada (`ready: false`): módulo de roadmap todavía sin
-      // pantalla. CRM ya está encendido (Fase CRM-A: Ficha 360 + Agenda).
-      { name: 'Logística', to: '/admin/logistica', icon: TruckIcon, ready: false },
-      { name: 'CRM y clientes', to: '/admin/crm', icon: UserMultiple02Icon, ready: true },
-      { name: 'Analítica', to: '/admin/analitica', icon: Analytics01Icon, ready: true },
-      { name: 'Personal', to: '/admin/usuarios', icon: UserSettings01Icon, ready: true },
-      { name: 'Configuración', to: '/admin/configuracion', icon: Settings02Icon, ready: true },
+      { name: 'Reportería', to: '/admin', icon: DashboardSquare01Icon, end: true },
+      { name: 'CRM y clientes', to: '/admin/crm', icon: UserMultiple02Icon },
+      { name: 'Analítica', to: '/admin/analitica', icon: Analytics01Icon },
+      { name: 'Personal', to: '/admin/usuarios', icon: UserSettings01Icon },
+      { name: 'Configuración', to: '/admin/configuracion', icon: Settings02Icon },
     ],
   },
 ];
@@ -168,7 +163,7 @@ function AdminSidebar({ isAdmin, role, pathname }: { isAdmin: boolean; role: str
 
           <div className="flex flex-col items-center text-center leading-tight group-data-[collapsible=icon]:hidden">
             <span className="whitespace-nowrap text-sm font-bold tracking-tight">{config?.brandName || getBrandName()}</span>
-            <span className="whitespace-nowrap text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+            <span className="whitespace-nowrap text-2xs font-medium uppercase tracking-wider text-muted-foreground">
               Panel Admin
             </span>
           </div>
@@ -191,7 +186,7 @@ function AdminSidebar({ isAdmin, role, pathname }: { isAdmin: boolean; role: str
             <SidebarGroup key={group.label} className="px-2 py-1">
               {/* `hidden` en rail: la etiqueta del grupo se recortaba a dos
                   letras ilegibles y dejaba un hueco entre bloques de iconos. */}
-              <SidebarGroupLabel className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground/70 group-data-[collapsible=icon]:hidden">
+              <SidebarGroupLabel className="text-2xs uppercase tracking-[0.08em] text-muted-foreground/70 group-data-[collapsible=icon]:hidden">
                 {group.label}
               </SidebarGroupLabel>
               {/* Línea separadora sutil entre grupos en modo colapsado (no en el primero) */}
@@ -201,29 +196,6 @@ function AdminSidebar({ isAdmin, role, pathname }: { isAdmin: boolean; role: str
                   const isActive = item.end
                     ? pathname === item.to
                     : pathname.startsWith(item.to);
-
-                  // Los módulos que aún no existen se muestran con un badge
-                  // "Pronto" en vez de atenuados al 40 %: un ítem medio borrado
-                  // se lee como un bug de renderizado, no como roadmap.
-                  // `aria-disabled` en lugar de `disabled` para que el lector de
-                  // pantalla lo anuncie y no lo omita.
-                  if (!item.ready) {
-                    return (
-                      <SidebarMenuItem key={item.name}>
-                        <SidebarMenuButton
-                          aria-disabled
-                          tooltip={`${item.name} · Próximamente`}
-                          className="cursor-default text-muted-foreground [&_svg]:size-4 group-data-[collapsible=icon]:size-8!"
-                        >
-                          <HugeIcon icon={item.icon} size={16} strokeWidth={2} />
-                          <span className="text-[13px]">{item.name}</span>
-                          <span className="ml-auto rounded-full border border-border px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide group-data-[collapsible=icon]:hidden">
-                            Pronto
-                          </span>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    );
-                  }
 
                   return (
                     <SidebarMenuItem key={item.name} className="relative">
@@ -402,7 +374,7 @@ export default function AdminLayout() {
 
       {/* La barra de progreso NO se monta acá: `root.tsx` ya tiene una para
           toda la app y dos instancias dibujarían dos barras. */}
-      <SidebarInset className="relative">
+      <SidebarInset className="relative min-w-0">
         <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-2 border-b border-border bg-card/90 px-4 backdrop-blur-md">
 
 
@@ -469,7 +441,7 @@ export default function AdminLayout() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: reduceMotion ? 0 : 0.15, ease: 'easeOut' }}
-          className="mx-auto flex w-full max-w-[1600px] flex-1 flex-col px-4 py-6 lg:px-8 lg:py-8"
+          className="mx-auto flex w-full min-w-0 max-w-[1600px] flex-1 flex-col px-4 py-6 lg:px-8 lg:py-8"
         >
           <Outlet />
         </motion.main>

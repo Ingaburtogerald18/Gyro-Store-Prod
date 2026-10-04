@@ -5,13 +5,11 @@ import {
   ShoppingCart02Icon,
   Invoice02Icon,
   ChartLineData01Icon,
-  Coins01Icon,
 } from '@hugeicons/core-free-icons';
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { QueryState } from '~/components/ui/QueryState';
 import { BrandLoader } from '~/components/ui/module-loader';
-import { Button } from '~/components/ui/button';
 
 import type { MetaFunction } from '@remix-run/node';
 import {
@@ -19,10 +17,12 @@ import {
   useGetSellerPerformanceQuery,
   useGetSalesLedgerQuery,
   useGetSalesTrendQuery,
+  useGetDeliverySummaryQuery,
+  useGetExpensesOverflowQuery,
 } from '~/store/api/reportsApi';
 import { useAppSelector } from '~/store/hooks';
 import { selectIsAdmin } from '~/store/slices/authSlice';
-import { formatCordobas } from '~/lib/formatters';
+import { formatCordobas, formatNumber } from '~/lib/formatters';
 import { pageTitle } from '~/lib/brand';
 import { HugeIcon } from '~/components/ui/icon';
 
@@ -32,13 +32,11 @@ import { CompactKpi, HeroMetric } from '~/components/admin/reports/HeroMetric';
 import { TopProductsTable } from '~/components/admin/reports/TopProductsTable';
 import { SalesBreakdownCards } from '~/components/admin/reports/SalesBreakdownCards';
 import { ExportSalesCsvButton } from '~/components/admin/reports/ExportSalesCsvButton';
-import { CostDistributionCard } from '~/components/admin/reports/CostDistributionCard';
-import { IncomeBreakdownCard } from '~/components/admin/reports/IncomeBreakdownCard';
+import { PozoFlowBars } from '~/components/admin/expenses/PozoFlowBars';
+import { IncomeWaterfall, type WaterfallInput } from '~/components/admin/reports/IncomeWaterfall';
 import { DashboardDrilldowns, type DrilldownType } from '~/components/admin/reports/DashboardDrilldowns';
-import { RegisterLoanPaymentDialog } from '~/components/admin/reports/RegisterLoanPaymentDialog';
 import { MonthSelector, getMonthRange, type MonthYear } from '~/components/admin/reports/MonthSelector';
 import { SalesDailyTrendChart } from '~/components/admin/reports/SalesDailyTrendChart';
-import { PaymentMethodDonut } from '~/components/admin/reports/PaymentMethodDonut';
 import { SellerRankingTable } from '~/components/admin/reports/SellerRankingTable';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs';
 import { ExpensesTab } from '~/components/admin/expenses/ExpensesTab';
@@ -85,69 +83,31 @@ export default function AdminDashboard() {
   });
 
   const formatMoney = (n: number) => formatCordobas(n, 'C$', 2);
-
-  // Animación de barras de pozos
   const reduce = useReducedMotion();
-  const [barsReady, setBarsReady] = useState(false);
 
-  const pozosKey = kpis
-    ? Object.values(kpis.pozos_recogidos || {}).reduce((s, v) => s + (v || 0), 0)
-    : 0;
-
-  useEffect(() => {
-    if (reduce) {
-      setBarsReady(true);
-      return;
-    }
-    setBarsReady(false);
-    const id = requestAnimationFrame(() => setBarsReady(true));
-    return () => cancelAnimationFrame(id);
-  }, [reduce, pozosKey]);
-
-  // Desglose de ingresos para el donut financiero
-  const incomeBreakdown = useMemo(() => {
-    if (!kpis) return [];
-    return [
-      {
-        key: 'coste',
-        label: 'Costo de productos',
-        value: kpis.coste_total ?? 0,
-        fill: 'var(--color-chart-1)',
-      },
-      {
-        key: 'comision',
-        label: 'Comisiones',
-        value: kpis.comision_total,
-        fill: 'var(--color-chart-2)',
-      },
-      ...(kpis.salary_acumulado
-        ? [
-            {
-              key: 'salary',
-              label: 'Salary acumulado',
-              value: kpis.salary_acumulado,
-              fill: 'var(--color-chart-3)',
-            },
-          ]
-        : []),
-      ...(kpis.total_prestamos
-        ? [
-            {
-              key: 'prestamos',
-              label: 'Pago de préstamos',
-              value: kpis.total_prestamos,
-              fill: 'var(--color-chart-5, #f59e0b)',
-            },
-          ]
-        : []),
-      {
-        key: 'ganancia',
-        label: 'Ganancia real',
-        value: Math.max(0, kpis.ganancia_real ?? kpis.ganancia_tienda_total ?? (kpis.total_vendido - (kpis.coste_total ?? 0) - kpis.comision_total)),
-        fill: 'var(--color-chart-4)',
-      },
-    ].filter((slice) => slice.value > 0);
+  // Cascada "de lo vendido a la ganancia real". costo + comisión + salario +
+  // ganancia bruta = total vendido; la ganancia real sale del motor de pozos.
+  const waterfall = useMemo<WaterfallInput | null>(() => {
+    if (!kpis || kpis.coste_total === undefined) return null;
+    const gananciaBruta = kpis.ganancia_tienda_total ?? 0;
+    return {
+      totalVendido: kpis.total_vendido,
+      coste: kpis.coste_total,
+      retencionPozos: Object.values(kpis.pozos_recogidos ?? {}).reduce((acc, v) => acc + (v || 0), 0),
+      comision: kpis.comision_total,
+      salario: kpis.salary_acumulado ?? 0,
+      gananciaBruta,
+      gastosDeGanancia: kpis.gastos_de_ganancia ?? 0,
+      prestamosDeGanancia: kpis.prestamos_de_ganancia ?? 0,
+      gananciaReal: kpis.ganancia_real ?? gananciaBruta,
+    };
   }, [kpis]);
+
+  // Libro de pozos del mes (mismo dato que la pestaña Gastos).
+  const { data: pozoLedger, isLoading: pozoLedgerLoading } = useGetExpensesOverflowQuery(queryParams, { skip: !isAdmin });
+
+  // El total vendido no lleva delivery; se muestra aparte bajo el número.
+  const { data: delivery } = useGetDeliverySummaryQuery(queryParams, { skip: !isAdmin });
 
   // Sparkline para la tarjeta hero (Total Vendido)
   const { data: trend = [] } = useGetSalesTrendQuery(
@@ -209,22 +169,7 @@ export default function AdminDashboard() {
           <div className="flex flex-wrap items-center gap-2.5">
             <MonthSelector value={selectedMonth} onChange={setSelectedMonth} />
             {isAdmin && activeTab === 'resumen' && (
-              <>
-                <RegisterLoanPaymentDialog
-                  trigger={
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-9 gap-1.5 text-xs text-amber-500 hover:text-amber-400 hover:border-amber-500/40"
-                    >
-                      <HugeIcon icon={Coins01Icon} size={15} strokeWidth={2} />
-                      Pagar préstamo
-                    </Button>
-                  }
-                  defaultDate={queryParams.startDate?.slice(0, 10)}
-                />
-                <ExportSalesCsvButton range={queryParams} />
-              </>
+              <ExportSalesCsvButton range={queryParams} />
             )}
           </div>
         }
@@ -240,11 +185,11 @@ export default function AdminDashboard() {
             <TabsList className="bg-muted/80 p-1">
               <TabsTrigger value="resumen" className="gap-2 px-4 py-1.5 text-xs font-medium">
                 <HugeIcon icon={ChartLineData01Icon} size={15} />
-                Ventas y Rentabilidad
+                Ventas y rentabilidad
               </TabsTrigger>
               <TabsTrigger value="gastos" className="gap-2 px-4 py-1.5 text-xs font-medium">
                 <HugeIcon icon={DollarSquareIcon} size={15} />
-                Gastos y Presupuesto
+                Gastos y presupuesto
               </TabsTrigger>
             </TabsList>
           </div>
@@ -267,7 +212,7 @@ export default function AdminDashboard() {
           >
             {/* Si el mes está totalmente vacío, mostrar un banner informativo pero permitir explorar */}
             {isMonthEmpty && (
-              <div className="rounded-2xl border border-dashed border-border/80 bg-card/40 p-8 text-center shadow-xs">
+              <div className="rounded-card border border-dashed border-border/80 bg-card/40 p-8 text-center">
                 <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-full bg-muted/60 text-muted-foreground">
                   <HugeIcon icon={ChartLineData01Icon} size={22} strokeWidth={1.8} />
                 </div>
@@ -275,8 +220,8 @@ export default function AdminDashboard() {
                   Sin transacciones en este mes
                 </h3>
                 <p className="mx-auto mt-1 max-w-md text-xs text-muted-foreground">
-                  No se registraron ventas aprobadas durante el mes seleccionado. Puedes navegar a otros
-                  meses utilizando el selector del encabezado.
+                  No se registraron ventas aprobadas en el mes elegido. Podés ver otros meses con el
+                  selector del encabezado.
                 </p>
               </div>
             )}
@@ -293,6 +238,16 @@ export default function AdminDashboard() {
                   prev={kpis.total_vendido_prev}
                   format={formatMoney}
                   series={heroSeries}
+                  note={
+                    isAdmin && delivery && delivery.num_deliveries > 0 ? (
+                      <>
+                        Sin delivery. Delivery cobrado aparte:{' '}
+                        <span className="nums font-medium text-foreground">{formatMoney(delivery.total_delivery)}</span>{' '}
+                        en {delivery.num_deliveries} {delivery.num_deliveries === 1 ? 'envío' : 'envíos'}
+                        {delivery.num_anuladas > 0 && ` (${delivery.num_anuladas} de facturas anuladas)`}.
+                      </>
+                    ) : undefined
+                  }
                   onClick={() => setDrilldown('vendido')}
                 />
 
@@ -304,7 +259,7 @@ export default function AdminDashboard() {
                     label="Número de ventas"
                     value={kpis.total_ventas}
                     prev={kpis.total_ventas_prev}
-                    sub={`${formatCordobas(kpis.total_unidades, '', 0)} unidades`}
+                    sub={`${formatNumber(kpis.total_unidades)} unidades`}
                     onClick={() => setDrilldown('ventas')}
                   />
 
@@ -335,15 +290,31 @@ export default function AdminDashboard() {
                     value={gananciaReal}
                     prev={kpis.ganancia_real_prev ?? kpis.ganancia_tienda_total_prev}
                     format={formatMoney}
-                    valueClassName={gananciaReal >= 0 ? 'text-emerald-500' : 'text-rose-500'}
-                    sub={isAdmin && (kpis.total_prestamos ?? 0) > 0 ? 'Después de préstamos' : undefined}
+                    valueClassName={gananciaReal >= 0 ? 'text-success' : 'text-destructive'}
+                    sub={isAdmin && (kpis.gastos_de_ganancia ?? 0) > 0 ? 'Después de los gastos que no cubrieron los pozos' : undefined}
                     onClick={() => setDrilldown('ganancia')}
                   />
                 </div>
               </div>
             </section>
 
-            {/* 3. Gráfico de Tendencia Diaria del Mes */}
+            {/* 3. De lo vendido a la ganancia real */}
+            {isAdmin && waterfall && waterfall.totalVendido > 0 && (
+              <section className="space-y-3">
+                <SectionLabel>De lo vendido a la ganancia</SectionLabel>
+                <IncomeWaterfall data={waterfall} formatMoney={formatMoney} />
+              </section>
+            )}
+
+            {/* 4. Pozos del mes: herencia, desbordes y bolsa extra */}
+            {isAdmin && (
+              <section className="space-y-3">
+                <SectionLabel>Pozos del mes</SectionLabel>
+                <PozoFlowBars ledger={pozoLedger} isLoading={pozoLedgerLoading} />
+              </section>
+            )}
+
+            {/* 5. Gráfico de Tendencia Diaria del Mes */}
             {isAdmin && (
               <section className="space-y-3">
                 <SectionLabel>Evolución diaria</SectionLabel>
@@ -356,61 +327,20 @@ export default function AdminDashboard() {
               </section>
             )}
 
-            {/* 4. Ventas por método de pago + Ventas por vendedor (lado a lado en desktop) */}
-            {isAdmin && (
-              <section className="space-y-3">
-                <SectionLabel>Canales y equipo comercial</SectionLabel>
-                <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-                  <PaymentMethodDonut
-                    range={queryParams}
-                    className="p-5 lg:col-span-5"
-                  />
-                  <SellerRankingTable
-                    range={queryParams}
-                    className="p-5 lg:col-span-7"
-                  />
-                </div>
-              </section>
-            )}
-
-            {/* 5. Top 10 Productos Más Vendidos */}
+            {/* 6. Vendedores y productos */}
             <section className="space-y-3">
-              <SectionLabel>Productos destacados</SectionLabel>
-              <TopProductsTable range={queryParams} limit={10} />
+              <SectionLabel>{isAdmin ? 'Vendedores y productos' : 'Productos destacados'}</SectionLabel>
+              <div className={isAdmin ? 'grid grid-cols-1 gap-6 lg:grid-cols-2' : undefined}>
+                {isAdmin && <SellerRankingTable range={queryParams} />}
+                <TopProductsTable range={queryParams} limit={10} />
+              </div>
             </section>
 
-            {/* 6. Distribución de Costos (Pozos) */}
+            {/* 7. Cortes de ventas */}
             {isAdmin && (
               <section className="space-y-3">
-                <SectionLabel>Estructura de costos</SectionLabel>
-                <CostDistributionCard
-                  kpis={kpis}
-                  barsReady={barsReady}
-                  formatMoney={formatMoney}
-                />
-              </section>
-            )}
-
-            {/* 7. Desglose Financiero (Donut ingresos + Tarjetas breakdown) */}
-            {isAdmin && (
-              <section className="space-y-3">
-                <SectionLabel>Desglose financiero</SectionLabel>
-                <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-                  <div className="lg:col-span-4">
-                    <IncomeBreakdownCard
-                      incomeBreakdown={incomeBreakdown}
-                      formatMoney={formatMoney}
-                      className="h-full p-5"
-                    />
-                  </div>
-                  <div className="lg:col-span-8">
-                    <SalesBreakdownCards
-                      range={queryParams}
-                      excludeMethod
-                      className="grid gap-4 sm:grid-cols-2"
-                    />
-                  </div>
-                </div>
+                <SectionLabel>Cortes de ventas</SectionLabel>
+                <SalesBreakdownCards range={queryParams} />
               </section>
             )}
           </motion.div>
@@ -438,3 +368,6 @@ export default function AdminDashboard() {
 </>
   );
 }
+
+// Error dentro de la sección: se muestra en el área de contenido y la barra lateral sigue viva.
+export { AdminRouteError as ErrorBoundary } from '~/components/layout/route-error';

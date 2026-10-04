@@ -3,6 +3,7 @@ import { HugeIcon } from '~/components/ui/icon';
 import {
   Calendar03Icon,
   Delete01Icon,
+  Edit02Icon,
   FilterIcon,
   FolderLibraryIcon,
   Search01Icon,
@@ -33,39 +34,40 @@ import {
   useDeleteExpenseMutation,
   type ExpenseItem,
 } from '~/store/api/reportsApi';
+import { ExpenseFormDialog } from './RegisterExpenseDialog';
 
 const POZO_BADGES: Record<string, { label: string; className: string }> = {
   publicidad: {
     label: 'Publicidad',
-    className: 'bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20',
+    className: 'bg-muted text-muted-foreground border-border',
   },
   mantenimiento: {
     label: 'Mantenimiento',
-    className: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
+    className: 'bg-muted text-muted-foreground border-border',
   },
   utiles: {
     label: 'Útiles',
-    className: 'bg-teal-500/10 text-teal-600 dark:text-teal-400 border-teal-500/20',
+    className: 'bg-muted text-muted-foreground border-border',
   },
   garantias: {
     label: 'Garantías',
-    className: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20',
+    className: 'bg-muted text-muted-foreground border-border',
   },
   prestamos: {
     label: 'Préstamos',
-    className: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20',
+    className: 'bg-muted text-muted-foreground border-border',
   },
   suscripciones: {
     label: 'Suscripciones',
-    className: 'bg-pink-500/10 text-pink-600 dark:text-pink-400 border-pink-500/20',
+    className: 'bg-muted text-muted-foreground border-border',
   },
   servicios: {
     label: 'Servicios',
-    className: 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20',
+    className: 'bg-muted text-muted-foreground border-border',
   },
   salario: {
     label: 'Salario',
-    className: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
+    className: 'bg-muted text-muted-foreground border-border',
   },
 };
 
@@ -84,6 +86,10 @@ export function ExpenseHistoryTable({
   const pageSize = 20;
 
   const [expenseToDelete, setExpenseToDelete] = useState<ExpenseItem | null>(null);
+  // El gasto se conserva al cerrar: si se limpiara, el diálogo pasaría a
+  // "Registrar gasto" durante la animación de salida.
+  const [expenseToEdit, setExpenseToEdit] = useState<ExpenseItem | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
 
   const { data, isLoading, isFetching } = useGetExpensesListQuery({
     pozo: selectedPozo && selectedPozo !== 'todos' ? selectedPozo : undefined,
@@ -117,7 +123,7 @@ export function ExpenseHistoryTable({
       {/* Header & Filter Controls */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h3 className="text-sm font-semibold text-foreground">Historial de Gastos</h3>
+          <h3 className="text-sm font-semibold text-foreground">Historial de gastos</h3>
           <p className="text-xs text-muted-foreground">
             {total} gasto{total === 1 ? '' : 's'} registrado{total === 1 ? '' : 's'}
           </p>
@@ -142,12 +148,12 @@ export function ExpenseHistoryTable({
                 <SelectItem value="todos">Todos los pozos</SelectItem>
                 <SelectItem value="publicidad">Publicidad</SelectItem>
                 <SelectItem value="mantenimiento">Mantenimiento</SelectItem>
-                <SelectItem value="utiles">Útiles de Oficina</SelectItem>
+                <SelectItem value="utiles">Útiles de oficina</SelectItem>
                 <SelectItem value="garantias">Garantías</SelectItem>
                 <SelectItem value="prestamos">Préstamos</SelectItem>
                 <SelectItem value="suscripciones">Suscripciones</SelectItem>
-                <SelectItem value="servicios">Servicios Básicos</SelectItem>
-                <SelectItem value="salario">Fondo Salario</SelectItem>
+                <SelectItem value="servicios">Servicios básicos</SelectItem>
+                <SelectItem value="salario">Fondo salario</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -158,7 +164,7 @@ export function ExpenseHistoryTable({
       <div className="overflow-hidden rounded-card border border-border bg-card shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
-            <thead className="border-b border-border bg-muted/40 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+            <thead className="border-b border-border bg-muted/40 text-2xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
               <tr>
                 <th className="px-4 py-3">Fecha</th>
                 <th className="px-4 py-3">Pozo</th>
@@ -218,7 +224,7 @@ export function ExpenseHistoryTable({
                       <td className="whitespace-nowrap px-4 py-3">
                         <span
                           className={cn(
-                            'inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium border',
+                            'inline-flex items-center rounded-full px-2 py-0.5 text-2xs font-medium border',
                             badge.className,
                           )}
                         >
@@ -240,7 +246,7 @@ export function ExpenseHistoryTable({
                       <td className="whitespace-nowrap px-4 py-3 text-right text-xs text-foreground nums">
                         <span className="font-semibold">{formatMoney(item.monto)}</span>
                         {item.montoUsd != null && (
-                          <span className="block text-[10px] text-muted-foreground">
+                          <span className="block text-2xs text-muted-foreground">
                             ${item.montoUsd.toFixed(2)} USD × {item.exchangeRate}
                           </span>
                         )}
@@ -258,6 +264,28 @@ export function ExpenseHistoryTable({
 
                       {/* Acciones */}
                       <td className="whitespace-nowrap px-4 py-3 text-center">
+                        {item.source === 'loan_payment' ? (
+                          // Pago de la tabla vieja de préstamos: cuenta como gasto de
+                          // Préstamos, pero se edita recién cuando se migre a gastos.
+                          <span className="text-2xs text-muted-foreground" title="Pago de préstamo registrado antes de que los préstamos fueran gastos. Se podrá editar cuando se migre.">
+                            Registro anterior
+                          </span>
+                        ) : (
+                        <div className="flex items-center justify-center gap-1">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setExpenseToEdit(item);
+                            setEditOpen(true);
+                          }}
+                          className="h-8 w-8 p-0 text-muted-foreground hover:bg-accent hover:text-foreground"
+                          title="Editar gasto"
+                          aria-label="Editar gasto"
+                        >
+                          <HugeIcon icon={Edit02Icon} size={15} strokeWidth={2} aria-hidden />
+                        </Button>
                         <Button
                           type="button"
                           variant="ghost"
@@ -268,6 +296,8 @@ export function ExpenseHistoryTable({
                         >
                           <HugeIcon icon={Delete01Icon} size={15} strokeWidth={2} aria-hidden />
                         </Button>
+                        </div>
+                        )}
                       </td>
                     </tr>
                   );
@@ -307,6 +337,12 @@ export function ExpenseHistoryTable({
         )}
       </div>
 
+      <ExpenseFormDialog
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        expense={expenseToEdit}
+      />
+
       {/* Delete Confirmation Modal */}
       <Dialog open={!!expenseToDelete} onOpenChange={(open) => !open && setExpenseToDelete(null)}>
         <DialogContent className="sm:max-w-md">
@@ -332,7 +368,7 @@ export function ExpenseHistoryTable({
               disabled={isDeleting}
             >
               {isDeleting ? <Spinner className="mr-2" /> : null}
-              Eliminar Gasto
+              Eliminar gasto
             </Button>
           </DialogFooter>
         </DialogContent>

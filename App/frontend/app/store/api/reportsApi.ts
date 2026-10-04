@@ -33,6 +33,8 @@ export interface FinancialKPIs {
   budget_prestamos_disponible?: number;
   prestamos_cubierto_por_budget?: number;
   prestamos_de_ganancia?: number;
+  /** Todo lo que los gastos del mes tomaron de la ganancia (pozos, préstamos y salario). */
+  gastos_de_ganancia?: number;
   ganancia_real?: number;
   ganancia_real_prev?: number;
 }
@@ -53,12 +55,22 @@ export interface LoanPaymentsListResponse {
   total: number;
 }
 
-export interface CreateLoanPaymentPayload {
-  monto?: number;
-  monto_cs?: number;
-  moneda?: 'COR' | 'USD';
-  fecha: string;
-  nota?: string | null;
+/** Respuesta de POST /reports/expenses/preview: de dónde saldría un gasto. */
+export interface ExpensePreview {
+  month: string;
+  pozo: string;
+  label: string;
+  montoCs: number;
+  saldoPozo: number;
+  cubre: {
+    propio: number;
+    extra: number;
+    pozos: { pozo: string; label: string; monto: number }[];
+    ganancia: number;
+  };
+  excede: boolean;
+  gananciaRealAntes: number;
+  gananciaRealDespues: number;
 }
 
 export interface KpiParams {
@@ -84,28 +96,36 @@ export interface ExpenseItem {
   createdByName: string | null;
   createdByEmail: string | null;
   createdAt: string;
+  /** `loan_payment`: pago de préstamo aún sin migrar; no se edita ni se borra. */
+  source: 'expense' | 'loan_payment';
 }
 
-export interface PozoOverflowItem {
+/** Una fila del libro de pozos del mes (server/services/pozoLedger.ts). */
+export interface PozoLedgerRow {
   pozo: string;
   label: string;
   recogido: number;
+  heredado: number;
   gastado: number;
+  /** heredado + recogido − gastado, antes de cubrir desbordes. Negativo = se pasó. */
   disponible: number;
-  desbordamiento: number;
-  gastadoMes: number;
-  recogidoMes: number;
+  tomadoExtra: number;
+  tomadoPozos: number;
+  tomadoGanancia: number;
+  prestado: number;
+  saldoFinal: number;
 }
 
-export interface ExpensesOverflowResponse {
-  pozos: PozoOverflowItem[];
-  totalDesbordamiento: number;
-  gananciaBruta: number;
+export interface MonthLedger {
+  month: string;
+  pozos: PozoLedgerRow[];
+  extraInicio: number;
+  extraUsado: number;
+  extraSiguiente: number;
+  sobranteSalario: number;
+  gananciaTienda: number;
+  deGanancia: { comunes: number; prestamos: number; salario: number; total: number };
   gananciaReal: number;
-  presupuestoDisponible: number;
-  totalRecogido: number;
-  totalGastado: number;
-  desbordamientoDetalle: { pozo: string; label: string; monto: number }[];
 }
 
 export interface ExpensesListResponse {
@@ -220,7 +240,7 @@ export const reportsApi = baseApi.injectEndpoints({
       query: (params) => ({ url: 'reports/expenses', params: params ?? undefined }),
       providesTags: ['Expense', 'Sale'],
     }),
-    getExpensesOverflow: build.query<ExpensesOverflowResponse, KpiParams | void>({
+    getExpensesOverflow: build.query<MonthLedger, KpiParams | void>({
       query: (params) => ({ url: 'reports/expenses/overflow', params: params ?? undefined }),
       providesTags: ['Expense', 'Sale'],
     }),
@@ -242,6 +262,18 @@ export const reportsApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ['Expense', 'Sale'],
     }),
+    // POST porque lleva cuerpo, pero no escribe nada: no invalida caché.
+    previewExpense: build.mutation<ExpensePreview, CreateExpensePayload & { excludeId?: string }>({
+      query: (body) => ({ url: 'reports/expenses/preview', method: 'POST', body }),
+    }),
+    updateExpense: build.mutation<ExpenseItem, { id: string; body: CreateExpensePayload }>({
+      query: ({ id, body }) => ({
+        url: `reports/expenses/${id}`,
+        method: 'PATCH',
+        body,
+      }),
+      invalidatesTags: ['Expense', 'Sale'],
+    }),
     deleteExpense: build.mutation<{ success: boolean; id: string }, string>({
       query: (id) => ({
         url: `reports/expenses/${id}`,
@@ -257,21 +289,6 @@ export const reportsApi = baseApi.injectEndpoints({
     getLoanPaymentsList: build.query<LoanPaymentsListResponse, KpiParams | void>({
       query: (params) => ({ url: 'reports/loan-payments', params: params ?? undefined }),
       providesTags: ['LoanPayment'],
-    }),
-    createLoanPayment: build.mutation<LoanPaymentItem, CreateLoanPaymentPayload>({
-      query: (body) => ({
-        url: 'reports/loan-payments',
-        method: 'POST',
-        body,
-      }),
-      invalidatesTags: ['LoanPayment', 'Sale'],
-    }),
-    deleteLoanPayment: build.mutation<{ success: boolean; id: string }, string>({
-      query: (id) => ({
-        url: `reports/loan-payments/${id}`,
-        method: 'DELETE',
-      }),
-      invalidatesTags: ['LoanPayment', 'Sale'],
     }),
 
     getSalesTrend: build.query<SalesTrendPoint[], KpiParams & { bucket?: TrendBucket }>({
@@ -294,6 +311,10 @@ export const reportsApi = baseApi.injectEndpoints({
       query: (params) => ({ url: 'reports/sales-ledger', params: params ?? undefined }),
       providesTags: ['Sale', 'Invoice'],
     }),
+    getDeliverySummary: build.query<DeliverySummary, KpiParams | void>({
+      query: (params) => ({ url: 'reports/delivery', params: params ?? undefined }),
+      providesTags: ['Invoice'],
+    }),
     getDeliveryInvoices: build.query<DeliveryInvoiceRow[], KpiParams | void>({
       query: (params) => ({ url: 'reports/delivery-invoices', params: params ?? undefined }),
       providesTags: ['Invoice'],
@@ -312,15 +333,16 @@ export const {
   useGetExpensesOverflowQuery,
   useGetExpensesListQuery,
   useCreateExpenseMutation,
+  usePreviewExpenseMutation,
+  useUpdateExpenseMutation,
   useDeleteExpenseMutation,
   useGetLoanPaymentsSummaryQuery,
   useGetLoanPaymentsListQuery,
-  useCreateLoanPaymentMutation,
-  useDeleteLoanPaymentMutation,
   useGetSalesTrendQuery,
   useGetSellerPerformanceQuery,
   useGetTopProductsQuery,
   useGetSalesBreakdownQuery,
   useGetSalesLedgerQuery,
+  useGetDeliverySummaryQuery,
   useGetDeliveryInvoicesQuery,
 } = reportsApi;

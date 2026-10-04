@@ -13,22 +13,28 @@
 // fecha de la primera cuota.
 import { HugeIcon } from "~/components/ui/icon";
 import { Add01Icon, ArrowDown01Icon, ArrowUp01Icon, CreditCardIcon } from "@hugeicons/core-free-icons";
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import type { MetaFunction } from '@remix-run/node';
 import { pageTitle } from '~/lib/brand';
 import { toast } from 'sonner';
 
+import {
+  Kbd,
+  Metric,
+  MetricStrip,
+  SegmentedControl,
+  Workspace,
+  WorkspaceToolbar,
+  useShortcut,
+} from '~/components/admin/workspace';
 import { PageHeader } from '~/components/layout/PageHeader';
 import { Button } from '~/components/ui/button';
 import { Input } from '~/components/ui/input';
-import { Label } from '~/components/ui/label';
 import { Badge } from '~/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '~/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/components/ui/select';
-import { Tabs, TabsList, TabsTrigger } from '~/components/ui/tabs';
 import { QueryState } from '~/components/ui/QueryState';
-import { BrandLoader } from '~/components/ui/module-loader';
-import { errMsg, formatCordobas, withoutIds } from "~/lib/formatters";
+import { errMsg, formatCordobas, withoutIds, formatLongDate } from '~/lib/formatters';
 import {
   useCancelInstallmentPlanMutation,
   useCreateInstallmentPlanMutation,
@@ -38,6 +44,11 @@ import {
 } from '~/store/api/installmentsApi';
 import { useGetSalesQuery, type SaleListItem } from '~/store/api/salesApi';
 import { Spinner } from "~/components/ui/spinner";
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { Field, FieldDescription, FieldError, FieldLabel } from '~/components/ui/field';
+
 
 export const meta: MetaFunction = () => [{ title: pageTitle('Cuotas', { admin: true }) }];
 
@@ -54,88 +65,119 @@ function ProgressBar({ paid, total }: { paid: number; total: number }) {
   );
 }
 
+// ── Formularios (react-hook-form + zod, DESIGN.md §6b) ──
+// La validación de cada campo va en su FieldError; el toast queda para el
+// resultado. Mismas reglas que registerInstallmentPaymentInputSchema y
+// createInstallmentPlanInputSchema del backend.
+
+/** Número obligatorio desde un <input>: vacío falla (no se convierte en 0). */
+const requiredNumber = (message: string) =>
+  z.preprocess((v) => (v === '' || v === null || v === undefined ? NaN : Number(v)), z.number({ message }));
+
+const paymentFormSchema = z.object({
+  amount: requiredNumber('Escribí el monto recibido.').pipe(z.number().positive('El monto tiene que ser mayor a 0.')),
+  method: z.enum(['efectivo', 'transferencia', 'tarjeta']),
+  note: z.string().trim().max(300, 'Máximo 300 caracteres.'),
+});
+type PaymentValues = z.input<typeof paymentFormSchema>;
+type PaymentOutput = z.output<typeof paymentFormSchema>;
+const EMPTY_PAYMENT: PaymentValues = { amount: '', method: 'efectivo', note: '' };
+
 function PaymentDialog({ plan, onClose }: { plan: InstallmentPlan | null; onClose: () => void }) {
   const [registerPayment, { isLoading }] = useRegisterInstallmentPaymentMutation();
-  const [amount, setAmount] = useState(0);
-  const [method, setMethod] = useState<'efectivo' | 'transferencia' | 'tarjeta'>('efectivo');
-  const [note, setNote] = useState('');
+  const {
+    control,
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<PaymentValues, unknown, PaymentOutput>({ resolver: zodResolver(paymentFormSchema), defaultValues: EMPTY_PAYMENT });
 
-  async function handleSubmit() {
-    if (!plan || amount <= 0) {
-      toast.error('El monto debe ser mayor a 0.');
-      return;
-    }
+  useEffect(() => {
+    if (plan) reset(EMPTY_PAYMENT);
+  }, [plan, reset]);
+
+  const onSubmit = handleSubmit(async (v) => {
+    if (!plan) return;
     try {
-      const res = await registerPayment({ id: plan.id, body: { amount, method, note: note.trim() || undefined } }).unwrap();
+      const res = await registerPayment({ id: plan.id, body: { amount: v.amount, method: v.method, note: v.note || undefined } }).unwrap();
       toast.success(
         res.completed
           ? '¡Plan completamente pagado!'
-          : `Pago registrado. Pendiente: ${formatCordobas(res.amountPending)}`,
+          : `Pago registrado. Pendiente: ${formatCordobas(res.amountPending)}.`,
       );
-      setAmount(0);
-      setNote('');
       onClose();
     } catch (err) {
       toast.error(errMsg(err, 'No se pudo registrar el pago.'));
     }
-  }
+  });
 
   return (
     <Dialog open={!!plan} onOpenChange={(open) => !open && onClose()}>
       <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Registrar pago{plan?.phone ? ` · ${plan.phone}` : ''}</DialogTitle>
-        </DialogHeader>
-        {plan && (
-          <div className="space-y-4">
-            <div className="space-y-1 rounded-lg border bg-muted p-3 text-sm">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Total</span>
-                <span className="font-semibold">{formatCordobas(plan.total)}</span>
+        <form onSubmit={onSubmit} noValidate>
+          <DialogHeader>
+            <DialogTitle>Registrar pago{plan?.phone ? ` · ${plan.phone}` : ''}</DialogTitle>
+          </DialogHeader>
+          {plan && (
+            <div className="mt-4 space-y-4">
+              <div className="space-y-1 rounded-card border border-border bg-muted p-3 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Total</span>
+                  <span className="font-semibold">{formatCordobas(plan.total)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Pagado</span>
+                  <span className="font-semibold text-success">{formatCordobas(plan.amountPaid)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Pendiente</span>
+                  <span className="font-bold text-foreground">{formatCordobas(plan.amountPending)}</span>
+                </div>
+                <ProgressBar paid={plan.amountPaid} total={plan.total} />
               </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Pagado</span>
-                <span className="font-semibold text-primary-2">{formatCordobas(plan.amountPaid)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Pendiente</span>
-                <span className="font-bold text-warning">{formatCordobas(plan.amountPending)}</span>
-              </div>
-              <ProgressBar paid={plan.amountPaid} total={plan.total} />
-            </div>
 
-            <div className="space-y-1.5">
-              <Label>Monto recibido (C$) *</Label>
-              <Input type="number" min={1} step="0.01" value={amount} onChange={(e) => setAmount(Math.max(0, Number(e.target.value) || 0))} />
+              <Field data-invalid={!!errors.amount}>
+                <FieldLabel htmlFor="pay-amount" required>Monto recibido (C$)</FieldLabel>
+                <Input id="pay-amount" type="number" min={0} step="0.01" inputMode="decimal" aria-required aria-invalid={!!errors.amount} {...register('amount')} />
+                <FieldError errors={[errors.amount]} />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="pay-method">Método de pago</FieldLabel>
+                <Controller
+                  control={control}
+                  name="method"
+                  render={({ field }) => (
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger id="pay-method" className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="efectivo">Efectivo</SelectItem>
+                        <SelectItem value="transferencia">Transferencia</SelectItem>
+                        <SelectItem value="tarjeta">Tarjeta</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+              </Field>
+              <Field data-invalid={!!errors.note}>
+                <FieldLabel htmlFor="pay-note">Notas (opcional)</FieldLabel>
+                <Input id="pay-note" aria-invalid={!!errors.note} {...register('note')} />
+                <FieldError errors={[errors.note]} />
+              </Field>
             </div>
-            <div className="space-y-1.5">
-              <Label>Método de pago</Label>
-              <Select value={method} onValueChange={(v) => setMethod(v as typeof method)}>
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="efectivo">Efectivo</SelectItem>
-                  <SelectItem value="transferencia">Transferencia</SelectItem>
-                  <SelectItem value="tarjeta">Tarjeta</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Notas (opcional)</Label>
-              <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Opcional…" />
-            </div>
+          )}
+          <div className="mt-4 flex justify-end gap-2">
+            <Button type="button" variant="ghost" onClick={onClose}>
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={isLoading}>
+              {isLoading && <Spinner className="mr-2" />}
+              Registrar pago
+            </Button>
           </div>
-        )}
-        <div className="mt-4 flex justify-end gap-2">
-          <Button variant="ghost" onClick={onClose}>
-            Cancelar
-          </Button>
-          <Button onClick={handleSubmit} disabled={isLoading}>
-        {isLoading && <Spinner className="mr-2" />}
-        Registrar pago
-      </Button>
-        </div>
+        </form>
       </DialogContent>
     </Dialog>
   );
@@ -157,7 +199,7 @@ function PlanCard({ plan, onPay }: { plan: InstallmentPlan; onPay: () => void })
   const pct = pctPaid(plan.amountPaid, plan.total);
 
   return (
-    <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
+    <div className="overflow-hidden rounded-card border border-border bg-card">
       <div className="space-y-3 p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -165,7 +207,9 @@ function PlanCard({ plan, onPay }: { plan: InstallmentPlan; onPay: () => void })
               <p className="truncate font-semibold text-foreground">{plan.phone ?? 'Sin teléfono'}</p>
               <Badge
                 variant="outline"
-                className={plan.status === 'completed' ? 'text-primary-2 border-primary/30 bg-primary/10' : 'text-warning border-warning/30 bg-warning/10'}
+                // Verde = saldado; azul = en curso. El ámbar se reserva para
+                // atrasos, y un plan activo no está atrasado por serlo.
+                className={plan.status === 'completed' ? 'rounded-full border-success/30 bg-success/10 text-success' : 'rounded-full border-info/30 bg-info/10 text-info'}
               >
                 {plan.status === 'completed' ? 'Pagado' : 'Activo'}
               </Badge>
@@ -173,7 +217,7 @@ function PlanCard({ plan, onPay }: { plan: InstallmentPlan; onPay: () => void })
             {plan.sellerEmail && <p className="text-xs text-muted-foreground">Vendedor: {plan.sellerEmail}</p>}
           </div>
           <div className="text-right text-sm">
-            <p className="font-bold text-foreground">{formatCordobas(plan.total)}</p>
+            <p className="font-display font-bold text-foreground">{formatCordobas(plan.total)}</p>
             <p className="text-xs text-muted-foreground">{plan.numCuotas} cuotas</p>
           </div>
         </div>
@@ -188,7 +232,7 @@ function PlanCard({ plan, onPay }: { plan: InstallmentPlan; onPay: () => void })
 
         {plan.status === 'active' && (
           <p className="text-xs text-muted-foreground">
-            Primera cuota: {new Date(`${plan.firstDue}T00:00:00`).toLocaleDateString('es-NI')}
+            Primera cuota: {formatLongDate(plan.firstDue)}
           </p>
         )}
 
@@ -201,9 +245,9 @@ function PlanCard({ plan, onPay }: { plan: InstallmentPlan; onPay: () => void })
           )}
           {plan.payments.length === 0 && (
             <Button size="sm" variant="ghost" onClick={handleCancel} disabled={cancelling} className="text-destructive">
-        {cancelling && <Spinner className="mr-2" />}
-        Cancelar
-      </Button>
+              {cancelling && <Spinner className="mr-2" />}
+              Cancelar plan
+            </Button>
           )}
           <button
             onClick={() => setExpanded((v) => !v)}
@@ -224,7 +268,7 @@ function PlanCard({ plan, onPay }: { plan: InstallmentPlan; onPay: () => void })
                 <span className="ml-2 text-xs capitalize text-muted-foreground">{p.method ?? 'efectivo'}</span>
               </div>
               <span className="text-xs text-muted-foreground">
-                {p.paidAt ? new Date(p.paidAt).toLocaleDateString('es-NI') : '—'}
+                {formatLongDate(p.paidAt)}
               </span>
             </div>
           ))}
@@ -234,64 +278,82 @@ function PlanCard({ plan, onPay }: { plan: InstallmentPlan; onPay: () => void })
   );
 }
 
+const planFormSchema = z.object({
+  numCuotas: requiredNumber('Escribí la cantidad de cuotas.').pipe(
+    z.number().int('Tiene que ser un número entero.').min(2, 'Mínimo 2 cuotas.').max(36, 'Máximo 36 cuotas.'),
+  ),
+  firstDue: z.string().min(1, 'Elegí la fecha de la primera cuota.'),
+});
+type PlanValues = z.input<typeof planFormSchema>;
+type PlanOutput = z.output<typeof planFormSchema>;
+const EMPTY_PLAN: PlanValues = { numCuotas: '2', firstDue: '' };
+
 function CreatePlanDialog({ sale, onClose }: { sale: SaleListItem | null; onClose: () => void }) {
   const [createPlan, { isLoading }] = useCreateInstallmentPlanMutation();
-  const [numCuotas, setNumCuotas] = useState(2);
-  const [firstDue, setFirstDue] = useState('');
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<PlanValues, unknown, PlanOutput>({ resolver: zodResolver(planFormSchema), defaultValues: EMPTY_PLAN });
 
-  async function handleSubmit() {
-    if (!sale || numCuotas < 2 || !firstDue) {
-      toast.error('Completá cantidad de cuotas (mín. 2) y fecha de la primera.');
-      return;
-    }
+  useEffect(() => {
+    if (sale) reset(EMPTY_PLAN);
+  }, [sale, reset]);
+
+  const onSubmit = handleSubmit(async (v) => {
+    if (!sale) return;
     try {
-      await createPlan({ orderId: sale.id, numCuotas, firstDue }).unwrap();
+      await createPlan({ orderId: sale.id, numCuotas: v.numCuotas, firstDue: v.firstDue }).unwrap();
       toast.success('Plan de cuotas creado.');
-      setNumCuotas(2);
-      setFirstDue('');
       onClose();
     } catch (err) {
       toast.error(errMsg(err, 'No se pudo crear el plan de cuotas.'));
     }
-  }
+  });
 
   return (
     <Dialog open={!!sale} onOpenChange={(open) => !open && onClose()}>
       <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Nuevo plan de cuotas</DialogTitle>
-        </DialogHeader>
-        {sale && (
-          <div className="space-y-4">
-            <div className="rounded-lg border bg-muted p-3 text-sm">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Cliente</span>
-                <span className="font-medium text-foreground">{sale.phone ?? '—'}</span>
+        <form onSubmit={onSubmit} noValidate>
+          <DialogHeader>
+            <DialogTitle>Nuevo plan de cuotas</DialogTitle>
+          </DialogHeader>
+          {sale && (
+            <div className="mt-4 space-y-4">
+              <div className="rounded-card border border-border bg-muted p-3 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Cliente</span>
+                  <span className="font-medium text-foreground">{sale.phone ?? '—'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Total</span>
+                  <span className="font-semibold text-foreground">{formatCordobas(sale.total)}</span>
+                </div>
               </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Total</span>
-                <span className="font-semibold text-foreground">{formatCordobas(sale.total)}</span>
-              </div>
+              <Field data-invalid={!!errors.numCuotas}>
+                <FieldLabel htmlFor="plan-cuotas" required>Cantidad de cuotas</FieldLabel>
+                <Input id="plan-cuotas" type="number" min={2} max={36} step={1} aria-required aria-invalid={!!errors.numCuotas} {...register('numCuotas')} />
+                <FieldDescription>Entre 2 y 36.</FieldDescription>
+                <FieldError errors={[errors.numCuotas]} />
+              </Field>
+              <Field data-invalid={!!errors.firstDue}>
+                <FieldLabel htmlFor="plan-first" required>Fecha de la primera cuota</FieldLabel>
+                <Input id="plan-first" type="date" aria-required aria-invalid={!!errors.firstDue} {...register('firstDue')} />
+                <FieldError errors={[errors.firstDue]} />
+              </Field>
             </div>
-            <div className="space-y-1.5">
-              <Label>Cantidad de cuotas (mín. 2)</Label>
-              <Input type="number" min={2} max={36} value={numCuotas} onChange={(e) => setNumCuotas(Math.max(2, Number(e.target.value) || 2))} />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Fecha de la primera cuota</Label>
-              <Input type="date" value={firstDue} onChange={(e) => setFirstDue(e.target.value)} />
-            </div>
+          )}
+          <div className="mt-4 flex justify-end gap-2">
+            <Button type="button" variant="ghost" onClick={onClose}>
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={isLoading}>
+              {isLoading && <Spinner className="mr-2" />}
+              Crear plan
+            </Button>
           </div>
-        )}
-        <div className="mt-4 flex justify-end gap-2">
-          <Button variant="ghost" onClick={onClose}>
-            Cancelar
-          </Button>
-          <Button onClick={handleSubmit} disabled={isLoading}>
-        {isLoading && <Spinner className="mr-2" />}
-        Crear plan
-      </Button>
-        </div>
+        </form>
       </DialogContent>
     </Dialog>
   );
@@ -314,53 +376,69 @@ export default function AdminCuotas() {
   );
 
   const activeCount = plans.filter((p) => p.status === 'active').length;
+  const pendingTotal = plans.reduce((acc, p) => acc + (p.status === 'active' ? p.amountPending : 0), 0);
+  const paidTotal = plans.reduce((acc, p) => acc + p.amountPaid, 0);
+
+  useShortcut('n', () => setPickerOpen(true));
 
   return (
     <div className="space-y-6">
       <PageHeader
         eyebrow="Operación"
-        title="Ventas en Cuotas"
-        description="Seguimiento de pagos hasta saldar el total."
+        title="Cuotas"
+        description="Ventas a plazos: seguimiento de pagos hasta saldar el total."
+        className="mb-0"
         actions={
-        <div className="flex items-center gap-3">
-          {activeCount > 0 && (
-            <span className="rounded-full bg-warning/15 px-3 py-1.5 text-sm font-medium text-warning">
-              {activeCount} activas
-            </span>
-          )}
-          <Button onClick={() => setPickerOpen(true)}>
-            <HugeIcon icon={Add01Icon} size={16} strokeWidth={2} className="mr-1.5" aria-hidden /> Nuevo plan
+          <Button onClick={() => setPickerOpen(true)} className="h-9 gap-2 rounded-md">
+            <HugeIcon icon={Add01Icon} size={16} strokeWidth={2} aria-hidden />
+            Nuevo plan
+            <Kbd>N</Kbd>
           </Button>
-        </div>
         }
       />
 
-      <Tabs value={statusFilter} onValueChange={(v) => setStatusFilter(v as typeof statusFilter)}>
-        <TabsList className="bg-card border">
-          <TabsTrigger value="active">Activas</TabsTrigger>
-          <TabsTrigger value="all">Todas</TabsTrigger>
-          <TabsTrigger value="completed">Completadas</TabsTrigger>
-        </TabsList>
-      </Tabs>
+      <Workspace>
+        <WorkspaceToolbar>
+          <SegmentedControl
+            label="Planes"
+            value={statusFilter}
+            onChange={setStatusFilter}
+            options={[
+              { value: 'active', label: 'Activos' },
+              { value: 'all', label: 'Todos' },
+              { value: 'completed', label: 'Saldados' },
+            ]}
+          />
+        </WorkspaceToolbar>
 
-      <QueryState
-        loading={isLoading}
-        error={isError}
-        empty={plans.length === 0}
-        loadingFallback={<BrandLoader text="Cargando cuotas..." />}
-        emptyFallback={
-          <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border bg-muted/50 py-20 text-center">
-            <HugeIcon icon={CreditCardIcon} size={40} strokeWidth={2} className="text-muted-foreground opacity-40" aria-hidden />
-            <p className="text-muted-foreground">No hay planes de cuotas en esta categoría.</p>
-          </div>
-        }
-      >
-        <div className="grid gap-4 sm:grid-cols-2">
-          {plans.map((plan) => (
-            <PlanCard key={plan.id} plan={plan} onPay={() => setPayFor(plan)} />
-          ))}
+        {/* Números de lo que se está viendo (según el selector). */}
+        <MetricStrip columns={3}>
+          <Metric label="Planes activos" value={activeCount} sub={`${plans.length} en esta vista`} />
+          <Metric label="Por cobrar" value={formatCordobas(pendingTotal)} sub="Saldo de los planes activos" />
+          <Metric label="Cobrado" value={formatCordobas(paidTotal)} sub="Pagos registrados" />
+        </MetricStrip>
+
+        <div className="p-4">
+          <QueryState
+            loading={isLoading}
+            error={isError}
+            empty={plans.length === 0}
+            shape="card"
+            emptyFallback={
+              <div className="flex flex-col items-center justify-center gap-3 rounded-card border border-dashed border-border py-16 text-center">
+                <HugeIcon icon={CreditCardIcon} size={32} strokeWidth={2} className="text-muted-foreground opacity-50" aria-hidden />
+                <p className="text-sm text-muted-foreground">No hay planes de cuotas en esta vista.</p>
+              </div>
+            }
+          >
+            <div className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">
+              {plans.map((plan) => (
+                <PlanCard key={plan.id} plan={plan} onPay={() => setPayFor(plan)} />
+              ))}
+            </div>
+          </QueryState>
         </div>
-      </QueryState>
+      </Workspace>
 
       <PaymentDialog plan={payFor} onClose={() => setPayFor(null)} />
       <CreatePlanDialog sale={createFor} onClose={() => setCreateFor(null)} />
@@ -394,3 +472,6 @@ export default function AdminCuotas() {
     </div>
   );
 }
+
+// Error dentro de la sección: se muestra en el área de contenido y la barra lateral sigue viva.
+export { AdminRouteError as ErrorBoundary } from '~/components/layout/route-error';

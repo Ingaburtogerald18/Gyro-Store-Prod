@@ -169,7 +169,7 @@ export function NotificationsBell() {
           <HugeIcon icon={Notification03Icon} size={18} strokeWidth={2} aria-hidden />
           {badge > 0 && (
             <span
-              className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold tabular-nums text-destructive-foreground ring-2 ring-background"
+              className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-2xs font-bold tabular-nums text-destructive-foreground ring-2 ring-background"
               aria-hidden
             >
               {badge > 99 ? '99+' : badge}

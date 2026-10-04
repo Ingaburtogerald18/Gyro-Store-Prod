@@ -59,8 +59,8 @@ export default function AdminAnalitica() {
           {stats.map((s) => (
             <Card key={s.label}>
               <CardContent className="p-4">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">{s.label}</p>
-                <p className="mt-1 text-2xl font-bold tabular-nums text-foreground">{s.value}</p>
+                <p className="text-xs text-muted-foreground">{s.label}</p>
+                <p className="mt-1 font-display text-2xl font-bold tabular-nums text-foreground">{s.value}</p>
               </CardContent>
             </Card>
           ))}
@@ -112,7 +112,7 @@ export default function AdminAnalitica() {
               empty={(zero.data?.length ?? 0) === 0}
               emptyFallback={
                 <p className="py-8 text-center text-sm text-muted-foreground">
-                  Sin búsquedas fallidas en el periodo. 🎯
+                  Sin búsquedas fallidas en el período.
                 </p>
               }
               loadingFallback={<div className="h-40 animate-pulse rounded-md bg-muted" />}
@@ -211,3 +211,6 @@ function SearchTable({
     </div>
   );
 }
+
+// Error dentro de la sección: se muestra en el área de contenido y la barra lateral sigue viva.
+export { AdminRouteError as ErrorBoundary } from '~/components/layout/route-error';

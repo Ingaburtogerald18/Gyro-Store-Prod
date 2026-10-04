@@ -22,7 +22,7 @@ const buttonVariants = cva(
         // Control claro sobre una foto (flechas del carrusel showcase).
         onMedia: "bg-white/90 text-background hover:bg-white disabled:hover:bg-white/90",
         // Canal de WhatsApp: sale del token --whatsapp, no de un hex crudo.
-        whatsapp: "bg-whatsapp text-white hover:bg-whatsapp/90",
+        whatsapp: "bg-whatsapp text-whatsapp-foreground hover:bg-whatsapp-hover",
         whatsappOutline: "border border-whatsapp text-whatsapp hover:bg-whatsapp/10",
       },
       size: {

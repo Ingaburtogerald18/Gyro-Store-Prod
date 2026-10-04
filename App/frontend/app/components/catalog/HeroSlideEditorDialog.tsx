@@ -163,7 +163,7 @@ export function HeroSlideEditorDialog({
                 {uploading ? (
                   <div className="mt-2 space-y-1.5">
                     <Progress value={uploadProgress} className="h-1.5" />
-                    <p className="text-[11px] font-medium text-muted-foreground">Subiendo... {uploadProgress}%</p>
+                    <p className="text-2xs font-medium text-muted-foreground">Subiendo... {uploadProgress}%</p>
                   </div>
                 ) : (
                   <FieldDescription>

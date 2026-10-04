@@ -41,7 +41,9 @@ export function StatusBadge({
     <span
       data-badge={status}
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-pill border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider",
+        // Frase normal y peso medio, no MAYÚSCULAS en negrita: en una tabla
+        // con un estado por fila, las mayúsculas gritaban más que los datos.
+        "inline-flex items-center gap-1.5 whitespace-nowrap rounded-pill border px-2.5 py-0.5 text-xs font-medium",
         VARIANTS[status],
         glow && GLOWS[status],
         className,
@@ -51,7 +53,7 @@ export function StatusBadge({
         className={cn(
           // El glow del punto solo aplica en oscuro; en claro degrada a un
           // punto sólido nítido (ver override [data-theme="light"] en la CSS).
-          "size-1.5 rounded-full bg-current shadow-[0_0_8px_currentColor]",
+          "size-1.5 rounded-full bg-current",
           pulse && "animate-badge-pulse",
         )}
       />

@@ -12,7 +12,6 @@
 // la barra de herramientas y esta grilla cuenten siempre lo mismo. Las
 // categorías se eligen desde el header (CategoryNav / CategoriesDrawer).
 import { useMemo } from 'react';
-import { motion, useReducedMotion } from 'framer-motion';
 import { HugeIcon } from '~/components/ui/icon';
 import { PackageSearchIcon } from '@hugeicons/core-free-icons';
 
@@ -26,7 +25,8 @@ import { isDeal, useCatalogFilter } from '~/hooks/useCatalogFilter';
 import { useAppSelector } from '~/store/hooks';
 import { selectEditMode } from '~/store/slices/authSlice';
 import { selectDraftLandingConfig } from '~/store/slices/builderSlice';
-import { useGetLandingConfigQuery } from '~/store/api/storefrontApi';
+import { useStoreLanding } from '~/hooks/useStoreConfig';
+import { categoryHref } from '~/components/store/category-nav';
 import { InlineRailsEditor } from '~/components/store/inline-rails-editor';
 
 export { isDeal };
@@ -45,11 +45,13 @@ interface ProductGridProps {
 
 export function ProductGrid({ products, categories = [], isLoading }: ProductGridProps) {
   const { filtered, isDefault } = useCatalogFilter(products, categories);
-  const deals = useMemo(() => products.filter(isDeal), [products]);
+  // En la vista por defecto `filtered` es el catálogo completo ya ordenado: los
+  // carriles salen de ahí para que el selector de orden también los ordene.
+  const deals = useMemo(() => filtered.filter(isDeal), [filtered]);
 
   const editMode = useAppSelector(selectEditMode);
   const draftLanding = useAppSelector(selectDraftLandingConfig);
-  const { data: realLanding } = useGetLandingConfigQuery();
+  const realLanding = useStoreLanding();
 
   // Determinar qué categorías usar para los carriles según el estado
   const railCategoriesIds = useMemo(() => {
@@ -60,7 +62,7 @@ export function ProductGrid({ products, categories = [], isLoading }: ProductGri
   // Una fila por categoría CON productos, y las ofertas fuera.
   // Ahora usamos el orden de railCategoriesIds si existe, si no, caemos a todas.
   const rows = useMemo(() => {
-    const rest = products.filter((p) => !isDeal(p));
+    const rest = filtered.filter((p) => !isDeal(p));
     let orderedCategories = categories;
 
     if (railCategoriesIds.length > 0) {
@@ -72,13 +74,13 @@ export function ProductGrid({ products, categories = [], isLoading }: ProductGri
     return orderedCategories
       .map((c) => ({ category: c, items: rest.filter((p) => inCategory(p, c)) }))
       .filter((row) => row.items.length > 0);
-  }, [products, categories, railCategoriesIds]);
+  }, [filtered, categories, railCategoriesIds]);
 
   // Productos que no caen en ninguna categoría de la config
   const uncategorized = useMemo(() => {
     if (categories.length === 0) return [];
-    return products.filter((p) => !isDeal(p) && !categories.some((c) => inCategory(p, c)));
-  }, [products, categories]);
+    return filtered.filter((p) => !isDeal(p) && !categories.some((c) => inCategory(p, c)));
+  }, [filtered, categories]);
 
   if (isLoading) return <GridSkeleton />;
 
@@ -106,6 +108,7 @@ export function ProductGrid({ products, categories = [], isLoading }: ProductGri
           <ProductCarousel
             key={row.category.id}
             title={row.category.name}
+            href={categoryHref(row.category.slug)}
             products={row.items}
             variant="showcase"
           />
@@ -126,7 +129,7 @@ export function ProductGrid({ products, categories = [], isLoading }: ProductGri
 
   return (
     <div className="space-y-4 pb-2 md:pb-12">
-      <h2 className="text-lg font-bold tracking-tight text-foreground md:text-xl">
+      <h2 className="font-heading text-2xl font-bold tracking-tight text-foreground md:text-3xl">
         Resultados{' '}
         <span className="ml-1 text-sm font-medium text-muted-foreground tabular-nums">
           ({filtered.length})
@@ -144,23 +147,15 @@ export function ProductGrid({ products, categories = [], isLoading }: ProductGri
 
 // Grilla uniforme: todas las tarjetas del mismo tamaño y aspect-ratio, sin tiles
 // anchos. El `h-full` en cada celda ancla el CTA al fondo con alturas parejas.
+// La entrada animada (fade + subida, escalonada por fila) la hace ProductCard;
+// antes esta celda animaba lo mismo por encima y se sumaban dos transiciones.
 export function ProductResultsGrid({ products }: { products: CatalogProduct[] }) {
-  const reduce = useReducedMotion();
-
   return (
     <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-5 lg:grid-cols-4">
       {products.map((p, i) => (
-        <motion.div
-          key={p.id}
-          className="h-full"
-          initial={reduce ? false : { opacity: 0, y: 12 }}
-          whileInView={reduce ? undefined : { opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: '-40px' }}
-          // El stagger se reinicia por fila: si dependiera del índice absoluto,
-          // la tarjeta 40 entraría con segundos de retraso.
-          transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1], delay: (i % 4) * 0.06 }} >
+        <div key={p.id} className="h-full">
           <ProductCard product={p} index={i} />
-        </motion.div>
+        </div>
       ))}
     </div>
   );
@@ -171,7 +166,8 @@ function GridSkeleton() {
     <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-5 lg:grid-cols-4">
       {Array.from({ length: 8 }).map((_, i) => (
         <div key={i} className="flex flex-col gap-3">
-          <Skeleton className="aspect-[4/3] w-full rounded-xl" />
+          {/* Mismo aspect que el stage real de ProductCard: evita el salto de layout. */}
+          <Skeleton className="aspect-square w-full rounded-2xl" />
           <Skeleton className="h-4 w-3/4" />
           <Skeleton className="h-4 w-1/3" />
           <Skeleton className="h-11 w-full" />

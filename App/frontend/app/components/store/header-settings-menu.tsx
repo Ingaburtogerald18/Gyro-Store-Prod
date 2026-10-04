@@ -1,5 +1,5 @@
 import { HugeIcon } from "~/components/ui/icon";
-import { ArrowRight01Icon, CustomerSupportIcon, DashboardSquare01Icon, Edit02Icon, Logout03Icon, Moon02Icon, Settings02Icon, Sun01Icon, TruckIcon, User02Icon } from "@hugeicons/core-free-icons";
+import { CustomerSupportIcon, DashboardSquare01Icon, Edit02Icon, Logout03Icon, Moon02Icon, Settings02Icon, Sun01Icon, User02Icon } from "@hugeicons/core-free-icons";
 import { useState, useRef, useEffect } from "react";
 import { Link, useLocation } from "@remix-run/react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -23,7 +23,9 @@ const CHIP =
  *  la vista de invitado como en la autenticada (antes había dos botones distintos). */
 function ThemeSwitch({ isDark, onToggle }: { isDark: boolean; onToggle: () => void }) {
   return (
-    <div className={cn(ROW, "justify-between cursor-pointer")} onClick={onToggle}>
+    // <label> y no <div onClick>: toda la fila activa el switch, pero el único
+    // control interactivo (y el único que recibe teclado) es el <button>.
+    <label className={cn(ROW, "justify-between cursor-pointer")}>
       <span className="flex items-center gap-2">
         {isDark ? <HugeIcon icon={Moon02Icon} size={16} strokeWidth={2} className="text-muted-foreground" /> : <HugeIcon icon={Sun01Icon} size={16} strokeWidth={2} className="text-muted-foreground" />}
         Apariencia
@@ -33,6 +35,7 @@ function ThemeSwitch({ isDark, onToggle }: { isDark: boolean; onToggle: () => vo
         role="switch"
         aria-checked={isDark}
         aria-label={`Cambiar a tema ${isDark ? "claro" : "oscuro"}`}
+        onClick={onToggle}
         className={cn(
           "relative h-6 w-11 shrink-0 rounded-full border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
           isDark ? "border-primary bg-primary" : "border-border bg-muted",
@@ -51,7 +54,7 @@ function ThemeSwitch({ isDark, onToggle }: { isDark: boolean; onToggle: () => vo
           )}
         </motion.span>
       </button>
-    </div>
+    </label>
   );
 }
 
@@ -81,11 +84,6 @@ export function HeaderSettingsMenu() {
     setIsOpen(false);
     await signOut();
     toast.success("Sesión cerrada.");
-  }
-
-  function comingSoon() {
-    setIsOpen(false);
-    toast.info("Próximamente disponible.");
   }
 
   // Cierra el menú al hacer clic afuera.
@@ -138,38 +136,20 @@ export function HeaderSettingsMenu() {
               {/* ── VISTA INVITADO ── */}
               {!isAuthed && (
                 <>
-                  <div className="px-2.5 pb-2 pt-1">
-                    <p className="text-sm font-semibold text-foreground">Tu cuenta</p>
-                    <p className="text-xs text-muted-foreground">Ajustes y pedidos</p>
-                  </div>
-
-                  {/* Bloque destacado: seguimiento de pedido, con jerarquía visual
-                      propia (borde + fondo acentuado) para que no se sienta plano. */}
-                  <button
-                    onClick={comingSoon}
-                    className="group mb-1 flex items-center gap-3 rounded-xl border bg-primary/5 px-2.5 py-3 text-left transition-colors hover:border-primary/40 hover:bg-primary/10"
-                    role="menuitem"
-                  >
-                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary/15 text-primary">
-                      <HugeIcon icon={TruckIcon} size={20} strokeWidth={2} />
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-sm font-semibold text-foreground">Rastrear mi pedido</span>
-                      <span className="block text-xs text-muted-foreground">Consulta el estado de tu envío</span>
-                    </span>
-                    <HugeIcon icon={ArrowRight01Icon} size={16} strokeWidth={2} className="shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
-                  </button>
-
-                  <button
-                    onClick={comingSoon}
+                  {/* Antes había "Rastrear mi pedido" y "Ayuda y FAQs" que solo
+                      mostraban "Próximamente": un menú lleno de callejones sin
+                      salida. Queda lo que funciona hoy. */}
+                  <Link
+                    to="/contacto"
+                    onClick={() => setIsOpen(false)}
                     className={cn(ROW, "text-muted-foreground hover:bg-muted hover:text-foreground")}
                     role="menuitem"
                   >
                     <span className={cn(CHIP, "bg-muted text-muted-foreground group-hover:text-foreground")}>
                       <HugeIcon icon={CustomerSupportIcon} size={16} strokeWidth={2} />
                     </span>
-                    Ayuda y FAQs
-                  </button>
+                    Ayuda y contacto
+                  </Link>
 
                   <ThemeSwitch isDark={isDark} onToggle={toggleTheme} />
 
@@ -182,7 +162,7 @@ export function HeaderSettingsMenu() {
                     role="menuitem"
                   >
                     <HugeIcon icon={User02Icon} size={16} strokeWidth={2} className="text-muted-foreground" />
-                    Iniciar Sesión
+                    Acceso del personal
                   </Link>
                 </>
               )}

@@ -4,6 +4,7 @@
 import { HugeIcon } from "~/components/ui/icon";
 import { ArrowLeft01Icon, ArrowRight01Icon } from "@hugeicons/core-free-icons";
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Link } from '@remix-run/react';
 
 import type { CatalogProduct } from '@shared/schemas';
 import { ProductCard } from './product-card';
@@ -12,10 +13,13 @@ import { cn } from "~/lib/utils";
 
 export function ProductCarousel({
   title,
+  href,
   subtitle,
   products,
 }: {
   title: string;
+  /** Destino de "Ver todo" (la grilla filtrada por esa categoría). */
+  href?: string;
   subtitle?: string;
   products: CatalogProduct[];
   variant?: string;
@@ -49,14 +53,26 @@ export function ProductCarousel({
     <section className="py-2 sm:py-5 md:py-8" aria-label={title}>
       <div className="mb-5 flex items-end justify-between gap-4">
         <div className="min-w-0">
-          <h2 className="text-[17px] font-bold tracking-tight text-foreground sm:text-2xl">{title}</h2>
+          <h2 className="font-heading text-2xl font-bold tracking-tight text-foreground md:text-3xl">{title}</h2>
           {subtitle && (
-            <p className="mt-0.5 text-[11px] font-light text-muted-foreground sm:text-sm">{subtitle}</p>
+            <p className="mt-1 text-xs text-muted-foreground sm:text-sm">{subtitle}</p>
           )}
         </div>
 
-        {/* También en móvil: son la pista visible de que la fila se desliza. */}
-        <div className="flex shrink-0 gap-2">
+        {/* "Ver todo" lleva a la grilla de la categoría. Las flechas quedan para
+            escritorio: en móvil la tarjeta asomada y el degradado ya dicen que la
+            fila se desliza, y "Ver todo" es la salida que faltaba. */}
+        <div className="flex shrink-0 items-center gap-2">
+          {href && (
+            <Link
+              to={href}
+              className="rounded-md px-1 text-sm font-semibold text-primary-2 underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+            >
+              Ver todo
+              <span className="sr-only"> en {title}</span>
+            </Link>
+          )}
+        <div className={cn("hidden gap-2 sm:flex", !canPrev && !canNext && "sm:invisible")}>
           {([-1, 1] as const).map((dir) => {
             const enabled = dir === -1 ? canPrev : canNext;
             const Icon = dir === -1 ? ArrowLeft01Icon : ArrowRight01Icon;
@@ -67,7 +83,7 @@ export function ProductCarousel({
                 size="icon"
                 onClick={() => scrollByView(dir)}
                 disabled={!enabled}
-                aria-label={dir === -1 ? 'Anterior' : 'Siguiente'}
+                aria-label={dir === -1 ? `Ver anteriores de ${title}` : `Ver más de ${title}`}
                 className={cn(
                   'ease-expo h-10 w-10 rounded-full active:scale-95',
                   'disabled:opacity-30',
@@ -78,6 +94,7 @@ export function ProductCarousel({
               </Button>
             );
           })}
+        </div>
         </div>
       </div>
 

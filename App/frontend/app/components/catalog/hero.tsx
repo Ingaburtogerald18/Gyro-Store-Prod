@@ -19,21 +19,6 @@ import { useNavigate } from '@remix-run/react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { toast } from 'sonner';
 
-function WhatsappIcon(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="currentColor"
-      width={14}
-      height={14}
-      {...props}
-    >
-      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.888-.788-1.489-1.761-1.663-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z" />
-    </svg>
-  );
-}
-
 import { MAX_HERO_SLIDES, type HeroSlide, type LandingConfig } from '@shared/schemas';
 import { HeroSlideEditorDialog } from '~/components/catalog/HeroSlideEditorDialog';
 import { SlideMedia } from '~/components/catalog/slide-media';
@@ -43,8 +28,9 @@ import { Separator } from '~/components/ui/separator';
 import { useAppSelector, useAppDispatch } from '~/store/hooks';
 import { selectEditMode, selectIsAdmin } from '~/store/slices/authSlice';
 import { selectDraftLandingConfig, updateHeroSlides } from '~/store/slices/builderSlice';
-import { useGetConfigQuery } from '~/store/api/sessionApi';
+import { useStoreConfig } from '~/hooks/useStoreConfig';
 import { useGetLandingConfigQuery } from '~/store/api/storefrontApi';
+import { WhatsappIcon } from '~/components/ui/whatsapp-icon';
 import { cn } from "~/lib/utils"
 import { buildWhatsappUrl } from "~/lib/formatters";
 
@@ -75,6 +61,11 @@ export function Hero({ initialLanding }: { initialLanding?: LandingConfig | null
   const [playing, setPlaying] = useState(!reduce);
   const [editingSlideId, setEditingSlideId] = useState<string | null>(null);
   const [slideToDeleteIndex, setSlideToDeleteIndex] = useState<number | null>(null);
+  // El primer slide sale visible desde el HTML del servidor. Con la entrada
+  // animada desde opacity 0, en una red lenta el titular quedaba invisible hasta
+  // que cargaba el JavaScript; ahora solo animan los cambios de slide.
+  const [animateEntry, setAnimateEntry] = useState(false);
+  if (activeIndex !== 0 && !animateEntry) setAnimateEntry(true);
 
   const { data: landingData } = useGetLandingConfigQuery();
   
@@ -88,7 +79,7 @@ export function Hero({ initialLanding }: { initialLanding?: LandingConfig | null
   const landing = editing && draftLanding ? draftLanding : (landingData ?? initialLanding ?? EMPTY_LANDING);
   const slides = landing.heroSlides;
 
-  const { data: config } = useGetConfigQuery();
+  const config = useStoreConfig();
   const whatsappOrderUrl = buildWhatsappUrl(
     config?.whatsapp ?? '',
     `Hola ${config?.brandName ?? ''}, quiero hacer un pedido`.replace(/\s+,/, ','),
@@ -262,7 +253,7 @@ export function Hero({ initialLanding }: { initialLanding?: LandingConfig | null
 
         <div className="flex min-h-[340px] flex-col items-stretch md:h-[460px] md:flex-row">
           {/* ── Media ── */}
-          <div className="relative flex h-[200px] w-full items-center justify-center overflow-hidden border-b border-border/30 bg-card sm:h-[280px] md:h-auto md:w-1/2 md:border-r md:border-b-0">
+          <div className="relative flex h-[150px] w-full items-center justify-center overflow-hidden border-b border-border/30 bg-card sm:h-[260px] md:h-auto md:w-1/2 md:border-r md:border-b-0">
             {/* Glow radial muy tenue: da profundidad al vacío sin leerse como halo. */}
             <div
               aria-hidden
@@ -271,6 +262,7 @@ export function Hero({ initialLanding }: { initialLanding?: LandingConfig | null
             <SlideMedia
               key={activeSlide.id}
               slide={activeSlide}
+              paused={!playing}
               className={cn(
                 'absolute inset-0 h-full w-full object-contain transition-opacity duration-700 ease-out',
                 safeIndex === 0 ? 'p-2 sm:p-6' : 'p-6 max-md:scale-125 max-md:p-0',
@@ -287,46 +279,48 @@ export function Hero({ initialLanding }: { initialLanding?: LandingConfig | null
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeSlide.id}
-                initial={reduce ? false : { opacity: 0, x: 20 }}
+                initial={reduce || !animateEntry ? false : { opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={reduce ? { opacity: 0 } : { opacity: 0, x: -20 }}
                 transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
                 className="space-y-2.5 sm:space-y-6"
               >
-                <span className="inline-block text-[10px] font-black tracking-[0.2em] text-primary-2 uppercase sm:text-xs">
+                <span className="inline-block text-2xs font-black tracking-[0.2em] text-primary-2 uppercase sm:text-xs">
                   {activeSlide.eyebrow}
                 </span>
 
-                <h1 className="text-[20px] leading-[0.95] font-black tracking-tight text-balance text-foreground sm:text-4xl md:text-5xl">
+                <h1 className="font-heading text-[1.875rem] leading-[1.02] font-extrabold tracking-tight text-balance text-foreground md:text-6xl">
                   {activeSlide.title}
                 </h1>
 
                 {/* Recortada en móvil: el CTA no puede depender de qué tan larga
                     sea la descripción de cada slide. */}
-                <p className="line-clamp-2 max-w-lg text-[12px] leading-relaxed font-medium text-muted-foreground sm:line-clamp-none sm:text-base">
+                {/* line-clamp-3 (antes 2): a 375px la descripción por defecto
+                    necesita 3 líneas y quedaba cortada en "…entrega en…". */}
+                <p className="line-clamp-3 max-w-lg text-[13px] leading-relaxed font-medium text-muted-foreground sm:line-clamp-none sm:text-base">
                   {activeSlide.description}
                 </p>
 
-                {/* Ambos CTAs comparten patrón (contorno, mismo tamaño, una sola
-                    línea) y se diferencian solo por color: acento para la acción
-                    principal, verde para WhatsApp. */}
+                {/* Mismo tamaño, distinto peso: el CTA de la tienda va lleno y WhatsApp
+                    en contorno. Con los dos llenos, el verde brillante de WhatsApp
+                    le ganaba la mirada a la acción principal. */}
                 <div className="pt-2.5 sm:pt-4">
                   <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-row sm:gap-3">
                     <Button
                       variant="default"
                       size="lg"
                       onClick={handlePrimaryAction}
-                      className="group/cta w-full justify-center text-[12px] sm:w-auto sm:text-sm"
+                      className="group/cta h-11 w-full justify-center text-xs sm:w-auto sm:text-sm"
                     >
                       <span className="truncate">{activeSlide.buttonText || 'Ver catálogo'}</span>
                       <HugeIcon icon={ArrowRight02Icon} size={14} strokeWidth={2} aria-hidden className="shrink-0 transition-transform duration-300 group-hover/cta:translate-x-1" />
                     </Button>
 
                     <Button
-                      variant="whatsapp"
+                      variant="whatsappOutline"
                       size="lg"
                       onClick={() => window.open(whatsappOrderUrl, '_blank', 'noopener,noreferrer')}
-                      className="group/wa w-full justify-center text-[12px] sm:w-auto sm:text-sm"
+                      className="group/wa h-11 w-full justify-center text-xs sm:w-auto sm:text-sm"
                     >
                       <WhatsappIcon aria-hidden className="shrink-0 transition-transform duration-300 group-hover/wa:scale-110" />
                       <span className="truncate">WhatsApp</span>

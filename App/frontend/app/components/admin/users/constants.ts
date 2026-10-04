@@ -5,7 +5,7 @@ import type { AppRole, UserProfile } from "~/store/api/usersApi";
 import type { UpdateProfileInput } from "@shared/schemas";
 
 export const ROLE_LABELS: Record<AppRole, string> = {
-  global_admin: "Global Admin",
+  global_admin: "Administrador general",
   admin: "Admin",
   seller: "Vendedor",
   cashier: "Cajero",

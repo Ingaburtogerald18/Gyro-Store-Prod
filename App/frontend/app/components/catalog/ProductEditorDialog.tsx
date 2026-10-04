@@ -372,7 +372,7 @@ export function ProductEditorDialog({
       console.error("No se pudieron subir las imágenes", err);
       // El componente padre podría mostrar un toast si lanzamos el error,
       // pero para estar seguros podemos disparar un alert o toast acá.
-      alert("Hubo un error al subir las fotos. Intente nuevamente.");
+      toast.error('No se pudieron subir las fotos. Revisá tu conexión y probá de nuevo.');
     } finally {
       // Se libera SIEMPRE: si el guardado falla, el usuario tiene que poder
       // reintentar sin cerrar y reabrir el diálogo.
@@ -615,7 +615,7 @@ export function ProductEditorDialog({
                             <ToneDot toneKey={color} />
                             {color}
                             {count > 0 && (
-                              <span className="ml-1 rounded-full bg-primary-2/20 px-1.5 text-[10px] font-bold text-primary-2">
+                              <span className="ml-1 rounded-full bg-primary-2/20 px-1.5 text-2xs font-bold text-primary-2">
                                 {count}
                               </span>
                             )}

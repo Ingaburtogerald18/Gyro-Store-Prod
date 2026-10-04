@@ -4,8 +4,11 @@ import { parseDbRows } from '../utils/parseDbRows';
 import { buildPage, type PaginationParams, type PaginatedResult } from '../utils/pagination';
 import { BadRequestError, NotFoundError } from '../utils/httpError';
 import { round } from './finance';
-import type { CreateExpenseInput, CreateLoanPaymentInput } from '../../shared/schemas';
+import type { CreateExpenseInput } from '../../shared/schemas';
 import { getFinancialConfig } from './appConfig';
+import { businessDateStartIso, toBusinessDate } from '../utils/businessDay';
+import { fetchAllRows } from '../utils/fetchAllRows';
+import { getPozoLedger, ledgerMonthOf, type LedgerPozo, type MonthLedger } from './pozoLedger';
 
 // ============================================================================
 // ── Esquemas Zod (Contratos) ──
@@ -42,6 +45,8 @@ const kpiSchema = z.object({
   budget_prestamos_disponible: z.number().default(0),
   prestamos_cubierto_por_budget: z.number().default(0),
   prestamos_de_ganancia: z.number().default(0),
+  /** Todo lo que los gastos del mes tomaron de la ganancia (pozos que se pasaron, préstamos y salario). */
+  gastos_de_ganancia: z.number().default(0),
   ganancia_real: z.number().default(0),
   ganancia_real_prev: z.number().default(0),
 });
@@ -174,14 +179,14 @@ export async function getPrestamosPozoExpenses(
   startDate?: string,
   endDate?: string
 ): Promise<number> {
-  let query = db.from('expenses').select('monto_cs').eq('pozo', 'prestamos');
-  if (startDate) query = query.gte('created_at', startDate);
-  if (endDate) query = query.lte('created_at', endDate);
+  const data = await fetchAllRows((from, to) => {
+    let query = db.from('expenses').select('monto_cs').eq('pozo', 'prestamos');
+    if (startDate) query = query.gte('created_at', startDate);
+    if (endDate) query = query.lte('created_at', endDate);
+    return query.order('id').range(from, to);
+  });
 
-  const { data, error } = await query;
-  if (error) throw error;
-
-  const total = (data || []).reduce((acc, row: any) => acc + (Number(row.monto_cs) || 0), 0);
+  const total = data.reduce((acc, row: any) => acc + (Number(row.monto_cs) || 0), 0);
   return round(total, 2);
 }
 
@@ -197,19 +202,18 @@ export async function getPrestamosPozoBudget(
 ): Promise<{ collected: number; expenses: number; available: number }> {
   let collected = collectedOverride;
   if (collected === undefined) {
-    let itemsQuery = db
-      .from('order_items')
-      .select('pozos, orders!inner(status, created_at)')
-      .in('orders.status', ['approved', 'paid']);
-
-    if (startDate) itemsQuery = itemsQuery.gte('orders.created_at', startDate);
-    if (endDate) itemsQuery = itemsQuery.lte('orders.created_at', endDate);
-
-    const { data: orderItems, error: itemsError } = await itemsQuery;
-    if (itemsError) throw itemsError;
+    const orderItems = await fetchAllRows((from, to) => {
+      let itemsQuery = db
+        .from('order_items')
+        .select('pozos, orders!inner(status, created_at)')
+        .in('orders.status', ['approved', 'paid']);
+      if (startDate) itemsQuery = itemsQuery.gte('orders.created_at', startDate);
+      if (endDate) itemsQuery = itemsQuery.lte('orders.created_at', endDate);
+      return itemsQuery.order('id').range(from, to);
+    });
 
     let totalCollected = 0;
-    for (const it of orderItems || []) {
+    for (const it of orderItems) {
       if (it.pozos && typeof it.pozos === 'object') {
         totalCollected += Number((it.pozos as Record<string, any>)['prestamos']) || 0;
       }
@@ -221,6 +225,42 @@ export async function getPrestamosPozoBudget(
   const available = round(collected - expenses, 2);
 
   return { collected, expenses, available };
+}
+
+/**
+ * Período contra el que se compara `[startDate, endDate]`.
+ *
+ * Si el rango es un mes calendario completo en hora de Nicaragua (lo que manda
+ * el selector de mes), el anterior es el MES CALENDARIO anterior. Para
+ * cualquier otro rango, el mismo largo justo antes (criterio del RPC).
+ */
+function previousPeriod(
+  startDate?: string,
+  endDate?: string,
+): { startIso: string; endIso: string; isCalendarMonth: boolean } | null {
+  if (!startDate || !endDate) return null;
+  const s = Date.parse(startDate);
+  const e = Date.parse(endDate);
+  if (isNaN(s) || isNaN(e) || e < s) return null;
+
+  const startLocal = toBusinessDate(new Date(s));
+  const monthStart = `${startLocal.slice(0, 8)}01`;
+  const [y, m] = monthStart.split('-').map(Number) as [number, number];
+  const nextMonthStart = new Date(Date.UTC(y, m, 1)).toISOString().slice(0, 10);
+  const prevMonthStart = new Date(Date.UTC(y, m - 2, 1)).toISOString().slice(0, 10);
+
+  const isCalendarMonth =
+    businessDateStartIso(monthStart) === new Date(s).toISOString() &&
+    Math.abs(Date.parse(businessDateStartIso(nextMonthStart)) - 1 - e) < 1000;
+
+  if (isCalendarMonth) {
+    return {
+      startIso: businessDateStartIso(prevMonthStart),
+      endIso: new Date(Date.parse(businessDateStartIso(monthStart)) - 1).toISOString(),
+      isCalendarMonth,
+    };
+  }
+  return { startIso: new Date(s - (e - s)).toISOString(), endIso: new Date(s).toISOString(), isCalendarMonth };
 }
 
 /**
@@ -247,19 +287,54 @@ export async function getFinancialKPIs(
     throw error;
   }
 
-  let prevStartDate: string | undefined = undefined;
-  let prevEndDate: string | undefined = undefined;
-  if (startDate && endDate) {
-    const s = new Date(startDate).getTime();
-    const e = new Date(endDate).getTime();
-    if (!isNaN(s) && !isNaN(e) && e >= s) {
-      const duration = e - s;
-      prevEndDate = new Date(s).toISOString();
-      prevStartDate = new Date(s - duration).toISOString();
+  const prev = previousPeriod(startDate, endDate);
+  const prevStartDate = prev?.startIso;
+  const prevEndDate = prev?.endIso;
+
+  const rpcData = { ...((data ?? {}) as Record<string, any>) };
+
+  // El RPC calcula su "_prev" con la misma DURACIÓN justo antes del rango, y
+  // para un mes eso no es el mes anterior (septiembre comparaba contra 2–31 de
+  // agosto). Cuando el rango es un mes calendario, se pide el mes anterior
+  // completo y sus totales reemplazan los "_prev" del RPC.
+  if (prev?.isCalendarMonth) {
+    const { data: prevData, error: prevError } = await db.rpc('get_financial_kpis', {
+      p_start_date: prev.startIso,
+      p_end_date: prev.endIso,
+      p_seller_uid: sellerUid ?? null,
+    }).single();
+    if (prevError) throw prevError;
+    const p = (prevData ?? {}) as Record<string, any>;
+    for (const key of ['total_ventas', 'total_unidades', 'total_vendido', 'coste_total', 'comision_total', 'ganancia_tienda_total']) {
+      rpcData[`${key}_prev`] = p[key] ?? 0;
     }
   }
 
-  const rpcData = (data ?? {}) as Record<string, any>;
+  // Mes calendario de la tienda completa: la Ganancia real sale del motor de
+  // pozos (pozoLedger.ts), la MISMA cifra que muestra la pestaña Gastos.
+  if (prev?.isCalendarMonth && !sellerUid && startDate) {
+    const month = ledgerMonthOf(startDate);
+    const [ledger, prevLedger] = await Promise.all([
+      getPozoLedger(month),
+      getPozoLedger(ledgerMonthOf(prev.startIso)),
+    ]);
+    const prestamos = ledger.pozos.find((r) => r.pozo === 'prestamos')!;
+    const prestamosPrev = prevLedger.pozos.find((r) => r.pozo === 'prestamos')!;
+    const parsedLedger = parseDbRows(kpiSchema, [{
+      ...rpcData,
+      total_prestamos: prestamos.gastado,
+      total_prestamos_prev: prestamosPrev.gastado,
+      budget_prestamos_disponible: round(prestamos.heredado + prestamos.recogido, 2),
+      prestamos_cubierto_por_budget: round(prestamos.gastado - prestamos.tomadoGanancia, 2),
+      prestamos_de_ganancia: prestamos.tomadoGanancia,
+      gastos_de_ganancia: ledger.deGanancia.total,
+      ganancia_real: ledger.gananciaReal,
+      ganancia_real_prev: prevLedger.gananciaReal,
+    }], 'getFinancialKPIs');
+    return parsedLedger[0]!;
+  }
+
+  // Otros rangos (o un solo vendedor): criterio anterior, solo préstamos.
   const collectedPrestamos = round(Number(rpcData.pozos_recogidos?.prestamos || 0), 2);
 
   const [currentLoansTotal, prevLoansTotal, currentPrestamosBudget, prevPrestamosBudget] = await Promise.all([
@@ -310,6 +385,7 @@ export async function getFinancialKPIs(
     budget_prestamos_disponible: budgetDisponible,
     prestamos_cubierto_por_budget: cubiertoPorBudget,
     prestamos_de_ganancia: excedenteDeGanancia,
+    gastos_de_ganancia: excedenteDeGanancia,
     ganancia_real: gananciaReal,
     ganancia_real_prev: gananciaRealPrev,
   };
@@ -371,6 +447,12 @@ export interface ExpenseRecord {
   createdByName: string | null;
   createdByEmail: string | null;
   createdAt: string;
+  /**
+   * `loan_payment`: pago de préstamo todavía en la tabla vieja (antes de correr
+   * 0018_loan_payments_a_gastos.sql). Se muestra en el historial como gasto de
+   * Préstamos, pero no se edita ni se borra desde acá.
+   */
+  source: 'expense' | 'loan_payment';
 }
 
 export interface PozoOverflowItem {
@@ -398,12 +480,12 @@ export interface ExpensesOverflowResult {
 export const POZO_LABELS: Record<string, string> = {
   publicidad: 'Publicidad',
   mantenimiento: 'Mantenimiento',
-  utiles: 'Útiles de Oficina',
+  utiles: 'Útiles de oficina',
   garantias: 'Garantías',
   prestamos: 'Préstamos',
   suscripciones: 'Suscripciones',
-  servicios: 'Servicios Básicos',
-  salario: 'Fondo Salario',
+  servicios: 'Servicios básicos',
+  salario: 'Fondo salario',
 };
 
 export const ALL_POZOS = [
@@ -417,50 +499,35 @@ export const ALL_POZOS = [
   'salario',
 ] as const;
 
+const EXPENSE_COLUMNS = 'id, pozo, monto_cs, monto_usd, exchange_rate, category, description, created_by, created_at';
+
+/** Fecha opcional del gasto → `created_at`. No se aceptan fechas futuras. */
+function expenseCreatedAt(fecha?: string): string | undefined {
+  if (!fecha) return undefined;
+  const d = new Date(fecha);
+  if (isNaN(d.getTime())) {
+    throw new BadRequestError('Fecha de gasto inválida.');
+  }
+  if (d.getTime() > Date.now() + 5 * 60 * 1000) {
+    throw new BadRequestError('La fecha del gasto no puede ser futura.');
+  }
+  return d.toISOString();
+}
+
 /**
- * Registra un nuevo gasto operativo en la tabla `expenses`.
+ * Monto en córdobas del gasto. En dólares se convierte con `rate` (al editar,
+ * la tasa con la que se registró; si no, la del día).
  */
-export async function createExpense(input: CreateExpenseInput, authorUid: string): Promise<ExpenseRecord> {
-  let customCreatedAt: string | undefined = undefined;
-  if (input.fecha) {
-    const d = new Date(input.fecha);
-    if (isNaN(d.getTime())) {
-      throw new BadRequestError('Fecha de gasto inválida.');
-    }
-    if (d.getTime() > Date.now() + 5 * 60 * 1000) {
-      throw new BadRequestError('La fecha del gasto no puede ser futura.');
-    }
-    customCreatedAt = d.toISOString();
-  }
+async function expenseAmounts(
+  input: Pick<CreateExpenseInput, 'monto' | 'moneda'>,
+  rate?: number | null,
+): Promise<{ monto_cs: number; monto_usd: number | null; exchange_rate: number | null }> {
+  if (input.moneda !== 'USD') return { monto_cs: round(input.monto, 2), monto_usd: null, exchange_rate: null };
+  const tasa = rate ?? (await getFinancialConfig()).exchangeRate;
+  return { monto_cs: round(input.monto * tasa, 2), monto_usd: round(input.monto, 2), exchange_rate: tasa };
+}
 
-  let montoCs = round(input.monto, 2);
-  let montoOriginalUsd: number | null = null;
-  let tasaUsada: number | null = null;
-
-  if (input.moneda === 'USD') {
-    const config = await getFinancialConfig();
-    tasaUsada = config.exchangeRate;
-    montoOriginalUsd = montoCs;
-    montoCs = round(input.monto * tasaUsada, 2);
-  }
-
-  const { data, error } = await db
-    .from('expenses')
-    .insert({
-      pozo: input.pozo,
-      monto_cs: montoCs,
-      monto_usd: montoOriginalUsd,
-      exchange_rate: tasaUsada,
-      category: input.category,
-      description: input.description?.trim() || null,
-      created_by: authorUid,
-      ...(customCreatedAt ? { created_at: customCreatedAt } : {}),
-    })
-    .select('id, pozo, monto_cs, monto_usd, exchange_rate, category, description, created_by, created_at')
-    .single();
-
-  if (error) throw error;
-
+function toExpenseRecord(data: any): ExpenseRecord {
   return {
     id: data.id,
     pozo: data.pozo,
@@ -473,6 +540,141 @@ export async function createExpense(input: CreateExpenseInput, authorUid: string
     createdByName: null,
     createdByEmail: null,
     createdAt: data.created_at,
+    source: 'expense',
+  };
+}
+
+/**
+ * Registra un nuevo gasto operativo en la tabla `expenses`.
+ */
+export async function createExpense(input: CreateExpenseInput, authorUid: string): Promise<ExpenseRecord> {
+  const createdAt = expenseCreatedAt(input.fecha);
+  const amounts = await expenseAmounts(input);
+
+  const { data, error } = await db
+    .from('expenses')
+    .insert({
+      pozo: input.pozo,
+      ...amounts,
+      category: input.category,
+      description: input.description?.trim() || null,
+      created_by: authorUid,
+      ...(createdAt ? { created_at: createdAt } : {}),
+    })
+    .select(EXPENSE_COLUMNS)
+    .single();
+
+  if (error) throw error;
+  return toExpenseRecord(data);
+}
+
+/**
+ * Edita un gasto. Sin `fecha` conserva la que tenía. Un gasto en dólares
+ * conserva la tasa con la que se registró: editar la descripción no debe
+ * cambiar cuántos córdobas costó.
+ */
+export async function updateExpense(id: string, input: CreateExpenseInput): Promise<ExpenseRecord> {
+  const { data: existing, error: checkError } = await db
+    .from('expenses')
+    .select('id, exchange_rate')
+    .eq('id', id)
+    .maybeSingle();
+  if (checkError) throw checkError;
+  if (!existing) {
+    throw new NotFoundError('El gasto no existe.');
+  }
+
+  const createdAt = expenseCreatedAt(input.fecha);
+  const amounts = await expenseAmounts(input, existing.exchange_rate ? Number(existing.exchange_rate) : null);
+
+  const { data, error } = await db
+    .from('expenses')
+    .update({
+      pozo: input.pozo,
+      ...amounts,
+      category: input.category,
+      description: input.description?.trim() || null,
+      ...(createdAt ? { created_at: createdAt } : {}),
+    })
+    .eq('id', id)
+    .select(EXPENSE_COLUMNS)
+    .single();
+
+  if (error) throw error;
+  return toExpenseRecord(data);
+}
+
+export interface ExpensePreview {
+  month: string;
+  pozo: string;
+  label: string;
+  montoCs: number;
+  /** Saldo del pozo antes de este gasto (heredado + recogido − otros gastos del mes). */
+  saldoPozo: number;
+  /** De dónde sale el monto. Suma = montoCs. */
+  cubre: {
+    propio: number;
+    extra: number;
+    pozos: { pozo: string; label: string; monto: number }[];
+    ganancia: number;
+  };
+  /** true si el gasto no cabe en su pozo y toma de otro lado. */
+  excede: boolean;
+  gananciaRealAntes: number;
+  gananciaRealDespues: number;
+}
+
+/**
+ * Qué pasaría si se guarda este gasto (nuevo, o `excludeId` editado): se
+ * calcula el mes sin él y con él, y la diferencia dice de dónde sale cada
+ * córdoba. No escribe nada.
+ */
+export async function previewExpense(input: CreateExpenseInput, excludeId?: string): Promise<ExpensePreview> {
+  let rate: number | null = null;
+  let createdAt = expenseCreatedAt(input.fecha);
+  if (excludeId) {
+    const { data: existing, error } = await db
+      .from('expenses')
+      .select('exchange_rate, created_at')
+      .eq('id', excludeId)
+      .maybeSingle();
+    if (error) throw error;
+    if (!existing) throw new NotFoundError('El gasto no existe.');
+    rate = existing.exchange_rate ? Number(existing.exchange_rate) : null;
+    createdAt ??= existing.created_at;
+  }
+  createdAt ??= new Date().toISOString();
+  const { monto_cs } = await expenseAmounts(input, rate);
+
+  const month = ledgerMonthOf(createdAt);
+  const pozo = input.pozo as LedgerPozo;
+  const [before, after] = await Promise.all([
+    getPozoLedger(month, { removeExpenseId: excludeId }),
+    getPozoLedger(month, { removeExpenseId: excludeId, add: { pozo, montoCs: monto_cs, createdAt } }),
+  ]);
+
+  const extra = Math.max(0, round(after.extraUsado - before.extraUsado, 2));
+  const ganancia = Math.max(0, round(after.deGanancia.total - before.deGanancia.total, 2));
+  const pozos = after.pozos
+    .map((row) => ({
+      pozo: row.pozo,
+      label: row.label,
+      monto: round(row.prestado - (before.pozos.find((b) => b.pozo === row.pozo)?.prestado ?? 0), 2),
+    }))
+    .filter((p) => p.monto > 0);
+  const deOtros = round(extra + ganancia + pozos.reduce((acc, p) => acc + p.monto, 0), 2);
+  const target = before.pozos.find((b) => b.pozo === pozo)!;
+
+  return {
+    month,
+    pozo,
+    label: target.label,
+    montoCs: monto_cs,
+    saldoPozo: target.disponible,
+    cubre: { propio: Math.max(0, round(monto_cs - deOtros, 2)), extra, pozos, ganancia },
+    excede: deOtros > 0,
+    gananciaRealAntes: before.gananciaReal,
+    gananciaRealDespues: after.gananciaReal,
   };
 }
 
@@ -507,31 +709,21 @@ export async function listExpenses(filters: {
   page?: number;
   pageSize?: number;
 }): Promise<{ expenses: ExpenseRecord[]; total: number; page: number; pageSize: number }> {
-  let query = db
-    .from('expenses')
-    .select('id, pozo, monto_cs, monto_usd, exchange_rate, category, description, created_by, created_at, profiles(name, email)', { count: 'exact' });
+  const pozo = filters.pozo && filters.pozo !== 'todos' ? filters.pozo : undefined;
 
-  if (filters.pozo && filters.pozo !== 'todos') {
-    query = query.eq('pozo', filters.pozo);
-  }
-  if (filters.startDate) {
-    query = query.gte('created_at', filters.startDate);
-  }
-  if (filters.endDate) {
-    query = query.lte('created_at', filters.endDate);
-  }
+  // Se trae el período completo (un mes son decenas de gastos) para poder
+  // intercalar por fecha los pagos de préstamo que siguen en `loan_payments`.
+  const rows = await fetchAllRows((from, to) => {
+    let query = db
+      .from('expenses')
+      .select('id, pozo, monto_cs, monto_usd, exchange_rate, category, description, created_by, created_at, profiles(name, email)');
+    if (pozo) query = query.eq('pozo', pozo);
+    if (filters.startDate) query = query.gte('created_at', filters.startDate);
+    if (filters.endDate) query = query.lte('created_at', filters.endDate);
+    return query.order('created_at', { ascending: false }).order('id').range(from, to);
+  });
 
-  const page = filters.page && filters.page > 0 ? filters.page : 1;
-  const pageSize = filters.pageSize && filters.pageSize > 0 ? filters.pageSize : 50;
-  const from = (page - 1) * pageSize;
-  const to = from + pageSize - 1;
-
-  query = query.order('created_at', { ascending: false }).range(from, to);
-
-  const { data, error, count } = await query;
-  if (error) throw error;
-
-  const expenses: ExpenseRecord[] = (data || []).map((row: any) => {
+  const all: ExpenseRecord[] = rows.map((row: any) => {
     const profile = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
     return {
       id: row.id,
@@ -545,57 +737,96 @@ export async function listExpenses(filters: {
       createdByName: profile?.name ?? null,
       createdByEmail: profile?.email ?? null,
       createdAt: row.created_at,
+      source: 'expense' as const,
     };
   });
 
+  if (!pozo || pozo === 'prestamos') {
+    all.push(...(await listPendingLoanPaymentsAsExpenses(filters.startDate, filters.endDate)));
+    all.sort((x, y) => Date.parse(y.createdAt) - Date.parse(x.createdAt));
+  }
+
+  const page = filters.page && filters.page > 0 ? filters.page : 1;
+  const pageSize = filters.pageSize && filters.pageSize > 0 ? filters.pageSize : 50;
+  const from = (page - 1) * pageSize;
+
   return {
-    expenses,
-    total: count ?? expenses.length,
+    expenses: all.slice(from, from + pageSize),
+    total: all.length,
     page,
     pageSize,
   };
+}
+
+/** Pagos de `loan_payments` que la migración todavía no pasó a `expenses`, con forma de gasto. */
+async function listPendingLoanPaymentsAsExpenses(startDate?: string, endDate?: string): Promise<ExpenseRecord[]> {
+  const [{ payments }, migrated] = await Promise.all([
+    listLoanPayments(startDate, endDate),
+    fetchAllRows((from, to) =>
+      db.from('expenses').select('description').like('description', '%[loan_payment:%').order('id').range(from, to),
+    ),
+  ]);
+  const migratedIds = new Set(
+    migrated.map((m) => /\[loan_payment:([0-9a-f-]{36})\]/i.exec(String(m.description))?.[1]?.toLowerCase()).filter(Boolean),
+  );
+  return payments
+    .filter((p) => !migratedIds.has(p.id.toLowerCase()))
+    .map((p) => ({
+      id: `loan:${p.id}`,
+      pozo: 'prestamos',
+      monto: p.monto_cs,
+      montoUsd: p.monto_usd,
+      exchangeRate: p.exchange_rate,
+      category: 'Pago de préstamo',
+      description: p.nota,
+      createdBy: p.created_by,
+      createdByName: null,
+      createdByEmail: null,
+      // Mediodía de Nicaragua del día del pago: mismo criterio que la migración.
+      createdAt: new Date(Date.parse(`${p.fecha}T12:00:00.000Z`) + 6 * 60 * 60 * 1000).toISOString(),
+      source: 'loan_payment' as const,
+    }));
 }
 
 /**
  * Obtiene los "gastos por pozo" agrupados, incluyendo el pozo virtual 'salario'.
  */
 export async function getExpensesByPozo(startDate?: string, endDate?: string) {
-  let expensesQuery = db.from('expenses').select('pozo, monto_cs');
-  if (startDate) expensesQuery = expensesQuery.gte('created_at', startDate);
-  if (endDate) expensesQuery = expensesQuery.lte('created_at', endDate);
-
-  const { data: expRows, error: expError } = await expensesQuery;
-  if (expError) throw expError;
+  const expRows = await fetchAllRows((from, to) => {
+    let expensesQuery = db.from('expenses').select('pozo, monto_cs');
+    if (startDate) expensesQuery = expensesQuery.gte('created_at', startDate);
+    if (endDate) expensesQuery = expensesQuery.lte('created_at', endDate);
+    return expensesQuery.order('id').range(from, to);
+  });
 
   const gastadoByPozo: Record<string, number> = {};
   ALL_POZOS.forEach((p) => {
     gastadoByPozo[p] = 0;
   });
 
-  for (const row of expRows || []) {
+  for (const row of expRows) {
     if (row.pozo && ALL_POZOS.includes(row.pozo as any)) {
       gastadoByPozo[row.pozo] = (gastadoByPozo[row.pozo] ?? 0) + (Number(row.monto_cs) || 0);
     }
   }
 
   // Recogido en el periodo
-  let itemsQuery = db
-    .from('order_items')
-    .select('pozos, salary, orders!inner(status, created_at)')
-    .in('orders.status', ['approved', 'paid']);
-
-  if (startDate) itemsQuery = itemsQuery.gte('orders.created_at', startDate);
-  if (endDate) itemsQuery = itemsQuery.lte('orders.created_at', endDate);
-
-  const { data: orderItems, error: itemsError } = await itemsQuery;
-  if (itemsError) throw itemsError;
+  const orderItems = await fetchAllRows((from, to) => {
+    let itemsQuery = db
+      .from('order_items')
+      .select('pozos, salary, orders!inner(status, created_at)')
+      .in('orders.status', ['approved', 'paid']);
+    if (startDate) itemsQuery = itemsQuery.gte('orders.created_at', startDate);
+    if (endDate) itemsQuery = itemsQuery.lte('orders.created_at', endDate);
+    return itemsQuery.order('id').range(from, to);
+  });
 
   const recogidoByPozo: Record<string, number> = {};
   ALL_POZOS.forEach((p) => {
     recogidoByPozo[p] = 0;
   });
 
-  for (const it of orderItems || []) {
+  for (const it of orderItems) {
     if (it.pozos && typeof it.pozos === 'object') {
       for (const [key, val] of Object.entries(it.pozos)) {
         const num = Number(val) || 0;
@@ -616,138 +847,12 @@ export async function getExpensesByPozo(startDate?: string, endDate?: string) {
 }
 
 /**
- * Calcula el estado de desbordamiento (overflow) y salud financiera del negocio:
- * Saldo acumulativo = (Recogido histórico) - (Gastado histórico).
- * Si negativo = desbordamiento que se descuenta de la ganancia bruta del mes.
+ * Libro de pozos del mes (pestaña Gastos): herencia, desbordes, bolsa extra y
+ * Ganancia real según las reglas de pozoLedger.ts. El mes es el que contiene
+ * `startDate` (hora de Nicaragua).
  */
-export async function getExpensesOverflow(startDate?: string, endDate?: string): Promise<ExpensesOverflowResult> {
-  // 1. Recogido histórico acumulado de ventas aprobadas/pagadas
-  const { data: orderItems, error: itemsError } = await db
-    .from('order_items')
-    .select('pozos, salary, ganancia_tienda, orders!inner(status, created_at)')
-    .in('orders.status', ['approved', 'paid']);
-
-  if (itemsError) throw itemsError;
-
-  const recogidoHistorico: Record<string, number> = {};
-  const recogidoMes: Record<string, number> = {};
-  ALL_POZOS.forEach((p) => {
-    recogidoHistorico[p] = 0;
-    recogidoMes[p] = 0;
-  });
-
-  let gananciaBruta = 0;
-  const startTs = startDate ? new Date(startDate).getTime() : null;
-  const endTs = endDate ? new Date(endDate).getTime() : null;
-
-  for (const item of orderItems || []) {
-    const orderCreatedAt = (item as any).orders?.created_at;
-    const itemDateTs = orderCreatedAt ? new Date(orderCreatedAt).getTime() : 0;
-    const inPeriod =
-      (startTs === null || itemDateTs >= startTs) &&
-      (endTs === null || itemDateTs <= endTs);
-
-    if (item.pozos && typeof item.pozos === 'object') {
-      for (const [key, val] of Object.entries(item.pozos)) {
-        const num = Number(val) || 0;
-        if (recogidoHistorico[key] !== undefined) {
-          recogidoHistorico[key] = (recogidoHistorico[key] ?? 0) + num;
-        }
-        if (inPeriod && recogidoMes[key] !== undefined) {
-          recogidoMes[key] = (recogidoMes[key] ?? 0) + num;
-        }
-      }
-    }
-
-    const sal = Number(item.salary) || 0;
-    recogidoHistorico['salario'] = (recogidoHistorico['salario'] ?? 0) + sal;
-    if (inPeriod) {
-      recogidoMes['salario'] = (recogidoMes['salario'] ?? 0) + sal;
-      gananciaBruta += Number(item.ganancia_tienda) || 0;
-    }
-  }
-
-  // 2. Gastado histórico acumulado y del mes
-  const { data: expensesRows, error: expError } = await db
-    .from('expenses')
-    .select('pozo, monto_cs, created_at');
-
-  if (expError) throw expError;
-
-  const gastadoHistorico: Record<string, number> = {};
-  const gastadoMes: Record<string, number> = {};
-  ALL_POZOS.forEach((p) => {
-    gastadoHistorico[p] = 0;
-    gastadoMes[p] = 0;
-  });
-
-  for (const exp of expensesRows || []) {
-    const pozo = exp.pozo;
-    const monto = Number(exp.monto_cs) || 0;
-    const expDateTs = exp.created_at ? new Date(exp.created_at).getTime() : 0;
-    const inPeriod =
-      (startTs === null || expDateTs >= startTs) &&
-      (endTs === null || expDateTs <= endTs);
-
-    if (gastadoHistorico[pozo] !== undefined) {
-      gastadoHistorico[pozo] = (gastadoHistorico[pozo] ?? 0) + monto;
-    }
-    if (inPeriod && gastadoMes[pozo] !== undefined) {
-      gastadoMes[pozo] = (gastadoMes[pozo] ?? 0) + monto;
-    }
-  }
-
-  // 3. Presupuesto UNIFICADO del período seleccionado.
-  //    Cada mes empieza en cero: solo cuenta lo recogido y gastado en el período.
-  //    Solo hay desbordamiento si el gasto del período supera lo recogido del período.
-  let totalRecogido = 0;
-  let totalGastado = 0;
-
-  const pozosResult: PozoOverflowItem[] = ALL_POZOS.map((p) => {
-    const recogido = round(recogidoMes[p] || 0, 2);
-    const gastado = round(gastadoMes[p] || 0, 2);
-    const disponible = round(recogido - gastado, 2);
-    totalRecogido += recogido;
-    totalGastado += gastado;
-
-    return {
-      pozo: p,
-      label: POZO_LABELS[p] || p,
-      recogido,
-      gastado,
-      disponible,
-      desbordamiento: 0,
-      gastadoMes: round(gastadoMes[p] || 0, 2),
-      recogidoMes: round(recogidoMes[p] || 0, 2),
-    };
-  });
-
-  totalRecogido = round(totalRecogido, 2);
-  totalGastado = round(totalGastado, 2);
-  const presupuestoDisponible = round(totalRecogido - totalGastado, 2);
-  const totalDesbordamiento = presupuestoDisponible < 0 ? round(Math.abs(presupuestoDisponible), 2) : 0;
-
-  gananciaBruta = round(gananciaBruta, 2);
-  const gananciaReal = round(gananciaBruta - totalDesbordamiento, 2);
-
-  const desbordamientoDetalle = totalDesbordamiento > 0
-    ? [{
-        pozo: 'consolidado',
-        label: 'Presupuesto Consolidado',
-        monto: totalDesbordamiento,
-      }]
-    : [];
-
-  return {
-    pozos: pozosResult,
-    totalDesbordamiento,
-    gananciaBruta,
-    gananciaReal,
-    presupuestoDisponible,
-    totalRecogido,
-    totalGastado,
-    desbordamientoDetalle,
-  };
+export async function getExpensesOverflow(startDate?: string): Promise<MonthLedger> {
+  return getPozoLedger(ledgerMonthOf(startDate));
 }
 
 // ============================================================================
@@ -759,6 +864,14 @@ export async function getExpensesOverflow(startDate?: string, endDate?: string):
 /**
  * Serie temporal de ventas para el gráfico de tendencia.
  * `sellerUid` recorta a un vendedor (la ruta lo fuerza para los no-admin).
+ *
+ * Los cortes se arman en HORA DE NICARAGUA. El RPC `get_sales_trend` hace
+ * `date_trunc` en UTC, y Nicaragua es UTC−6: una venta de las 18:00 en adelante
+ * caía en la barra del día siguiente (y la del último día del mes, en el mes
+ * siguiente). Sin tocar la base, se agrupan acá las filas de `get_sales_ledger`
+ * (una por venta, mismos totales) por fecha local.
+ *
+ * `bucket_start` es la medianoche LOCAL del corte, en ISO UTC (`…T06:00:00.000Z`).
  */
 export async function getSalesTrend(
   startDate?: string,
@@ -766,15 +879,49 @@ export async function getSalesTrend(
   bucket: TrendBucket = 'month',
   sellerUid?: string,
 ): Promise<SalesTrendPoint[]> {
-  const { data, error } = await db.rpc('get_sales_trend', {
-    p_start_date: startDate ?? null,
-    p_end_date: endDate ?? null,
-    p_bucket: bucket,
-    p_seller_uid: sellerUid ?? null,
-  });
+  const raw = await fetchAllRows((from, to) =>
+    db
+      .rpc('get_sales_ledger', {
+        p_start_date: startDate ?? null,
+        p_end_date: endDate ?? null,
+        p_seller_uid: sellerUid ?? null,
+      })
+      .order('created_at', { ascending: true })
+      .order('order_id', { ascending: true })
+      .range(from, to),
+  );
+  const rows = parseDbRows(salesLedgerRowSchema, raw, 'getSalesTrend');
 
-  if (error) throw error;
-  return parseDbRows(trendRowSchema, data, 'getSalesTrend');
+  const byBucket = new Map<string, SalesTrendPoint>();
+  for (const row of rows) {
+    const key = bucketDate(toBusinessDate(row.created_at), bucket);
+    const point = byBucket.get(key) ?? { bucket_start: businessDateStartIso(key), total_vendido: 0, ganancia: 0, comision: 0, num_ventas: 0 };
+    point.total_vendido += row.total_vendido;
+    point.ganancia += row.ganancia;
+    point.comision += row.comision;
+    point.num_ventas += 1;
+    byBucket.set(key, point);
+  }
+
+  return [...byBucket.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([, p]) => ({
+      ...p,
+      total_vendido: round(p.total_vendido, 2),
+      ganancia: round(p.ganancia, 2),
+      comision: round(p.comision, 2),
+    }));
+}
+
+/** Inicio del corte que contiene la fecha local `date` (semana = lunes, como `date_trunc`). */
+function bucketDate(date: string, bucket: TrendBucket): string {
+  if (bucket === 'month') return `${date.slice(0, 8)}01`;
+  if (bucket === 'week') {
+    const d = new Date(`${date}T00:00:00.000Z`);
+    const sinceMonday = (d.getUTCDay() + 6) % 7;
+    return new Date(d.getTime() - sinceMonday * 86_400_000).toISOString().slice(0, 10);
+  }
+  return date;
 }
 
 /**
@@ -836,18 +983,18 @@ export async function getTopProducts(
   // 2. Margen calculado a partir de order_items en el periodo
   const costMap = new Map<string, { totalCost: number; totalRevenue: number }>();
   try {
-    let itemsQuery = db
-      .from('order_items')
-      .select('sku, quantity, precio_unit, coste_final_snap, orders!inner(status, created_at, seller_uid)')
-      .in('sku', skus)
-      .in('orders.status', ['approved', 'paid']);
-
-    if (startDate) itemsQuery = itemsQuery.gte('orders.created_at', startDate);
-    if (endDate) itemsQuery = itemsQuery.lte('orders.created_at', endDate);
-    if (sellerUid) itemsQuery = itemsQuery.eq('orders.seller_uid', sellerUid);
-
-    const { data: items } = await itemsQuery;
-    if (items) {
+    const items = await fetchAllRows((from, to) => {
+      let itemsQuery = db
+        .from('order_items')
+        .select('sku, quantity, precio_unit, coste_final_snap, orders!inner(status, created_at, seller_uid)')
+        .in('sku', skus)
+        .in('orders.status', ['approved', 'paid']);
+      if (startDate) itemsQuery = itemsQuery.gte('orders.created_at', startDate);
+      if (endDate) itemsQuery = itemsQuery.lte('orders.created_at', endDate);
+      if (sellerUid) itemsQuery = itemsQuery.eq('orders.seller_uid', sellerUid);
+      return itemsQuery.order('id').range(from, to);
+    });
+    {
       for (const item of items) {
         const key = item.sku;
         if (!key) continue;
@@ -869,9 +1016,9 @@ export async function getTopProducts(
     let margen: number | undefined = undefined;
     if (costInfo && costInfo.totalRevenue > 0) {
       margen = Math.round(((costInfo.totalRevenue - costInfo.totalCost) / costInfo.totalRevenue) * 1000) / 10;
-    } else if (p.ingreso > 0) {
-      margen = 35.0; // Margen promedio estimado de referencia
     }
+    // Sin costo registrado no hay margen: antes se inventaba un 35% "de
+    // referencia" que la tabla mostraba como si fuera real.
 
     const nombre = nameMap.get(p.sku) || p.sku;
     return {
@@ -902,7 +1049,55 @@ export async function getSalesBreakdown(
   // `parseDbRows` espera un array; acá el RPC devuelve un único objeto, así que
   // se envuelve para reusar el mismo manejo de "la base devolvió algo raro".
   const parsed = parseDbRows(salesBreakdownSchema, [data], 'getSalesBreakdown');
-  return parsed[0]!;
+  return withoutDelivery(parsed[0]!, startDate, endDate, sellerUid);
+}
+
+/**
+ * El RPC suma `orders.total`, que en una venta facturada incluye el delivery.
+ * El total vendido NO lleva delivery (va aparte, ver getDeliverySummary), así
+ * que acá se le resta a cada grupo el delivery de sus facturas vigentes. Son
+ * pocas filas: solo las ventas del período con envío cobrado.
+ */
+async function withoutDelivery(
+  breakdown: SalesBreakdown,
+  startDate?: string,
+  endDate?: string,
+  sellerUid?: string,
+): Promise<SalesBreakdown> {
+  const invoices = await fetchAllRows((from, to) => {
+    let q = db
+      .from('invoices')
+      .select('sale_id, method, discount_code, delivery_fee, orders!inner(status, created_at, sale_origin, seller_uid)')
+      .neq('status', 'void')
+      .gt('delivery_fee', 0)
+      .not('sale_id', 'is', null)
+      .in('orders.status', ['approved', 'paid']);
+    if (startDate) q = q.gte('orders.created_at', startDate);
+    if (endDate) q = q.lte('orders.created_at', endDate);
+    if (sellerUid) q = q.eq('orders.seller_uid', sellerUid);
+    return q.order('id').range(from, to);
+  });
+  if (invoices.length === 0) return breakdown;
+
+  const saleIds = invoices.map((i) => i.sale_id as string);
+  const { data: cuotas, error } = await db.from('installments').select('order_id').in('order_id', saleIds);
+  if (error) throw error;
+  const enCuotas = new Set((cuotas ?? []).map((c) => c.order_id));
+
+  const restar = (groups: SalesBreakdown['by_method'], key: string, fee: number) => {
+    const g = groups.find((x) => x.key === key);
+    if (g) g.total = round(g.total - fee, 2);
+  };
+  for (const inv of invoices) {
+    const fee = Number(inv.delivery_fee) || 0;
+    const order = Array.isArray(inv.orders) ? inv.orders[0] : inv.orders;
+    restar(breakdown.by_method, inv.method ?? 'sin_metodo', fee);
+    restar(breakdown.by_origin, String(order?.sale_origin ?? ''), fee);
+    restar(breakdown.by_invoiced, 'con_factura', fee);
+    restar(breakdown.by_discount, inv.discount_code && String(inv.discount_code).trim() ? 'con_codigo' : 'sin_codigo', fee);
+    restar(breakdown.by_installment, enCuotas.has(inv.sale_id) ? 'a_cuotas' : 'contado', fee);
+  }
+  return breakdown;
 }
 
 /**
@@ -925,13 +1120,17 @@ export async function getSalesLedger(
   endDate?: string,
   sellerUid?: string,
 ): Promise<SalesLedgerRow[]> {
-  const { data, error } = await db.rpc('get_sales_ledger', {
-    p_start_date: startDate ?? null,
-    p_end_date: endDate ?? null,
-    p_seller_uid: sellerUid ?? null,
-  });
-
-  if (error) throw error;
+  const data = await fetchAllRows((from, to) =>
+    db
+      .rpc('get_sales_ledger', {
+        p_start_date: startDate ?? null,
+        p_end_date: endDate ?? null,
+        p_seller_uid: sellerUid ?? null,
+      })
+      .order('created_at', { ascending: false })
+      .order('order_id', { ascending: false })
+      .range(from, to),
+  );
   return parseDbRows(salesLedgerRowSchema, data, 'getSalesLedger');
 }
 
@@ -1072,98 +1271,5 @@ export async function getLoanPaymentsSummary(
 ): Promise<number> {
   const res = await listLoanPayments(startDate, endDate);
   return res.total;
-}
-
-/**
- * Registra un nuevo pago de préstamo (soporta Córdobas y Dólares con conversión).
- */
-export async function createLoanPayment(
-  input: CreateLoanPaymentInput,
-  authorUid: string
-): Promise<LoanPaymentRecord> {
-  const inputMonto = Number(input.monto ?? input.monto_cs);
-  let montoCs = round(inputMonto, 2);
-  let montoOriginalUsd: number | null = null;
-  let tasaUsada: number | null = null;
-
-  if (input.moneda === 'USD') {
-    const config = await getFinancialConfig();
-    tasaUsada = config.exchangeRate;
-    montoOriginalUsd = montoCs;
-    montoCs = round(inputMonto * tasaUsada, 2);
-  }
-
-  let { data, error } = await db
-    .from('loan_payments')
-    .insert({
-      monto_cs: montoCs,
-      monto_usd: montoOriginalUsd,
-      exchange_rate: tasaUsada,
-      fecha: input.fecha,
-      nota: input.nota?.trim() || null,
-      created_by: authorUid,
-    })
-    .select('id, monto_cs, monto_usd, exchange_rate, fecha, nota, created_by, created_at')
-    .single();
-
-  let resultRow: any = data;
-  if (error && (error.message?.includes('monto_usd') || error.message?.includes('column'))) {
-    // Fallback si las columnas monto_usd / exchange_rate aún no están en la tabla
-    const fallbackRes = await db
-      .from('loan_payments')
-      .insert({
-        monto_cs: montoCs,
-        fecha: input.fecha,
-        nota: input.nota?.trim() || null,
-        created_by: authorUid,
-      })
-      .select('id, monto_cs, fecha, nota, created_by, created_at')
-      .single();
-
-    if (fallbackRes.error) throw fallbackRes.error;
-    resultRow = {
-      ...fallbackRes.data,
-      monto_usd: montoOriginalUsd,
-      exchange_rate: tasaUsada,
-    };
-  } else if (error) {
-    throw error;
-  }
-
-  if (!resultRow) {
-    throw new Error('No se pudo registrar el pago de préstamo');
-  }
-
-  return {
-    id: resultRow.id,
-    monto_cs: Number(resultRow.monto_cs),
-    monto_usd: resultRow.monto_usd ? Number(resultRow.monto_usd) : null,
-    exchange_rate: resultRow.exchange_rate ? Number(resultRow.exchange_rate) : null,
-    fecha: resultRow.fecha,
-    nota: resultRow.nota ?? null,
-    created_by: resultRow.created_by ?? null,
-    created_at: resultRow.created_at,
-  };
-}
-
-/**
- * Elimina un pago de préstamo por su ID.
- */
-export async function deleteLoanPayment(id: string): Promise<{ success: boolean; id: string }> {
-  const { data: existing, error: checkError } = await db
-    .from('loan_payments')
-    .select('id')
-    .eq('id', id)
-    .maybeSingle();
-
-  if (checkError) throw checkError;
-  if (!existing) {
-    throw new NotFoundError('El pago de préstamo no existe.');
-  }
-
-  const { error } = await db.from('loan_payments').delete().eq('id', id);
-  if (error) throw error;
-
-  return { success: true, id };
 }
 

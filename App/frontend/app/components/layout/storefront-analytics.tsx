@@ -6,7 +6,7 @@
 //
 // Todo corre solo en el cliente: los efectos y el estado se activan tras montar,
 // así que el SSR pinta sin banner y sin tocar localStorage.
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLocation } from '@remix-run/react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { getConsent, setConsent, trackPageView } from '~/lib/analytics.client';
@@ -21,6 +21,21 @@ export function StorefrontAnalytics() {
   const location = useLocation();
   const reduce = useReducedMotion();
   const [needsConsent, setNeedsConsent] = useState(false);
+  const bannerRef = useRef<HTMLDivElement>(null);
+  const visible = needsConsent && !isPrivatePath(location.pathname);
+
+  useEffect(() => {
+    const banner = bannerRef.current;
+    if (!visible || !banner) return;
+    const update = () => document.documentElement.style.setProperty('--consent-height', `${banner.getBoundingClientRect().height}px`);
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(banner);
+    return () => {
+      observer.disconnect();
+      document.documentElement.style.removeProperty('--consent-height');
+    };
+  }, [visible]);
 
   // Estado inicial del consentimiento: solo tras montar (localStorage no existe
   // en SSR). Si está sin decidir y estamos en una ruta pública, se pide.
@@ -47,34 +62,34 @@ export function StorefrontAnalytics() {
 
   return (
     <AnimatePresence>
-      {needsConsent && (
+      {visible && (
         <motion.div
-          role="dialog"
+          ref={bannerRef}
+          role="region"
           aria-live="polite"
           aria-label="Preferencias de privacidad"
           initial={reduce ? false : { y: 24, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          exit={reduce ? { opacity: 0 } : { y: 24, opacity: 0 }}
+          exit={{ opacity: 0, transition: { duration: 0 } }}
           transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-          className="fixed inset-x-0 bottom-0 z-50 px-4 pb-[max(1rem,env(safe-area-inset-bottom))]"
+          className="fixed inset-x-0 bottom-0 z-40 border-t bg-card px-3 pb-[env(safe-area-inset-bottom)] shadow-lg"
         >
-          <div className="mx-auto flex max-w-3xl flex-col gap-3 rounded-card border border-border bg-card p-4 shadow-lg sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm text-muted-foreground">
-              Usamos analítica propia y anónima (sin datos personales) para entender qué se
-              busca y mejorar la tienda. ¿Nos das permiso?
+          <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-x-3 py-1 sm:flex-nowrap">
+            <p className="text-xs text-foreground">
+              ¿Aceptás analítica anónima para mejorar la tienda?
             </p>
             <div className="flex shrink-0 items-center gap-2">
               <button
                 type="button"
                 onClick={() => decide('denied')}
-                className="rounded-lg border border-border px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="min-h-9 rounded-lg border border-border px-3 text-xs font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 Rechazar
               </button>
               <button
                 type="button"
                 onClick={() => decide('granted')}
-                className="rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="min-h-9 rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 Aceptar
               </button>
