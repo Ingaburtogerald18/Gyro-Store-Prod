@@ -251,7 +251,9 @@ export function Hero({ initialLanding }: { initialLanding?: LandingConfig | null
           </div>
         )}
 
-        <div className="flex min-h-[340px] flex-col items-stretch md:h-[460px] md:flex-row">
+        {/* min-h y no h fija: con un título de 4 líneas el texto se salía de la
+            tarjeta y los botones quedaban pegados al borde de abajo. */}
+        <div className="flex min-h-[340px] flex-col items-stretch md:min-h-[440px] md:flex-row">
           {/* ── Media ── */}
           <div className="relative flex h-[150px] w-full items-center justify-center overflow-hidden border-b border-border/30 bg-card sm:h-[260px] md:h-auto md:w-1/2 md:border-r md:border-b-0">
             {/* Glow radial muy tenue: da profundidad al vacío sin leerse como halo. */}
@@ -275,7 +277,7 @@ export function Hero({ initialLanding }: { initialLanding?: LandingConfig | null
           </div>
 
           {/* ── Texto ── */}
-          <div className="relative z-10 flex w-full flex-col justify-center p-5 text-left sm:p-10 md:w-1/2 md:p-12">
+          <div className="relative z-10 flex w-full flex-col justify-center p-5 pb-7 text-left sm:p-10 md:w-1/2 md:px-12 md:py-14">
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeSlide.id}
@@ -283,13 +285,13 @@ export function Hero({ initialLanding }: { initialLanding?: LandingConfig | null
                 animate={{ opacity: 1, x: 0 }}
                 exit={reduce ? { opacity: 0 } : { opacity: 0, x: -20 }}
                 transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-                className="space-y-2.5 sm:space-y-6"
+                className="space-y-2.5 sm:space-y-4"
               >
-                <span className="inline-block text-2xs font-black tracking-[0.2em] text-primary-2 uppercase sm:text-xs">
-                  {activeSlide.eyebrow}
-                </span>
+                {/* Sin eyebrow: el nombre de la tienda ya está en el logo del header y
+                    repetirlo arriba del título solo ocupaba espacio. El campo sigue
+                    en el editor de slides, pero la tienda no lo muestra. */}
 
-                <h1 className="font-heading text-[1.875rem] leading-[1.02] font-extrabold tracking-tight text-balance text-foreground md:text-6xl">
+                <h1 className="font-heading text-[1.625rem] leading-[1.05] font-extrabold tracking-tight text-balance text-foreground md:text-4xl xl:text-5xl">
                   {activeSlide.title}
                 </h1>
 
@@ -382,7 +384,7 @@ export function Hero({ initialLanding }: { initialLanding?: LandingConfig | null
                         setActiveIndex(idx);
                         setPlaying(true);
                       }}
-                      className="group/dot flex h-11 items-center rounded-full px-1 focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
+                      className="group/dot flex h-11 items-center rounded-full px-1 focus-visible:ring-2 focus-visible:ring-primary-2 focus-visible:outline-none"
                       aria-label={`Ir a la diapositiva ${idx + 1}`}
                       aria-current={isActive}
                     >

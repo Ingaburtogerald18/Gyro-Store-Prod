@@ -287,8 +287,8 @@ export function CheckoutDialog({
                   className={cn(
                     'flex cursor-pointer flex-col items-center gap-1.5 rounded-xl border p-3 text-center text-xs font-medium transition-colors focus-within:ring-2 focus-within:ring-ring',
                     deliveryMethod === value
-                      ? 'border-primary bg-primary/10 text-primary'
-                      : 'border text-muted-foreground hover:border-primary/40 hover:text-foreground',
+                      ? 'border-primary-2 bg-primary/10 text-primary-2'
+                      : 'border text-muted-foreground hover:border-primary-2/40 hover:text-foreground',
                   )}
                 >
                   <input
@@ -377,8 +377,8 @@ export function CheckoutDialog({
           <Field>
             <FieldLabel htmlFor="discountCode">Código de descuento (opcional)</FieldLabel>
             {appliedCode ? (
-              <div className="flex items-center justify-between rounded-xl border border-primary/30 bg-primary/10 px-3 py-2">
-                <span className="flex items-center gap-1.5 text-sm font-semibold text-primary">
+              <div className="flex items-center justify-between rounded-xl border border-primary-2/30 bg-primary/10 px-3 py-2">
+                <span className="flex items-center gap-1.5 text-sm font-semibold text-primary-2">
                   <HugeIcon icon={Coupon01Icon} size={16} strokeWidth={2} aria-hidden />
                   {appliedCode.code}
                   <span className="font-normal text-muted-foreground">
@@ -427,7 +427,7 @@ export function CheckoutDialog({
                   <span>Subtotal</span>
                   <span className="tabular-nums">{formatCordobas(subtotal, config?.currency)}</span>
                 </div>
-                <div className="flex items-center justify-between text-sm text-primary">
+                <div className="flex items-center justify-between text-sm text-primary-2">
                   <span>Descuento ({appliedCode?.code})</span>
                   <span className="tabular-nums">−{formatCordobas(codeDiscount, config?.currency)}</span>
                 </div>

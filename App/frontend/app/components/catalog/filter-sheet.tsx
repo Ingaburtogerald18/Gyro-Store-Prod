@@ -161,7 +161,7 @@ function ToggleRow({
           size={16}
           strokeWidth={2}
           aria-hidden
-          className={checked ? 'text-primary' : 'text-muted-foreground'}
+          className={checked ? 'text-primary-2' : 'text-muted-foreground'}
         />
         {label}
       </span>

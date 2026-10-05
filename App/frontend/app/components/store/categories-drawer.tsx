@@ -60,13 +60,17 @@ export function CategoriesDrawer({
         <nav aria-label="Categorías" className="overflow-y-auto p-2">
           <CategoryRow label="Todo el catálogo" selected={activeCategory === null} onSelect={() => pick(null)} />
 
-          {categories.map((c) => {
+          {/* Las categorías sin productos no se listan: un "0" en el menú es un
+              callejón sin salida. Mientras el catálogo no cargó, se muestran todas. */}
+          {categories
+            .filter((c) => products.length === 0 || products.some((p) => inCategory(p, c)))
+            .map((c) => {
             const count = products.filter((p) => inCategory(p, c)).length;
             return (
               <CategoryRow
                 key={c.id}
                 label={c.name}
-                count={count}
+                count={products.length ? count : undefined}
                 selected={activeCategory === c.slug}
                 onSelect={() => pick(c.slug)}
               />
@@ -99,7 +103,7 @@ function CategoryRow({
         'group flex min-h-12 w-full items-center justify-between gap-3 rounded-xl px-3 text-left text-sm transition-colors',
         'focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
         selected
-          ? 'bg-primary/10 font-semibold text-primary'
+          ? 'bg-primary/10 font-semibold text-primary-2'
           : 'font-medium text-foreground hover:bg-muted',
       )}
     >

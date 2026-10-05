@@ -41,7 +41,7 @@ export function CategoryNav({
 
   return (
     <nav aria-label="Categorías" className="min-w-0">
-      <div className="flex items-center gap-1 overflow-x-auto scrollbar-hide">
+      <div className="flex items-center gap-1 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <NavTab
           to={categoryHref(null)}
           selected={activeCategory === null}
@@ -86,9 +86,9 @@ function NavTab({
       aria-current={selected ? 'page' : undefined}
       onClick={onSelect}
       className={cn(
-        'relative flex h-11 shrink-0 items-center px-3 text-sm whitespace-nowrap transition-colors',
+        'store-category-link relative flex h-10 shrink-0 items-center rounded-xl px-3 text-sm whitespace-nowrap transition-colors',
         'focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
-        selected ? 'font-semibold text-foreground' : 'font-medium text-muted-foreground hover:text-foreground',
+        selected ? 'font-semibold' : 'font-medium',
       )}
     >
       {children}
@@ -96,7 +96,7 @@ function NavTab({
         <motion.span
           layoutId="category-nav-indicator"
           aria-hidden
-          className="absolute inset-x-2 bottom-0 h-0.5 rounded-full bg-primary"
+          className="absolute inset-x-3 bottom-1 h-0.5 rounded-full bg-primary-2"
           transition={reduce ? { duration: 0 } : { type: 'spring', stiffness: 400, damping: 34 }}
         />
       )}

@@ -9,9 +9,9 @@
 // (refleja cambios del panel sin recargar).
 import { useMatches } from '@remix-run/react';
 
-import type { LandingConfig } from '@shared/schemas';
+import type { CatalogProduct, LandingConfig } from '@shared/schemas';
 import { useGetConfigQuery, type StoreConfig } from '~/store/api/sessionApi';
-import { useGetLandingConfigQuery } from '~/store/api/storefrontApi';
+import { useGetCatalogQuery, useGetLandingConfigQuery } from '~/store/api/storefrontApi';
 
 function configFromMatches(matches: ReturnType<typeof useMatches>): StoreConfig | undefined {
   for (let i = matches.length - 1; i >= 0; i--) {
@@ -38,4 +38,17 @@ export function useStoreLanding(): LandingConfig | undefined {
     if (d && typeof d === 'object' && d.landing) return d.landing;
   }
   return undefined;
+}
+
+/** Catálogo público: RTK en el cliente y, mientras no responde, los productos
+ *  que trajo el loader de la home. Lo usa el header (conteos por categoría). */
+export function useStoreCatalog(): CatalogProduct[] {
+  const { data } = useGetCatalogQuery();
+  const matches = useMatches();
+  if (data) return data;
+  for (let i = matches.length - 1; i >= 0; i--) {
+    const d = matches[i].data as { products?: CatalogProduct[] } | undefined;
+    if (d && typeof d === 'object' && Array.isArray(d.products)) return d.products;
+  }
+  return [];
 }

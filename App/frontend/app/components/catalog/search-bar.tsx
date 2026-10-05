@@ -50,7 +50,7 @@ export function SearchBar({
   }
 
   return (
-    <form onSubmit={handleSubmit} className={cn("w-full", className)}>
+    <form role="search" onSubmit={handleSubmit} className={cn("store-header-search w-full", className)}>
       <InputGroup className="h-11 w-full">
       <InputGroupAddon>
         <HugeIcon icon={Search01Icon} size={16} strokeWidth={2} aria-hidden />

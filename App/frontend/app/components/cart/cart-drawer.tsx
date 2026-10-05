@@ -182,7 +182,7 @@ export function CartDrawer() {
                 <Button
                   variant="ghost"
                   onClick={keepShopping}
-                  className="w-full justify-center gap-2 rounded-xl border border-dashed border-border bg-background/40 py-3 text-sm font-medium text-muted-foreground hover:border-primary/40 hover:text-foreground"
+                  className="w-full justify-center gap-2 rounded-xl border border-dashed border-border bg-background/40 py-3 text-sm font-medium text-muted-foreground hover:border-primary-2/40 hover:text-foreground"
                 >
                   <HugeIcon icon={Add01Icon} size={16} strokeWidth={2} aria-hidden />
                   Agregar otro producto

@@ -10,7 +10,7 @@ import { Alert02Icon, Home01Icon, RefreshIcon } from '@hugeicons/core-free-icons
 
 import { Button } from '~/components/ui/button';
 import { HugeIcon } from '~/components/ui/icon';
-import { getBrandName } from '~/lib/brand';
+import gyroBag from '~/assets/brand/gyro-bag.png';
 import { cn } from '~/lib/utils';
 
 function describe(error: unknown) {
@@ -47,15 +47,18 @@ export function RouteError({
         className,
       )}
     >
-      <span
-        className="grid size-14 place-items-center rounded-2xl bg-destructive/10 text-destructive"
-        aria-hidden
-      >
-        <HugeIcon icon={Alert02Icon} size={28} strokeWidth={2} />
-      </span>
-      <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-        {getBrandName()}
-      </p>
+      {/* En la tienda, un 404 lleva la mascota (perderse no es una falla grave);
+          un error real o el panel mantienen el ícono de alerta. */}
+      {!canRetry && homeHref === '/' ? (
+        <img src={gyroBag} alt="" width={96} height={96} className="size-24" />
+      ) : (
+        <span
+          className="grid size-14 place-items-center rounded-2xl bg-destructive/10 text-destructive"
+          aria-hidden
+        >
+          <HugeIcon icon={Alert02Icon} size={28} strokeWidth={2} />
+        </span>
+      )}
       <h1 className="text-2xl font-bold tracking-tight text-foreground">{title}</h1>
       <p className="text-sm text-balance text-muted-foreground">{text}</p>
       <div className="mt-2 flex flex-wrap items-center justify-center gap-2">

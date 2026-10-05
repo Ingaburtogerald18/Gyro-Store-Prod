@@ -17,6 +17,7 @@ import { Link } from '@remix-run/react';
 import { buildWhatsappUrl } from '~/lib/formatters';
 import { TRUST_SIGNALS } from '~/lib/trustSignals';
 import { getBrandName } from '~/lib/brand';
+import gyroLogo from '~/assets/brand/gyro-logo-sm.png';
 
 // ─── Íconos SVG inline de redes sociales ────────────────────────────────────
 function InstagramIcon({ className }: { className?: string }) {
@@ -54,8 +55,6 @@ export function PublicFooter() {
   const locationUrl = config?.locationUrl?.trim();
   const social = config?.socialLinks;
 
-  const logoSrc = config?.images?.logoStatic || config?.images?.logoAnimated;
-  const isVideo = logoSrc && /\.(webm|mp4|mov|m4v)($|\?)/i.test(logoSrc);
 
   return (
     <footer
@@ -70,32 +69,18 @@ export function PublicFooter() {
           <div className="flex flex-col items-center text-center gap-6">
 
             {/* ── Logo ────────────────────────────────────────────────────── */}
-            {logoSrc ? (
-              isVideo ? (
-                <video
-                  src={logoSrc}
-                  autoPlay
-                  loop
-                  muted
-                  playsInline
-                  preload="metadata"
-                  aria-hidden
-                  className="h-10 md:h-14 w-auto max-w-[160px] object-contain transition-opacity duration-300 hover:opacity-90"
-                />
-              ) : (
-                <img
-                  src={logoSrc}
-                  alt={brand}
-                  loading="lazy"
-                  decoding="async"
-                  className="h-10 md:h-14 w-auto max-w-[160px] object-contain transition-opacity duration-300 hover:opacity-90"
-                />
-              )
-            ) : (
-              <p className="text-2xl font-semibold tracking-tight text-foreground">
-                Gyro<span className="text-primary">Store</span>
-              </p>
-            )}
+            {/* El logo completo, con el nombre curvo y la mascota: acá hay lugar
+                para que se lea, a diferencia del header. Sin fondo, así sirve en
+                claro y en oscuro. */}
+            <img
+              src={gyroLogo}
+              alt={brand}
+              width={112}
+              height={112}
+              loading="lazy"
+              decoding="async"
+              className="size-24 md:size-28"
+            />
 
             {/* ── Tagline ─────────────────────────────────────────────────── */}
             <p className="max-w-xs md:max-w-sm text-sm leading-relaxed text-muted-foreground text-balance">
@@ -115,7 +100,7 @@ export function PublicFooter() {
                     size={14}
                     strokeWidth={2}
                     aria-hidden
-                    className="shrink-0 text-primary"
+                    className="shrink-0 text-primary-2"
                   />
                   {label}
                 </li>

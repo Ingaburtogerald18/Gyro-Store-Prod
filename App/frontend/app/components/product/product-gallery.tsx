@@ -127,7 +127,7 @@ export function ProductGallery({
               aria-current={i === active}
               className={cn(
                 'h-16 w-16 shrink-0 overflow-hidden rounded-lg border transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
-                i === active ? 'border-primary' : 'border-border hover:border-foreground/25',
+                i === active ? 'border-primary-2' : 'border-border hover:border-foreground/25',
               )}
             >
               <img src={src} alt="" loading="lazy" className="h-full w-full object-cover" />

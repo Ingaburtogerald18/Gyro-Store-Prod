@@ -36,17 +36,19 @@ const ITEMS: { icon: IconSvgElement; title: string; text: string }[] = [
 
 export function TrustBox() {
   return (
-    <ul className="grid grid-cols-1 gap-2 min-[400px]:grid-cols-2" aria-label="Garantías de compra">
+    // Dos columnas también en móvil: apiladas en una sola, las cuatro tarjetas
+    // ocupaban casi una pantalla entera entre el botón de compra y las specs.
+    <ul className="grid grid-cols-2 gap-2" aria-label="Garantías de compra">
       {ITEMS.map((item) => (
-        <li key={item.title} className="rounded-xl border p-4">
+        <li key={item.title} className="rounded-xl border bg-card p-3 sm:p-4">
           <HugeIcon
             icon={item.icon}
-            size={20}
+            size={18}
             strokeWidth={2}
             aria-hidden
             className="text-primary-2"
           />
-          <p className="mt-2 text-sm font-bold text-foreground">{item.title}</p>
+          <p className="mt-1.5 text-[0.8125rem] leading-snug font-bold text-foreground sm:text-sm">{item.title}</p>
           <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
             {item.text}
           </p>

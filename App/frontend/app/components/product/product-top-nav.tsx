@@ -1,5 +1,5 @@
 // Nav sticky de la ficha de producto (patrón del V1): queda pegado bajo el
-// StoreHeader (h-14, por eso top-14) con UNA acción de navegación — volver al catálogo — y las
+// StoreHeader (57px de alto, por eso top-[57px]) con UNA acción de navegación — volver al catálogo — y las
 // acciones de la ficha a la derecha. Sin breadcrumbs duplicados.
 //
 // El V1 traía además un botón de favorito; acá no va: no existe sistema de
@@ -56,7 +56,7 @@ export function ProductTopNav({
   return (
     <nav
       aria-label="Navegación del producto"
-      className="sticky top-14 z-30 -mx-4 border-b bg-background/80 px-4 backdrop-blur-xl"
+      className="sticky top-[57px] z-30 -mx-4 border-b bg-background/80 px-4 backdrop-blur-xl"
     >
       <div className="mx-auto flex h-12 max-w-7xl items-center justify-between">
         <Breadcrumb className="ml-2">
