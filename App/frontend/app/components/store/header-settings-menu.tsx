@@ -99,22 +99,16 @@ export function HeaderSettingsMenu() {
 
   return (
     <div className="relative" ref={menuRef}>
-      {/* Disparador premium: píldora con borde; muestra la INICIAL del colaborador
-          cuando hay sesión (avatar), o el icono de usuario cuando es invitado. */}
+      {/* Un solo círculo esmeralda; conserva la inicial o el icono de ajustes. */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className={cn(
-          "relative grid h-10 w-10 place-items-center rounded-full border shadow-sm backdrop-blur-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-2",
-          isAuthed
-            ? "border-primary-2/30 bg-primary/10 hover:bg-primary/15"
-            : "border-border bg-card text-muted-foreground hover:border-primary-2/40 hover:text-foreground",
-        )}
+        className="store-account-button relative grid h-10 w-10 place-items-center rounded-full border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:h-11 sm:w-11"
         aria-label="Menú de cuenta y configuración"
         aria-expanded={isOpen}
         aria-haspopup="menu"
       >
         {isAuthed ? (
-          <span className="grid h-7 w-7 place-items-center rounded-full bg-primary/20 text-sm font-bold text-primary-2 ring-1 ring-primary-2/30">
+          <span className="text-sm font-bold">
             {initial}
           </span>
         ) : (

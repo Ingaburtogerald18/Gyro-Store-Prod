@@ -91,6 +91,14 @@ sigue a `data-theme`, no al `prefers-color-scheme` del sistema (lo controla `use
 | `--primary` | CTA y acento de marca (Emerald) |
 | `--border` / `--input` / `--ring` | Hairlines, campos y anillos de foco |
 | `--destructive` | Error y acciones destructivas |
+| `--destructive-foreground` | Texto sobre rojo lleno: blanco en claro, tinta en oscuro |
+
+El editor de diapositivas usa `Button variant="destructiveSolid"` para Cancelar y
+cerrar, con fondo rojo y el mismo contorno/sombra de los botones de la tienda.
+La variante `destructive` existente conserva su fondo tenue. La subida muestra
+porcentaje real solo durante el envío; mientras el servidor procesa y almacena,
+`Progress value={null}` muestra una animación indeterminada, sin porcentaje.
+Las animaciones de carga respetan `prefers-reduced-motion`.
 
 En Tailwind se usan como `bg-background`, `text-muted-foreground`, `border-border`, etc. — nunca
 la variable cruda.
@@ -344,6 +352,12 @@ Las primitivas son de shadcn; estas piezas son **nuestras** y siguen vigentes:
 - **`ProductCard`** — panel `bg-card`, foto en `product-stage` con blur-up y hover-swap,
   CTA siempre visible, dos layouts (`grid` / `list`).
 - **`Hero`** — slider de slides editables desde el admin (`heroSlides` en `app_config`).
+- **Navbar** — crema en claro y carbón en oscuro; categorías con selección esmeralda
+  (fondo tenue, peso y subrayado), buscador blanco/gris con foco esmeralda, carrito
+  amarillo con icono tinta y sombra roja, cuenta en un único círculo esmeralda.
+  Los tokens `--header-*` limitan esta paleta al encabezado del storefront. La
+  altura base se mantiene en 57px para la navegación sticky de la ficha; en móvil
+  se conserva el menú de categorías y la búsqueda desplegable.
 - **`ProductCarousel`** — scroll-snap + flechas que se deshabilitan en los extremos.
 - **`QueryState`** — envuelve el patrón loading/error/vacío de los listados admin. Cada estado
   puede traer su propio fallback; si no, cae en uno genérico.

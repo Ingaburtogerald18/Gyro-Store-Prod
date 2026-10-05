@@ -46,7 +46,7 @@
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
-  --color-destructive-foreground: oklch(0.985 0 0);
+  --color-destructive-foreground: var(--destructive-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -169,6 +169,27 @@ body {
 }
 
 @keyframes login-enter-rise { from { opacity: 0; transform: translateY(28px); } }
+@keyframes upload-indeterminate {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(250%); }
+}
+@keyframes upload-shimmer {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(100%); }
+}
+
+.animate-upload-indeterminate { animation: upload-indeterminate 1.5s ease-in-out infinite; }
+.slide-upload-progress [data-slot='progress-indicator']::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, color-mix(in_srgb, var(--primary-foreground) 25%, transparent), transparent);
+  animation: upload-shimmer 1.5s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-upload-indeterminate,
+  .slide-upload-progress [data-slot='progress-indicator']::after { animation: none; }
+}
 @keyframes login-enter-slide { from { opacity: 0; transform: translateX(-48px); } }
 
 .login-enter-slide { animation: login-enter-slide 0.6s cubic-bezier(0.16, 1, 0.3, 1) backwards; }
@@ -198,6 +219,7 @@ body {
   --accent: oklch(0.90 0.010 166);
   --accent-foreground: oklch(0.218 0.008 223.9);
   --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(1 0 0);
   --border: oklch(0.85 0.010 166);
   --input: oklch(0.85 0.010 166);
   --ring: oklch(0.723 0.014 214.4);
@@ -293,6 +315,7 @@ body {
   --accent: oklch(0.275 0.011 216.9);
   --accent-foreground: oklch(0.987 0.002 197.1);
   --destructive: oklch(0.704 0.191 22.216);
+  --destructive-foreground: oklch(0.148 0.004 228.8);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.56 0.021 213.5);
@@ -376,6 +399,14 @@ html[data-area='store'] {
   --brand-foreground: var(--ink);
   --promo: #f07a6a;
   --promo-foreground: var(--ink);
+  /* Navbar: esmeralda para navegar, amarillo para el carrito y rojo en sombra. */
+  --header-nav-foreground: var(--primary-2);
+  --header-selected-background: #e4f5f0;
+  --header-control-background: #e4f5f0;
+  --header-search-background: var(--card);
+  --header-search-border: rgb(16 36 35 / 28%);
+  --header-divider: #3dc5a9;
+  --header-cart-shadow: #a8402f;
 }
 
 /* Oscuro de la tienda: negro neutro de verdad, sin tinte verde. El teal queda
@@ -402,20 +433,55 @@ html[data-area='store'][data-theme='dark'] {
   --ring: #ffc20e;
   --brand: #141517;
   --brand-foreground: #f4f4f2;
+  --header-nav-foreground: #d5d7d8;
+  --header-selected-background: color-mix(in srgb, var(--primary-2) 16%, var(--brand));
+  --header-control-background: var(--brand);
+  --header-search-background: #24262b;
+  --header-search-border: rgb(255 255 255 / 24%);
+  --header-divider: color-mix(in srgb, var(--primary-2) 75%, transparent);
 }
 
-/* Header de la tienda. En claro va del mismo crema que la página con una franja
-   teal de 4px abajo: sobre fondo teal, la bolsa del logo (también teal) se
-   perdía y el amarillo del nombre tenía poco contraste. En oscuro, negro. */
+/* Altura constante de 57px en ambos temas: la ficha se ancla debajo del header.
+   La línea esmeralda es interna, para no alterar esa medida. */
 html[data-area='store'] .store-header {
+  --ring: var(--primary-2);
   background-color: var(--background);
   color: var(--foreground);
-  border-bottom: 4px solid #3dc5a9;
+  border-bottom-color: transparent;
+  box-shadow: inset 0 -2px 0 var(--header-divider);
 }
 html[data-area='store'][data-theme='dark'] .store-header {
   background-color: var(--brand);
   color: var(--brand-foreground);
-  border-bottom: 1px solid var(--border);
+}
+html[data-area='store'] .store-header .store-category-link {
+  color: var(--header-nav-foreground);
+}
+html[data-area='store'] .store-header .store-category-link:is(:hover, [aria-current='page']) {
+  background-color: var(--header-selected-background);
+  color: var(--primary-2);
+}
+html[data-area='store'] .store-header .store-account-button {
+  background-color: var(--header-control-background);
+  border-color: color-mix(in srgb, var(--primary-2) 40%, transparent);
+  color: var(--primary-2);
+}
+html[data-area='store'] .store-header .store-account-button:hover,
+html[data-area='store'] .store-header .store-account-button[aria-expanded='true'] {
+  background-color: var(--header-selected-background);
+  border-color: var(--primary-2);
+}
+html[data-area='store'] .store-header .store-cart-button {
+  background-color: var(--primary);
+  border-color: var(--ink);
+  color: var(--primary-foreground);
+  box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), 2px 2px 0 var(--header-cart-shadow);
+}
+html[data-area='store'] .store-header .store-cart-button:hover {
+  background-color: color-mix(in srgb, var(--primary) 92%, var(--ink));
+}
+html[data-area='store'] .store-header .store-cart-button:active {
+  box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), 1px 1px 0 var(--header-cart-shadow);
 }
 
 /* Estilo "dibujo": contorno y sombra dura, como el trazo de la mascota. Va en
@@ -430,7 +496,7 @@ html[data-area='store'] {
 html[data-area='store'][data-theme='dark'] {
   --sticker-shadow: #a8402f;
 }
-html[data-area='store'] [data-slot='button']:is([data-variant='default'], [data-variant='whatsapp']):not([aria-pressed]) {
+html[data-area='store'] [data-slot='button']:is([data-variant='default'], [data-variant='whatsapp'], [data-variant='destructiveSolid']):not([aria-pressed]) {
   border: 2px solid var(--ink);
   box-shadow: 3px 3px 0 var(--sticker-shadow);
   transition-property: transform, box-shadow, background-color;
@@ -441,7 +507,7 @@ html[data-area='store'] [data-slot='button'][data-variant='whatsappOutline'] {
   box-shadow: 3px 3px 0 var(--whatsapp);
   transition-property: transform, box-shadow, background-color;
 }
-html[data-area='store'] [data-slot='button']:is([data-variant='default'], [data-variant='whatsapp'], [data-variant='whatsappOutline']):not([aria-pressed]):active:not(:disabled) {
+html[data-area='store'] [data-slot='button']:is([data-variant='default'], [data-variant='whatsapp'], [data-variant='whatsappOutline'], [data-variant='destructiveSolid']):not([aria-pressed]):active:not(:disabled) {
   transform: translate(2px, 2px);
   box-shadow: 1px 1px 0 var(--sticker-shadow);
 }
@@ -474,6 +540,29 @@ html[data-area='store'][data-theme='dark'] [data-slot='button'][aria-pressed='tr
   background-color: rgb(255 194 14 / 10%);
   color: var(--primary);
   border-color: var(--primary);
+}
+
+/* Campos de formulario en claro: blancos con borde, en vez del relleno gris
+   de shadcn (bg-input/50), que sobre el crema se veía sucio y apagado. */
+html[data-area='store'][data-theme='light'] :is([data-slot='input'], [data-slot='textarea'], [data-slot='select-trigger'], [data-slot='input-group']) {
+  background-color: var(--card);
+  border-color: var(--input);
+}
+html[data-area='store'][data-theme='light'] :is([data-slot='input'], [data-slot='textarea'], [data-slot='select-trigger']):focus-visible,
+html[data-area='store'][data-theme='light'] [data-slot='input-group']:focus-within {
+  border-color: var(--ring);
+}
+html[data-area='store'][data-theme='light'] :is([data-slot='input'], [data-slot='textarea'], [data-slot='select-trigger'])[aria-invalid='true'] {
+  border-color: var(--destructive);
+}
+
+/* El buscador del navbar mantiene el contraste propio del header en cada tema. */
+html[data-area='store'] .store-header .store-header-search [data-slot='input-group'] {
+  background-color: var(--header-search-background);
+  border-color: var(--header-search-border);
+}
+html[data-area='store'] .store-header .store-header-search [data-slot='input-group']:focus-within {
+  border-color: var(--primary-2);
 }
 
 @layer base {

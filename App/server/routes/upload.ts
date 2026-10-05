@@ -7,11 +7,16 @@ import { logger } from '../utils/logger.js';
 
 const router = Router();
 
+// Límite de subida. 25 MB y no 10: Canva gratis solo exporta sin fondo en GIF,
+// y esos GIF pasan fácil los 10 MB. No se guarda ese peso: las imágenes se
+// convierten a WebP de hasta 1200px (optimizeImageBuffer) antes de ir a R2.
+const MAX_UPLOAD_MB = 25;
+
 // Configure multer to store files in memory
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB limit
+    fileSize: MAX_UPLOAD_MB * 1024 * 1024,
   },
   fileFilter: (req, file, cb) => {
     if (!file.mimetype.startsWith('image/') && !file.mimetype.startsWith('video/')) {
@@ -21,9 +26,25 @@ const upload = multer({
   },
 });
 
+/**
+ * Traduce los rechazos de multer (archivo enorme, tipo no permitido) a un 400
+ * con el motivo. Sin esto caían en el errorHandler como 500 "error inesperado
+ * en el servidor", y quien sube no sabía que el problema era el peso.
+ */
+const acceptUpload: import('express').RequestHandler = (req, res, next) => {
+  upload.single('file')(req, res, (err: any) => {
+    if (!err) return next();
+    const message =
+      err.code === 'LIMIT_FILE_SIZE'
+        ? `El archivo supera los ${MAX_UPLOAD_MB} MB. Exportalo más liviano y probá de nuevo.`
+        : err.message || 'No se pudo leer el archivo.';
+    res.status(400).json({ error: message });
+  });
+};
+
 // POST /api/upload
 // Expects multipart/form-data with a file field named "file" and optional "folder"
-router.post('/', requireAdmin, upload.single('file'), async (req, res, next) => {
+router.post('/', requireAdmin, acceptUpload, async (req, res, next) => {
   try {
     if (!req.file) {
       res.status(400).json({ error: 'No se recibió ningún archivo.' });

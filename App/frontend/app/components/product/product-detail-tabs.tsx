@@ -124,8 +124,8 @@ function Specs({ specs }: { specs: SpecRow[] }) {
     // sin bordes por celda.
     <dl className="font-spec grid grid-cols-1 gap-px overflow-hidden rounded-xl bg-border sm:grid-cols-2">
       {specs.map((spec) => (
-        <div key={spec.label} className="bg-card px-4 py-3">
-          <dt className="text-xs text-muted-foreground capitalize">{spec.label}</dt>
+        <div key={spec.label} className="bg-card px-4 py-3 sm:[&:last-child:nth-child(odd)]:col-span-2">
+          <dt className="text-xs text-muted-foreground lowercase first-letter:uppercase">{spec.label}</dt>
           <dd className="mt-0.5 text-sm font-medium text-foreground">{spec.value}</dd>
         </div>
       ))}

@@ -5,17 +5,17 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from '@remix-run/react';
 import { motion, AnimatePresence, useAnimationControls, useReducedMotion } from 'framer-motion';
 import { toast } from 'sonner';
-import { Menu01Icon, ShoppingCart02Icon, Search01Icon, Cancel01Icon, Edit02Icon } from '@hugeicons/core-free-icons';
+import { Menu01Icon, ShoppingCart02Icon, Search01Icon, Cancel01Icon } from '@hugeicons/core-free-icons';
 import { SearchBar } from '~/components/catalog/search-bar';
 import { CategoriesDrawer } from '~/components/store/categories-drawer';
-import { CategoryNav, inCategory } from '~/components/store/category-nav';
+import { CategoryNav } from '~/components/store/category-nav';
 import { Button } from '~/components/ui/button';
 import { HugeIcon } from '~/components/ui/icon';
-import { useGetCatalogQuery, useUpdateLandingConfigMutation } from '~/store/api/storefrontApi';
-import { useStoreConfig, useStoreLanding } from '~/hooks/useStoreConfig';
+import { useUpdateLandingConfigMutation } from '~/store/api/storefrontApi';
+import { useStoreCatalog, useStoreConfig, useStoreLanding } from '~/hooks/useStoreConfig';
 import { useAppDispatch, useAppSelector } from '~/store/hooks';
 import { selectCartCount, toggleCart } from '~/store/slices/cartSlice';
-import { selectIsAdmin, selectEditMode, toggleEditMode } from '~/store/slices/authSlice';
+import { selectEditMode, toggleEditMode } from '~/store/slices/authSlice';
 import { selectDraftLandingConfig, initBuilderSession, clearBuilderSession } from '~/store/slices/builderSlice';
 import { InlineCategoryNavEditor } from './inline-category-nav-editor';
 import { HeaderSettingsMenu } from './header-settings-menu';
@@ -47,7 +47,7 @@ function CartButton() {
       whileTap={reduce ? undefined : { scale: 0.92 }}
       onClick={() => dispatch(toggleCart())}
       aria-label={count > 0 ? `Abrir carrito, ${count} artículo${count === 1 ? "" : "s"}` : "Abrir carrito"}
-      className="relative grid h-10 w-10 place-items-center rounded-full border bg-card text-muted-foreground shadow-sm backdrop-blur-sm transition-colors hover:border-primary-2/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-2"
+      className="store-cart-button relative grid h-10 w-10 place-items-center rounded-full border transition-[background-color,box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:h-11 sm:w-11"
     >
       <HugeIcon icon={ShoppingCart02Icon} size={20} strokeWidth={2} aria-hidden />
       <AnimatePresence>
@@ -59,7 +59,7 @@ function CartButton() {
             exit={{ scale: 0, opacity: 0 }}
             transition={reduce ? { duration: 0 } : { type: "spring", stiffness: 520, damping: 20 }}
             // ring-background lo separa del header con un halo del color de fondo → "flota".
-            className="font-spec absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-primary px-1 text-2xs font-bold tabular-nums text-primary-foreground ring-2 ring-background shadow-lg"
+            className="font-spec absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-destructive px-1 text-2xs font-bold tabular-nums text-destructive-foreground ring-2 ring-background shadow-lg"
           >
             {count > 99 ? '99+' : count}
           </motion.span>
@@ -82,9 +82,8 @@ export function StoreHeader() {
   const animatedIsVideo = Boolean(animated && /\.(webm|mp4|mov|m4v)($|\?)/i.test(animated));
   const logoVideo = animatedIsVideo && !reduceMotion ? animated : undefined;
   const logoImage = config?.images?.logoStatic || (animatedIsVideo ? undefined : animated);
-  const { data: products = [] } = useGetCatalogQuery();
+  const products = useStoreCatalog();
   const landing = useStoreLanding();
-  const isAdmin = useAppSelector(selectIsAdmin);
   const editMode = useAppSelector(selectEditMode);
   const draftLanding = useAppSelector(selectDraftLandingConfig);
   const dispatch = useAppDispatch();
@@ -139,14 +138,14 @@ export function StoreHeader() {
       "store-header sticky top-0 z-40 transition-all",
       editMode ? "border-b border-primary-2/20 border-t-[4px] border-t-primary" : "border-b border-border"
     )}>
-      <div className="mx-auto flex h-14 max-w-7xl items-center gap-3 px-4">
+      <div className="mx-auto flex h-14 max-w-7xl items-center gap-2 px-4 sm:gap-3">
         {!editMode && (
           <Button
             variant="ghost"
             size="icon"
             onClick={() => setCategoriesOpen(true)}
             aria-label="Ver categorías"
-            className="h-10 w-10 shrink-0 md:hidden"
+            className="h-9 w-9 shrink-0 text-primary-2 sm:h-10 sm:w-10 md:hidden"
           >
             <HugeIcon icon={Menu01Icon} size={20} strokeWidth={2} aria-hidden />
           </Button>
@@ -154,8 +153,8 @@ export function StoreHeader() {
 
         <Link
           to="/"
-          className={cn("group flex shrink-0 items-center gap-2 rounded-xl px-2 py-1 transition-all duration-300", 
-            !editMode && "hover:bg-primary/5 active:scale-95"
+          className={cn("group flex shrink-0 items-center gap-2 rounded-xl py-1 transition-all duration-300 sm:px-2",
+            !editMode && "hover:bg-primary-2/5 motion-safe:active:scale-95"
           )}
           aria-label={`Ir al inicio de ${config?.brandName || getBrandName()}`}
           onClick={(e) => {
@@ -177,7 +176,7 @@ export function StoreHeader() {
               playsInline
               preload="metadata"
               aria-hidden
-              className="h-10 w-auto max-w-[140px] shrink-0 object-contain object-left"
+              className="h-9 w-auto max-w-24 shrink-0 object-contain object-left sm:h-10 sm:max-w-[140px]"
             />
           ) : logoImage ? (
             <img
@@ -186,7 +185,7 @@ export function StoreHeader() {
               height={40}
               loading="eager"
               decoding="async"
-              className="h-10 w-auto max-w-[140px] shrink-0 object-contain object-left"
+              className="h-9 w-auto max-w-24 shrink-0 object-contain object-left sm:h-10 sm:max-w-[140px]"
             />
           ) : (
             <>
@@ -199,7 +198,7 @@ export function StoreHeader() {
                 decoding="async"
                 className="size-10 shrink-0 transition-transform duration-300 motion-safe:group-hover:-rotate-6"
               />
-              <span className="font-heading text-lg font-extrabold tracking-tight whitespace-nowrap">
+              <span className="hidden font-heading text-lg font-extrabold tracking-tight whitespace-nowrap sm:inline">
                 {config?.brandName || getBrandName()}
               </span>
             </>
@@ -218,10 +217,10 @@ export function StoreHeader() {
             )}
           </div>
 
-          {!editMode && <SearchBar className="w-56 shrink-0 lg:w-72" />}
+          {!editMode && <SearchBar className="w-56 shrink-0 lg:w-80" />}
         </div>
         {/* Zona derecha */}
-        <div className="ml-auto flex shrink-0 items-center gap-2 sm:gap-3">
+        <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-3">
           {editMode && (
             <div className="flex items-center gap-3 bg-primary/10 pl-3 pr-1 py-1 rounded-full border border-primary-2/20">
               <div className="hidden sm:flex items-center gap-2">
@@ -259,7 +258,7 @@ export function StoreHeader() {
               onClick={() => setMobileSearchOpen((o) => !o)}
               aria-label={mobileSearchOpen ? 'Cerrar búsqueda' : 'Buscar productos'}
               aria-expanded={mobileSearchOpen}
-              className="h-10 w-10 md:hidden"
+              className="h-9 w-9 text-primary-2 sm:h-10 sm:w-10 md:hidden"
             >
               <HugeIcon
                 icon={mobileSearchOpen ? Cancel01Icon : Search01Icon}

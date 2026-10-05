@@ -6,7 +6,7 @@
 // `contacts.phone`) en vez de opcional.
 import { HugeIcon } from "~/components/ui/icon";
 import { Location01Icon } from "@hugeicons/core-free-icons";
-import type { MetaFunction } from '@remix-run/node';
+import type { LoaderFunctionArgs, MetaFunction } from '@remix-run/node';
 import { pageTitle } from '~/lib/brand';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -27,13 +27,29 @@ import { Textarea } from '~/components/ui/textarea';
 import { errMsg } from "~/lib/formatters";
 import { PaymentAccounts } from '~/components/store/payment-accounts';
 import { useSendContactMutation } from '~/store/api/storefrontApi';
-import { useGetConfigQuery } from '~/store/api/sessionApi';
+import type { StoreConfig } from '~/store/api/sessionApi';
+import { useStoreConfig } from '~/hooks/useStoreConfig';
 
 export const meta: MetaFunction = () => [{ title: pageTitle('Contacto') }];
 
+// La config va en el loader para que el header (logo), el pie y la dirección
+// salgan en el HTML del servidor, como en el resto de las rutas públicas.
+export async function loader({ request }: LoaderFunctionArgs) {
+  const origin = new URL(request.url).origin;
+  let config: StoreConfig | null = null;
+  try {
+    const res = await fetch(`${origin}/api/config`);
+    if (res.ok) config = (await res.json()) as StoreConfig;
+  } catch {
+    // Sin config la página sale igual, con la dirección por defecto.
+  }
+  return { config };
+}
+
+
 export default function Contacto() {
   const [sendContact, { isLoading }] = useSendContactMutation();
-  const { data: config } = useGetConfigQuery();
+  const config = useStoreConfig();
   // Sin dirección cargada todavía, se cae al literal de siempre en vez de dejar
   // un enlace a Maps vacío.
   const address = config?.address?.trim() || 'Managua, Nicaragua';

@@ -134,7 +134,7 @@ export function ImageUploader({
             <p className="mt-1 text-xs text-muted-foreground">
               {isFull
                 ? `Quitá alguna para subir otra · ${MAX_IMAGES} máximo`
-                : `PNG, JPG o WEBP hasta 10 MB · quedan ${remaining} de ${MAX_IMAGES}`}
+                : `PNG, JPG, WEBP o GIF hasta 25 MB · quedan ${remaining} de ${MAX_IMAGES}`}
             </p>
             {!isFull && (
               <Button

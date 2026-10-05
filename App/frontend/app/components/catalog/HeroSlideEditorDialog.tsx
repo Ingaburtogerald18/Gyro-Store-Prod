@@ -4,17 +4,17 @@
 // panel porque una diapositiva es composición visual: el texto y la foto se
 // juzgan viendo el resultado, no un formulario en otra pantalla.
 //
-// Guarda contra `PUT /api/landing-config` a través del componente padre, que es
-// quien conoce el arreglo completo de slides — acá solo se edita UNA.
-import { useEffect, useState } from 'react';
+// Actualiza una diapositiva del borrador; el encabezado publica el conjunto.
+import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { HugeIcon } from '~/components/ui/icon';
-import { CloudUploadIcon } from '@hugeicons/core-free-icons';
+import { Cancel01Icon, CheckmarkCircle02Icon, CloudUploadIcon } from '@hugeicons/core-free-icons';
 
 import type { HeroSlide } from '@shared/schemas';
 import { Button } from '~/components/ui/button';
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -33,53 +33,12 @@ import {
 } from '~/components/ui/select';
 import { Spinner } from '~/components/ui/spinner';
 import { Progress } from '~/components/ui/progress';
-import { getSupabaseClient } from '~/lib/supabase.client';
+import { uploadSlideMedia } from '~/lib/uploadSlideMedia';
 
-/** Sube a R2 por `/api/upload` reportando el progreso de la subida. */
-async function uploadMedia(file: File, onProgress?: (pct: number) => void): Promise<string> {
-  const supabase = getSupabaseClient();
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
-  const body = new FormData();
-  body.append('file', file);
-  body.append('folder', 'landing');
-
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.open('POST', '/api/upload');
-    
-    if (session) {
-      xhr.setRequestHeader('Authorization', `Bearer ${session.access_token}`);
-    }
-
-    if (onProgress && xhr.upload) {
-      xhr.upload.onprogress = (event) => {
-        if (event.lengthComputable) {
-          const percentComplete = Math.round((event.loaded / event.total) * 100);
-          onProgress(percentComplete);
-        }
-      };
-    }
-
-    xhr.onload = () => {
-      try {
-        const data = JSON.parse(xhr.responseText);
-        if (xhr.status >= 200 && xhr.status < 300) {
-          resolve(data.url);
-        } else {
-          reject(new Error(data.error || 'No se pudo subir el archivo.'));
-        }
-      } catch (err) {
-        reject(new Error('Respuesta inválida del servidor.'));
-      }
-    };
-
-    xhr.onerror = () => reject(new Error('Error de red al subir el archivo.'));
-    xhr.send(body);
-  });
-}
+type UploadState =
+  | { phase: 'idle' | 'preparing' | 'processing' | 'success' }
+  | { phase: 'sending'; percent: number | null }
+  | { phase: 'error'; message: string };
 
 export function HeroSlideEditorDialog({
   slide,
@@ -94,12 +53,20 @@ export function HeroSlideEditorDialog({
   onClose: () => void;
 }) {
   const [draft, setDraft] = useState<HeroSlide | null>(slide);
-  const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadState, setUploadState] = useState<UploadState>({ phase: 'idle' });
+  const uploadController = useRef<AbortController | null>(null);
+  const uploading = ['preparing', 'sending', 'processing'].includes(uploadState.phase);
 
   // Se re-siembra al abrir con OTRA diapositiva. Sin esto, abrir la segunda tras
   // cerrar la primera mostraría los datos de la primera.
-  useEffect(() => setDraft(slide), [slide]);
+  useEffect(() => {
+    setDraft(slide);
+    setUploadState({ phase: 'idle' });
+    return () => {
+      uploadController.current?.abort();
+      uploadController.current = null;
+    };
+  }, [slide]);
 
   if (!draft) return null;
 
@@ -108,10 +75,22 @@ export function HeroSlideEditorDialog({
 
   async function handleFile(file: File | undefined) {
     if (!file) return;
-    setUploading(true);
-    setUploadProgress(0);
+    uploadController.current?.abort();
+    const controller = new AbortController();
+    uploadController.current = controller;
+    const isCurrent = () => uploadController.current === controller && !controller.signal.aborted;
+    setUploadState({ phase: 'preparing' });
     try {
-      const url = await uploadMedia(file, (pct) => setUploadProgress(pct));
+      const url = await uploadSlideMedia(file, {
+        signal: controller.signal,
+        onProgress: (percent) => {
+          if (isCurrent()) setUploadState({ phase: 'sending', percent });
+        },
+        onTransferred: () => {
+          if (isCurrent()) setUploadState({ phase: 'processing' });
+        },
+      });
+      if (!isCurrent()) return;
       // El tipo se deduce del archivo: pedirlo aparte es una pregunta que el
       // navegador ya respondió, y elegir mal deja el slide en blanco.
       setDraft((current) =>
@@ -119,21 +98,37 @@ export function HeroSlideEditorDialog({
           ? { ...current, mediaUrl: url, mediaType: file.type.startsWith('video/') ? 'video' : 'image' }
           : current,
       );
+      setUploadState({ phase: 'success' });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'No se pudo subir el archivo.');
+      if (!isCurrent()) return;
+      const message = err instanceof Error ? err.message : 'No se pudo subir el archivo.';
+      setUploadState({ phase: 'error', message });
+      toast.error(message);
     } finally {
-      setUploading(false);
-      setUploadProgress(0);
+      if (uploadController.current === controller) uploadController.current = null;
     }
   }
 
+  function handleClose() {
+    if (saving) return;
+    uploadController.current?.abort();
+    uploadController.current = null;
+    onClose();
+  }
+
   return (
-    <Dialog open={!!slide} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="flex max-h-[90vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-lg">
+    <Dialog open={!!slide} onOpenChange={(open) => !open && handleClose()}>
+      <DialogContent showCloseButton={false} className="flex max-h-[90vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-lg">
+        <DialogClose asChild>
+          <Button variant="destructiveSolid" size="icon" disabled={saving} className="absolute top-4 right-4 z-10 size-9 rounded-full">
+            <HugeIcon icon={Cancel01Icon} size={16} strokeWidth={2} aria-hidden />
+            <span className="sr-only">Cerrar editor</span>
+          </Button>
+        </DialogClose>
         <DialogHeader className="shrink-0 border-b px-6 py-4 pr-14">
           <DialogTitle>Editar diapositiva</DialogTitle>
           <DialogDescription>
-            Los cambios se publican en la tienda al guardar.
+            Guarda en el borrador y publica con «Guardar cambios».
           </DialogDescription>
         </DialogHeader>
 
@@ -158,18 +153,39 @@ export function HeroSlideEditorDialog({
                   type="file"
                   accept="image/*,video/*"
                   disabled={uploading || saving}
+                  onClick={(e) => { e.currentTarget.value = ''; }}
                   onChange={(e) => void handleFile(e.target.files?.[0])}
                 />
-                {uploading ? (
-                  <div className="mt-2 space-y-1.5">
-                    <Progress value={uploadProgress} className="h-1.5" />
-                    <p className="text-2xs font-medium text-muted-foreground">Subiendo... {uploadProgress}%</p>
-                  </div>
-                ) : (
-                  <FieldDescription>
-                    PNG, JPG, WEBP o MP4.
-                  </FieldDescription>
-                )}
+                <div aria-live="polite" aria-atomic="true">
+                  {uploading ? (
+                    <div className="mt-3 space-y-2">
+                      <Progress
+                        value={uploadState.phase === 'sending' ? uploadState.percent : null}
+                        aria-label={uploadState.phase === 'preparing' ? 'Preparando archivo' : uploadState.phase === 'processing' ? 'Procesando y guardando archivo' : 'Enviando archivo'}
+                        className="slide-upload-progress h-2"
+                      />
+                      <div className="flex items-start gap-2 text-xs font-medium text-muted-foreground">
+                        <Spinner aria-hidden className="mt-0.5 shrink-0 text-primary motion-reduce:animate-none" />
+                        <p>
+                          {uploadState.phase === 'preparing' ? 'Preparando archivo…'
+                            : uploadState.phase === 'processing' ? 'Procesando y guardando archivo…'
+                            : `Enviando archivo…${uploadState.phase === 'sending' && uploadState.percent !== null ? ` ${uploadState.percent}%` : ''}`}
+                        </p>
+                      </div>
+                    </div>
+                  ) : uploadState.phase === 'success' ? (
+                    <p className="mt-2 flex items-start gap-1.5 text-xs font-medium text-success">
+                      <HugeIcon icon={CheckmarkCircle02Icon} size={16} aria-hidden className="shrink-0" />
+                      Archivo listo para guardar la diapositiva.
+                    </p>
+                  ) : uploadState.phase === 'error' ? (
+                    <p className="mt-2 text-xs font-medium text-destructive">{uploadState.message} Selecciona el archivo para reintentar.</p>
+                  ) : (
+                    <FieldDescription>
+                      PNG, JPG, WEBP, GIF o MP4.
+                    </FieldDescription>
+                  )}
+                </div>
               </div>
             </div>
           </Field>
@@ -250,7 +266,7 @@ export function HeroSlideEditorDialog({
         </div>
 
         <DialogFooter className="shrink-0 border-t px-6 py-4">
-          <Button variant="ghost" onClick={onClose} disabled={saving}>
+          <Button variant="destructiveSolid" onClick={handleClose} disabled={saving} className="h-11 px-5">
             Cancelar
           </Button>
           <Button
@@ -262,6 +278,7 @@ export function HeroSlideEditorDialog({
               onSave(draft);
             }}
             disabled={saving || uploading}
+            className="h-11 px-5"
           >
             {saving && <Spinner className="mr-2" />}
             Guardar diapositiva

@@ -287,11 +287,9 @@ export function Hero({ initialLanding }: { initialLanding?: LandingConfig | null
                 transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
                 className="space-y-2.5 sm:space-y-4"
               >
-                {/* Eyebrow en el texto tal como se escribe en el panel (sin mayúsculas
-                    forzadas ni letras espaciadas): ocupaba mucho y gritaba. */}
-                <span className="inline-block text-sm font-semibold text-primary-2">
-                  {activeSlide.eyebrow}
-                </span>
+                {/* Sin eyebrow: el nombre de la tienda ya está en el logo del header y
+                    repetirlo arriba del título solo ocupaba espacio. El campo sigue
+                    en el editor de slides, pero la tienda no lo muestra. */}
 
                 <h1 className="font-heading text-[1.625rem] leading-[1.05] font-extrabold tracking-tight text-balance text-foreground md:text-4xl xl:text-5xl">
                   {activeSlide.title}
