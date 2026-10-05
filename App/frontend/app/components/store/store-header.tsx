@@ -14,7 +14,7 @@ import { HugeIcon } from '~/components/ui/icon';
 import { useUpdateLandingConfigMutation } from '~/store/api/storefrontApi';
 import { useStoreCatalog, useStoreConfig, useStoreLanding } from '~/hooks/useStoreConfig';
 import { useAppDispatch, useAppSelector } from '~/store/hooks';
-import { selectCartCount, toggleCart } from '~/store/slices/cartSlice';
+import { openCart, selectCartCount, toggleCart } from '~/store/slices/cartSlice';
 import { selectEditMode, toggleEditMode } from '~/store/slices/authSlice';
 import { selectDraftLandingConfig, initBuilderSession, clearBuilderSession } from '~/store/slices/builderSlice';
 import { InlineCategoryNavEditor } from './inline-category-nav-editor';
@@ -230,6 +230,18 @@ export function StoreHeader() {
                 </span>
                 <span className="text-xs font-bold tracking-wider text-primary-2">MODO EDICIÓN</span>
               </div>
+              {/* En modo edición el carrito normal no se muestra; este botón lo
+                  abre para editar sus textos e imágenes («Editar carrito»). */}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => dispatch(openCart())}
+                className="h-8 rounded-full px-3 text-xs font-semibold text-primary-2 hover:bg-primary/10"
+                disabled={isSaving}
+              >
+                <HugeIcon icon={ShoppingCart02Icon} size={14} strokeWidth={2} aria-hidden />
+                Carrito
+              </Button>
               <Button 
                 variant="ghost" 
                 size="sm" 

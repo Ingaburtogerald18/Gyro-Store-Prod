@@ -13,7 +13,7 @@
 // no en el panel porque una diapositiva es composición visual — el texto y la
 // foto se juzgan viendo el resultado, no un formulario en otra pantalla.
 import { HugeIcon } from "~/components/ui/icon";
-import { Add01Icon, ArrowLeft01Icon, ArrowRight01Icon, ArrowRight02Icon, Delete02Icon, Edit02Icon, PauseIcon, PlayIcon } from "@hugeicons/core-free-icons";
+import { Add01Icon, ArrowDown01Icon, ArrowLeft01Icon, ArrowRight01Icon, ArrowRight02Icon, Delete02Icon, Edit02Icon, PauseIcon, PlayIcon } from "@hugeicons/core-free-icons";
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from '@remix-run/react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
@@ -31,6 +31,8 @@ import { selectDraftLandingConfig, updateHeroSlides } from '~/store/slices/build
 import { useStoreConfig } from '~/hooks/useStoreConfig';
 import { useGetLandingConfigQuery } from '~/store/api/storefrontApi';
 import { WhatsappIcon } from '~/components/ui/whatsapp-icon';
+import { FacebookIcon, InstagramIcon, TikTokIcon } from '~/components/ui/social-icons';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '~/components/ui/dropdown-menu';
 import { cn } from "~/lib/utils"
 import { buildWhatsappUrl } from "~/lib/formatters";
 
@@ -80,6 +82,13 @@ export function Hero({ initialLanding }: { initialLanding?: LandingConfig | null
   const slides = landing.heroSlides;
 
   const config = useStoreConfig();
+  // Redes del slide con acción "social": solo las que tienen link cargado.
+  const social = config?.socialLinks;
+  const socialItems = [
+    { key: 'facebook', label: 'Facebook', href: social?.facebook?.trim(), Icon: FacebookIcon },
+    { key: 'instagram', label: 'Instagram', href: social?.instagram?.trim(), Icon: InstagramIcon },
+    { key: 'tiktok', label: 'TikTok', href: social?.tiktok?.trim(), Icon: TikTokIcon },
+  ].filter((s): s is typeof s & { href: string } => Boolean(s.href));
   const whatsappOrderUrl = buildWhatsappUrl(
     config?.whatsapp ?? '',
     `Hola ${config?.brandName ?? ''}, quiero hacer un pedido`.replace(/\s+,/, ','),
@@ -308,6 +317,32 @@ export function Hero({ initialLanding }: { initialLanding?: LandingConfig | null
                     le ganaba la mirada a la acción principal. */}
                 <div className="pt-2.5 sm:pt-4">
                   <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-row sm:gap-3">
+                    {activeSlide.actionType === 'social' && socialItems.length > 0 ? (
+                      // Acción "redes sociales": el botón abre un menú con las redes
+                      // que tienen link en Configuración (las mismas del pie).
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="default"
+                            size="lg"
+                            className="group/cta h-11 w-full justify-center text-xs sm:w-auto sm:text-sm"
+                          >
+                            <span className="truncate">{activeSlide.buttonText || 'Seguinos'}</span>
+                            <HugeIcon icon={ArrowDown01Icon} size={14} strokeWidth={2} aria-hidden className="shrink-0" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" className="w-auto min-w-48">
+                          {socialItems.map(({ key, label, href, Icon }) => (
+                            <DropdownMenuItem key={key} asChild className="gap-3 py-2.5 text-sm font-medium">
+                              <a href={href} target="_blank" rel="noopener noreferrer">
+                                <Icon className="size-4 shrink-0" />
+                                {label}
+                              </a>
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    ) : (
                     <Button
                       variant="default"
                       size="lg"
@@ -317,6 +352,7 @@ export function Hero({ initialLanding }: { initialLanding?: LandingConfig | null
                       <span className="truncate">{activeSlide.buttonText || 'Ver catálogo'}</span>
                       <HugeIcon icon={ArrowRight02Icon} size={14} strokeWidth={2} aria-hidden className="shrink-0 transition-transform duration-300 group-hover/cta:translate-x-1" />
                     </Button>
+                    )}
 
                     <Button
                       variant="whatsappOutline"

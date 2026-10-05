@@ -1,194 +1,145 @@
-// Footer del catálogo público. Sigue el sistema de diseño del preset
-// shadcn "b2DcSjE3s" (Rhea · Neutral · Emerald · Geist):
-//   - Fondo: bg-background (el más oscuro del sistema en dark)
-//   - Separador superior: border-border (oklch(1 0 0 / 10%) en dark)
-//   - Tarjeta de contenido: bg-card con rounded-xl y border-border
-//   - Primario: --primary (emerald oklch ~0.508)
-//   - Tipografía: Geist Variable, tamaños xs/sm con tracking ajustado
-//   - Radios: radius-xl (var(--radius) + 4px = ~0.875rem) para chips
-//   - Chips de redes: shape pill, sin borde extra, colores de marca
-//   - Trust signals: icono primary + texto muted-foreground
-//   - Bottom bar: border-t border-border, texto muted-foreground xs
+// Footer del catálogo público. Sobrio y siguiendo el tema, como el resto:
+//   - Claro: fondo blanco (bg-card) con una línea tinta arriba, el mismo trazo
+//     de los botones. Oscuro: el gris de las tarjetas con un borde fino.
+//   - Sin tarjetas ni botones de colores: todo son links de texto con el mismo
+//     peso; "Cómo llegar" es un link más (abre la ubicación del panel).
+//   - Redes como los botones redondos del header (carrito, ajustes).
+//   - Un solo detalle de marca: la bolsa de la mascota asomada sobre el borde.
+import { Link } from '@remix-run/react';
 import { HugeIcon } from '~/components/ui/icon';
 import { Location01Icon, Mail01Icon } from '@hugeicons/core-free-icons';
 
-import { useStoreConfig } from '~/hooks/useStoreConfig';
-import { Link } from '@remix-run/react';
-import { buildWhatsappUrl } from '~/lib/formatters';
-import { TRUST_SIGNALS } from '~/lib/trustSignals';
+import gyroBag from '~/assets/brand/gyro-bag.png';
+import { categoryHref, inCategory } from '~/components/store/category-nav';
+import { FacebookIcon, InstagramIcon, TikTokIcon } from '~/components/ui/social-icons';
+import { useStoreCatalog, useStoreConfig } from '~/hooks/useStoreConfig';
 import { getBrandName } from '~/lib/brand';
-import gyroLogo from '~/assets/brand/gyro-logo-sm.png';
+import { buildWhatsappUrl } from '~/lib/formatters';
 
-// ─── Íconos SVG inline de redes sociales ────────────────────────────────────
-function InstagramIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden>
-      <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 1 0 0 12.324 6.162 6.162 0 0 0 0-12.324zM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm6.406-11.845a1.44 1.44 0 1 0 0 2.881 1.44 1.44 0 0 0 0-2.881z" />
-    </svg>
-  );
-}
+const HEADING = 'mb-3 text-sm font-bold text-foreground';
+const LINK =
+  'inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground';
 
-function FacebookIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden>
-      <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
-    </svg>
-  );
-}
-
-function TikTokIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden>
-      <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.34 2.88 2.88 0 0 1 2.31-4.53 2.66 2.66 0 0 1 1.04.2v-3.2A5.99 5.99 0 0 0 3.32 15a5.95 5.95 0 0 0 11.23 2.14v-6.32a8.04 8.04 0 0 0 5.04 1.76v-3.15a4.7 4.7 0 0 1-2.19-.51Z" />
-    </svg>
-  );
-}
-
-// ─── Componente principal ─────────────────────────────────────────────────────
 export function PublicFooter() {
   const config = useStoreConfig();
+  const products = useStoreCatalog();
   const year = new Date().getFullYear();
   const brand = config?.brandName || getBrandName();
-  const address = config?.address?.trim();
   const email = config?.contactEmail?.trim();
+  const address = config?.address?.trim();
+  // La ubicación del panel manda; si no hay, se busca la dirección en Maps.
+  const mapsUrl =
+    config?.locationUrl?.trim() ||
+    (address ? `https://maps.google.com/?q=${encodeURIComponent(address)}` : '');
+  const whatsappUrl = config?.whatsapp
+    ? buildWhatsappUrl(config.whatsapp, `Hola ${brand}, tengo una consulta`)
+    : '';
 
-  const locationUrl = config?.locationUrl?.trim();
   const social = config?.socialLinks;
+  const socialItems = [
+    { key: 'instagram', label: 'Instagram', href: social?.instagram?.trim(), Icon: InstagramIcon },
+    { key: 'facebook', label: 'Facebook', href: social?.facebook?.trim(), Icon: FacebookIcon },
+    { key: 'tiktok', label: 'TikTok', href: social?.tiktok?.trim(), Icon: TikTokIcon },
+  ].filter((s) => Boolean(s.href));
 
+  // Solo categorías con productos (si el catálogo todavía no cargó, todas).
+  const categories = (config?.categories ?? []).filter(
+    (c) => products.length === 0 || products.some((p) => inCategory(p, c)),
+  );
 
   return (
     <footer
       id="public-footer"
-      className="border-t border-border bg-card"
+      className="relative mt-16 border-t-2 border-t-foreground bg-card text-foreground dark:border-t dark:border-t-border"
     >
-      {/* ── Cuerpo principal ──────────────────────────────────────────────── */}
-      <div className="mx-auto max-w-7xl px-4 py-10 md:py-14">
-        {/* Sin tarjeta propia: el pie ya es una superficie (bg-card); una tarjeta
-            adentro de otra solo sumaba un borde. */}
-        <div className="px-2 py-2 md:px-10">
-          <div className="flex flex-col items-center text-center gap-6">
+      {/* La mascota "sentada" sobre la línea de arriba. */}
+      <img
+        src={gyroBag}
+        alt=""
+        aria-hidden
+        width={56}
+        height={56}
+        loading="lazy"
+        decoding="async"
+        className="pointer-events-none absolute -top-[46px] left-[max(1rem,calc((100%-80rem)/2+1rem))] size-14"
+      />
 
-            {/* ── Logo ────────────────────────────────────────────────────── */}
-            {/* El logo completo, con el nombre curvo y la mascota: acá hay lugar
-                para que se lea, a diferencia del header. Sin fondo, así sirve en
-                claro y en oscuro. */}
-            <img
-              src={gyroLogo}
-              alt={brand}
-              width={112}
-              height={112}
-              loading="lazy"
-              decoding="async"
-              className="size-24 md:size-28"
-            />
-
-            {/* ── Tagline ─────────────────────────────────────────────────── */}
-            <p className="max-w-xs md:max-w-sm text-sm leading-relaxed text-muted-foreground text-balance">
-              La tienda de tecnología con el mejor servicio al cliente de Nicaragua.
-              Calidad, garantía y envíos seguros a todo el país.
-            </p>
-
-            {/* ── Trust signals ───────────────────────────────────────────── */}
-            <ul className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2">
-              {TRUST_SIGNALS.map(({ icon, label }) => (
-                <li
-                  key={label}
-                  className="inline-flex items-center gap-1.5 text-xs text-muted-foreground"
+      <div className="mx-auto grid max-w-7xl gap-10 px-4 pt-12 pb-10 md:grid-cols-[1.5fr_1fr_1fr_1fr] md:gap-8">
+        {/* Marca */}
+        <div>
+          <p className="font-heading text-xl font-extrabold tracking-tight">{brand}</p>
+          <p className="mt-2 max-w-xs text-sm leading-relaxed text-muted-foreground">
+            Audio, gaming y accesorios seleccionados en Managua.
+          </p>
+          {socialItems.length > 0 && (
+            <div className="mt-4 flex items-center gap-2">
+              {socialItems.map(({ key, label, href, Icon }) => (
+                <a
+                  key={key}
+                  href={href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={`${label} de ${brand}`}
+                  className="grid size-10 place-items-center rounded-full border text-muted-foreground transition-colors hover:border-foreground/40 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                 >
-                  <HugeIcon
-                    icon={icon}
-                    size={14}
-                    strokeWidth={2}
-                    aria-hidden
-                    className="shrink-0 text-primary-2"
-                  />
-                  {label}
+                  <Icon className="size-4" />
+                </a>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Tienda y Ayuda: lado a lado en el celular, dos columnas en escritorio. */}
+        <div className="grid grid-cols-2 gap-8 md:contents">
+          <nav aria-label="Categorías de la tienda">
+            <p className={HEADING}>Tienda</p>
+            <ul className="space-y-2.5">
+              <li><Link to="/#catalogo" className={LINK}>Todo el catálogo</Link></li>
+              {categories.slice(0, 6).map((c) => (
+                <li key={c.id}>
+                  <Link to={categoryHref(c.slug)} className={LINK}>{c.name}</Link>
                 </li>
               ))}
             </ul>
+          </nav>
 
-            {/* ── Redes sociales ──────────────────────────────────────────── */}
-            {(social?.instagram || social?.facebook || social?.tiktok) && (
-              <div className="flex items-center gap-2">
-                {social.instagram && (
-                  <a
-                    href={social.instagram}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label={`Instagram de ${brand}`}
-                    className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-[#833AB4] via-[#FD1D1D] to-[#F56040] text-white transition-all duration-200 hover:scale-110 hover:opacity-90 active:scale-95"
-                  >
-                    <InstagramIcon className="h-4 w-4" />
+          <nav aria-label="Ayuda">
+            <p className={HEADING}>Ayuda</p>
+            <ul className="space-y-2.5">
+              <li><Link to="/contacto" className={LINK}>Contacto</Link></li>
+              {whatsappUrl && (
+                <li>
+                  <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" className={LINK}>
+                    WhatsApp
                   </a>
-                )}
-                {social.facebook && (
-                  <a
-                    href={social.facebook}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label={`Facebook de ${brand}`}
-                    className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-[#1877F2] text-white transition-all duration-200 hover:scale-110 hover:opacity-90 active:scale-95"
-                  >
-                    <FacebookIcon className="h-4 w-4" />
-                  </a>
-                )}
-                {social.tiktok && (
-                  <a
-                    href={social.tiktok}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label={`TikTok de ${brand}`}
-                    className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-border bg-[#000] text-white transition-all duration-200 hover:scale-110 hover:opacity-90 active:scale-95"
-                  >
-                    <TikTokIcon className="h-4 w-4" />
-                  </a>
-                )}
-              </div>
-            )}
-
-            {/* ── Enlaces ─────────────────────────────────────────────────── */}
-            <nav aria-label="Enlaces del pie" className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-sm">
-              <Link to="/#catalogo" className="text-muted-foreground transition-colors hover:text-foreground">Catálogo</Link>
-              <Link to="/contacto" className="text-muted-foreground transition-colors hover:text-foreground">Contacto</Link>
-              {config?.whatsapp && (
-                <a
-                  href={buildWhatsappUrl(config.whatsapp, `Hola ${brand}, tengo una consulta`)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-muted-foreground transition-colors hover:text-foreground"
-                >
-                  WhatsApp
-                </a>
+                </li>
               )}
-            </nav>
+              <li><Link to="/login" className={LINK}>Acceso del personal</Link></li>
+            </ul>
+          </nav>
+        </div>
 
-            {/* ── Contacto y ubicación ─────────────────────────────────────── */}
-            {(address || email) && (
-              <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
-                {address && (
-                  <a
-                    href={locationUrl || `https://maps.google.com/?q=${encodeURIComponent(address)}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
-                  >
-                    <HugeIcon icon={Location01Icon} size={14} strokeWidth={2} aria-hidden />
-                    {address}
-                  </a>
-                )}
-                {email && (
-                  <a
-                    href={`mailto:${email}`}
-                    className="inline-flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
-                  >
-                    <HugeIcon icon={Mail01Icon} size={14} strokeWidth={2} aria-hidden />
-                    {email}
-                  </a>
-                )}
-              </div>
+        {/* Visitanos */}
+        <div>
+          <p className={HEADING}>Visitanos</p>
+          <ul className="space-y-2.5">
+            {mapsUrl && (
+              <li>
+                <a href={mapsUrl} target="_blank" rel="noopener noreferrer" className={LINK}>
+                  <HugeIcon icon={Location01Icon} size={16} strokeWidth={2} aria-hidden />
+                  Cómo llegar
+                </a>
+              </li>
             )}
-
-          </div>
+            {email && (
+              <li>
+                <a href={`mailto:${email}`} className={LINK}>
+                  <HugeIcon icon={Mail01Icon} size={16} strokeWidth={2} aria-hidden />
+                  {email}
+                </a>
+              </li>
+            )}
+          </ul>
         </div>
       </div>
 
@@ -197,8 +148,7 @@ export function PublicFooter() {
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-1.5 px-4 py-4 text-center text-xs text-muted-foreground sm:flex-row">
           <p>© {year} {brand}. Todos los derechos reservados.</p>
           <p>
-            Diseñado por{' '}
-            <span className="font-medium text-foreground">Ing. Gerald Aburto</span>
+            Diseñado por <span className="font-medium text-foreground">Ing. Gerald Aburto</span>
           </p>
         </div>
       </div>

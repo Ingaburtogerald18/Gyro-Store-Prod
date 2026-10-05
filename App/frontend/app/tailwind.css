@@ -565,6 +565,65 @@ html[data-area='store'] .store-header .store-header-search [data-slot='input-gro
   border-color: var(--primary-2);
 }
 
+/* Herramientas del catálogo: esmeralda para seleccionar, amarillo para el
+   conteo. El portal del selector comparte el tema sin afectar el back-office. */
+html[data-area='store'] :is(.catalog-filter-bar, .catalog-active-filters, .catalog-filter-sort-menu) {
+  --ring: var(--primary-2);
+  --catalog-selection-strength: 8%;
+}
+html[data-area='store'][data-theme='dark'] :is(.catalog-filter-bar, .catalog-filter-sort-menu) {
+  --catalog-selection-strength: 14%;
+}
+html[data-area='store'] .catalog-filter-bar {
+  border-color: color-mix(in srgb, var(--primary-2) 30%, transparent);
+  box-shadow: inset 0 2px 0 color-mix(in srgb, var(--primary-2) 65%, transparent);
+}
+html[data-area='store'] .catalog-filter-bar .catalog-filter-control {
+  min-height: 2.75rem;
+  height: 2.75rem;
+  border: 1px solid var(--input);
+  border-radius: 0.75rem;
+  background-color: var(--card);
+  color: var(--foreground);
+}
+html[data-area='store'][data-theme='dark'] .catalog-filter-bar .catalog-filter-control {
+  background-color: var(--background);
+}
+html[data-area='store'] .catalog-filter-bar .catalog-filter-control:is(:hover, :focus-visible, [data-state='open']) {
+  border-color: var(--primary-2);
+}
+html[data-area='store'] .catalog-filter-bar [data-slot='select-value'] {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+html[data-area='store'] .catalog-filter-bar .catalog-filter-toggle[aria-pressed='true'] {
+  background-color: color-mix(in srgb, var(--primary-2) var(--catalog-selection-strength), var(--card));
+  border-color: var(--primary-2);
+  color: var(--primary-2);
+}
+html[data-area='store'] .catalog-active-filters .catalog-filter-chip {
+  border-color: color-mix(in srgb, var(--primary-2) 45%, transparent);
+  background-color: color-mix(in srgb, var(--primary-2) 10%, var(--card));
+  color: var(--foreground);
+}
+html[data-area='store'] .catalog-active-filters .catalog-filter-chip:hover {
+  border-color: var(--primary-2);
+  background-color: color-mix(in srgb, var(--primary-2) 18%, var(--card));
+}
+html[data-area='store'] .catalog-filter-sort-menu {
+  border: 1px solid color-mix(in srgb, var(--primary-2) 35%, transparent);
+}
+html[data-area='store'] .catalog-filter-sort-menu [data-slot='select-item']:is([data-highlighted], [data-state='checked']) {
+  background-color: color-mix(in srgb, var(--primary-2) var(--catalog-selection-strength), var(--popover));
+  color: var(--primary-2);
+}
+html[data-area='store'] .catalog-filter-sort-menu [data-slot='select-item']:is([data-highlighted], [data-state='checked']) svg {
+  color: var(--primary-2);
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

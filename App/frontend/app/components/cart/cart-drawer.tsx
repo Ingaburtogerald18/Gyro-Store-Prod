@@ -5,7 +5,7 @@
 // Construido sobre <Sheet> de shadcn/ui: el foco atrapado, el cierre con Escape
 // y el aria del diálogo vienen resueltos por Radix.
 import { HugeIcon } from "~/components/ui/icon";
-import { Add01Icon, Delete02Icon, ImageNotFound01Icon, MinusSignIcon, ShoppingBag02Icon } from "@hugeicons/core-free-icons";
+import { Add01Icon, Delete02Icon, Edit02Icon, ImageNotFound01Icon, MinusSignIcon, ShoppingBag02Icon } from "@hugeicons/core-free-icons";
 import { useState } from 'react';
 import { useNavigate } from '@remix-run/react';
 
@@ -19,6 +19,9 @@ import {
   SheetTitle,
 } from '~/components/ui/sheet';
 import { CheckoutDialog } from './checkout-dialog';
+import { CartContentEditor } from './cart-content-editor';
+import { useCartContent } from '~/hooks/useCartContent';
+import { cn } from '~/lib/utils';
 import { useMediaQuery } from '~/hooks/useMediaQuery';
 import { useGetConfigQuery } from '~/store/api/sessionApi';
 import { useAppDispatch, useAppSelector } from '~/store/hooks';
@@ -43,6 +46,9 @@ export function CartDrawer() {
   const subtotal = useAppSelector(selectCartSubtotal);
   const { data: config } = useGetConfigQuery();
   const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [editorOpen, setEditorOpen] = useState(false);
+  // Textos e imágenes editables (modo edición); con valores por defecto.
+  const cart = useCartContent();
   const isDesktop = useMediaQuery('(min-width: 768px)');
 
   // "Seguir comprando": cierra el carrito y baja a la grilla del catálogo. El
@@ -69,30 +75,59 @@ export function CartDrawer() {
           className="flex flex-col bg-card p-0 max-md:h-[85dvh] max-md:rounded-t-3xl md:max-w-md"
         >
           <SheetHeader className="shrink-0 border-b border-border p-4">
-            <SheetTitle className="text-lg font-bold text-foreground">Tu carrito</SheetTitle>
+            <SheetTitle className="text-lg font-bold text-foreground">{cart.title}</SheetTitle>
             <SheetDescription className="flex items-center gap-1.5 text-xs text-muted-foreground">
               {items.length > 0
-                ? `${count} artículo${count === 1 ? "" : "s"} · envío o retiro lo elegís al finalizar`
+                ? `${count} artículo${count === 1 ? "" : "s"} · ${cart.subtitle || "envío o retiro lo elegís al finalizar"}`
                 : "Todavía no agregaste nada."}
             </SheetDescription>
+            {/* Modo edición: abre el editor de textos e imágenes del carrito. */}
+            {cart.editing && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setEditorOpen(true)}
+                className="mt-2 self-start border-dashed"
+              >
+                <HugeIcon icon={Edit02Icon} size={14} strokeWidth={2} aria-hidden />
+                Editar carrito
+              </Button>
+            )}
           </SheetHeader>
 
           <div className="flex-1 space-y-3 overflow-y-auto overscroll-contain p-4">
             {items.length === 0 ? (
               <div className="flex flex-col items-center justify-center gap-4 py-16 text-center">
-                <div className="grid h-16 w-16 place-items-center rounded-full bg-muted text-muted-foreground">
-                  <HugeIcon icon={ShoppingBag02Icon} size={28} strokeWidth={2} aria-hidden />
-                </div>
+                {cart.emptyImage ? (
+                  <img src={cart.emptyImage} alt="" className="size-40 object-contain" />
+                ) : (
+                  <div className="grid h-16 w-16 place-items-center rounded-full bg-muted text-muted-foreground">
+                    <HugeIcon icon={ShoppingBag02Icon} size={28} strokeWidth={2} aria-hidden />
+                  </div>
+                )}
                 <div className="space-y-1.5">
-                  <p className="text-lg font-bold text-foreground">Tu carrito está vacío… por ahora</p>
+                  <p className="text-lg font-bold text-foreground">{cart.emptyTitle}</p>
                   <p className="mx-auto max-w-[16rem] text-sm leading-relaxed text-muted-foreground">
-                    Explorá la tienda y descubrí lo que podés llevarte hoy.
+                    {cart.emptyText}
                   </p>
                 </div>
-                <Button onClick={keepShopping}>Explorar catálogo</Button>
+                <Button onClick={keepShopping}>{cart.emptyButton}</Button>
               </div>
             ) : (
               <>
+                {/* Banner de promo (opcional): imagen y/o texto; si tiene link,
+                    toda la tarjeta lo abre. */}
+                {(cart.bannerImage || cart.bannerText) && (
+                  <CartBanner
+                    image={cart.bannerImage}
+                    text={cart.bannerText}
+                    link={cart.bannerLink}
+                    onNavigate={(to) => {
+                      dispatch(closeCart());
+                      navigate(to);
+                    }}
+                  />
+                )}
                 {items.map((item) => {
                   const key = lineKey(item);
                   return (
@@ -203,14 +238,62 @@ export function CartDrawer() {
               {/* Acción principal de la tienda (llena), no WhatsApp: este botón abre
                   el formulario; WhatsApp recién entra al enviar el pedido. */}
               <Button className="h-12 w-full" onClick={() => setCheckoutOpen(true)}>
-                Finalizar pedido
+                {cart.checkoutButton}
               </Button>
+              {cart.footerNote && (
+                <p className="mt-2 text-center text-xs text-muted-foreground">{cart.footerNote}</p>
+              )}
             </footer>
           )}
         </SheetContent>
       </Sheet>
 
       <CheckoutDialog open={checkoutOpen} onOpenChange={setCheckoutOpen} />
+
+      {cart.editing && (
+        <CartContentEditor
+          open={editorOpen}
+          onOpenChange={setEditorOpen}
+          content={cart.raw}
+          images={cart.images}
+        />
+      )}
     </>
+  );
+}
+
+/** Banner de promo del carrito. Link interno → navega y cierra; externo → pestaña nueva. */
+function CartBanner({
+  image,
+  text,
+  link,
+  onNavigate,
+}: {
+  image: string;
+  text: string;
+  link: string;
+  onNavigate: (to: string) => void;
+}) {
+  const body = (
+    <>
+      {image && <img src={image} alt={text || ''} className="w-full rounded-lg object-cover" />}
+      {text && <p className="px-1 text-sm font-semibold text-foreground">{text}</p>}
+    </>
+  );
+  const className =
+    'flex w-full flex-col gap-2 rounded-xl border border-border bg-background p-2 text-left';
+
+  if (!link) return <div className={className}>{body}</div>;
+  if (/^https?:\/\//i.test(link)) {
+    return (
+      <a href={link} target="_blank" rel="noopener noreferrer" className={cn(className, 'hover:border-foreground/30')}>
+        {body}
+      </a>
+    );
+  }
+  return (
+    <button type="button" onClick={() => onNavigate(link)} className={cn(className, 'hover:border-foreground/30')}>
+      {body}
+    </button>
   );
 }

@@ -39,7 +39,13 @@ const builderSlice = createSlice({
       if (state.draftLandingConfig) {
         state.draftLandingConfig.heroSlides = action.payload;
       }
-    }
+    },
+    // Textos e imágenes del carrito (se publican con «Guardar cambios», como los slides)
+    updateCartContent(state, action: PayloadAction<import('@shared/schemas').CartContent>) {
+      if (state.draftLandingConfig) {
+        state.draftLandingConfig.cart = action.payload;
+      }
+    },
   },
   selectors: {
     selectDraftLandingConfig: (state) => state.draftLandingConfig,
@@ -53,7 +59,8 @@ export const {
   updateHeaderCategories, 
   updateHomeCategories, 
   clearBuilderSession,
-  updateHeroSlides
+  updateHeroSlides,
+  updateCartContent,
 } = builderSlice.actions;
 
 export const {

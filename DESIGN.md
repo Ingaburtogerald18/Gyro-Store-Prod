@@ -353,12 +353,17 @@ Las primitivas son de shadcn; estas piezas son **nuestras** y siguen vigentes:
   CTA siempre visible, dos layouts (`grid` / `list`).
 - **`Hero`** — slider de slides editables desde el admin (`heroSlides` en `app_config`).
 - **Navbar** — crema en claro y carbón en oscuro; categorías con selección esmeralda
-  (fondo tenue, peso y subrayado), buscador blanco/gris con foco esmeralda, carrito
+  (fondo tenue y peso, sin subrayado), buscador blanco/gris con foco esmeralda, carrito
   amarillo con icono tinta y sombra roja, cuenta en un único círculo esmeralda.
   Los tokens `--header-*` limitan esta paleta al encabezado del storefront. La
   altura base se mantiene en 57px para la navegación sticky de la ficha; en móvil
   se conserva el menú de categorías y la búsqueda desplegable.
 - **`ProductCarousel`** — scroll-snap + flechas que se deshabilitan en los extremos.
+- **Filtros del catálogo** — controles de 44px con borde visible, selección
+  esmeralda y un check en los filtros binarios activos. El contador usa amarillo;
+  los chips y el menú de orden comparten el acento esmeralda en ambos temas.
+  El selector se adapta al ancho móvil sin desbordar con etiquetas largas.
+  Estos estilos se limitan al storefront mediante las clases `catalog-filter-*`.
 - **`QueryState`** — envuelve el patrón loading/error/vacío de los listados admin. Cada estado
   puede traer su propio fallback; si no, cae en uno genérico.
 - **PDP** — galería sticky, specs en grilla con hairlines, descripción a 65ch, CTA + WhatsApp.

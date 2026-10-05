@@ -22,6 +22,9 @@ const EMPTY_IMAGES: ImageResources = {
   logoAnimated: '',
   favicon: '',
   posLogo: '',
+  cartEmpty: '',
+  cartBanner: '',
+  orderSuccess: '',
 };
 
 export function ImagesConfig() {
@@ -39,6 +42,9 @@ export function ImagesConfig() {
       logoAnimated: raw?.logoAnimated || '',
       favicon: raw?.favicon || '',
       posLogo: raw?.posLogo || '',
+      cartEmpty: raw?.cartEmpty || '',
+      cartBanner: raw?.cartBanner || '',
+      orderSuccess: raw?.orderSuccess || '',
     }),
     // Guardado exitoso = ya no hay huérfanos que limpiar.
     successMessage: 'Recursos guardados correctamente.',
@@ -130,7 +136,7 @@ export function ImagesConfig() {
   return (
     <Section
       title="Recursos de imágenes"
-      description="Sube los logos y favicons que se utilizarán en la interfaz y en los tickets generados."
+      description="Sube los logos, el favicon, el logo del ticket y las imágenes del carrito."
     >
       <QueryState
         loading={loading}
@@ -145,6 +151,20 @@ export function ImagesConfig() {
           {renderUploadBox("Logo animado", "Animación principal. Recomendado: 512x512px (WebM/GIF)", "logoAnimated")}
           {renderUploadBox("Favicon", "Ícono de la pestaña. Recomendado: 32x32px o 64x64px (PNG/ICO)", "favicon")}
           {renderUploadBox("Logo del ticket", "Impresoras térmicas. Recomendado: 300x300px o similar (Blanco y Negro puro)", "posLogo")}
+        </div>
+
+        {/* Imágenes del carrito. Qué texto las acompaña y dónde aparece cada una
+            se decide en la tienda, en modo edición → "Editar carrito". */}
+        <div className="space-y-1 pt-2">
+          <h3 className="text-sm font-semibold">Carrito</h3>
+          <p className="text-xs text-muted-foreground">
+            Se eligen y combinan con sus textos desde la tienda, en modo edición → «Editar carrito».
+          </p>
+        </div>
+        <div className="grid gap-6 md:grid-cols-3">
+          {renderUploadBox("Carrito vacío", "Ilustración cuando no hay productos. Recomendado: 480x480px (PNG sin fondo)", "cartEmpty")}
+          {renderUploadBox("Banner del carrito", "Promo arriba de los productos. Recomendado: 800x300px", "cartBanner")}
+          {renderUploadBox("Pedido recibido", "Pantalla de confirmación. Recomendado: 480x480px (PNG sin fondo)", "orderSuccess")}
         </div>
 
         <div className="flex justify-end pt-2">

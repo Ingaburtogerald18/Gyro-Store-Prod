@@ -62,8 +62,9 @@ router.put(
     const updated = await updateImageResources(data);
 
     // Delete orphaned images from R2
-    const oldImages = [oldConfig.logoStatic, oldConfig.logoAnimated, oldConfig.favicon, oldConfig.posLogo].filter(Boolean) as string[];
-    const newImages = [updated.logoStatic, updated.logoAnimated, updated.favicon, updated.posLogo].filter(Boolean) as string[];
+    // Todas las claves de Recursos (logos, favicon, ticket e imágenes del carrito).
+    const oldImages = Object.values(oldConfig).filter(Boolean) as string[];
+    const newImages = Object.values(updated).filter(Boolean) as string[];
     
     const removed = oldImages.filter(url => typeof url === 'string' && !newImages.includes(url));
     if (removed.length > 0) {

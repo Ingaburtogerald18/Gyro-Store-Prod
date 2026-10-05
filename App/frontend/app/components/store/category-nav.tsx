@@ -3,7 +3,7 @@
 // y lo indexan los buscadores. Al hacer clic además filtra la grilla y baja al
 // catálogo con scroll suave.
 import { Link } from '@remix-run/react';
-import { motion, useReducedMotion } from 'framer-motion';
+import { useReducedMotion } from 'framer-motion';
 
 import type { CatalogProduct } from '@shared/schemas';
 import type { StoreCategory } from '~/store/api/sessionApi';
@@ -34,7 +34,7 @@ export function CategoryNav({
   function onSelect(slug: string | null) {
     dispatch(categorySet(slug));
     setTimeout(
-      () => document.getElementById('catalogo')?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
+      () => document.getElementById('catalogo')?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' }),
       80,
     );
   }
@@ -46,7 +46,6 @@ export function CategoryNav({
           to={categoryHref(null)}
           selected={activeCategory === null}
           onSelect={() => onSelect(null)}
-          reduce={Boolean(reduce)}
         >
           Todo
         </NavTab>
@@ -57,7 +56,6 @@ export function CategoryNav({
             to={categoryHref(c.slug)}
             selected={activeCategory === c.slug}
             onSelect={() => onSelect(c.slug)}
-            reduce={Boolean(reduce)}
           >
             {c.name}
           </NavTab>
@@ -71,13 +69,11 @@ function NavTab({
   to,
   selected,
   onSelect,
-  reduce,
   children,
 }: {
   to: string;
   selected: boolean;
   onSelect: () => void;
-  reduce: boolean;
   children: React.ReactNode;
 }) {
   return (
@@ -86,20 +82,12 @@ function NavTab({
       aria-current={selected ? 'page' : undefined}
       onClick={onSelect}
       className={cn(
-        'store-category-link relative flex h-10 shrink-0 items-center rounded-xl px-3 text-sm whitespace-nowrap transition-colors',
-        'focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
+        'store-category-link flex h-10 shrink-0 items-center rounded-xl px-3 text-sm whitespace-nowrap transition-colors motion-reduce:transition-none',
+        'focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring focus-visible:outline-none',
         selected ? 'font-semibold' : 'font-medium',
       )}
     >
       {children}
-      {selected && (
-        <motion.span
-          layoutId="category-nav-indicator"
-          aria-hidden
-          className="absolute inset-x-3 bottom-1 h-0.5 rounded-full bg-primary-2"
-          transition={reduce ? { duration: 0 } : { type: 'spring', stiffness: 400, damping: 34 }}
-        />
-      )}
     </Link>
   );
 }

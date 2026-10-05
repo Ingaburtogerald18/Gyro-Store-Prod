@@ -94,7 +94,7 @@ export function ActiveFilters({ categories = [] }: { categories?: StoreCategory[
   if (chips.length === 0) return null;
 
   return (
-    <div className="mb-4 flex flex-wrap items-center gap-2">
+    <div className="catalog-active-filters mb-4 flex flex-wrap items-center gap-2">
       <span className="text-xs font-medium text-muted-foreground">Filtros:</span>
 
       {/* El CHIP ENTERO es el botón de quitar, no una X diminuta a su derecha:
@@ -106,7 +106,7 @@ export function ActiveFilters({ categories = [] }: { categories?: StoreCategory[
           type="button"
           onClick={chip.onRemove}
           aria-label={`Quitar filtro ${chip.label}`}
-          className="group inline-flex min-h-11 items-center gap-1.5 rounded-pill border border-border bg-card px-3 text-xs font-medium text-foreground transition-colors hover:border-foreground/25 hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+          className="catalog-filter-chip group inline-flex min-h-11 items-center gap-1.5 rounded-xl border px-3 text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
         >
           {chip.label}
           <HugeIcon
@@ -124,7 +124,7 @@ export function ActiveFilters({ categories = [] }: { categories?: StoreCategory[
           variant="link"
           size="sm"
           onClick={() => dispatch(filtersClearedAll())}
-          className="h-11 px-2"
+          className="h-11 px-2 text-primary-2"
         >
           Limpiar todo
         </Button>

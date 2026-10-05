@@ -30,6 +30,7 @@ import { Field, FieldError, FieldLabel } from '~/components/ui/field';
 import { Input } from '~/components/ui/input';
 import { Textarea } from '~/components/ui/textarea';
 import { useStoreConfig } from '~/hooks/useStoreConfig';
+import { useCartContent } from '~/hooks/useCartContent';
 import { WhatsappIcon } from '~/components/ui/whatsapp-icon';
 import { useCreatePublicOrderMutation, type CreatedPublicOrder } from '~/store/api/storefrontApi';
 import {
@@ -70,6 +71,7 @@ export function CheckoutDialog({
   const items = useAppSelector(selectCartItems);
   const subtotal = useAppSelector(selectCartSubtotal);
   const config = useStoreConfig();
+  const cartContent = useCartContent();
   const [placed, setPlaced] = useState<CreatedPublicOrder | null>(null);
   const [createOrder, { isLoading }] = useCreatePublicOrderMutation();
   const [validateCode, { isLoading: validatingCode }] = useValidateDiscountCodeMutation();
@@ -201,14 +203,19 @@ export function CheckoutDialog({
         {placed ? (
           <div className="flex flex-col gap-5">
             <DialogHeader>
-              <span className="mb-1 grid size-12 place-items-center rounded-full bg-success/15 text-success" aria-hidden>
-                <HugeIcon icon={CheckmarkCircle02Icon} size={26} strokeWidth={2} />
-              </span>
-              <DialogTitle className="text-foreground">¡Pedido recibido!</DialogTitle>
+              {/* Imagen y textos editables desde el modo edición («Editar carrito»). */}
+              {cartContent.successImage ? (
+                <img src={cartContent.successImage} alt="" className="mb-1 size-28 object-contain" />
+              ) : (
+                <span className="mb-1 grid size-12 place-items-center rounded-full bg-success/15 text-success" aria-hidden>
+                  <HugeIcon icon={CheckmarkCircle02Icon} size={26} strokeWidth={2} />
+                </span>
+              )}
+              <DialogTitle className="text-foreground">{cartContent.successTitle}</DialogTitle>
               <DialogDescription className="text-muted-foreground">
                 Tu número de pedido es{' '}
                 <span className="font-spec font-semibold text-foreground">#{placed.id.slice(0, 8).toUpperCase()}</span>.
-                Mandanos el mensaje por WhatsApp para confirmar la entrega y el pago.
+                {' '}{cartContent.successText}
               </DialogDescription>
             </DialogHeader>
 

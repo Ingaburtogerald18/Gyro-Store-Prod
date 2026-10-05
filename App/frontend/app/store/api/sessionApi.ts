@@ -47,6 +47,9 @@ export interface StoreConfig {
     logoAnimated?: string;
     favicon?: string;
     posLogo?: string;
+    cartEmpty?: string;
+    cartBanner?: string;
+    orderSuccess?: string;
   };
 }
 

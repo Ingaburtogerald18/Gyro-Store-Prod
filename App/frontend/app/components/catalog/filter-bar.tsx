@@ -6,7 +6,7 @@
 // cada uno filtraba por su lado, la barra decía "24 productos" sobre una grilla
 // de 8.
 import { HugeIcon } from '~/components/ui/icon';
-import { FilterHorizontalIcon, PackageSearchIcon, Tag01Icon } from '@hugeicons/core-free-icons';
+import { FilterHorizontalIcon, PackageSearchIcon, Tag01Icon, Tick01Icon } from '@hugeicons/core-free-icons';
 
 import type { CatalogProduct } from '@shared/schemas';
 import { Button } from '~/components/ui/button';
@@ -56,14 +56,14 @@ export function FilterBar({ products, categories = [] }: { products: CatalogProd
   const count = filtered.length;
 
   return (
-    <div className="mb-4 flex items-center gap-2 rounded-card border border-border bg-card px-3 py-2.5 sm:gap-3 sm:px-4">
+    <div className="catalog-filter-bar mb-4 flex flex-wrap items-center gap-2 rounded-2xl border bg-card p-3 sm:gap-3 sm:px-4">
       {/* Móvil: un solo botón que abre el sheet. */}
       <Button
         variant="outline"
         onClick={() => dispatch(filterSheetSet(true))}
         // h-11 en móvil (44px): es el control principal de esta barra en el
         // tamaño donde se toca con el pulgar.
-        className="h-11 shrink-0 lg:hidden"
+        className="catalog-filter-control shrink-0 lg:hidden"
       >
         <HugeIcon icon={FilterHorizontalIcon} size={16} strokeWidth={2} aria-hidden />
         Filtros
@@ -76,8 +76,8 @@ export function FilterBar({ products, categories = [] }: { products: CatalogProd
 
       {/* Escritorio: los filtros a la vista, sin abrir nada. */}
       <div className="mr-auto hidden items-center gap-3 lg:flex">
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-medium text-muted-foreground">Precio</span>
+        <div role="group" aria-label="Rango de precio" className="flex items-center gap-2">
+          <span className="mr-1 text-sm font-semibold text-foreground">Precio</span>
           <Input
             type="number"
             inputMode="numeric"
@@ -88,7 +88,7 @@ export function FilterBar({ products, categories = [] }: { products: CatalogProd
             }
             placeholder="Mín"
             aria-label="Precio mínimo"
-            className="h-9 w-20 tabular-nums"
+            className="catalog-filter-control w-24 tabular-nums"
           />
           <span className="text-muted-foreground" aria-hidden>
             —
@@ -103,7 +103,7 @@ export function FilterBar({ products, categories = [] }: { products: CatalogProd
             }
             placeholder="Máx"
             aria-label="Precio máximo"
-            className="h-9 w-20 tabular-nums"
+            className="catalog-filter-control w-24 tabular-nums"
           />
         </div>
 
@@ -121,14 +121,14 @@ export function FilterBar({ products, categories = [] }: { products: CatalogProd
         />
       </div>
 
-      <div className="ml-auto flex shrink-0 items-center gap-3">
+      <div className="ml-auto flex min-w-0 flex-1 items-center justify-end gap-3 lg:flex-none">
         <Select value={sort} onValueChange={(v) => dispatch(sortSet(v as CatalogSort))}>
-          {/* 44px en móvil, densidad Rhea en escritorio: este selector también
-              se toca con el pulgar, no solo con el mouse. */}
-          <SelectTrigger className="h-11 w-auto min-w-[9rem] lg:h-9" aria-label="Ordenar catálogo">
+          {/* Ancho flexible en móvil: los órdenes largos se truncan dentro del
+              control, sin empujar el botón Filtros fuera de la barra. */}
+          <SelectTrigger className="catalog-filter-control w-full min-w-0 sm:w-56 lg:w-60" aria-label="Ordenar catálogo">
             <SelectValue />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="catalog-filter-sort-menu p-1" position="popper" align="end">
             {SORTS.map((option) => (
               <SelectItem key={option.value} value={option.value}>
                 {option.label}
@@ -140,7 +140,7 @@ export function FilterBar({ products, categories = [] }: { products: CatalogProd
         {/* El conteo se esconde en móvil: a 375px no entraba junto a Filtros y
             Orden y se salía del borde de la barra. */}
         <p className="hidden items-baseline gap-1 text-sm text-muted-foreground sm:flex">
-          <span className="font-bold text-foreground tabular-nums">{count}</span>
+          <span className="grid min-h-8 min-w-8 place-items-center rounded-lg bg-primary px-2 font-bold text-primary-foreground tabular-nums">{count}</span>
           {count === 1 ? 'producto' : 'productos'}
         </p>
       </div>
@@ -165,9 +165,9 @@ function FilterToggle({
       variant={active ? 'default' : 'outline'}
       onClick={onToggle}
       aria-pressed={active}
-      className={cn('h-9 rounded-pill', active && 'font-semibold')}
+      className={cn('catalog-filter-control catalog-filter-toggle', active && 'font-semibold')}
     >
-      <HugeIcon icon={icon} size={14} strokeWidth={2} aria-hidden />
+      <HugeIcon icon={active ? Tick01Icon : icon} size={16} strokeWidth={2} aria-hidden className="text-primary-2" />
       {label}
     </Button>
   );

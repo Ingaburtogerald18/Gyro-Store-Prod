@@ -48,7 +48,7 @@ export function TicketPrintModal({
    * pesada y sin texto seleccionable — peor resultado y dos dependencias más.
    */
   const openPrintDialog = (hint?: string) => {
-    if (!ticket) return;
+    if (!ticket || !mounted) return;
 
     const style = document.createElement('style');
     style.innerHTML = `
@@ -64,6 +64,14 @@ export function TicketPrintModal({
           padding: 0 !important;
           background: #fff !important;
           color-scheme: light !important;
+        }
+        #${PRINT_PORTAL_ID} {
+          background: #fff !important;
+          width: 100% !important;
+        }
+        #${PRINT_PORTAL_ID} > div {
+          margin: 0 auto;
+          background: #fff !important;
         }
       }
     `;

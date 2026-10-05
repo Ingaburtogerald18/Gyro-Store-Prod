@@ -246,11 +246,20 @@ export function HeroSlideEditorDialog({
                 <SelectContent>
                   <SelectItem value="link">Ir a un enlace</SelectItem>
                   <SelectItem value="modal">Abrir el producto</SelectItem>
+                  <SelectItem value="social">Mostrar redes sociales</SelectItem>
                 </SelectContent>
               </Select>
             </Field>
           </div>
 
+          {draft.actionType === 'social' ? (
+            // Sin campo de destino: los links salen de Configuración (los mismos
+            // del pie de página). Las redes sin link no aparecen en el menú.
+            <p className="rounded-xl bg-muted/50 p-3 text-xs text-muted-foreground">
+              El botón abre un menú con Facebook, Instagram y TikTok. Los links se toman de
+              Configuración → Redes sociales; las redes sin link no se muestran.
+            </p>
+          ) : (
           <Field>
             <FieldLabel htmlFor="slide-target">
               {draft.actionType === 'link' ? 'Destino del enlace' : 'Id del producto'}
@@ -263,6 +272,7 @@ export function HeroSlideEditorDialog({
               onChange={(e) => set('actionTarget', e.target.value)}
             />
           </Field>
+          )}
         </div>
 
         <DialogFooter className="shrink-0 border-t px-6 py-4">
