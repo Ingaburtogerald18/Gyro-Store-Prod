@@ -285,13 +285,15 @@ export function Hero({ initialLanding }: { initialLanding?: LandingConfig | null
                 animate={{ opacity: 1, x: 0 }}
                 exit={reduce ? { opacity: 0 } : { opacity: 0, x: -20 }}
                 transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-                className="space-y-2.5 sm:space-y-6"
+                className="space-y-2.5 sm:space-y-4"
               >
-                <span className="inline-block text-2xs font-black tracking-[0.2em] text-primary-2 uppercase sm:text-xs">
+                {/* Eyebrow en el texto tal como se escribe en el panel (sin mayúsculas
+                    forzadas ni letras espaciadas): ocupaba mucho y gritaba. */}
+                <span className="inline-block text-sm font-semibold text-primary-2">
                   {activeSlide.eyebrow}
                 </span>
 
-                <h1 className="font-heading text-[1.875rem] leading-[1.02] font-extrabold tracking-tight text-balance text-foreground md:text-5xl xl:text-6xl">
+                <h1 className="font-heading text-[1.625rem] leading-[1.05] font-extrabold tracking-tight text-balance text-foreground md:text-4xl xl:text-5xl">
                   {activeSlide.title}
                 </h1>
 
