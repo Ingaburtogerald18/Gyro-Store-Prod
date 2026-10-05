@@ -20,6 +20,7 @@ import { selectDraftLandingConfig, initBuilderSession, clearBuilderSession } fro
 import { InlineCategoryNavEditor } from './inline-category-nav-editor';
 import { HeaderSettingsMenu } from './header-settings-menu';
 import { getBrandName } from '~/lib/brand';
+import gyroBag from '~/assets/brand/gyro-bag.png';
 import { cn } from '~/lib/utils';
 
 /** Botón del carrito con contador y "pop" al agregar. Comparte fuente de verdad
@@ -72,7 +73,6 @@ export function StoreHeader() {
 
   const [categoriesOpen, setCategoriesOpen] = useState(false);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
-  const reduceMotion = useReducedMotion();
 
   const config = useStoreConfig();
   const { data: products = [] } = useGetCatalogQuery();
@@ -147,7 +147,7 @@ export function StoreHeader() {
 
         <Link
           to="/"
-          className={cn("group flex shrink-0 items-center gap-3 rounded-xl px-2 py-1 transition-all duration-300", 
+          className={cn("group flex shrink-0 items-center gap-2 rounded-xl px-2 py-1 transition-all duration-300", 
             !editMode && "hover:bg-primary/5 active:scale-95"
           )}
           aria-label={`Ir al inicio de ${config?.brandName || getBrandName()}`}
@@ -157,39 +157,23 @@ export function StoreHeader() {
             }
           }}
         >
-          {(() => {
-            const logoSrc = config?.images?.logoStatic || config?.images?.logoAnimated;
-            if (!logoSrc) return (
-              <span className="font-bold text-lg tracking-tight">
-                {config?.brandName || getBrandName()}
-              </span>
-            );
-            const isVideo = !reduceMotion &&
-              (config?.images?.logoAnimated?.match(/\.(webm|mp4|mov|m4v)($|\?)/i) ||
-                config?.images?.logoAnimated?.includes('video'));
-            return isVideo ? (
-              <video
-                src={config?.images?.logoAnimated}
-                autoPlay
-                loop
-                muted
-                playsInline
-                preload="metadata"
-                aria-hidden
-                className="h-10 max-w-[160px] shrink-0 object-contain object-left transition-all duration-300 group-hover:brightness-110"
-                style={{ minWidth: '40px' }}
-              />
-            ) : (
-              <img
-                src={logoSrc}
-                alt={config?.brandName || getBrandName()}
-                loading="eager"
-                decoding="async"
-                className="h-10 max-w-[160px] shrink-0 object-contain object-left transition-all duration-300 group-hover:brightness-110"
-                style={{ minWidth: '40px' }}
-              />
-            );
-          })()}
+          {/* Logo de la tienda: la bolsa del logo nuevo + el nombre en texto.
+              El logo completo (nombre curvo arriba de la mascota) no se lee a
+              40px, así que en el header va esta versión horizontal. Se sirve
+              desde el bundle y no desde la config del panel: es la marca fija
+              de la tienda, no un recurso que cambie por campaña. */}
+          <img
+            src={gyroBag}
+            alt=""
+            width={40}
+            height={40}
+            loading="eager"
+            decoding="async"
+            className="size-10 shrink-0 transition-transform duration-300 motion-safe:group-hover:-rotate-6"
+          />
+          <span className="font-heading text-lg font-extrabold tracking-tight whitespace-nowrap">
+            {config?.brandName || getBrandName()}
+          </span>
         </Link>
 
         {/* Contenedor central: categorías + búsqueda siempre visible. La búsqueda

@@ -19,6 +19,7 @@ import { useAppDispatch } from '~/store/hooks';
 import { themeSet } from '~/store/slices/uiSlice';
 import { defaultThemeFor, restoreTheme, THEME_INIT_SCRIPT } from '~/lib/theme';
 import tailwindHref from './tailwind.css?url';
+import gyroBag from '~/assets/brand/gyro-bag.png';
 import chivoWoff2 from '@fontsource-variable/chivo/files/chivo-latin-wght-normal.woff2?url';
 
 // Sin Google Fonts: Chivo (tienda), Chivo Mono (datos técnicos) y Geist (panel)
@@ -31,6 +32,9 @@ import chivoWoff2 from '@fontsource-variable/chivo/files/chivo-latin-wght-normal
 export const links: LinksFunction = () => [
   { rel: 'stylesheet', href: tailwindHref },
   { rel: 'preload', href: chivoWoff2, as: 'font', type: 'font/woff2', crossOrigin: 'anonymous' },
+  // Favicon por defecto en el HTML del servidor (la bolsa del logo). Si el panel
+  // tiene uno configurado, DynamicFavicon lo reemplaza después de hidratar.
+  { rel: 'icon', type: 'image/png', href: gyroBag },
 ];
 
 /** Área de la app según la ruta: define la tipografía (ver `[data-area]` en
