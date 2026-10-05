@@ -162,7 +162,7 @@ export function VariantPicker({
                     key={option}
                     type="button"
                     // Activa = pill lleno (variant default), como la pestaña activa
-                    // de Tabs (DESIGN.md). Antes era outline con `text-primary` sobre
+                    // de Tabs (DESIGN.md). Antes era outline con `text-primary-2` sobre
                     // `bg-primary/10`, que en oscuro no se distinguía de las demás.
                     variant={active ? 'default' : 'outline'}
                     aria-pressed={active}
@@ -236,8 +236,8 @@ function ColorSwatch({
         className={cn(
           'relative grid size-10 place-items-center rounded-full border transition-all',
           active
-            ? 'border-transparent ring-2 ring-primary ring-offset-2 ring-offset-background'
-            : 'border-border group-hover:border-primary/40',
+            ? 'border-transparent ring-2 ring-primary-2 ring-offset-2 ring-offset-background'
+            : 'border-border group-hover:border-primary-2/40',
           isLightSwatch(option) && !active && 'border-foreground/25',
           !enabled && !active && 'opacity-40',
         )}

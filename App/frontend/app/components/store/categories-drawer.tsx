@@ -99,7 +99,7 @@ function CategoryRow({
         'group flex min-h-12 w-full items-center justify-between gap-3 rounded-xl px-3 text-left text-sm transition-colors',
         'focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
         selected
-          ? 'bg-primary/10 font-semibold text-primary'
+          ? 'bg-primary/10 font-semibold text-primary-2'
           : 'font-medium text-foreground hover:bg-muted',
       )}
     >

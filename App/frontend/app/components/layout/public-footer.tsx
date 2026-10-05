@@ -93,7 +93,7 @@ export function PublicFooter() {
               )
             ) : (
               <p className="text-2xl font-semibold tracking-tight text-foreground">
-                Gyro<span className="text-primary">Store</span>
+                Gyro<span className="text-primary-2">Store</span>
               </p>
             )}
 
@@ -115,7 +115,7 @@ export function PublicFooter() {
                     size={14}
                     strokeWidth={2}
                     aria-hidden
-                    className="shrink-0 text-primary"
+                    className="shrink-0 text-primary-2"
                   />
                   {label}
                 </li>

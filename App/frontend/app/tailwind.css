@@ -72,6 +72,9 @@
   --color-whatsapp-foreground: var(--whatsapp-foreground);
   --color-whatsapp-hover: var(--whatsapp-hover);
   --color-promo: var(--promo);
+  --color-promo-foreground: var(--promo-foreground);
+  --color-brand: var(--brand);
+  --color-brand-foreground: var(--brand-foreground);
   --color-success: var(--success);
   --color-warning: var(--warning);
   --color-info: var(--info);
@@ -231,6 +234,9 @@ body {
   --whatsapp-foreground: oklch(1 0 0);
   --whatsapp-hover: oklch(0.46 0.13 149);
   --promo: oklch(0.585 0.233 292.5);
+  --promo-foreground: oklch(1 0 0);
+  --brand: var(--card);
+  --brand-foreground: var(--foreground);
   /* Estados semánticos en tema CLARO. Van más oscuros que su par del tema
      oscuro a propósito: como también se usan de color de TEXTO, tienen que
      pasar 4.5:1 contra --background (blanco). Los valores anteriores
@@ -313,6 +319,7 @@ body {
   --whatsapp-foreground: oklch(0.18 0.02 149);
   --whatsapp-hover: oklch(0.82 0.17 149);
   --promo: oklch(0.585 0.233 292.5);
+  --promo-foreground: oklch(1 0 0);
   /* En oscuro van claros: 9–10:1 contra --background y contra --card. */
   --success: oklch(0.72 0.16 150);
   --warning: oklch(0.8 0.16 78);
@@ -325,6 +332,125 @@ body {
   --tone-rose: oklch(0.72 0.17 15);
   --tone-purple: oklch(0.72 0.18 300);
   --tone-red: oklch(0.7 0.19 27);
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Paleta de la TIENDA, sacada del logo (bolsa teal, nombre amarillo, contorno
+   tinta, cachetes coral). Solo aplica con data-area="store": el panel de
+   administración conserva los tokens de arriba.
+
+   Reparto de roles:
+     · Amarillo (--primary): la acción de compra. Siempre con texto tinta: el
+       blanco sobre amarillo no se lee.
+     · Teal (--brand / --primary-2): superficies de marca (header) y textos de
+       acento (links, precios destacados, eyebrows). Para TEXTO sobre claro se
+       usa el teal profundo; el teal del logo solo como fondo.
+     · Tinta: texto y, en claro, el contorno grueso de botones y fotos, como el
+       trazo de la mascota.
+     · Coral: descuentos y ofertas (antes violeta).
+   Contrastes medidos (WCAG): tinta sobre crema 15:1, tinta sobre amarillo
+   11:1, teal profundo sobre crema 5.0:1, tinta sobre teal 8.4:1, tinta sobre
+   coral 6.6:1; en oscuro, texto sobre fondo 14:1 y teal sobre fondo 7.6:1.
+   ────────────────────────────────────────────────────────────── */
+html[data-area='store'] {
+  --ink: #102423;
+  --background: #fffcf3;
+  --foreground: var(--ink);
+  --card: #ffffff;
+  --card-foreground: var(--ink);
+  --popover: #ffffff;
+  --popover-foreground: var(--ink);
+  --primary: #ffc20e;
+  --primary-foreground: var(--ink);
+  --primary-2: #0e7c68;
+  --secondary: #e4f5f0;
+  --secondary-foreground: var(--ink);
+  --muted: #eef4f1;
+  --muted-foreground: #4b605d;
+  --accent: #e4f5f0;
+  --accent-foreground: var(--ink);
+  --border: rgb(16 36 35 / 16%);
+  --input: rgb(16 36 35 / 28%);
+  --ring: #0e7c68;
+  --brand: #3dc5a9;
+  --brand-foreground: var(--ink);
+  --promo: #f07a6a;
+  --promo-foreground: var(--ink);
+}
+
+html[data-area='store'][data-theme='dark'] {
+  --background: #102423;
+  --foreground: #f3f8f6;
+  --card: #18302e;
+  --card-foreground: #f3f8f6;
+  --popover: #18302e;
+  --popover-foreground: #f3f8f6;
+  --primary: #ffc20e;
+  --primary-foreground: var(--ink);
+  --primary-2: #3dc5a9;
+  --secondary: #1f3a38;
+  --secondary-foreground: #f3f8f6;
+  --muted: #1f3a38;
+  --muted-foreground: #a5b9b5;
+  --accent: #1f3a38;
+  --accent-foreground: #f3f8f6;
+  --border: rgb(255 255 255 / 12%);
+  --input: rgb(255 255 255 / 18%);
+  --ring: #3dc5a9;
+  --brand: #1b3634;
+  --brand-foreground: #f3f8f6;
+}
+
+/* Header de la tienda sobre teal (claro): los tokens se redefinen DENTRO del
+   header para que sus piezas (búsqueda, íconos, categorías) se lean sobre el
+   teal sin tocar cada componente. */
+html[data-area='store'] .store-header {
+  background-color: var(--brand);
+  color: var(--brand-foreground);
+  --muted-foreground: rgb(16 36 35 / 78%);
+  --border: rgb(16 36 35 / 22%);
+}
+html[data-area='store'][data-theme='dark'] .store-header {
+  --muted-foreground: #a5b9b5;
+  --border: rgb(255 255 255 / 12%);
+}
+
+/* Estilo "dibujo" en claro: contorno tinta y sombra dura en el botón de
+   compra, y trazo fino alrededor de las fotos de producto. En oscuro el
+   contorno tinta desaparece contra el fondo, así que no se aplica. */
+html[data-area='store'][data-theme='light'] [data-slot='button'][data-variant='default']:not([aria-pressed]) {
+  border: 2px solid var(--ink);
+  box-shadow: 3px 3px 0 var(--ink);
+  transition-property: transform, box-shadow, background-color;
+}
+html[data-area='store'][data-theme='light'] [data-slot='button'][data-variant='default']:not([aria-pressed]):active:not(:disabled) {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 var(--ink);
+}
+html[data-area='store'][data-theme='light'] .product-stage {
+  position: relative;
+}
+html[data-area='store'][data-theme='light'] .product-stage::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border: 1.5px solid var(--ink);
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+/* Opciones elegidas (variantes, filtros): teal de marca, no amarillo. Si iban
+   en amarillo con sombra se confundían con el botón de compra. */
+html[data-area='store'] [data-slot='button'][aria-pressed='true'] {
+  background-color: var(--brand);
+  color: var(--brand-foreground);
+  border: 2px solid var(--brand-foreground);
+}
+html[data-area='store'][data-theme='dark'] [data-slot='button'][aria-pressed='true'] {
+  background-color: #3dc5a9;
+  color: var(--ink);
+  border-color: transparent;
 }
 
 @layer base {

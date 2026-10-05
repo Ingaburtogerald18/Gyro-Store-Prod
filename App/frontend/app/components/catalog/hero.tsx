@@ -382,7 +382,7 @@ export function Hero({ initialLanding }: { initialLanding?: LandingConfig | null
                         setActiveIndex(idx);
                         setPlaying(true);
                       }}
-                      className="group/dot flex h-11 items-center rounded-full px-1 focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
+                      className="group/dot flex h-11 items-center rounded-full px-1 focus-visible:ring-2 focus-visible:ring-primary-2 focus-visible:outline-none"
                       aria-label={`Ir a la diapositiva ${idx + 1}`}
                       aria-current={isActive}
                     >

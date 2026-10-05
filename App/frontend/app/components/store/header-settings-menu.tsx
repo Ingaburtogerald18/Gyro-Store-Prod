@@ -37,8 +37,8 @@ function ThemeSwitch({ isDark, onToggle }: { isDark: boolean; onToggle: () => vo
         aria-label={`Cambiar a tema ${isDark ? "claro" : "oscuro"}`}
         onClick={onToggle}
         className={cn(
-          "relative h-6 w-11 shrink-0 rounded-full border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
-          isDark ? "border-primary bg-primary" : "border-border bg-muted",
+          "relative h-6 w-11 shrink-0 rounded-full border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-2",
+          isDark ? "border-primary-2 bg-primary" : "border-border bg-muted",
         )}
       >
         <motion.span
@@ -48,7 +48,7 @@ function ThemeSwitch({ isDark, onToggle }: { isDark: boolean; onToggle: () => vo
           className="absolute left-0.5 top-0.5 grid h-5 w-5 place-items-center rounded-full bg-background shadow"
         >
           {isDark ? (
-            <HugeIcon icon={Moon02Icon} size={12} strokeWidth={2} className="text-primary" />
+            <HugeIcon icon={Moon02Icon} size={12} strokeWidth={2} className="text-primary-2" />
           ) : (
             <HugeIcon icon={Sun01Icon} size={12} strokeWidth={2} className="text-warning" />
           )}
@@ -104,17 +104,17 @@ export function HeaderSettingsMenu() {
       <button
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
-          "relative grid h-10 w-10 place-items-center rounded-full border shadow-sm backdrop-blur-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+          "relative grid h-10 w-10 place-items-center rounded-full border shadow-sm backdrop-blur-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-2",
           isAuthed
-            ? "border-primary/30 bg-primary/10 hover:bg-primary/15"
-            : "border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground",
+            ? "border-primary-2/30 bg-primary/10 hover:bg-primary/15"
+            : "border-border bg-card text-muted-foreground hover:border-primary-2/40 hover:text-foreground",
         )}
         aria-label="Menú de cuenta y configuración"
         aria-expanded={isOpen}
         aria-haspopup="menu"
       >
         {isAuthed ? (
-          <span className="grid h-7 w-7 place-items-center rounded-full bg-primary/20 text-sm font-bold text-primary ring-1 ring-primary/30">
+          <span className="grid h-7 w-7 place-items-center rounded-full bg-primary/20 text-sm font-bold text-primary-2 ring-1 ring-primary-2/30">
             {initial}
           </span>
         ) : (
@@ -203,7 +203,7 @@ export function HeaderSettingsMenu() {
                       role="menuitem"
                     >
                       <HugeIcon icon={Edit02Icon} size={16} strokeWidth={2} className="text-muted-foreground" />
-                      Modo Edición {editMode && <span className="ml-auto text-xs font-medium text-primary">Activo</span>}
+                      Modo Edición {editMode && <span className="ml-auto text-xs font-medium text-primary-2">Activo</span>}
                     </button>
                   )}
 

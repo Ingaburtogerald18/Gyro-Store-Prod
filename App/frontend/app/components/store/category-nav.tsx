@@ -96,7 +96,7 @@ function NavTab({
         <motion.span
           layoutId="category-nav-indicator"
           aria-hidden
-          className="absolute inset-x-2 bottom-0 h-0.5 rounded-full bg-primary"
+          className="absolute inset-x-2 bottom-0 h-0.5 rounded-full bg-foreground"
           transition={reduce ? { duration: 0 } : { type: 'spring', stiffness: 400, damping: 34 }}
         />
       )}

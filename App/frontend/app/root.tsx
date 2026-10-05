@@ -17,7 +17,7 @@ import { Toaster } from 'sonner';
 import { store } from '~/store/store';
 import { useAppDispatch } from '~/store/hooks';
 import { themeSet } from '~/store/slices/uiSlice';
-import { DEFAULT_THEME, restoreTheme, THEME_INIT_SCRIPT } from '~/lib/theme';
+import { defaultThemeFor, restoreTheme, THEME_INIT_SCRIPT } from '~/lib/theme';
 import tailwindHref from './tailwind.css?url';
 import chivoWoff2 from '@fontsource-variable/chivo/files/chivo-latin-wght-normal.woff2?url';
 
@@ -71,7 +71,7 @@ export function Layout({ children }: { children: ReactNode }) {
     // antes de que React hidrate; ese "mismatch" es intencional.
     <html
       lang="es"
-      data-theme={DEFAULT_THEME}
+      data-theme={defaultThemeFor(pathname)}
       data-skin="store"
       data-area={areaFor(pathname)}
       suppressHydrationWarning

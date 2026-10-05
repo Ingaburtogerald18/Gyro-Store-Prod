@@ -181,7 +181,7 @@ function EmptyState({ text }: { text: string }) {
   return (
     <div className="flex flex-col items-center gap-4 rounded-card border bg-card py-20 text-center">
       <span
-        className="relative grid h-16 w-16 place-items-center rounded-2xl bg-primary/8 text-primary-2 ring-1 ring-primary/15 ring-inset"
+        className="relative grid h-16 w-16 place-items-center rounded-2xl bg-primary/8 text-primary-2 ring-1 ring-primary-2/15 ring-inset"
         aria-hidden >
         <HugeIcon icon={PackageSearchIcon} size={28} strokeWidth={2} className="relative" />
       </span>

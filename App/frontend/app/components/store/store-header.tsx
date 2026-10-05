@@ -46,7 +46,7 @@ function CartButton() {
       whileTap={reduce ? undefined : { scale: 0.92 }}
       onClick={() => dispatch(toggleCart())}
       aria-label={count > 0 ? `Abrir carrito, ${count} artículo${count === 1 ? "" : "s"}` : "Abrir carrito"}
-      className="relative grid h-10 w-10 place-items-center rounded-full border bg-card text-muted-foreground shadow-sm backdrop-blur-sm transition-colors hover:border-primary/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+      className="relative grid h-10 w-10 place-items-center rounded-full border bg-card text-muted-foreground shadow-sm backdrop-blur-sm transition-colors hover:border-primary-2/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-2"
     >
       <HugeIcon icon={ShoppingCart02Icon} size={20} strokeWidth={2} aria-hidden />
       <AnimatePresence>
@@ -129,8 +129,8 @@ export function StoreHeader() {
 
   return (
     <header className={cn(
-      "sticky top-0 z-40 bg-card/90 backdrop-blur-xl transition-all",
-      editMode ? "border-b border-primary/20 border-t-[4px] border-t-primary" : "border-b border-border"
+      "store-header sticky top-0 z-40 transition-all",
+      editMode ? "border-b border-primary-2/20 border-t-[4px] border-t-primary" : "border-b border-border"
     )}>
       <div className="mx-auto flex h-14 max-w-7xl items-center gap-3 px-4">
         {!editMode && (
@@ -209,19 +209,19 @@ export function StoreHeader() {
         {/* Zona derecha */}
         <div className="ml-auto flex shrink-0 items-center gap-2 sm:gap-3">
           {editMode && (
-            <div className="flex items-center gap-3 bg-primary/10 pl-3 pr-1 py-1 rounded-full border border-primary/20">
+            <div className="flex items-center gap-3 bg-primary/10 pl-3 pr-1 py-1 rounded-full border border-primary-2/20">
               <div className="hidden sm:flex items-center gap-2">
                 <span className="relative flex h-2 w-2">
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75"></span>
                   <span className="relative inline-flex h-2 w-2 rounded-full bg-primary"></span>
                 </span>
-                <span className="text-xs font-bold tracking-wider text-primary">MODO EDICIÓN</span>
+                <span className="text-xs font-bold tracking-wider text-primary-2">MODO EDICIÓN</span>
               </div>
               <Button 
                 variant="ghost" 
                 size="sm" 
                 onClick={handleCancel}
-                className="h-8 rounded-full px-4 text-xs font-semibold text-primary hover:bg-primary/10"
+                className="h-8 rounded-full px-4 text-xs font-semibold text-primary-2 hover:bg-primary/10"
                 disabled={isSaving}
               >
                 Descartar

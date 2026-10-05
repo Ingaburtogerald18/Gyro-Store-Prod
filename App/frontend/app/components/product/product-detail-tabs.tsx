@@ -79,7 +79,7 @@ export function ProductDetailTabs({
               onClick={() => setActive(tab.id)}
               className={cn(
                 'relative px-4 py-2.5 text-sm font-medium transition-colors',
-                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-2',
                 selected ? 'text-foreground' : 'text-muted-foreground hover:text-foreground',
               )}
             >
