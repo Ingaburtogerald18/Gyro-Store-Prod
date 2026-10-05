@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from '@remix-run/react';
 import { motion, AnimatePresence, useAnimationControls, useReducedMotion } from 'framer-motion';
 import { toast } from 'sonner';
-import { Menu01Icon, ShoppingCart02Icon, Search01Icon, Cancel01Icon } from '@hugeicons/core-free-icons';
+import { ArrowDown01Icon, Menu01Icon, ShoppingCart02Icon, Search01Icon, Cancel01Icon } from '@hugeicons/core-free-icons';
 import { SearchBar } from '~/components/catalog/search-bar';
 import { CategoriesDrawer } from '~/components/store/categories-drawer';
 import { CategoryNav } from '~/components/store/category-nav';
@@ -14,7 +14,9 @@ import { HugeIcon } from '~/components/ui/icon';
 import { useUpdateLandingConfigMutation } from '~/store/api/storefrontApi';
 import { useStoreCatalog, useStoreConfig, useStoreLanding } from '~/hooks/useStoreConfig';
 import { useAppDispatch, useAppSelector } from '~/store/hooks';
-import { openCart, selectCartCount, toggleCart } from '~/store/slices/cartSlice';
+import { selectCartCount, toggleCart } from '~/store/slices/cartSlice';
+import { CART_EDITOR_SECTIONS, CartContentEditor, type CartEditorSection } from '~/components/cart/cart-content-editor';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '~/components/ui/dropdown-menu';
 import { selectEditMode, toggleEditMode } from '~/store/slices/authSlice';
 import { selectDraftLandingConfig, initBuilderSession, clearBuilderSession } from '~/store/slices/builderSlice';
 import { InlineCategoryNavEditor } from './inline-category-nav-editor';
@@ -73,6 +75,7 @@ export function StoreHeader() {
 
   const [categoriesOpen, setCategoriesOpen] = useState(false);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+  const [cartSection, setCartSection] = useState<CartEditorSection | null>(null);
 
   const config = useStoreConfig();
   const reduceMotion = useReducedMotion();
@@ -230,18 +233,31 @@ export function StoreHeader() {
                 </span>
                 <span className="text-xs font-bold tracking-wider text-primary-2">MODO EDICIÓN</span>
               </div>
-              {/* En modo edición el carrito normal no se muestra; este botón lo
-                  abre para editar sus textos e imágenes («Editar carrito»). */}
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => dispatch(openCart())}
-                className="h-8 rounded-full px-3 text-xs font-semibold text-primary-2 hover:bg-primary/10"
-                disabled={isSaving}
-              >
-                <HugeIcon icon={ShoppingCart02Icon} size={14} strokeWidth={2} aria-hidden />
-                Carrito
-              </Button>
+              {/* «Editar carrito»: se elige qué parte editar y se abre su editor
+                  con vista previa, sin pasar por el carrito real (que puede
+                  tener productos y confundir qué se está editando). */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 rounded-full px-3 text-xs font-semibold text-primary-2 hover:bg-primary/10"
+                    disabled={isSaving}
+                  >
+                    <HugeIcon icon={ShoppingCart02Icon} size={14} strokeWidth={2} aria-hidden />
+                    Editar carrito
+                    <HugeIcon icon={ArrowDown01Icon} size={12} strokeWidth={2} aria-hidden />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-auto min-w-64">
+                  {(Object.keys(CART_EDITOR_SECTIONS) as CartEditorSection[]).map((key) => (
+                    <DropdownMenuItem key={key} onSelect={() => setCartSection(key)} className="flex-col items-start gap-0.5 py-2">
+                      <span className="text-sm font-medium">{CART_EDITOR_SECTIONS[key].label}</span>
+                      <span className="text-xs text-muted-foreground">{CART_EDITOR_SECTIONS[key].hint}</span>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
               <Button 
                 variant="ghost" 
                 size="sm" 
@@ -290,6 +306,8 @@ export function StoreHeader() {
           <SearchBar />
         </div>
       )}
+
+      {editMode && <CartContentEditor section={cartSection} onClose={() => setCartSection(null)} />}
 
       <CategoriesDrawer
         open={categoriesOpen}

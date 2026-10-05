@@ -5,7 +5,7 @@
 // Construido sobre <Sheet> de shadcn/ui: el foco atrapado, el cierre con Escape
 // y el aria del diálogo vienen resueltos por Radix.
 import { HugeIcon } from "~/components/ui/icon";
-import { Add01Icon, Delete02Icon, Edit02Icon, ImageNotFound01Icon, MinusSignIcon, ShoppingBag02Icon } from "@hugeicons/core-free-icons";
+import { Add01Icon, Delete02Icon, ImageNotFound01Icon, MinusSignIcon, ShoppingBag02Icon } from "@hugeicons/core-free-icons";
 import { useState } from 'react';
 import { useNavigate } from '@remix-run/react';
 
@@ -19,7 +19,6 @@ import {
   SheetTitle,
 } from '~/components/ui/sheet';
 import { CheckoutDialog } from './checkout-dialog';
-import { CartContentEditor } from './cart-content-editor';
 import { useCartContent } from '~/hooks/useCartContent';
 import { cn } from '~/lib/utils';
 import { useMediaQuery } from '~/hooks/useMediaQuery';
@@ -46,7 +45,6 @@ export function CartDrawer() {
   const subtotal = useAppSelector(selectCartSubtotal);
   const { data: config } = useGetConfigQuery();
   const [checkoutOpen, setCheckoutOpen] = useState(false);
-  const [editorOpen, setEditorOpen] = useState(false);
   // Textos e imágenes editables (modo edición); con valores por defecto.
   const cart = useCartContent();
   const isDesktop = useMediaQuery('(min-width: 768px)');
@@ -81,18 +79,6 @@ export function CartDrawer() {
                 ? `${count} artículo${count === 1 ? "" : "s"} · ${cart.subtitle || "envío o retiro lo elegís al finalizar"}`
                 : "Todavía no agregaste nada."}
             </SheetDescription>
-            {/* Modo edición: abre el editor de textos e imágenes del carrito. */}
-            {cart.editing && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setEditorOpen(true)}
-                className="mt-2 self-start border-dashed"
-              >
-                <HugeIcon icon={Edit02Icon} size={14} strokeWidth={2} aria-hidden />
-                Editar carrito
-              </Button>
-            )}
           </SheetHeader>
 
           <div className="flex-1 space-y-3 overflow-y-auto overscroll-contain p-4">
@@ -249,15 +235,6 @@ export function CartDrawer() {
       </Sheet>
 
       <CheckoutDialog open={checkoutOpen} onOpenChange={setCheckoutOpen} />
-
-      {cart.editing && (
-        <CartContentEditor
-          open={editorOpen}
-          onOpenChange={setEditorOpen}
-          content={cart.raw}
-          images={cart.images}
-        />
-      )}
     </>
   );
 }
