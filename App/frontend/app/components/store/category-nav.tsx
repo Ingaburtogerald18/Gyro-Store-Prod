@@ -41,7 +41,7 @@ export function CategoryNav({
 
   return (
     <nav aria-label="Categorías" className="min-w-0">
-      <div className="flex items-center gap-1 overflow-x-auto scrollbar-hide">
+      <div className="flex items-center gap-1 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <NavTab
           to={categoryHref(null)}
           selected={activeCategory === null}

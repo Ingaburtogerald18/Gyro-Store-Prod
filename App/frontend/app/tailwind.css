@@ -418,17 +418,35 @@ html[data-area='store'][data-theme='dark'] .store-header {
   --border: rgb(255 255 255 / 12%);
 }
 
-/* Estilo "dibujo" en claro: contorno tinta y sombra dura en el botón de
-   compra, y trazo fino alrededor de las fotos de producto. En oscuro el
-   contorno tinta desaparece contra el fondo, así que no se aplica. */
-html[data-area='store'][data-theme='light'] [data-slot='button'][data-variant='default']:not([aria-pressed]) {
+/* Estilo "dibujo": contorno y sombra dura, como el trazo de la mascota. Va en
+   el botón de compra (amarillo) y en los de WhatsApp, en los dos temas.
+   La sombra usa --sticker-shadow: tinta en claro y el bordó de la sombra del
+   nombre del logo en oscuro (la tinta no se vería contra el fondo negro). Los
+   botones de WhatsApp en contorno llevan sombra de su propio verde y fondo de
+   tarjeta, para que la sombra se lea como un objeto desplazado. */
+html[data-area='store'] {
+  --sticker-shadow: var(--ink);
+}
+html[data-area='store'][data-theme='dark'] {
+  --sticker-shadow: #a8402f;
+}
+html[data-area='store'] [data-slot='button']:is([data-variant='default'], [data-variant='whatsapp']):not([aria-pressed]) {
   border: 2px solid var(--ink);
-  box-shadow: 3px 3px 0 var(--ink);
+  box-shadow: 3px 3px 0 var(--sticker-shadow);
   transition-property: transform, box-shadow, background-color;
 }
-html[data-area='store'][data-theme='light'] [data-slot='button'][data-variant='default']:not([aria-pressed]):active:not(:disabled) {
+html[data-area='store'] [data-slot='button'][data-variant='whatsappOutline'] {
+  background-color: var(--card);
+  border: 2px solid var(--whatsapp);
+  box-shadow: 3px 3px 0 var(--whatsapp);
+  transition-property: transform, box-shadow, background-color;
+}
+html[data-area='store'] [data-slot='button']:is([data-variant='default'], [data-variant='whatsapp'], [data-variant='whatsappOutline']):not([aria-pressed]):active:not(:disabled) {
   transform: translate(2px, 2px);
-  box-shadow: 1px 1px 0 var(--ink);
+  box-shadow: 1px 1px 0 var(--sticker-shadow);
+}
+html[data-area='store'] [data-slot='button'][data-variant='whatsappOutline']:active:not(:disabled) {
+  box-shadow: 1px 1px 0 var(--whatsapp);
 }
 html[data-area='store'][data-theme='light'] .product-stage {
   position: relative;
