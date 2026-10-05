@@ -350,7 +350,7 @@ body {
      · Coral: descuentos y ofertas (antes violeta).
    Contrastes medidos (WCAG): tinta sobre crema 15:1, tinta sobre amarillo
    11:1, teal profundo sobre crema 5.0:1, tinta sobre teal 8.4:1, tinta sobre
-   coral 6.6:1; en oscuro, texto sobre fondo 14:1 y teal sobre fondo 7.6:1.
+   coral 6.6:1; el oscuro tiene su propio bloque más abajo.
    ────────────────────────────────────────────────────────────── */
 html[data-area='store'] {
   --ink: #102423;
@@ -378,27 +378,30 @@ html[data-area='store'] {
   --promo-foreground: var(--ink);
 }
 
+/* Oscuro de la tienda: negro neutro de verdad, sin tinte verde. El teal queda
+   solo como acento chico (links, opción elegida) y el amarillo es el único color
+   con peso. Contrastes: texto 17:1 sobre fondo, gris secundario 8:1, teal 9:1. */
 html[data-area='store'][data-theme='dark'] {
-  --background: #102423;
-  --foreground: #f3f8f6;
-  --card: #18302e;
-  --card-foreground: #f3f8f6;
-  --popover: #18302e;
-  --popover-foreground: #f3f8f6;
+  --background: #0e0f10;
+  --foreground: #f4f4f2;
+  --card: #18191b;
+  --card-foreground: #f4f4f2;
+  --popover: #18191b;
+  --popover-foreground: #f4f4f2;
   --primary: #ffc20e;
-  --primary-foreground: var(--ink);
+  --primary-foreground: #111111;
   --primary-2: #3dc5a9;
-  --secondary: #1f3a38;
-  --secondary-foreground: #f3f8f6;
-  --muted: #1f3a38;
-  --muted-foreground: #a5b9b5;
-  --accent: #1f3a38;
-  --accent-foreground: #f3f8f6;
-  --border: rgb(255 255 255 / 12%);
-  --input: rgb(255 255 255 / 18%);
-  --ring: #3dc5a9;
-  --brand: #1b3634;
-  --brand-foreground: #f3f8f6;
+  --secondary: #222326;
+  --secondary-foreground: #f4f4f2;
+  --muted: #222326;
+  --muted-foreground: #a8aaad;
+  --accent: #222326;
+  --accent-foreground: #f4f4f2;
+  --border: rgb(255 255 255 / 10%);
+  --input: rgb(255 255 255 / 16%);
+  --ring: #ffc20e;
+  --brand: #141517;
+  --brand-foreground: #f4f4f2;
 }
 
 /* Header de la tienda sobre teal (claro): los tokens se redefinen DENTRO del
@@ -411,7 +414,7 @@ html[data-area='store'] .store-header {
   --border: rgb(16 36 35 / 22%);
 }
 html[data-area='store'][data-theme='dark'] .store-header {
-  --muted-foreground: #a5b9b5;
+  --muted-foreground: #a8aaad;
   --border: rgb(255 255 255 / 12%);
 }
 
@@ -448,9 +451,11 @@ html[data-area='store'] [data-slot='button'][aria-pressed='true'] {
   border: 2px solid var(--brand-foreground);
 }
 html[data-area='store'][data-theme='dark'] [data-slot='button'][aria-pressed='true'] {
-  background-color: #3dc5a9;
-  color: var(--ink);
-  border-color: transparent;
+  /* En oscuro, contorno amarillo: un relleno teal volvía a teñir de verde la
+     pantalla, y uno amarillo se confundiría con el botón de compra. */
+  background-color: rgb(255 194 14 / 10%);
+  color: var(--primary);
+  border-color: var(--primary);
 }
 
 @layer base {
