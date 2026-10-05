@@ -75,6 +75,13 @@ export function StoreHeader() {
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
 
   const config = useStoreConfig();
+  const reduceMotion = useReducedMotion();
+  // Logo del panel. El animado solo si es video y no hay movimiento reducido;
+  // si no, el estático (o el animado si es una imagen, p. ej. un GIF/WebP).
+  const animated = config?.images?.logoAnimated;
+  const animatedIsVideo = Boolean(animated && /\.(webm|mp4|mov|m4v)($|\?)/i.test(animated));
+  const logoVideo = animatedIsVideo && !reduceMotion ? animated : undefined;
+  const logoImage = config?.images?.logoStatic || (animatedIsVideo ? undefined : animated);
   const { data: products = [] } = useGetCatalogQuery();
   const landing = useStoreLanding();
   const isAdmin = useAppSelector(selectIsAdmin);
@@ -157,23 +164,46 @@ export function StoreHeader() {
             }
           }}
         >
-          {/* Logo de la tienda: la bolsa del logo nuevo + el nombre en texto.
-              El logo completo (nombre curvo arriba de la mascota) no se lee a
-              40px, así que en el header va esta versión horizontal. Se sirve
-              desde el bundle y no desde la config del panel: es la marca fija
-              de la tienda, no un recurso que cambie por campaña. */}
-          <img
-            src={gyroBag}
-            alt=""
-            width={40}
-            height={40}
-            loading="eager"
-            decoding="async"
-            className="size-10 shrink-0 transition-transform duration-300 motion-safe:group-hover:-rotate-6"
-          />
-          <span className="font-heading text-lg font-extrabold tracking-tight whitespace-nowrap">
-            {config?.brandName || getBrandName()}
-          </span>
+          {/* Logo: el que se sube en el panel (Recursos de imágenes → logo
+              estático o animado). Se muestra a 40px de alto y hasta 140px de
+              ancho (formato recomendado 560×160, 3.5:1). Si el panel no tiene
+              logo, va la bolsa del logo nuevo con el nombre en texto. */}
+          {logoVideo ? (
+            <video
+              src={logoVideo}
+              autoPlay
+              loop
+              muted
+              playsInline
+              preload="metadata"
+              aria-hidden
+              className="h-10 w-auto max-w-[140px] shrink-0 object-contain object-left"
+            />
+          ) : logoImage ? (
+            <img
+              src={logoImage}
+              alt=""
+              height={40}
+              loading="eager"
+              decoding="async"
+              className="h-10 w-auto max-w-[140px] shrink-0 object-contain object-left"
+            />
+          ) : (
+            <>
+              <img
+                src={gyroBag}
+                alt=""
+                width={40}
+                height={40}
+                loading="eager"
+                decoding="async"
+                className="size-10 shrink-0 transition-transform duration-300 motion-safe:group-hover:-rotate-6"
+              />
+              <span className="font-heading text-lg font-extrabold tracking-tight whitespace-nowrap">
+                {config?.brandName || getBrandName()}
+              </span>
+            </>
+          )}
         </Link>
 
         {/* Contenedor central: categorías + búsqueda siempre visible. La búsqueda
