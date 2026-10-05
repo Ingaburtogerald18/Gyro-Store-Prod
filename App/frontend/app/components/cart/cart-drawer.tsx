@@ -251,14 +251,22 @@ function CartBanner({
   link: string;
   onNavigate: (to: string) => void;
 }) {
-  const body = (
+  // El banner nunca puede quedar más alto que la lista: con una imagen cuadrada
+  // ocupaba media pantalla del celular y empujaba los productos fuera de vista.
+  // Con texto: fila compacta (imagen chica a la izquierda). Solo imagen: ancho
+  // completo, pero con alto máximo y sin recortar.
+  const body = text ? (
     <>
-      {image && <img src={image} alt={text || ''} className="w-full rounded-lg object-cover" />}
-      {text && <p className="px-1 text-sm font-semibold text-foreground">{text}</p>}
+      {image && <img src={image} alt="" className="size-16 shrink-0 rounded-lg object-contain" />}
+      <p className="min-w-0 flex-1 text-sm leading-snug font-semibold text-foreground">{text}</p>
     </>
+  ) : (
+    <img src={image} alt="" className="max-h-28 w-full rounded-lg object-contain" />
   );
-  const className =
-    'flex w-full flex-col gap-2 rounded-xl border border-border bg-background p-2 text-left';
+  const className = cn(
+    'flex w-full gap-3 rounded-xl border border-border bg-background p-2 text-left',
+    text ? 'items-center' : 'justify-center',
+  );
 
   if (!link) return <div className={className}>{body}</div>;
   if (/^https?:\/\//i.test(link)) {

@@ -152,9 +152,15 @@ function Preview({ section, c }: { section: CartEditorSection; c: ResolvedCartCo
         </p>
       </div>
       {(c.bannerImage || c.bannerText) && (
-        <div className="flex flex-col gap-1.5 rounded-xl border bg-background p-2">
-          {c.bannerImage && <img src={c.bannerImage} alt="" className="w-full rounded-lg object-cover" />}
-          {c.bannerText && <p className="px-1 text-xs font-semibold">{c.bannerText}</p>}
+        <div className={cn('flex gap-2 rounded-xl border bg-background p-2', c.bannerText ? 'items-center' : 'justify-center')}>
+          {c.bannerText ? (
+            <>
+              {c.bannerImage && <img src={c.bannerImage} alt="" className="size-12 shrink-0 rounded-lg object-contain" />}
+              <p className="min-w-0 flex-1 text-xs font-semibold">{c.bannerText}</p>
+            </>
+          ) : (
+            <img src={c.bannerImage} alt="" className="max-h-20 w-full rounded-lg object-contain" />
+          )}
         </div>
       )}
       <div className="flex items-center gap-2 rounded-xl border bg-background p-2 text-xs text-muted-foreground">
