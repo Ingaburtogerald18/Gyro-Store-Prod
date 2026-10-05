@@ -404,18 +404,18 @@ html[data-area='store'][data-theme='dark'] {
   --brand-foreground: #f4f4f2;
 }
 
-/* Header de la tienda sobre teal (claro): los tokens se redefinen DENTRO del
-   header para que sus piezas (búsqueda, íconos, categorías) se lean sobre el
-   teal sin tocar cada componente. */
+/* Header de la tienda. En claro va del mismo crema que la página con una franja
+   teal de 4px abajo: sobre fondo teal, la bolsa del logo (también teal) se
+   perdía y el amarillo del nombre tenía poco contraste. En oscuro, negro. */
 html[data-area='store'] .store-header {
-  background-color: var(--brand);
-  color: var(--brand-foreground);
-  --muted-foreground: rgb(16 36 35 / 78%);
-  --border: rgb(16 36 35 / 22%);
+  background-color: var(--background);
+  color: var(--foreground);
+  border-bottom: 4px solid #3dc5a9;
 }
 html[data-area='store'][data-theme='dark'] .store-header {
-  --muted-foreground: #a8aaad;
-  --border: rgb(255 255 255 / 12%);
+  background-color: var(--brand);
+  color: var(--brand-foreground);
+  border-bottom: 1px solid var(--border);
 }
 
 /* Estilo "dibujo": contorno y sombra dura, como el trazo de la mascota. Va en
