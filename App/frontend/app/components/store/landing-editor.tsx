@@ -57,11 +57,11 @@ export function LandingEditor() {
     syncPreview();
     function ready(event: MessageEvent) {
       if (event.origin === window.location.origin && event.source === frame.current?.contentWindow && event.data?.type === 'gyro:preview-ready') syncPreview();
-      if (event.origin === window.location.origin && event.source === frame.current?.contentWindow && event.data?.type === 'gyro:select-section' && SECTIONS.some(item => item.id === event.data.section)) { setSection(event.data.section); setMobilePanel(true); }
+      if (event.origin === window.location.origin && event.source === frame.current?.contentWindow && event.data?.type === 'gyro:select-section' && !busy && SECTIONS.some(item => item.id === event.data.section)) { setSection(event.data.section); setMobilePanel(true); }
     }
     window.addEventListener('message', ready);
     return () => window.removeEventListener('message', ready);
-  }, [syncPreview]);
+  }, [syncPreview, busy]);
 
   useEffect(() => {
     if (!dirty) return;
@@ -123,9 +123,9 @@ export function LandingEditor() {
           <Button size="sm" disabled={busy || !dirty || !draft} onClick={() => void save()}>Publicar cambios</Button>
         </div>
       </header>
-      <div className="flex min-h-0 flex-1">
+      <div className="relative flex min-h-0 flex-1">
         {!preview && (
-          <aside className={cn('flex w-80 shrink-0 flex-col border-r bg-card lg:static lg:flex', mobilePanel ? 'absolute inset-x-0 bottom-0 top-16 z-20 w-full' : 'hidden')}>
+          <aside className={cn('flex w-80 shrink-0 flex-col border-r bg-card lg:static lg:flex', mobilePanel ? 'absolute inset-x-0 bottom-0 top-0 z-20 w-full' : 'hidden')}>
             <div className="border-b p-4">
               <p className="mb-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">Contenido de la tienda</p>
               <nav aria-label="Secciones del editor" className="grid grid-cols-2 gap-1 rounded-xl bg-muted p-1">
@@ -135,7 +135,7 @@ export function LandingEditor() {
             <div className="min-h-0 flex-1 overflow-y-auto p-4">
               <h2 className="text-base font-semibold">{SECTIONS.find(item => item.id === section)?.label}</h2>
               <p className="mb-5 mt-1 text-xs text-muted-foreground">{SECTIONS.find(item => item.id === section)?.hint}</p>
-              <fieldset disabled={busy} className="min-w-0 space-y-5">
+              <fieldset disabled={busy} className={cn("min-w-0 space-y-5", busy && "pointer-events-none")}>
                 {section === 'navigation' && <><p className="text-xs text-muted-foreground">Arrastra para ordenar. Sin selección se muestran las categorías automáticamente.</p><InlineCategoryNavEditor allCategories={config?.categories ?? []} /></>}
                 {section === 'products' && <InlineRailsEditor allCategories={config?.categories ?? []} />}
                 {section === 'banners' && <>
