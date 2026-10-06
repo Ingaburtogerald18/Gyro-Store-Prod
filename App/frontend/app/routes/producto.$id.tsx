@@ -167,6 +167,7 @@ export default function ProductDetail() {
   const price = variant?.price ?? product.price;
   const stock = variant?.stock ?? product.stock;
   const soldOut = stock <= 0;
+  const description = htmlToText(product.description);
 
   const colorAxis = product.axes.find((a) => a.isColor);
   const selectedColor = colorAxis ? selection[colorAxis.key] : undefined;
@@ -223,30 +224,23 @@ export default function ProductDetail() {
           categoryId={product.categoryId ?? undefined}
         />
 
-        <div className="grid gap-8 py-6 md:grid-cols-2 md:gap-12">
-          {/* Galería sticky en desktop (header h-14 + top nav h-12 = top-28),
-              con el trust box debajo. En móvil el trust box baja después del
-              bloque de compra (ver copia más abajo). */}
-          <div className="space-y-4 md:sticky md:top-28 md:self-start">
-            <ProductGallery images={activeImages} name={product.name} soldOut={soldOut} />
-            <div className="hidden md:block">
-              <TrustBox />
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-5">
-            <div className="space-y-3">
+        <div className="grid gap-6 py-6 md:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] md:grid-rows-[auto_1fr] md:gap-x-10 md:gap-y-5">
+            {/* En móvil, nombre y precio identifican el producto antes de la foto. */}
+            <div className="min-w-0 space-y-3 md:col-start-2 md:row-start-1">
               {onSale && (
                 <Badge variant="promo" className="tabular-nums">−{discountPct}%</Badge>
               )}
               {product.isPromo && !onSale && <Badge variant="promo">Oferta</Badge>}
 
-              <div className="flex flex-col gap-3 md:flex-row md:items-baseline md:justify-between">
-                <h1 className="font-heading text-3xl leading-[1.05] font-extrabold tracking-tight text-balance text-foreground sm:text-4xl">
+                <h1 className="font-heading text-2xl leading-tight font-extrabold tracking-tight text-balance text-foreground lg:text-3xl">
                   {product.name}
                 </h1>
-
-                <div className="flex items-baseline gap-3 md:shrink-0">
+                {description && (
+                  <p className="line-clamp-2 text-base leading-relaxed text-muted-foreground">
+                    {description}
+                  </p>
+                )}
+                <div className="flex flex-wrap items-baseline gap-3">
                   <span className="font-heading text-3xl font-extrabold tracking-tight text-foreground tabular-nums">
                     {formatCordobas(price, currency)}
                   </span>
@@ -256,16 +250,18 @@ export default function ProductDetail() {
                     </span>
                   )}
                 </div>
-              </div>
-
               <StockIndicator stock={stock} />
             </div>
 
+          <div className="min-w-0 md:sticky md:top-28 md:col-start-1 md:row-start-1 md:row-span-2 md:self-start">
+            <ProductGallery images={activeImages} name={product.name} soldOut={soldOut} />
+          </div>
+
+          <div className="flex min-w-0 flex-col gap-5 rounded-2xl border border-border bg-card p-4 sm:p-5 md:col-start-2 md:row-start-2 md:self-start">
             {axes.length > 0 && (
-              <>
-                <Separator className="bg-border" />
                 <div id="variantes" className="scroll-mt-32">
                   <VariantPicker
+                    layout="rows"
                     axes={product.axes}
                     variants={product.variants}
                     selection={selection}
@@ -276,9 +272,9 @@ export default function ProductDetail() {
                     missingKey={showMissing ? missingAxis?.key : undefined}
                   />
                 </div>
-              </>
             )}
 
+            {axes.length > 0 && <Separator className="bg-border" />}
             <QuantityStepper value={quantity} onChange={setQuantity} max={stock} />
 
             {quantity > 1 && (
@@ -290,11 +286,11 @@ export default function ProductDetail() {
               </p>
             )}
 
-            <div className="flex flex-col gap-2 sm:flex-row">
+            <div id="product-buy-actions" className="flex flex-col gap-3 sm:flex-row md:flex-col lg:flex-row">
               <Button
                 onClick={handleAddToCart}
                 disabled={soldOut}
-                className="h-12 flex-1 text-sm"
+                className="h-12 min-h-12 w-full shrink-0 text-base sm:flex-1 md:flex-none lg:flex-1 lg:text-sm"
               >
                 <HugeIcon icon={ShoppingCart02Icon} size={16} strokeWidth={2} aria-hidden />
                 {soldOut ? 'Agotado' : 'Agregar al carrito'}
@@ -302,29 +298,30 @@ export default function ProductDetail() {
               <Button
                 variant="whatsappOutline"
                 onClick={handleWhatsApp}
-                className="h-12 justify-center sm:w-auto sm:px-6"
+                className="h-12 min-h-12 w-full shrink-0 justify-center text-base sm:w-auto sm:px-4 md:w-full lg:w-auto lg:text-sm"
               >
                 <WhatsappIcon className="h-4 w-4" />
                 {soldOut ? 'Avisame' : 'Pedir por WhatsApp'}
               </Button>
             </div>
 
-            {/* Trust box en móvil: después del bloque de compra, antes de los
-                tabs — en desktop vive bajo la galería sticky. */}
-            <div className="md:hidden">
-              <TrustBox />
-            </div>
-
-            <Separator className="bg-border" />
-            <ProductDetailTabs
-              description={htmlToText(product.description)}
-              specs={product.specs}
-            />
           </div>
         </div>
 
+        <div className="space-y-5 border-t border-border py-6 sm:space-y-8 sm:py-8">
+          {(description || product.specs.length > 0) && (
+            <section aria-labelledby="product-details-heading" className="min-w-0 space-y-4">
+              <h2 id="product-details-heading" className="font-heading text-xl font-bold text-foreground">
+                {description ? 'Detalles del producto' : 'Especificaciones'}
+              </h2>
+              <ProductDetailTabs description={description} specs={product.specs} />
+            </section>
+          )}
+          <TrustBox />
+        </div>
+
         {related.length > 0 && (
-          <div className="mt-12">
+          <div className="mt-6 sm:mt-12">
             <ProductCarousel
               title="También te puede gustar"
               products={related}
@@ -338,6 +335,8 @@ export default function ProductDetail() {
       </main>
 
       <MobileBuyBar
+        key={product.id}
+        buyActionsId="product-buy-actions"
         name={product.name}
         price={formatCordobas(price * quantity, currency)}
         disabled={soldOut}

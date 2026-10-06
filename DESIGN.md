@@ -359,6 +359,13 @@ Las primitivas son de shadcn; estas piezas son **nuestras** y siguen vigentes:
   altura base se mantiene en 57px para la navegación sticky de la ficha; en móvil
   se conserva el menú de categorías y la búsqueda desplegable.
 - **`ProductCarousel`** — scroll-snap + flechas que se deshabilitan en los extremos.
+- **Gyro en el carrito vacío y con productos** — ilustración editable de 160px,
+  sin fondo ni marco.
+  Entrada breve, balanceo suave con pausas y un salto pequeño al tocarla o activarla
+  con teclado. Se detiene con el carrito cerrado, fuera de vista o con la pestaña
+  oculta; `prefers-reduced-motion` muestra la imagen estática.
+  Si el banner tiene un enlace, conserva la navegación al tocarlo y solo usa
+  entrada y balanceo, sin agregar un botón dentro del enlace.
 - **Filtros del catálogo** — controles de 44px con borde visible, selección
   esmeralda y un check en los filtros binarios activos. El contador usa amarillo;
   los chips y el menú de orden comparten el acento esmeralda en ambos temas.
@@ -366,7 +373,17 @@ Las primitivas son de shadcn; estas piezas son **nuestras** y siguen vigentes:
   Estos estilos se limitan al storefront mediante las clases `catalog-filter-*`.
 - **`QueryState`** — envuelve el patrón loading/error/vacío de los listados admin. Cada estado
   puede traer su propio fallback; si no, cae en uno genérico.
-- **PDP** — galería sticky, specs en grilla con hairlines, descripción a 65ch, CTA + WhatsApp.
+- **PDP** — nombre y precio antes de la galería en móvil; dos columnas en escritorio,
+  con galería sticky de hasta 480px y fotos completas (`object-contain`). Variantes
+  en filas, cantidad y CTA + WhatsApp de al menos 48px. Descripción y specs abiertas
+  debajo del bloque principal: fuente de lectura normal, divisores finos y rótulo
+  junto al valor en escritorio. En móvil, las filas cortas conservan etiqueta y valor
+  juntos, las largas se apilan y se muestran tres especificaciones con opción de ver
+  todas. Los beneficios de compra forman una franja debajo, sin tarjetas individuales;
+  en móvil están dentro de «Envío, pago y garantía», desplegable y cerrado inicialmente.
+  La barra móvil se oculta mientras los botones de
+  compra principales o el footer están a la vista. Cambio de foto con fade breve
+  que respeta `prefers-reduced-motion`.
 
 ---
 

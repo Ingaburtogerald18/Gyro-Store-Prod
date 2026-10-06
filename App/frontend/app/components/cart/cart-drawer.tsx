@@ -19,6 +19,7 @@ import {
   SheetTitle,
 } from '~/components/ui/sheet';
 import { CheckoutDialog } from './checkout-dialog';
+import { GyroCartMascot } from './gyro-cart-mascot';
 import { useCartContent } from '~/hooks/useCartContent';
 import { cn } from '~/lib/utils';
 import { useMediaQuery } from '~/hooks/useMediaQuery';
@@ -85,7 +86,7 @@ export function CartDrawer() {
             {items.length === 0 ? (
               <div className="flex flex-col items-center justify-center gap-4 py-16 text-center">
                 {cart.emptyImage ? (
-                  <img src={cart.emptyImage} alt="" className="size-40 object-contain" />
+                  <GyroCartMascot key={cart.emptyImage} src={cart.emptyImage} active={isOpen} />
                 ) : (
                   <div className="grid h-16 w-16 place-items-center rounded-full bg-muted text-muted-foreground">
                     <HugeIcon icon={ShoppingBag02Icon} size={28} strokeWidth={2} aria-hidden />
@@ -105,6 +106,7 @@ export function CartDrawer() {
                     toda la tarjeta lo abre. */}
                 {(cart.bannerImage || cart.bannerText) && (
                   <CartBanner
+                    active={isOpen}
                     image={cart.bannerImage}
                     text={cart.bannerText}
                     link={cart.bannerLink}
@@ -241,11 +243,13 @@ export function CartDrawer() {
 
 /** Banner de promo del carrito. Link interno → navega y cierra; externo → pestaña nueva. */
 function CartBanner({
+  active,
   image,
   text,
   link,
   onNavigate,
 }: {
+  active: boolean;
   image: string;
   text: string;
   link: string;
@@ -255,7 +259,9 @@ function CartBanner({
   // sin recortar). El texto, si hay, va centrado debajo.
   const body = (
     <>
-      {image && <img src={image} alt="" className="size-40 object-contain" />}
+      {image && (
+        <GyroCartMascot key={image} src={image} active={active} interactive={!link} />
+      )}
       {text && <p className="text-sm leading-snug font-semibold text-foreground">{text}</p>}
     </>
   );

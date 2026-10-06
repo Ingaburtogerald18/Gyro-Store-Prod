@@ -95,7 +95,7 @@ function countCombos(item: PublicCatalogItem, axes: Axis[]): number {
 }
 
 // `images` es jsonb opaco: tolera strings sueltos u objetos { url } / { src }.
-function normalizeImages(value: unknown): string[] {
+export function normalizeImages(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   return value.flatMap((entry) => {
     if (typeof entry === 'string') return entry ? [entry] : [];

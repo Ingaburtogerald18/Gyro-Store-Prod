@@ -5,8 +5,10 @@
 // schema Zod que valida el backend (shared/schemas.ts): una sola fuente de
 // verdad, sin reglas duplicadas que se desincronicen.
 import { HugeIcon } from "~/components/ui/icon";
-import { Location01Icon, Store01Icon, TruckIcon, Coupon01Icon, Cancel01Icon, CheckmarkCircle02Icon } from "@hugeicons/core-free-icons";
+import { Location01Icon, Store01Icon, TruckIcon, Coupon01Icon, Cancel01Icon, CheckmarkCircle02Icon, PackageIcon } from "@hugeicons/core-free-icons";
 import { useState } from 'react';
+import { Link } from '@remix-run/react';
+import { saveOrder } from '~/lib/orderHistory';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 
@@ -173,6 +175,8 @@ export function CheckoutDialog({
       removeCode();
       dispatch(clearCart());
       setPlaced(order);
+      // «Mis pedidos» sin cuenta: queda guardado en este navegador.
+      saveOrder({ id: order.id, createdAt: new Date().toISOString(), total: order.total });
       // Se intenta abrir WhatsApp de una; si el navegador lo bloquea (pasa en
       // móvil después de un await), la confirmación tiene el botón a mano.
       window.open(order.whatsappUrl, "_blank", "noopener,noreferrer");
@@ -232,6 +236,12 @@ export function CheckoutDialog({
                   <WhatsappIcon className="h-4 w-4" />
                   Enviar mensaje por WhatsApp
                 </a>
+              </Button>
+              <Button variant="outline" className="h-11 w-full" asChild>
+                <Link to={`/pedido/${placed.id}`} onClick={() => handleOpenChange(false)}>
+                  <HugeIcon icon={PackageIcon} size={16} strokeWidth={2} />
+                  Seguir mi pedido
+                </Link>
               </Button>
               <Button variant="ghost" className="w-full" onClick={() => handleOpenChange(false)}>
                 Seguir comprando

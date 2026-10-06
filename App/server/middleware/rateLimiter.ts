@@ -46,3 +46,14 @@ export const contactLimiter: RateLimitRequestHandler = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+// Rastreo de pedido por número + teléfono (POST /api/orders/public/track). Es
+// una búsqueda anónima: sin un límite propio, un script podría probar números
+// de pedido contra un teléfono. 10 intentos cada 15 minutos sobran para alguien
+// que escribió mal su número un par de veces.
+export const trackOrderLimiter: RateLimitRequestHandler = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { error: 'Demasiados intentos. Esperá unos minutos e intentá de nuevo.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});

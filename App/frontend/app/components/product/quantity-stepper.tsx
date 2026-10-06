@@ -28,7 +28,7 @@ export function QuantityStepper({
 
   return (
     <div className="space-y-2">
-      <Label htmlFor={id} className="text-xs font-medium tracking-[0.08em] text-muted-foreground uppercase">
+      <Label htmlFor={id} className="text-sm font-medium text-foreground">
         Cantidad
       </Label>
       <div className="flex w-fit items-center gap-1 rounded-xl border border-border bg-card p-1">
@@ -57,7 +57,7 @@ export function QuantityStepper({
           // un contenedor ya estilizado, no un campo de formulario suelto (§8).
           // Se le quitan las flechas nativas porque los botones ya cumplen esa
           // función y a 40px de ancho estorban.
-          className="h-10 w-12 bg-transparent text-center text-sm font-bold text-foreground tabular-nums outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+          className="h-11 w-12 bg-transparent text-center text-base font-bold text-foreground tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-ring [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
         />
 
         <Button

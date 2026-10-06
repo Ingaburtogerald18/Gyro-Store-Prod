@@ -1,5 +1,5 @@
 import { HugeIcon } from "~/components/ui/icon";
-import { CustomerSupportIcon, DashboardSquare01Icon, Edit02Icon, Logout03Icon, Moon02Icon, Settings02Icon, Sun01Icon, User02Icon } from "@hugeicons/core-free-icons";
+import { CustomerSupportIcon, DashboardSquare01Icon, Edit02Icon, Logout03Icon, Moon02Icon, PackageIcon, Settings02Icon, Sun01Icon, User02Icon } from "@hugeicons/core-free-icons";
 import { useState, useRef, useEffect } from "react";
 import { Link, useLocation } from "@remix-run/react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -133,6 +133,18 @@ export function HeaderSettingsMenu() {
                   {/* Antes había "Rastrear mi pedido" y "Ayuda y FAQs" que solo
                       mostraban "Próximamente": un menú lleno de callejones sin
                       salida. Queda lo que funciona hoy. */}
+                  <Link
+                    to="/mis-pedidos"
+                    onClick={() => setIsOpen(false)}
+                    className={cn(ROW, "text-muted-foreground hover:bg-muted hover:text-foreground")}
+                    role="menuitem"
+                  >
+                    <span className={cn(CHIP, "bg-muted text-muted-foreground group-hover:text-foreground")}>
+                      <HugeIcon icon={PackageIcon} size={16} strokeWidth={2} />
+                    </span>
+                    Mis pedidos
+                  </Link>
+
                   <Link
                     to="/contacto"
                     onClick={() => setIsOpen(false)}

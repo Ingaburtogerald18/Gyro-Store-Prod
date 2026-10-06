@@ -106,6 +106,7 @@ export function PublicFooter() {
           <nav aria-label="Ayuda">
             <p className={HEADING}>Ayuda</p>
             <ul className="space-y-2.5">
+              <li><Link to="/mis-pedidos" className={LINK}>Mis pedidos</Link></li>
               <li><Link to="/contacto" className={LINK}>Contacto</Link></li>
               {whatsappUrl && (
                 <li>

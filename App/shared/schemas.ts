@@ -824,6 +824,36 @@ export type PublicOrderItemInput = z.infer<typeof publicOrderItemInputSchema>;
 export type PublicOrderFields = z.infer<typeof publicOrderFieldsSchema>;
 export type PublicOrderInput = z.infer<typeof publicOrderInputSchema>;
 
+// ── Seguimiento del pedido web ──
+//
+// `public_orders.status` es texto libre en la base (default 'new'); este enum es
+// el contrato de qué valores escribe el panel. 'shipped' se muestra como "En
+// camino" o "Listo para retiro" según `delivery_method`: es el mismo paso.
+export const PUBLIC_ORDER_STATUSES = ['new', 'preparing', 'shipped', 'delivered', 'cancelled'] as const;
+export type PublicOrderStatus = (typeof PUBLIC_ORDER_STATUSES)[number];
+
+export const updatePublicOrderStatusSchema = z.object({
+  status: z.enum(PUBLIC_ORDER_STATUSES),
+});
+
+// Rastreo sin cuenta: el número corto que ve el cliente (#A1B2C3D4, los
+// primeros 8 caracteres del id) + el teléfono con el que compró. Ninguno de los
+// dos alcanza solo.
+export const trackPublicOrderSchema = z.object({
+  code: z
+    .string()
+    .trim()
+    .transform((v) => v.replace(/^#/, '').toLowerCase())
+    .pipe(z.string().regex(/^[0-9a-f]{8}$/, 'El número de pedido tiene 8 caracteres, como A1B2C3D4.')),
+  phone: z
+    .string()
+    .trim()
+    .max(24)
+    .transform((v) => v.replace(/[\s()-]/g, ''))
+    .pipe(z.string().regex(PHONE_RE, 'Ingresá el teléfono con el que hiciste el pedido.')),
+});
+export type TrackPublicOrderInput = z.infer<typeof trackPublicOrderSchema>;
+
 // ============================================================================
 // ── SCHEMAS DEL DOMINIO: CONFIGURACIÓN FINANCIERA (app_config) ──
 // ============================================================================

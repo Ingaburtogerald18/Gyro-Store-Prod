@@ -50,7 +50,7 @@ export function ProductGallery({
           type="button"
           onClick={() => setZoomed(true)}
           aria-label={`Ampliar imagen de ${name}`}
-          className="product-stage group relative block aspect-square w-full cursor-zoom-in overflow-hidden rounded-2xl bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+          className="product-stage group relative mx-auto block aspect-square w-full max-w-[20rem] cursor-zoom-in overflow-hidden rounded-2xl bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none sm:max-w-[30rem]"
         >
           <motion.img
             key={current}
@@ -58,6 +58,9 @@ export function ProductGallery({
             alt={name}
             loading="eager"
             decoding="async"
+            initial={{ opacity: reduce ? 1 : 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: reduce ? 0 : 0.18 }}
             // El drag solo existe con más de una foto; con una sola, arrastrar
             // no lleva a ningún lado y estorba al scroll de la página.
             drag={hasMany && !reduce ? 'x' : false}
@@ -67,7 +70,7 @@ export function ProductGallery({
               if (info.offset.x < -SWIPE_THRESHOLD) step(1);
               else if (info.offset.x > SWIPE_THRESHOLD) step(-1);
             }}
-            className="h-full w-full touch-pan-y object-cover select-none"
+            className="h-full w-full touch-pan-y object-contain select-none"
           />
 
           {soldOut && (
@@ -85,7 +88,7 @@ export function ProductGallery({
           </span>
         </button>
       ) : (
-        <div className="product-stage relative grid aspect-square w-full place-items-center overflow-hidden rounded-2xl bg-muted text-muted-foreground">
+        <div className="product-stage relative mx-auto grid aspect-square w-full max-w-[20rem] place-items-center overflow-hidden rounded-2xl bg-muted text-muted-foreground sm:max-w-[30rem]">
           <HugeIcon icon={ImageNotFound01Icon} size={40} strokeWidth={2} aria-hidden />
         </div>
       )}
@@ -102,11 +105,11 @@ export function ProductGallery({
               aria-label={`Ver imagen ${i + 1} de ${images.length}`}
               aria-current={i === active}
               // El botón aporta los 44px táctiles; el punto visible mide 6px.
-              className="grid h-11 w-5 place-items-center focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+              className="grid h-11 w-11 place-items-center focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
             >
               <span
                 className={cn(
-                  'h-1.5 rounded-full transition-all',
+                  'h-1.5 rounded-full transition-all motion-reduce:transition-none',
                   i === active ? 'w-4 bg-primary' : 'w-1.5 bg-border',
                 )}
               />
@@ -117,7 +120,7 @@ export function ProductGallery({
 
       {/* Miniaturas solo en escritorio: en móvil los puntos ya cumplen esa función. */}
       {hasMany && (
-        <div className="hidden gap-2 overflow-x-auto md:flex pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="mx-auto hidden w-fit max-w-full gap-2 overflow-x-auto pb-1 md:flex [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {images.map((src, i) => (
             <button
               key={src}
@@ -130,7 +133,7 @@ export function ProductGallery({
                 i === active ? 'border-primary-2' : 'border-border hover:border-foreground/25',
               )}
             >
-              <img src={src} alt="" loading="lazy" className="h-full w-full object-cover" />
+              <img src={src} alt="" loading="lazy" className="h-full w-full object-contain" />
             </button>
           ))}
         </div>

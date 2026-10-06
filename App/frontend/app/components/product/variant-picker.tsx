@@ -88,6 +88,7 @@ export function VariantPicker({
   selection,
   onChange,
   missingKey,
+  layout = 'stacked',
 }: {
   axes: CatalogAxis[];
   /** Combinaciones con stock. Vacío = sin datos, todas las opciones habilitadas. */
@@ -96,6 +97,8 @@ export function VariantPicker({
   onChange: (next: VariantSelection) => void;
   /** Eje que falta elegir al intentar agregar: se marca en rojo. */
   missingKey?: string;
+  /** Filas con rótulo al lado en la ficha de escritorio; apiladas en móvil. */
+  layout?: 'stacked' | 'rows';
 }) {
   const pickable = pickableAxes(axes);
   if (pickable.length === 0) return null;
@@ -124,21 +127,22 @@ export function VariantPicker({
   }
 
   return (
-    <div className="space-y-4 md:grid md:grid-cols-2 md:gap-6 md:space-y-0">
+    <div className={layout === 'rows' ? 'space-y-4' : 'space-y-4 md:grid md:grid-cols-2 md:gap-6 md:space-y-0'}>
       {sorted.map((axis) => {
         const axisIndex = axes.indexOf(axis);
         const chosen = selection[axis.key];
 
         return (
-          <div key={axis.key} className="space-y-2">
+          <div key={axis.key} className={cn('space-y-2', layout === 'rows' && 'lg:grid lg:grid-cols-[6.5rem_minmax(0,1fr)] lg:items-start lg:gap-3 lg:space-y-0')}>
             <Label
               className={cn(
-                "text-xs font-medium tracking-[0.08em] text-muted-foreground uppercase",
+                "text-sm font-medium text-muted-foreground",
+                layout === 'rows' && 'lg:flex-col lg:items-start lg:gap-0 lg:pt-3',
                 missingKey === axis.key && "text-destructive",
               )}
             >
               {axis.label || axis.key}
-              {chosen && <span className="ml-2 normal-case text-foreground">{chosen}</span>}
+              {chosen && <span className={cn('ml-2 normal-case text-foreground', layout === 'rows' && 'lg:ml-0 lg:block lg:pt-1')}>{chosen}</span>}
               {missingKey === axis.key && (
                 <span className="ml-2 normal-case tracking-normal">Elegí una opción</span>
               )}

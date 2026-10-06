@@ -1,13 +1,12 @@
-// Trust box de la ficha (patrón del V1): grilla 2×2 con las cuatro promesas de
-// compra. Contenido fijo — es copy de confianza de la tienda, no dato del
-// producto. Va debajo de la galería en desktop y tras el bloque de compra en
-// móvil (lo decide el orden en producto.$id.tsx).
+// Franja de confianza después de la información del producto. Las cuatro
+// promesas comparten una superficie abierta para no competir con la ficha.
 import { HugeIcon } from '~/components/ui/icon';
 import {
   DeliveryTruck01Icon,
   HeadsetIcon,
   SecurityCheckIcon,
   Wallet01Icon,
+  ArrowDown01Icon,
 } from '@hugeicons/core-free-icons';
 import type { IconSvgElement } from '@hugeicons/react';
 
@@ -36,22 +35,36 @@ const ITEMS: { icon: IconSvgElement; title: string; text: string }[] = [
 
 export function TrustBox() {
   return (
-    // Dos columnas también en móvil: apiladas en una sola, las cuatro tarjetas
-    // ocupaban casi una pantalla entera entre el botón de compra y las specs.
-    <ul className="grid grid-cols-2 gap-2" aria-label="Garantías de compra">
+    <div>
+      <details className="group border-t border-border sm:hidden">
+        <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3 py-3 text-sm font-semibold text-foreground focus-visible:rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+          <HugeIcon icon={SecurityCheckIcon} size={20} aria-hidden className="shrink-0 text-primary-2" />
+          Envío, pago y garantía
+          <HugeIcon icon={ArrowDown01Icon} size={18} aria-hidden className="ml-auto shrink-0 transition-transform group-open:rotate-180 motion-reduce:transition-none" />
+        </summary>
+        <TrustItems className="grid gap-5 pt-2 pb-4" />
+      </details>
+      <TrustItems className="hidden gap-x-8 gap-y-5 border-t border-border pt-6 sm:grid sm:grid-cols-2 lg:grid-cols-4" />
+    </div>
+  );
+}
+
+function TrustItems({ className }: { className: string }) {
+  return (
+    <ul className={className} aria-label="Garantías de compra">
       {ITEMS.map((item) => (
-        <li key={item.title} className="rounded-xl border bg-card p-3 sm:p-4">
+        <li key={item.title} className="flex min-w-0 items-start gap-3">
           <HugeIcon
             icon={item.icon}
-            size={18}
+            size={20}
             strokeWidth={2}
             aria-hidden
-            className="text-primary-2"
+            className="mt-0.5 shrink-0 text-primary-2"
           />
-          <p className="mt-1.5 text-[0.8125rem] leading-snug font-bold text-foreground sm:text-sm">{item.title}</p>
-          <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
-            {item.text}
-          </p>
+          <div className="min-w-0">
+            <p className="text-sm leading-relaxed font-semibold text-foreground">{item.title}</p>
+            <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{item.text}</p>
+          </div>
         </li>
       ))}
     </ul>

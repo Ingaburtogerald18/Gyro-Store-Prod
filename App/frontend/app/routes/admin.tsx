@@ -1,6 +1,6 @@
 import type { IconSvgElement } from "@hugeicons/react";
 import { HugeIcon } from "~/components/ui/icon";
-import { Analytics01Icon, Coupon01Icon, CreditCardIcon, DashboardSquare01Icon, File01Icon, Logout03Icon, Package01Icon, PackageIcon, Settings02Icon, ShoppingCart02Icon, Store01Icon, UserCircleIcon, UserMultiple02Icon, UserSettings01Icon } from "@hugeicons/core-free-icons";
+import { Analytics01Icon, Coupon01Icon, CreditCardIcon, DashboardSquare01Icon, File01Icon, Logout03Icon, Package01Icon, PackageIcon, Settings02Icon, ShoppingBag01Icon, ShoppingCart02Icon, Store01Icon, UserCircleIcon, UserMultiple02Icon, UserSettings01Icon } from "@hugeicons/core-free-icons";
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from '@remix-run/react';
 import type { User } from '@supabase/supabase-js';
@@ -65,6 +65,7 @@ const NAV_GROUPS: NavGroup[] = [
       // lectura, para copiar el número y registrar la venta en Ventas.
       { name: 'Mis Facturas', to: '/admin/mis-facturas', icon: File01Icon },
       { name: 'Ventas', to: '/admin/ventas', icon: ShoppingCart02Icon },
+      { name: 'Pedidos web', to: '/admin/pedidos-web', icon: ShoppingBag01Icon },
       { name: 'Cuotas', to: '/admin/cuotas', icon: CreditCardIcon },
     ],
   },
@@ -178,7 +179,7 @@ function AdminSidebar({ isAdmin, role, pathname }: { isAdmin: boolean; role: str
             if (item.name === 'Mis Facturas') return role === 'seller';
             // "Catálogo" lo ve el vendedor en modo LECTURA (ver admin.catalogo.tsx).
             // "CRM y clientes" también es de admin+seller (doc 10 §6).
-            return isAdmin ? true : ['Ventas', 'Personal', 'Catálogo', 'CRM y clientes'].includes(item.name);
+            return isAdmin ? true : ['Ventas', 'Pedidos web', 'Personal', 'Catálogo', 'CRM y clientes'].includes(item.name);
           });
           if (allowedItems.length === 0) return null;
 

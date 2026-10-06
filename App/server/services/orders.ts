@@ -4,7 +4,14 @@ import { round } from './finance';
 import { redeemDiscountCode, computeCodeDiscount, checkDiscountCode } from './discountCode';
 import { findOrCreateOrderContact } from './crm';
 import { ingestEvents } from './analytics';
-import type { PublicOrderInput } from '../../shared/schemas';
+import { normalizeImages } from './catalogPresenter';
+import { NotFoundError } from '../utils/httpError';
+import {
+  PUBLIC_ORDER_STATUSES,
+  type PublicOrderInput,
+  type PublicOrderStatus,
+  type TrackPublicOrderInput,
+} from '../../shared/schemas';
 
 /** Una línea ya resuelta contra la BD: o es un producto, o es un combo. */
 export interface CreatedPublicOrderItem {
@@ -30,6 +37,9 @@ export interface CreatedPublicOrder {
 // una columna nueva (misma convención que usa el carrito del cliente).
 const comboSku = (comboId: string) => `combo:${comboId}`;
 
+/** Link público de seguimiento. Va en el mensaje de WhatsApp para que quede en el chat del cliente. */
+const trackingUrl = (orderId: string) => `${config.appUrl.replace(/\/$/, '')}/pedido/${orderId}`;
+
 interface MessageLine {
   name: string;
   variantName?: string;
@@ -44,6 +54,7 @@ function buildWhatsappMessage(
   lines: MessageLine[],
   total: number,
   discount?: { code: string; amount: number } | null,
+  trackUrl?: string,
 ): string {
   const money = (n: number) => `${config.currency}${Number(n || 0).toLocaleString('es-NI')}`;
   const div = '━━━━━━━━━━━━━━━';
@@ -76,6 +87,7 @@ function buildWhatsappMessage(
   }
   msg += `💰 *TOTAL:  ${money(total)}*\n`;
   msg += `${div}\n`;
+  if (trackUrl) msg += `📦 Seguimiento: ${trackUrl}\n`;
   msg += '_¡Gracias! Quedo atento(a) para coordinar el pago._ 🙌';
 
   return `https://wa.me/${config.whatsapp.replace(/\D/g, '')}?text=${encodeURIComponent(msg)}`;
@@ -279,6 +291,225 @@ export async function createPublicOrder(input: PublicOrderInput): Promise<Create
       messageLines,
       total,
       discountCode ? { code: discountCode, amount: codeDiscount } : null,
+      trackingUrl(order.id),
     ),
   };
+}
+
+// ============================================================================
+// Seguimiento del pedido web (sin cuenta)
+// ============================================================================
+//
+// El id del pedido es un UUID aleatorio: quien tiene el link `/pedido/<id>` es
+// quien hizo el pedido (o a quien se lo pasó). Por eso la vista pública NO lleva
+// teléfono, dirección ni ubicación: solo lo que sirve para seguir el pedido.
+
+export interface PublicOrderLine {
+  name: string;
+  image: string | null;
+  quantity: number;
+  unitPrice: number;
+}
+
+export interface PublicOrderTracking {
+  id: string;
+  status: PublicOrderStatus;
+  deliveryMethod: 'retiro' | 'envio' | null;
+  /** Solo el primer nombre: alcanza para saludar, no identifica a nadie. */
+  firstName: string | null;
+  total: number;
+  codeDiscount: number;
+  createdAt: string;
+  items: PublicOrderLine[];
+}
+
+export interface AdminPublicOrder {
+  id: string;
+  status: PublicOrderStatus;
+  customerName: string | null;
+  phone: string | null;
+  deliveryMethod: 'retiro' | 'envio' | null;
+  address: string | null;
+  locationUrl: string | null;
+  note: string | null;
+  total: number;
+  discountCode: string | null;
+  codeDiscount: number;
+  createdAt: string;
+  items: PublicOrderLine[];
+}
+
+const isKnownStatus = (s: unknown): s is PublicOrderStatus =>
+  PUBLIC_ORDER_STATUSES.includes(s as PublicOrderStatus);
+
+// Un valor viejo o desconocido en la base se lee como "recibido" en vez de romper.
+const toStatus = (s: unknown): PublicOrderStatus => (isKnownStatus(s) ? s : 'new');
+
+type ItemRow = { public_order_id: string; sku: string | null; quantity: number; precio_unit: number | null };
+
+/**
+ * Resuelve el nombre e imagen de cada línea. `public_order_items.sku` guarda el
+ * id del catalog_item o `combo:<id>` (ver `comboSku`), así que se consultan las
+ * dos tablas en paralelo, una sola vez para todos los pedidos.
+ */
+async function resolveLines(rows: ItemRow[]): Promise<Map<string, PublicOrderLine[]>> {
+  const catalogIds = new Set<string>();
+  const comboIds = new Set<string>();
+  for (const row of rows) {
+    if (!row.sku) continue;
+    if (row.sku.startsWith('combo:')) comboIds.add(row.sku.slice('combo:'.length));
+    else catalogIds.add(row.sku);
+  }
+
+  const [catalogRes, comboRes] = await Promise.all([
+    catalogIds.size
+      ? db.from('catalog_items').select('id, name, images, template:templates(name)').in('id', [...catalogIds])
+      : Promise.resolve({ data: [], error: null } as const),
+    comboIds.size
+      ? db.from('combos').select('id, name, images').in('id', [...comboIds])
+      : Promise.resolve({ data: [], error: null } as const),
+  ]);
+  if (catalogRes.error) throw catalogRes.error;
+  if (comboRes.error) throw comboRes.error;
+
+  const info = new Map<string, { name: string; image: string | null }>();
+  for (const row of catalogRes.data ?? []) {
+    const template = row.template as unknown as { name?: string | null } | { name?: string | null }[] | null;
+    const templateName = Array.isArray(template) ? template[0]?.name : template?.name;
+    info.set(row.id, {
+      name: row.name || templateName || 'Producto',
+      image: normalizeImages(row.images)[0] ?? null,
+    });
+  }
+  for (const row of comboRes.data ?? []) {
+    info.set(comboSku(row.id), { name: row.name || 'Combo', image: normalizeImages(row.images)[0] ?? null });
+  }
+
+  const byOrder = new Map<string, PublicOrderLine[]>();
+  for (const row of rows) {
+    const meta = row.sku ? info.get(row.sku) : undefined;
+    const lines = byOrder.get(row.public_order_id) ?? [];
+    lines.push({
+      // Un producto borrado después del pedido no rompe la vista.
+      name: meta?.name ?? 'Producto no disponible',
+      image: meta?.image ?? null,
+      quantity: row.quantity,
+      unitPrice: Number(row.precio_unit ?? 0),
+    });
+    byOrder.set(row.public_order_id, lines);
+  }
+  return byOrder;
+}
+
+async function linesFor(orderIds: string[]): Promise<Map<string, PublicOrderLine[]>> {
+  if (orderIds.length === 0) return new Map();
+  const { data, error } = await db
+    .from('public_order_items')
+    .select('public_order_id, sku, quantity, precio_unit')
+    .in('public_order_id', orderIds)
+    .order('created_at', { ascending: true });
+  if (error) throw error;
+  return resolveLines((data ?? []) as ItemRow[]);
+}
+
+/** Vista pública de un pedido por su id completo (el link de seguimiento). */
+export async function getPublicOrderTracking(id: string): Promise<PublicOrderTracking> {
+  const { data: order, error } = await db
+    .from('public_orders')
+    .select('id, status, delivery_method, customer_name, total, code_discount, created_at')
+    .eq('id', id)
+    .maybeSingle();
+  if (error) throw error;
+  if (!order) throw new NotFoundError('No encontramos ese pedido.');
+
+  const lines = await linesFor([order.id]);
+  return {
+    id: order.id,
+    status: toStatus(order.status),
+    deliveryMethod: order.delivery_method,
+    firstName: order.customer_name?.trim().split(/\s+/)[0] || null,
+    total: Number(order.total ?? 0),
+    codeDiscount: Number(order.code_discount ?? 0),
+    createdAt: order.created_at,
+    items: lines.get(order.id) ?? [],
+  };
+}
+
+/**
+ * Las formas en que el mismo número pudo quedar guardado: el checkout guarda el
+ * teléfono tal como lo escribió la persona (`85944758`, `+50585944758`…).
+ */
+function phoneVariants(phone: string): string[] {
+  const digits = phone.replace(/\D/g, '');
+  const local = digits.length === 11 && digits.startsWith('505') ? digits.slice(3) : digits;
+  const variants = new Set([phone, digits, `+${digits}`, local]);
+  if (local.length === 8) {
+    variants.add(`505${local}`);
+    variants.add(`+505${local}`);
+  }
+  return [...variants];
+}
+
+/**
+ * Rastreo sin link: número corto del pedido + teléfono. Devuelve el id completo
+ * para que el front navegue a `/pedido/<id>`. Mismo 404 si el número no existe o
+ * si el teléfono no coincide: no se revela cuál de los dos falló.
+ */
+export async function findPublicOrderByCode(input: TrackPublicOrderInput): Promise<{ id: string }> {
+  const { data, error } = await db
+    .from('public_orders')
+    .select('id')
+    .in('phone', phoneVariants(input.phone))
+    .order('created_at', { ascending: false })
+    .limit(200);
+  if (error) throw error;
+
+  const match = (data ?? []).find((row) => row.id.toLowerCase().startsWith(input.code));
+  if (!match) throw new NotFoundError('No encontramos un pedido con ese número y teléfono.');
+  return { id: match.id };
+}
+
+/** Lista para el panel: pedidos web más recientes primero, con sus líneas. */
+export async function listPublicOrders(limit = 300): Promise<AdminPublicOrder[]> {
+  const { data, error } = await db
+    .from('public_orders')
+    .select(
+      'id, status, customer_name, phone, delivery_method, address, location_url, note, total, discount_code, code_discount, created_at',
+    )
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+
+  const orders = data ?? [];
+  const lines = await linesFor(orders.map((o) => o.id));
+  return orders.map((o) => ({
+    id: o.id,
+    status: toStatus(o.status),
+    customerName: o.customer_name,
+    phone: o.phone,
+    deliveryMethod: o.delivery_method,
+    address: o.address,
+    locationUrl: o.location_url,
+    note: o.note,
+    total: Number(o.total ?? 0),
+    discountCode: o.discount_code,
+    codeDiscount: Number(o.code_discount ?? 0),
+    createdAt: o.created_at,
+    items: lines.get(o.id) ?? [],
+  }));
+}
+
+export async function updatePublicOrderStatus(
+  id: string,
+  status: PublicOrderStatus,
+): Promise<{ id: string; status: PublicOrderStatus }> {
+  const { data, error } = await db
+    .from('public_orders')
+    .update({ status })
+    .eq('id', id)
+    .select('id, status')
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) throw new NotFoundError('El pedido no existe.');
+  return { id: data.id, status: toStatus(data.status) };
 }
