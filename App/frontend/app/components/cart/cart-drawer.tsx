@@ -253,31 +253,28 @@ function CartBanner({
 }) {
   // El banner nunca puede quedar más alto que la lista: con una imagen cuadrada
   // ocupaba media pantalla del celular y empujaba los productos fuera de vista.
-  // Con texto: fila compacta (imagen chica a la izquierda). Solo imagen: ancho
-  // completo, pero con alto máximo y sin recortar.
-  const body = text ? (
+  // Imagen arriba y centrada, con presencia parecida a la del carrito vacío
+  // (a 64px al costado del texto no se reconocía), pero topada a 112px de alto
+  // y sin recortar. El texto, si hay, va centrado debajo.
+  const body = (
     <>
-      {image && <img src={image} alt="" className="size-16 shrink-0 rounded-lg object-contain" />}
-      <p className="min-w-0 flex-1 text-sm leading-snug font-semibold text-foreground">{text}</p>
+      {image && <img src={image} alt="" className="max-h-28 w-full object-contain" />}
+      {text && <p className="text-sm leading-snug font-semibold text-foreground">{text}</p>}
     </>
-  ) : (
-    <img src={image} alt="" className="max-h-28 w-full rounded-lg object-contain" />
   );
-  const className = cn(
-    'flex w-full gap-3 rounded-xl border border-border bg-background p-2 text-left',
-    text ? 'items-center' : 'justify-center',
-  );
+  // Suelta, sin caja ni contorno, igual que la ilustración del carrito vacío.
+  const className = 'flex w-full flex-col items-center gap-2 rounded-xl py-2 text-center';
 
   if (!link) return <div className={className}>{body}</div>;
   if (/^https?:\/\//i.test(link)) {
     return (
-      <a href={link} target="_blank" rel="noopener noreferrer" className={cn(className, 'hover:border-foreground/30')}>
+      <a href={link} target="_blank" rel="noopener noreferrer" className={cn(className, 'transition-opacity hover:opacity-80')}>
         {body}
       </a>
     );
   }
   return (
-    <button type="button" onClick={() => onNavigate(link)} className={cn(className, 'hover:border-foreground/30')}>
+    <button type="button" onClick={() => onNavigate(link)} className={cn(className, 'transition-opacity hover:opacity-80')}>
       {body}
     </button>
   );

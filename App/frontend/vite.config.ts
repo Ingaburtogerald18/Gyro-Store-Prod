@@ -24,8 +24,13 @@ const dirname = path.dirname(fileURLToPath(import.meta.url));
 // import cruzado de TS desde la config de Vite es frágil de resolver, y si falla
 // no arranca el dev server. En producción no se ejecuta nada de esto — Render
 // inyecta las variables y Express sirve el build.
+const customEnvFile = process.env.GYRO_ENV_FILE?.trim();
+if (customEnvFile && !existsSync(customEnvFile)) {
+  throw new Error('GYRO_ENV_FILE apunta a un archivo que no existe. Revisa la ruta en esta terminal.');
+}
+
 for (const candidate of [
-  process.env.GYRO_ENV_FILE?.trim(),
+  customEnvFile,
   path.resolve(dirname, '../.env'), // App/.env
   path.resolve(dirname, '.env'), // frontend/.env (compatibilidad)
 ]) {
@@ -35,7 +40,17 @@ for (const candidate of [
   }
 }
 
-export default defineConfig({
+export default defineConfig(({ command }) => {
+  if (command === 'serve') {
+    const missing = ['SUPABASE_URL', 'SUPABASE_ANON_KEY'].filter(name => !process.env[name]?.trim());
+    if (missing.length) {
+      throw new Error(
+        `Faltan ${missing.join(', ')} para el frontend. Define GYRO_ENV_FILE en esta terminal ` +
+        'con la ruta del archivo de configuración y reinicia npm run dev.',
+      );
+    }
+  }
+  return {
   plugins: [
     remix({
       future: {
@@ -95,4 +110,5 @@ export default defineConfig({
       },
     },
   },
+  };
 });
