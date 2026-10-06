@@ -354,18 +354,6 @@ export default function AdminLayout() {
     );
   }
 
-  const allItems = NAV_GROUPS.flatMap((g) => g.items);
-  const current = allItems.find(
-    (item) =>
-      location.pathname === item.to ||
-      (item.to !== '/admin' && location.pathname.startsWith(item.to)),
-  );
-  // «Mi perfil» no está en NAV_GROUPS (no debe aparecer en el sidebar), así que
-  // sin este caso el breadcrumb se quedaría en "Admin" y la pantalla parecería
-  // no existir en la jerarquía.
-  const currentName =
-    current?.name ?? (location.pathname === '/admin/mi-perfil' ? 'Mi perfil' : undefined);
-
   return (
     // Arranca colapsado (rail de iconos): el panel es hover-based en escritorio
     // (ver AdminSidebar) y se abre/cierra con el SidebarTrigger en touch.

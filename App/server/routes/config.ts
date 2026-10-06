@@ -9,7 +9,7 @@ const router = Router();
 // Endpoint público para obtener la configuración global de la tienda
 router.get(
   '/',
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (_req, res) => {
     const publicConfig = getPublicConfig();
     const [images, categories, business, financial] = await Promise.all([
       getImageResources(),

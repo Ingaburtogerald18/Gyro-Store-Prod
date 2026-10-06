@@ -18,7 +18,7 @@ const upload = multer({
   limits: {
     fileSize: MAX_UPLOAD_MB * 1024 * 1024,
   },
-  fileFilter: (req, file, cb) => {
+  fileFilter: (_req, file, cb) => {
     if (!file.mimetype.startsWith('image/') && !file.mimetype.startsWith('video/')) {
       return cb(new Error('Solo se permiten imágenes y videos.'));
     }
@@ -44,7 +44,7 @@ const acceptUpload: import('express').RequestHandler = (req, res, next) => {
 
 // POST /api/upload
 // Expects multipart/form-data with a file field named "file" and optional "folder"
-router.post('/', requireAdmin, acceptUpload, async (req, res, next) => {
+router.post('/', requireAdmin, acceptUpload, async (req, res) => {
   try {
     if (!req.file) {
       res.status(400).json({ error: 'No se recibió ningún archivo.' });
@@ -88,7 +88,7 @@ router.post('/', requireAdmin, acceptUpload, async (req, res, next) => {
 
 // DELETE /api/upload
 // Deletes a file from R2 (used to clean up orphaned files before saving)
-router.delete('/', requireAdmin, async (req, res, next) => {
+router.delete('/', requireAdmin, async (req, res) => {
   try {
     const { url } = req.body;
     if (!url) {

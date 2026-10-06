@@ -8,7 +8,7 @@ const router = Router();
 // Endpoint público para obtener todos los combos publicados
 router.get(
   '/',
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (_req, res) => {
     const items = await listPublishedCombos();
     res.json({ items });
   })

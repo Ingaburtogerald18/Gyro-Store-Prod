@@ -11,5 +11,5 @@
     "noUncheckedIndexedAccess": true,
     "noEmit": true
   },
-  "include": ["server", "shared", "scripts"]
+  "include": ["server", "shared", "scripts", "tests"]
 }

@@ -21,8 +21,6 @@ interface ComboboxProps {
   onChange: (value: string) => void;
   options: string[];
   placeholder?: string;
-  /** Ignorado en esta versión (el input siempre es libre), pero mantenido por compatibilidad */
-  allowCustom?: boolean;
   id?: string;
   "aria-invalid"?: boolean;
   disabled?: boolean;
@@ -46,7 +44,6 @@ export function Combobox({
   onChange,
   options,
   placeholder,
-  allowCustom = true,
   id,
   "aria-invalid": ariaInvalid,
   disabled,

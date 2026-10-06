@@ -17,6 +17,7 @@ import {
   ANALYTICS_EVENT_TYPES,
   ingestEvents,
   isBot,
+  getDashboard,
   getOverview,
   getTopSearches,
   getZeroResultSearches,
@@ -77,6 +78,15 @@ router.post(
 );
 
 // ── Lecturas del dashboard (admin) ──
+
+router.get(
+  '/admin/dashboard',
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const { range, limit } = parseRange(req.query);
+    res.json(await getDashboard(range, limit));
+  }),
+);
 
 router.get(
   '/admin/overview',

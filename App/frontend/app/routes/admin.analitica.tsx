@@ -6,13 +6,9 @@
 // mejora natural para una tanda siguiente; por ahora la vista es de una pieza.
 import type { MetaFunction } from '@remix-run/node';
 import { pageTitle } from '~/lib/brand';
+import { errMsg } from '~/lib/formatters';
 
-import {
-  useGetAnalyticsOverviewQuery,
-  useGetTopSearchesQuery,
-  useGetZeroResultSearchesQuery,
-  useGetTopViewedProductsQuery,
-} from '~/store/api/analyticsApi';
+import { useGetAnalyticsDashboardQuery } from '~/store/api/analyticsApi';
 
 import { PageHeader } from '~/components/layout/PageHeader';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '~/components/ui/card';
@@ -25,12 +21,8 @@ const fmt = (n: number) => Number(n || 0).toLocaleString('es-NI');
 const pct = (n: number) => `${(Number(n || 0) * 100).toFixed(1)}%`;
 
 export default function AdminAnalitica() {
-  const overview = useGetAnalyticsOverviewQuery();
-  const searches = useGetTopSearchesQuery();
-  const zero = useGetZeroResultSearchesQuery();
-  const products = useGetTopViewedProductsQuery();
-
-  const o = overview.data;
+  const dashboard = useGetAnalyticsDashboardQuery();
+  const o = dashboard.data?.overview;
 
   const stats = [
     { label: 'Visitantes', value: o ? fmt(o.visitors) : '—' },
@@ -51,8 +43,10 @@ export default function AdminAnalitica() {
 
       {/* KPIs del embudo */}
       <QueryState
-        loading={overview.isLoading}
-        error={overview.isError}
+        loading={dashboard.isLoading}
+        error={dashboard.isError}
+        errorMessage={errMsg(dashboard.error, 'No se pudo cargar la analítica.')}
+        onRetry={() => { void dashboard.refetch(); }}
         loadingFallback={<BrandLoader text="Cargando analítica..." />}
       >
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
@@ -107,9 +101,11 @@ export default function AdminAnalitica() {
           </CardHeader>
           <CardContent className="p-4 sm:p-6">
             <QueryState
-              loading={zero.isLoading}
-              error={zero.isError}
-              empty={(zero.data?.length ?? 0) === 0}
+              loading={dashboard.isLoading}
+              error={dashboard.isError}
+        errorMessage={errMsg(dashboard.error, 'No se pudo cargar la analítica.')}
+        onRetry={() => { void dashboard.refetch(); }}
+              empty={(dashboard.data?.zero?.length ?? 0) === 0}
               emptyFallback={
                 <p className="py-8 text-center text-sm text-muted-foreground">
                   Sin búsquedas fallidas en el período.
@@ -117,7 +113,7 @@ export default function AdminAnalitica() {
               }
               loadingFallback={<div className="h-40 animate-pulse rounded-md bg-muted" />}
             >
-              <SearchTable rows={zero.data ?? []} highlightZero />
+              <SearchTable rows={dashboard.data?.zero ?? []} highlightZero />
             </QueryState>
           </CardContent>
         </Card>
@@ -130,9 +126,11 @@ export default function AdminAnalitica() {
           </CardHeader>
           <CardContent className="p-4 sm:p-6">
             <QueryState
-              loading={searches.isLoading}
-              error={searches.isError}
-              empty={(searches.data?.length ?? 0) === 0}
+              loading={dashboard.isLoading}
+              error={dashboard.isError}
+        errorMessage={errMsg(dashboard.error, 'No se pudo cargar la analítica.')}
+        onRetry={() => { void dashboard.refetch(); }}
+              empty={(dashboard.data?.searches?.length ?? 0) === 0}
               emptyFallback={
                 <p className="py-8 text-center text-sm text-muted-foreground">
                   Aún no hay búsquedas registradas.
@@ -140,7 +138,7 @@ export default function AdminAnalitica() {
               }
               loadingFallback={<div className="h-40 animate-pulse rounded-md bg-muted" />}
             >
-              <SearchTable rows={searches.data ?? []} />
+              <SearchTable rows={dashboard.data?.searches ?? []} />
             </QueryState>
           </CardContent>
         </Card>
@@ -154,9 +152,11 @@ export default function AdminAnalitica() {
         </CardHeader>
         <CardContent className="p-4 sm:p-6">
           <QueryState
-            loading={products.isLoading}
-            error={products.isError}
-            empty={(products.data?.length ?? 0) === 0}
+            loading={dashboard.isLoading}
+            error={dashboard.isError}
+        errorMessage={errMsg(dashboard.error, 'No se pudo cargar la analítica.')}
+        onRetry={() => { void dashboard.refetch(); }}
+            empty={(dashboard.data?.products?.length ?? 0) === 0}
             emptyFallback={
               <p className="py-8 text-center text-sm text-muted-foreground">
                 Aún no hay vistas de producto registradas.
@@ -165,7 +165,7 @@ export default function AdminAnalitica() {
             loadingFallback={<div className="h-40 animate-pulse rounded-md bg-muted" />}
           >
             <div className="divide-y divide-border">
-              {(products.data ?? []).map((p, i) => (
+              {(dashboard.data?.products ?? []).map((p, i) => (
                 <div key={p.catalogItemId} className="flex items-center justify-between py-2.5">
                   <span className="flex items-center gap-3 truncate text-sm text-foreground">
                     <span className="w-5 shrink-0 text-right text-xs text-muted-foreground">{i + 1}</span>

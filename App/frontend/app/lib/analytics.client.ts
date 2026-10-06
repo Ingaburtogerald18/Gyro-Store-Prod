@@ -14,7 +14,7 @@
 // la pausa de tecleo). Acá se garantiza lo transversal: no emitir sin
 // consentimiento, no emitir para staff, no emitir en rutas de admin/login.
 
-import type { AnalyticsEventType } from './analytics-shared';
+import type { AnalyticsEventType } from '@shared/analytics';
 
 const CONSENT_KEY = 'gyro:analytics-consent';
 const SID_KEY = 'gyro:sid';

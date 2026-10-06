@@ -24,7 +24,6 @@ import { formatUsd, splitProductName } from "~/lib/formatters";
 import { CodeCell, MoneyCell } from "~/components/ui/cells";
 import { useNavigate } from "@remix-run/react";
 import { Spinner } from "~/components/ui/spinner";
-import { useGetConfigQuery } from "~/store/api/sessionApi";
 import { useCategoryLabel } from "~/hooks/useCategoryLabel";
 
 export function CurrentInventoryTable({
@@ -49,7 +48,6 @@ export function CurrentInventoryTable({
   // detrás de una fila al editar, y ese lote puede ser de cualquier mes.
   const { data: purchases = [] } = useGetPurchasesQuery();
   const { data: catalog = [] } = useGetAdminCatalogQuery();
-  const { data: config } = useGetConfigQuery();
   const categoryLabel = useCategoryLabel();
   const [revert] = useRevertPurchaseMutation();
 
@@ -226,7 +224,7 @@ export function CurrentInventoryTable({
     ],
     // `categoryLabel` en la lista: sin él la columna se quedaba con el primer
     // valor resuelto y no reaccionaba a un renombrado en Catálogo.
-    [purchases, codeToCatalogMap, navigate, config, categoryLabel],
+    [purchases, codeToCatalogMap, navigate, categoryLabel],
   );
 
   const columns = useMemo(() => {

@@ -5,7 +5,9 @@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '~/components/ui/dialog';
 import { Spinner } from '~/components/ui/spinner';
 import { useLookupInvoiceQuery, type Invoice } from '~/store/api/invoicesApi';
-import { InvoiceEditor } from './InvoiceEditor';
+import { lazy, Suspense } from 'react';
+
+const InvoiceEditor = lazy(() => import('./InvoiceEditor').then(module => ({ default: module.InvoiceEditor })));
 
 export function InvoiceEditDialog({
   invoice,
@@ -42,7 +44,9 @@ export function InvoiceEditDialog({
           </div>
         ) : (
           <div className="pt-2">
-            <InvoiceEditor invoice={full} onUpdated={onClose} />
+            <Suspense fallback={<Spinner className="size-6 text-muted-foreground" />}>
+              <InvoiceEditor invoice={full} onUpdated={onClose} />
+            </Suspense>
           </div>
         )}
       </DialogContent>

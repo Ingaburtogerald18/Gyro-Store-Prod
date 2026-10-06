@@ -12,7 +12,7 @@ const router = Router();
 // recibe objetos planos listos para pintar, no el esquema de la tabla.
 router.get(
   '/',
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (_req, res) => {
     const rows = await listPublishedCatalog();
     // Una sola consulta a bodega para TODO el listado: se juntan los códigos de
     // lote de todos los ítems y se resuelven de golpe, en vez de una consulta

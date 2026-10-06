@@ -1,4 +1,4 @@
-// Layout raíz de Remix (doc 09 ítem 41, versión mínima de fundación).
+// Layout raíz de Remix.
 // Responsabilidades: cargar tailwind.css, fijar data-theme/data-skin y exponer
 // las llaves públicas de Supabase al navegador vía window.ENV.
 import type { LinksFunction, LoaderFunctionArgs } from '@remix-run/node';
@@ -11,10 +11,18 @@ import {
   useLocation,
   useRouteLoaderData,
 } from '@remix-run/react';
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Provider } from 'react-redux';
+import { StoreSync } from '~/components/StoreSync';
+import { AuthSync } from '~/components/auth/AuthSync';
+import { GlobalProgress } from '~/components/ui/global-progress';
+import { TooltipProvider } from '~/components/ui/tooltip';
+import { StorefrontAnalytics } from '~/components/layout/storefront-analytics';
+import { useGetConfigQuery } from '~/store/api/sessionApi';
+import { RouteError } from '~/components/layout/route-error';
+
 import { Toaster } from 'sonner';
-import { store } from '~/store/store';
+import { createAppStore } from '~/store/store';
 import { useAppDispatch } from '~/store/hooks';
 import { themeSet } from '~/store/slices/uiSlice';
 import { defaultThemeFor, restoreTheme, THEME_INIT_SCRIPT } from '~/lib/theme';
@@ -27,8 +35,7 @@ import chivoWoff2 from '@fontsource-variable/chivo/files/chivo-latin-wght-normal
 // Se precarga el woff2 latino de Chivo: es la fuente del primer paint de la
 // tienda y, sin preload, el titular del hero salta de fuente al cargar.
 //
-// Favicon: NO va en links — se carga dinámicamente desde la config del admin
-// (Recursos de imágenes → Favicon) con el componente DynamicFavicon.
+// El favicon inicial se reemplaza por el configurado al hidratar.
 export const links: LinksFunction = () => [
   { rel: 'stylesheet', href: tailwindHref },
   { rel: 'preload', href: chivoWoff2, as: 'font', type: 'font/woff2', crossOrigin: 'anonymous' },
@@ -118,14 +125,6 @@ export function Layout({ children }: { children: ReactNode }) {
   );
 }
 
-import { useEffect } from 'react';
-import { AuthSync } from '~/components/auth/AuthSync';
-import { GlobalProgress } from '~/components/ui/global-progress';
-import { TooltipProvider } from '~/components/ui/tooltip';
-import { StorefrontAnalytics } from '~/components/layout/storefront-analytics';
-import { useGetConfigQuery } from '~/store/api/sessionApi';
-import { RouteError } from '~/components/layout/route-error';
-
 // Se renderiza dentro de Layout pero SIN el <Provider> de App: RouteError no
 // toca el store. Cubre 404 y errores de cualquier ruta sin boundary propio.
 export function ErrorBoundary() {
@@ -170,8 +169,10 @@ function DynamicFavicon() {
 }
 
 export default function App() {
+  const [store] = useState(createAppStore);
   return (
     <Provider store={store}>
+      <StoreSync />
       <ThemeSync />
       {/* TooltipProvider va acá y no dentro de cada vista: las primitivas del
           registry montan <Tooltip> sin proveedor propio (el `tooltip` de

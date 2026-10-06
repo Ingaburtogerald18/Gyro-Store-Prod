@@ -366,7 +366,7 @@ export function InvoiceEditor({
       <div className="space-y-2">
         <Label>Productos</Label>
         <div className="border rounded-md divide-y">
-          {lines.map((line, i) => (
+          {lines.map((line) => (
             <div key={line.uid} className="flex flex-col sm:flex-row gap-2 p-2 items-start sm:items-center bg-card">
               <div className="flex-1 w-full">
                 <Combobox

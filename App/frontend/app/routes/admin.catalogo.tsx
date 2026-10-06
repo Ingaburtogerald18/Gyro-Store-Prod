@@ -26,7 +26,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '~/components/ui/dialog';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import { QueryState } from '~/components/ui/QueryState';
-import { Skeleton } from '~/components/ui/skeleton';
 import { SkeletonCard } from '~/components/ui/skeletons';
 import { BrandLoader } from '~/components/ui/module-loader';
 

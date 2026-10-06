@@ -1,12 +1,10 @@
 import React, { useState } from 'react';
 import { HugeIcon } from '~/components/ui/icon';
 import {
-  Calendar03Icon,
   Delete01Icon,
   Edit02Icon,
   FilterIcon,
   FolderLibraryIcon,
-  Search01Icon,
   UserIcon,
 } from '@hugeicons/core-free-icons';
 import { toast } from 'sonner';

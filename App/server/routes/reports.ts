@@ -331,7 +331,6 @@ router.get(
   requireAdmin,
   asyncHandler(async (req, res) => {
     const startDate = typeof req.query.startDate === 'string' ? req.query.startDate : (typeof req.query.desde === 'string' ? req.query.desde : undefined);
-    const endDate = typeof req.query.endDate === 'string' ? req.query.endDate : (typeof req.query.hasta === 'string' ? req.query.hasta : undefined);
     const overflow = await getExpensesOverflow(startDate);
     res.json(overflow);
   })

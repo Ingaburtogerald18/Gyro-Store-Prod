@@ -5,6 +5,7 @@
 // filtros activos. Cuando cada una filtraba por su cuenta, el conteo mentía.
 // Los filtros salen del uiSlice → única fuente de verdad.
 import { useMemo } from 'react';
+import { normalizeSearch } from '~/lib/search';
 
 import type { CatalogProduct, Category } from '@shared/schemas';
 import { useAppSelector } from '~/store/hooks';
@@ -20,16 +21,6 @@ import {
 
 /** Está en oferta si lo marcaron como promo o si tiene precio tachado. */
 export const isDeal = (p: CatalogProduct) => p.isPromo || (p.compareAtPrice ?? 0) > p.price;
-
-// Búsqueda tolerante a acentos: en una tienda nicaragüense la gente escribe
-// "audifono" y el catálogo dice "audífono". Sin normalizar, esa búsqueda no
-// devuelve nada — el modo más caro de perder una venta.
-//
-// NFD separa cada letra de su tilde; `\p{Diacritic}` borra las marcas que
-// quedan sueltas. Se usa la propiedad Unicode y no un rango literal a mano
-// porque esos glifos son invisibles en el editor y cualquier reformateo se los
-// come sin que nadie lo note.
-const normalize = (s: string) => s.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase().trim();
 
 export interface CatalogFilterResult {
   /** Productos tras aplicar búsqueda + categoría + precio + toggles + orden. */
@@ -57,19 +48,18 @@ export function useCatalogFilter(products: CatalogProduct[], categories: Categor
   const filtered = useMemo(() => {
     // Cada término debe aparecer en algún lado (AND), así "kz negro" no trae
     // todo lo que sea KZ más todo lo que sea negro.
-    const terms = normalize(query).split(/\s+/).filter(Boolean);
+    const terms = normalizeSearch(query).split(/\s+/).filter(Boolean);
+
+    const selectedCategory = categories.find(c => c.slug === category || c.id === category || c.name === category);
+    const matchId = selectedCategory?.id ?? category;
+    const matchName = selectedCategory?.name ?? category;
 
     const result = products.filter((p) => {
       if (terms.length) {
-        const haystack = normalize(`${p.name} ${p.category} ${p.description ?? ''}`);
+        const haystack = normalizeSearch(`${p.name} ${p.category} ${p.description ?? ''}`);
         if (!terms.every((t) => haystack.includes(t))) return false;
       }
       if (category) {
-        // Find the category object by slug (or UUID/name if old format)
-        const catObj = categories.find(c => c.slug === category || c.id === category || c.name === category);
-        const matchId = catObj ? catObj.id : category;
-        const matchName = catObj ? catObj.name : category;
-        
         if (p.categoryId !== matchId && p.category !== matchName) return false;
       }
       if (priceMin != null && p.price < priceMin) return false;

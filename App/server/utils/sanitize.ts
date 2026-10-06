@@ -27,7 +27,7 @@ function trimStrings(obj: unknown, depth: number): unknown {
   return obj;
 }
 
-export function sanitizeBody(req: Request, res: Response, next: NextFunction): void {
+export function sanitizeBody(req: Request, _res: Response, next: NextFunction): void {
   if (req.body !== null && typeof req.body === 'object') {
     req.body = trimStrings(req.body, 0);
   }

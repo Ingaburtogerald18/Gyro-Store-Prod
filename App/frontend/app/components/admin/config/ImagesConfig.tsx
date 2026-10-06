@@ -3,7 +3,6 @@
 // /api/admin/config/images y limpia los uploads huérfanos de la sesión.
 import { HugeIcon } from "~/components/ui/icon";
 import { Cancel01Icon, CloudUploadIcon, FloppyDiskIcon } from "@hugeicons/core-free-icons";
-import { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { queueFile, processPendingUploads } from "~/lib/uploadQueue";
@@ -28,8 +27,6 @@ const EMPTY_IMAGES: ImageResources = {
 };
 
 export function ImagesConfig() {
-  const [uploading, setUploading] = useState(false);
-
   const { form, loading, loadError, submit, retry } = useConfigSection<ImageResources>({
     loadUrl: '/api/admin/config/images',
     resolver: zodResolver(imageResourcesSchema),
@@ -57,7 +54,6 @@ export function ImagesConfig() {
     register,
     watch,
     setValue,
-    getValues,
     formState: { errors, isSubmitting },
   } = form;
 
@@ -67,8 +63,8 @@ export function ImagesConfig() {
     try {
       const tempUrl = queueFile(file);
       setValue(key, tempUrl, { shouldDirty: true });
-    } catch (err: any) {
-      toast.error(err.message || 'Error al encolar la imagen');
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Error al encolar la imagen');
     }
   };
 
@@ -168,7 +164,7 @@ export function ImagesConfig() {
         </div>
 
         <div className="flex justify-end pt-2">
-          <Button type="submit" disabled={isSubmitting || uploading}>
+          <Button type="submit" disabled={isSubmitting}>
             {isSubmitting ? (
               <Spinner className="mr-2" />
             ) : (

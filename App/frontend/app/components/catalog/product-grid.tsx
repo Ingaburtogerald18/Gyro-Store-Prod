@@ -21,6 +21,7 @@ import { ProductCard } from '~/components/product/product-card';
 import { ProductCarousel } from '~/components/product/product-carousel';
 import { Skeleton } from '~/components/ui/skeleton';
 import { isDeal, useCatalogFilter } from '~/hooks/useCatalogFilter';
+import { useSearchTelemetry } from '~/hooks/useSearchTelemetry';
 
 import { useAppSelector } from '~/store/hooks';
 import { selectEditMode } from '~/store/slices/authSlice';
@@ -45,6 +46,7 @@ interface ProductGridProps {
 
 export function ProductGrid({ products, categories = [], isLoading }: ProductGridProps) {
   const { filtered, isDefault } = useCatalogFilter(products, categories);
+  useSearchTelemetry(filtered.length);
   // En la vista por defecto `filtered` es el catálogo completo ya ordenado: los
   // carriles salen de ahí para que el selector de orden también los ordene.
   const deals = useMemo(() => filtered.filter(isDeal), [filtered]);

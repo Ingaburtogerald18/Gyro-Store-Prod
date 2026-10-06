@@ -94,10 +94,14 @@ App/database/
     └── 0015_lo_que_sea.sql   ← nuevos cambios acá, uno por archivo
 ```
 
-Es decir: creá la carpeta `migrations/` el día que haya el primer cambio y poné
-ahí cada incremental (idempotente, con `if not exists` / `if exists`). Lo que ya
-se ejecutó contra una base real no se reescribe; el baseline queda como registro
-del punto de partida.
+La carpeta `migrations/` contiene los incrementales posteriores al baseline.
+Cada cambio nuevo va allí con su número correlativo. Lo que ya se ejecutó contra
+una base real no se reescribe; el baseline queda como registro del punto de partida.
+
+Los archivos 0015 y 0017 que también estaban en la raíz se consolidaron en esta
+carpeta. La migración 0018 se trasladó sin modificar su contenido y conserva su
+requisito de aprobación: reorganizar archivos no significa aplicar SQL.
+No vuelvas a ejecutar migraciones ya aplicadas.
 
 ## Seed de desarrollo
 
