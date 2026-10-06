@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { landingConfigSchema } from '@shared/schemas';
 import { useAppDispatch, useAppSelector } from '~/store/hooks';
 import { selectEditMode, toggleEditMode } from '~/store/slices/authSlice';
@@ -8,6 +8,8 @@ import { initBuilderSession, selectHeroSlide } from '~/store/slices/builderSlice
 export function LandingPreviewBridge() {
   const dispatch = useAppDispatch();
   const editing = useAppSelector(selectEditMode);
+  const editingRef = useRef(editing);
+  editingRef.current = editing;
   useEffect(() => {
     let interactive = false;
     function receive(event: MessageEvent) {
@@ -19,7 +21,7 @@ export function LandingPreviewBridge() {
       document.documentElement.dataset.landingPreview = interactive ? 'view' : 'edit';
       dispatch(initBuilderSession(parsed.data));
       dispatch(selectHeroSlide(typeof event.data.slideId === 'string' ? event.data.slideId : null));
-      if (!editing) dispatch(toggleEditMode());
+      if (!editingRef.current) dispatch(toggleEditMode());
     }
     window.addEventListener('message', receive);
     function select(event: MouseEvent) {
@@ -29,19 +31,34 @@ export function LandingPreviewBridge() {
         event.preventDefault();
         event.stopPropagation();
         window.parent.postMessage({ type: 'gyro:select-section', section: area.dataset.landingSection }, window.location.origin);
-      } else if (event.target.closest('a, button')) {
-        // La vista previa permanece en la portada y no realiza compras ni abre enlaces.
+      } else if (interactive && event.target.closest('[data-preview-control]')) {
+        return;
+      } else if (event.target.closest('a, button, [role="link"], [role="button"]')) {
+        const anchor = event.target.closest('a[href]');
+        if (interactive && anchor) {
+          const destination = new URL(anchor.getAttribute('href') || '', window.location.href);
+          if (destination.origin === window.location.origin && destination.pathname === '/' && destination.hash) {
+            event.preventDefault();
+            event.stopPropagation();
+            document.getElementById(decodeURIComponent(destination.hash.slice(1)))?.scrollIntoView({ block: 'start' });
+            return;
+          }
+        }
+        window.parent.postMessage({ type: 'gyro:preview-link' }, window.location.origin);
         event.preventDefault();
         event.stopPropagation();
       }
     }
+    function preventSubmit(event: SubmitEvent) { event.preventDefault(); event.stopPropagation(); }
+    document.addEventListener('submit', preventSubmit, true);
     document.addEventListener('click', select, true);
     window.parent.postMessage({ type: 'gyro:preview-ready' }, window.location.origin);
     return () => {
       window.removeEventListener('message', receive);
       document.removeEventListener('click', select, true);
+      document.removeEventListener('submit', preventSubmit, true);
       delete document.documentElement.dataset.landingPreview;
     };
-  }, [dispatch, editing]);
+  }, [dispatch]);
   return null;
 }

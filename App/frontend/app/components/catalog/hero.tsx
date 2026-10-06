@@ -239,6 +239,7 @@ export function Hero({ initialLanding }: { initialLanding?: LandingConfig | null
             <Button
               variant="secondary"
               size="icon"
+              data-preview-control
               onClick={() => setPlaying((p) => !p)}
               title={playing ? 'Pausar presentación' : 'Reanudar presentación'}
               aria-label={playing ? 'Pausar presentación' : 'Reanudar presentación'}
@@ -257,6 +258,7 @@ export function Hero({ initialLanding }: { initialLanding?: LandingConfig | null
               <Button
                 variant="secondary"
                 size="icon"
+                data-preview-control
                 onClick={() => {
                   goTo(-1);
                   setPlaying(false);
@@ -277,7 +279,8 @@ export function Hero({ initialLanding }: { initialLanding?: LandingConfig | null
                     <button
                       key={slide.id}
                       type="button"
-                      onClick={() => {
+                      data-preview-control
+                onClick={() => {
                         setActiveIndex(idx);
                         setPlaying(true);
                       }}
@@ -309,6 +312,7 @@ export function Hero({ initialLanding }: { initialLanding?: LandingConfig | null
               <Button
                 variant="secondary"
                 size="icon"
+                data-preview-control
                 onClick={() => {
                   goTo(1);
                   setPlaying(false);

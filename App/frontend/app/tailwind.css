@@ -659,3 +659,10 @@ html[data-landing-preview="edit"] [data-landing-section]:hover {
   outline: 2px solid var(--primary);
   outline-offset: -2px;
 }
+
+/* Superficie de trabajo del editor de portada. */
+.landing-studio .studio-canvas {
+  background-color: var(--muted);
+  background-image: radial-gradient(circle, color-mix(in oklab, var(--foreground) 12%, transparent) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
