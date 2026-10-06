@@ -170,6 +170,8 @@ function DynamicFavicon() {
 
 export default function App() {
   const [store] = useState(createAppStore);
+  const { search } = useLocation();
+  const editorPreview = new URLSearchParams(search).get('landing-preview') === '1';
   return (
     <Provider store={store}>
       <StoreSync />
@@ -183,7 +185,7 @@ export default function App() {
         <GlobalProgress />
         <DynamicFavicon />
         <AuthSync />
-        <StorefrontAnalytics />
+        {!editorPreview && <StorefrontAnalytics />}
         <Outlet />
         {/* Toasts pintados con los tokens de marca, no con el tema de sonner. */}
         <Toaster

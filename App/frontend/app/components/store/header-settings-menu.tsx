@@ -70,7 +70,7 @@ export function HeaderSettingsMenu() {
   const user = useAppSelector(selectUser);
   const location = useLocation();
 
-  const isHome = location.pathname === "/";
+  const isHome = location.pathname === "/" && !new URLSearchParams(location.search).has("landing-preview");
   const isAuthed = status === "authenticated";
   const isDark = theme === "dark";
   const loginTo = `/login?redirectTo=${encodeURIComponent(location.pathname + location.search)}`;

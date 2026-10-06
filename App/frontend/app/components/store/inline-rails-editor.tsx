@@ -77,8 +77,8 @@ function SortableRailItem({
       
       <button
         onClick={() => onRemove(id)}
-        className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-destructive/10 text-destructive opacity-0 transition-opacity hover:bg-destructive hover:text-destructive-foreground focus-visible:opacity-100 group-hover:opacity-100"
-        aria-label="Quitar carril"
+        className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-destructive/10 text-destructive transition-opacity hover:bg-destructive hover:text-destructive-foreground focus-visible:opacity-100 group-hover:opacity-100"
+        aria-label={`Quitar la sección ${category.name}`}
       >
         <HugeIcon icon={Cancel01Icon} size={16} strokeWidth={2} />
       </button>
@@ -122,13 +122,9 @@ export function InlineRailsEditor({ allCategories }: InlineRailsEditorProps) {
   };
 
   return (
-    <div className="flex flex-col items-center gap-4 py-8 bg-primary/5 rounded-3xl border border-primary/20 p-6 mb-8 relative">
-      <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-card px-4 py-1 rounded-full border border-primary/20 text-xs font-bold text-primary shadow-sm">
-        EDITOR DE CARRILES
-      </div>
-      
+    <div className="flex flex-col items-stretch gap-4">
       <p className="text-sm text-muted-foreground text-center max-w-md">
-        Arrastra las categorías para cambiar el orden en que se muestran los grupos de productos en la portada.
+        Arrastra para ordenar las secciones. Sin selección, se muestran automáticamente todas las categorías con productos.
       </p>
 
       <div className="flex w-full flex-col items-center gap-2">
@@ -165,7 +161,7 @@ export function InlineRailsEditor({ allCategories }: InlineRailsEditorProps) {
             disabled={draftHomeCategories.length >= 20}
           >
             <HugeIcon icon={Add01Icon} size={18} strokeWidth={2} />
-            Añadir Carril
+            Añadir sección
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="center" className="w-56 max-h-64 overflow-y-auto">

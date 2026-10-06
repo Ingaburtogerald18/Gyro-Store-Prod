@@ -8,6 +8,9 @@
 // mientras RTK no responde. RTK sigue siendo la fuente de verdad en el cliente
 // (refleja cambios del panel sin recargar).
 import { useMatches } from '@remix-run/react';
+import { useAppSelector } from '~/store/hooks';
+import { selectDraftLandingConfig } from '~/store/slices/builderSlice';
+import { selectEditMode } from '~/store/slices/authSlice';
 
 import type { CatalogProduct, LandingConfig } from '@shared/schemas';
 import { useGetConfigQuery, type StoreConfig } from '~/store/api/sessionApi';
@@ -30,8 +33,11 @@ export function useStoreConfig(): StoreConfig | undefined {
 /** Igual que useStoreConfig, para la config de la landing (categorías del
  *  header, carriles, hero). Solo la home la trae en su loader. */
 export function useStoreLanding(): LandingConfig | undefined {
+  const draft = useAppSelector(selectDraftLandingConfig);
+  const editing = useAppSelector(selectEditMode);
   const { data } = useGetLandingConfigQuery();
   const matches = useMatches();
+  if (editing && draft) return draft;
   if (data) return data;
   for (let i = matches.length - 1; i >= 0; i--) {
     const d = matches[i].data as { landing?: LandingConfig | null } | undefined;

@@ -4,26 +4,18 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { Link } from '@remix-run/react';
 import { motion, AnimatePresence, useAnimationControls, useReducedMotion } from 'framer-motion';
-import { toast } from 'sonner';
-import { ArrowDown01Icon, Menu01Icon, ShoppingCart02Icon, Search01Icon, Cancel01Icon } from '@hugeicons/core-free-icons';
+import { Menu01Icon, ShoppingCart02Icon, Search01Icon, Cancel01Icon } from '@hugeicons/core-free-icons';
 import { SearchBar } from '~/components/catalog/search-bar';
 import { CategoriesDrawer } from '~/components/store/categories-drawer';
 import { CategoryNav } from '~/components/store/category-nav';
 import { Button } from '~/components/ui/button';
 import { HugeIcon } from '~/components/ui/icon';
-import { useUpdateLandingConfigMutation } from '~/store/api/storefrontApi';
 import { useStoreCatalog, useStoreConfig, useStoreLanding } from '~/hooks/useStoreConfig';
 import { useAppDispatch, useAppSelector } from '~/store/hooks';
 import { selectCartCount, toggleCart } from '~/store/slices/cartSlice';
-import { CART_EDITOR_SECTIONS, CartContentEditor, type CartEditorSection } from '~/components/cart/cart-content-editor';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '~/components/ui/dropdown-menu';
-import { selectEditMode, toggleEditMode } from '~/store/slices/authSlice';
-import { selectDraftLandingConfig, initBuilderSession, clearBuilderSession } from '~/store/slices/builderSlice';
-import { InlineCategoryNavEditor } from './inline-category-nav-editor';
 import { HeaderSettingsMenu } from './header-settings-menu';
 import { getBrandName } from '~/lib/brand';
 import gyroBag from '~/assets/brand/gyro-bag.png';
-import { cn } from '~/lib/utils';
 
 /** Botón del carrito con contador y "pop" al agregar. Comparte fuente de verdad
  *  con el resto de la app (cartSlice); reemplaza al botón estático. */
@@ -75,7 +67,6 @@ export function StoreHeader() {
 
   const [categoriesOpen, setCategoriesOpen] = useState(false);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
-  const [cartSection, setCartSection] = useState<CartEditorSection | null>(null);
 
   const config = useStoreConfig();
   const reduceMotion = useReducedMotion();
@@ -87,17 +78,6 @@ export function StoreHeader() {
   const logoImage = config?.images?.logoStatic || (animatedIsVideo ? undefined : animated);
   const products = useStoreCatalog();
   const landing = useStoreLanding();
-  const editMode = useAppSelector(selectEditMode);
-  const draftLanding = useAppSelector(selectDraftLandingConfig);
-  const dispatch = useAppDispatch();
-  const [updateLanding, { isLoading: isSaving }] = useUpdateLandingConfigMutation();
-
-  // Inicializar borrador al entrar al modo edición
-  useEffect(() => {
-    if (editMode && landing && !draftLanding) {
-      dispatch(initBuilderSession(landing));
-    }
-  }, [editMode, landing, draftLanding, dispatch]);
 
   const allCategories = useMemo(
     () => config?.categories ?? [],
@@ -114,35 +94,10 @@ export function StoreHeader() {
       .slice(0, 7);
   }, [allCategories, landing?.headerCategories]);
 
-  const handleSave = async () => {
-    if (!draftLanding) return;
-    try {
-      await updateLanding(draftLanding).unwrap();
-      dispatch(toggleEditMode());
-      dispatch(clearBuilderSession());
-      toast.success('Cambios de la tienda guardados.');
-    } catch (err) {
-      // Antes era un catch vacío: el botón volvía a su estado y el admin creía
-      // que se había guardado. El borrador se conserva para reintentar.
-      const message =
-        (err as { data?: { error?: string } })?.data?.error ??
-        'No se pudieron guardar los cambios. Probá de nuevo.';
-      toast.error(message);
-    }
-  };
-
-  const handleCancel = () => {
-    dispatch(toggleEditMode());
-    dispatch(clearBuilderSession());
-  };
-
   return (
-    <header className={cn(
-      "store-header sticky top-0 z-40 transition-all",
-      editMode ? "border-b border-primary-2/20 border-t-[4px] border-t-primary" : "border-b border-border"
-    )}>
+    <header data-landing-section="navigation" className="store-header sticky top-0 z-40 border-b border-border transition-all">
       <div className="mx-auto flex h-14 max-w-7xl items-center gap-2 px-4 sm:gap-3">
-        {!editMode && (
+        {(
           <Button
             variant="ghost"
             size="icon"
@@ -156,15 +111,8 @@ export function StoreHeader() {
 
         <Link
           to="/"
-          className={cn("group flex shrink-0 items-center gap-2 rounded-xl py-1 transition-all duration-300 sm:px-2",
-            !editMode && "hover:bg-primary-2/5 motion-safe:active:scale-95"
-          )}
+          className="group flex shrink-0 items-center gap-2 rounded-xl py-1 transition-all duration-300 sm:px-2 hover:bg-primary-2/5 motion-safe:active:scale-95"
           aria-label={`Ir al inicio de ${config?.brandName || getBrandName()}`}
-          onClick={(e) => {
-            if (editMode) {
-               e.preventDefault();
-            }
-          }}
         >
           {/* Logo: el que se sube en el panel (Recursos de imágenes → logo
               estático o animado). Se muestra a 40px de alto y hasta 140px de
@@ -213,73 +161,14 @@ export function StoreHeader() {
             rápida de llegar a un producto, así que está a la vista en toda página. */}
         <div className="hidden min-w-0 flex-1 items-center justify-end gap-3 md:flex">
           <div className="flex min-w-0 flex-1 items-center gap-1">
-            {editMode ? (
-              <InlineCategoryNavEditor allCategories={allCategories} />
-            ) : (
-              <CategoryNav categories={headerNavCategories} products={products} />
-            )}
+            <CategoryNav categories={headerNavCategories} products={products} />
           </div>
 
-          {!editMode && <SearchBar className="w-56 shrink-0 lg:w-80" />}
+          {<SearchBar className="w-56 shrink-0 lg:w-80" />}
         </div>
         {/* Zona derecha */}
         <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-3">
-          {editMode && (
-            <div className="flex items-center gap-3 bg-primary/10 pl-3 pr-1 py-1 rounded-full border border-primary-2/20">
-              <div className="hidden sm:flex items-center gap-2">
-                <span className="relative flex h-2 w-2">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75"></span>
-                  <span className="relative inline-flex h-2 w-2 rounded-full bg-primary"></span>
-                </span>
-                <span className="text-xs font-bold tracking-wider text-primary-2">MODO EDICIÓN</span>
-              </div>
-              {/* «Editar carrito»: se elige qué parte editar y se abre su editor
-                  con vista previa, sin pasar por el carrito real (que puede
-                  tener productos y confundir qué se está editando). */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 rounded-full px-3 text-xs font-semibold text-primary-2 hover:bg-primary/10"
-                    disabled={isSaving}
-                  >
-                    <HugeIcon icon={ShoppingCart02Icon} size={14} strokeWidth={2} aria-hidden />
-                    Editar carrito
-                    <HugeIcon icon={ArrowDown01Icon} size={12} strokeWidth={2} aria-hidden />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-auto min-w-64">
-                  {(Object.keys(CART_EDITOR_SECTIONS) as CartEditorSection[]).map((key) => (
-                    <DropdownMenuItem key={key} onSelect={() => setCartSection(key)} className="flex-col items-start gap-0.5 py-2">
-                      <span className="text-sm font-medium">{CART_EDITOR_SECTIONS[key].label}</span>
-                      <span className="text-xs text-muted-foreground">{CART_EDITOR_SECTIONS[key].hint}</span>
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={handleCancel}
-                className="h-8 rounded-full px-4 text-xs font-semibold text-primary-2 hover:bg-primary/10"
-                disabled={isSaving}
-              >
-                Descartar
-              </Button>
-              <Button 
-                variant="default" 
-                size="sm" 
-                onClick={handleSave}
-                className="h-8 rounded-full px-4 text-xs font-semibold shadow-sm"
-                disabled={isSaving}
-              >
-                {isSaving ? "Guardando…" : "Guardar cambios"}
-              </Button>
-            </div>
-          )}
-          
-          {!editMode && (
+          {(
             <Button
               variant="ghost"
               size="icon"
@@ -296,18 +185,17 @@ export function StoreHeader() {
               />
             </Button>
           )}
-          {!editMode && <CartButton />}
-          {!editMode && <HeaderSettingsMenu />}
+          {<CartButton />}
+          {<HeaderSettingsMenu />}
         </div>
       </div>
 
-      {!editMode && mobileSearchOpen && (
+      {mobileSearchOpen && (
         <div className="px-4 pb-3 md:hidden">
           <SearchBar />
         </div>
       )}
 
-      {editMode && <CartContentEditor section={cartSection} onClose={() => setCartSection(null)} />}
 
       <CategoriesDrawer
         open={categoriesOpen}

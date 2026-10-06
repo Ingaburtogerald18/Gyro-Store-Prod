@@ -28,7 +28,6 @@ import { selectEditMode } from '~/store/slices/authSlice';
 import { selectDraftLandingConfig } from '~/store/slices/builderSlice';
 import { useStoreLanding } from '~/hooks/useStoreConfig';
 import { categoryHref } from '~/components/store/category-nav';
-import { InlineRailsEditor } from '~/components/store/inline-rails-editor';
 
 export { isDeal };
 
@@ -95,7 +94,6 @@ export function ProductGrid({ products, categories = [], isLoading }: ProductGri
   if (isDefault) {
     return (
       <div className="space-y-2 pb-2 md:space-y-6 md:pb-12">
-        {editMode && <InlineRailsEditor allCategories={categories} />}
 
         {deals.length > 0 && (
           <ProductCarousel

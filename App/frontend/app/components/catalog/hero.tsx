@@ -13,21 +13,18 @@
 // no en el panel porque una diapositiva es composición visual — el texto y la
 // foto se juzgan viendo el resultado, no un formulario en otra pantalla.
 import { HugeIcon } from "~/components/ui/icon";
-import { Add01Icon, ArrowDown01Icon, ArrowLeft01Icon, ArrowRight01Icon, ArrowRight02Icon, Delete02Icon, Edit02Icon, PauseIcon, PlayIcon } from "@hugeicons/core-free-icons";
+import { ArrowDown01Icon, ArrowLeft01Icon, ArrowRight01Icon, ArrowRight02Icon, PauseIcon, PlayIcon } from "@hugeicons/core-free-icons";
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from '@remix-run/react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { toast } from 'sonner';
 
-import { MAX_HERO_SLIDES, type HeroSlide, type LandingConfig } from '@shared/schemas';
-import { HeroSlideEditorDialog } from '~/components/catalog/HeroSlideEditorDialog';
+import { type LandingConfig } from '@shared/schemas';
 import { SlideMedia } from '~/components/catalog/slide-media';
-import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import { Button } from '~/components/ui/button';
 import { Separator } from '~/components/ui/separator';
-import { useAppSelector, useAppDispatch } from '~/store/hooks';
+import { useAppSelector } from '~/store/hooks';
 import { selectEditMode, selectIsAdmin } from '~/store/slices/authSlice';
-import { selectDraftLandingConfig, updateHeroSlides } from '~/store/slices/builderSlice';
+import { selectDraftLandingConfig, selectActiveHeroSlideId } from '~/store/slices/builderSlice';
 import { useStoreConfig } from '~/hooks/useStoreConfig';
 import { useGetLandingConfigQuery } from '~/store/api/storefrontApi';
 import { WhatsappIcon } from '~/components/ui/whatsapp-icon';
@@ -39,21 +36,6 @@ import { buildWhatsappUrl } from "~/lib/formatters";
 const SLIDE_MS = 8000;
 const EMPTY_LANDING: LandingConfig = { headerCategories: [], heroSlides: [] };
 
-/** Diapositiva nueva, ya válida contra el schema: el editor la completa. */
-function blankSlide(): HeroSlide {
-  return {
-    id: `slide-${Date.now().toString(36)}`,
-    eyebrow: '',
-    title: 'Nueva diapositiva',
-    description: '',
-    mediaUrl: '',
-    mediaType: 'image',
-    buttonText: 'Ver catálogo',
-    actionType: 'link',
-    actionTarget: '/#catalogo',
-  };
-}
-
 export function Hero({ initialLanding }: { initialLanding?: LandingConfig | null }) {
   const navigate = useNavigate();
   const reduce = useReducedMotion();
@@ -61,8 +43,6 @@ export function Hero({ initialLanding }: { initialLanding?: LandingConfig | null
   // Con prefers-reduced-motion no arranca solo: el movimiento automático es
   // justo lo que esa preferencia pide evitar.
   const [playing, setPlaying] = useState(!reduce);
-  const [editingSlideId, setEditingSlideId] = useState<string | null>(null);
-  const [slideToDeleteIndex, setSlideToDeleteIndex] = useState<number | null>(null);
   // El primer slide sale visible desde el HTML del servidor. Con la entrada
   // animada desde opacity 0, en una red lenta el titular quedaba invisible hasta
   // que cargaba el JavaScript; ahora solo animan los cambios de slide.
@@ -75,8 +55,7 @@ export function Hero({ initialLanding }: { initialLanding?: LandingConfig | null
   const editMode = useAppSelector(selectEditMode);
   const editing = isAdmin && editMode;
   const draftLanding = useAppSelector(selectDraftLandingConfig);
-  const dispatch = useAppDispatch();
-  const saving = false; // El guardado ahora es instantáneo en el borrador local
+  const selectedSlideId = useAppSelector(selectActiveHeroSlideId);
   
   const landing = editing && draftLanding ? draftLanding : (landingData ?? initialLanding ?? EMPTY_LANDING);
   const slides = landing.heroSlides;
@@ -95,7 +74,8 @@ export function Hero({ initialLanding }: { initialLanding?: LandingConfig | null
   );
 
   // El índice nunca debe salirse del rango: los slides pueden crecer o menguar.
-  const safeIndex = slides.length ? Math.min(activeIndex, slides.length - 1) : 0;
+  const selectedIndex = editing ? slides.findIndex(slide => slide.id === selectedSlideId) : -1;
+  const safeIndex = selectedIndex >= 0 ? selectedIndex : slides.length ? Math.min(activeIndex, slides.length - 1) : 0;
   const activeSlide = slides[safeIndex];
   // Editando NO rota solo: el carrusel cambiando de slide mientras alguien
   // acomoda uno es pelearse con la pantalla.
@@ -115,65 +95,6 @@ export function Hero({ initialLanding }: { initialLanding?: LandingConfig | null
     const timer = setTimeout(() => goTo(1), SLIDE_MS);
     return () => clearTimeout(timer);
   }, [autoPlaying, safeIndex, goTo]);
-
-  // ── Persistencia del modo edición ──
-  // Cada acción ahora actualiza el BORRADOR local en lugar del servidor.
-  // Los cambios se guardan al hacer clic en "Guardar Cambios" en el StoreHeader.
-  async function commit(nextSlides: HeroSlide[]): Promise<boolean> {
-    dispatch(updateHeroSlides(nextSlides));
-    return true;
-  }
-
-  async function handleMove(dir: -1 | 1) {
-    const target = safeIndex + dir;
-    if (target < 0 || target >= slides.length) return;
-    // La de marca queda anclada al principio: es la portada de la tienda.
-    if (slides[safeIndex].locked || slides[target].locked) return;
-
-    const next = [...slides];
-    [next[safeIndex], next[target]] = [next[target], next[safeIndex]];
-    if (await commit(next)) setActiveIndex(target);
-  }
-
-  async function handleAdd() {
-    if (slides.length >= MAX_HERO_SLIDES) {
-      toast.error(`El hero admite hasta ${MAX_HERO_SLIDES} diapositivas.`);
-      return;
-    }
-    const slide = blankSlide();
-    if (await commit([...slides, slide])) {
-      setActiveIndex(slides.length);
-      // Se abre el editor de una: una diapositiva en blanco publicada en la
-      // tienda es peor que ninguna.
-      setEditingSlideId(slide.id);
-    }
-  }
-
-  async function handleDelete(index: number) {
-    const slide = slides[index];
-    if (slide.locked) return;
-    if (slides.length <= 1) {
-      toast.error('Debe quedar al menos una diapositiva.');
-      return;
-    }
-    setSlideToDeleteIndex(index);
-  }
-
-  async function confirmDeleteSlide() {
-    if (slideToDeleteIndex === null) return;
-    if (await commit(slides.filter((_, i) => i !== slideToDeleteIndex))) {
-      setActiveIndex((cur) => Math.max(0, Math.min(cur, slides.length - 2)));
-      toast.success('Diapositiva eliminada.');
-    }
-    setSlideToDeleteIndex(null);
-  }
-
-  async function handleSaveSlide(updated: HeroSlide) {
-    if (await commit(slides.map((s) => (s.id === updated.id ? updated : s)))) {
-      setEditingSlideId(null);
-      toast.success('Diapositiva actualizada.');
-    }
-  }
 
   // Sin slides configurados: no romper la home, simplemente no pintar el hero.
   if (!activeSlide) return null;
@@ -196,69 +117,9 @@ export function Hero({ initialLanding }: { initialLanding?: LandingConfig | null
   }
 
   return (
-    <section className="mx-auto w-full max-w-6xl px-4 pt-3 pb-6 sm:pt-6 sm:pb-12">
+    <section data-landing-section="banners" className="mx-auto w-full max-w-6xl px-4 pt-3 pb-6 sm:pt-6 sm:pb-12">
       <div className="group relative w-full overflow-hidden rounded-3xl border border-border/40 bg-card shadow-2xl sm:rounded-[2.5rem]">
-        {/* ── Controles de edición ──
-            Flotan sobre la diapositiva en vez de ir en una barra aparte: la
-            referencia visual es el slide que se está tocando, y separarlos
-            obligaría a mirar a otro lado para saber sobre cuál se actúa.
-            Fondo oscuro translúcido porque van encima de una foto cualquiera. */}
-        {editing && (
-          <div className="absolute top-4 right-4 z-30 flex items-center gap-1.5 rounded-full border border-white/15 bg-black/60 px-2 py-1.5 backdrop-blur-md">
-            <button
-              type="button"
-              onClick={() => void handleMove(-1)}
-              disabled={saving || safeIndex === 0 || activeSlide.locked || slides[safeIndex - 1]?.locked}
-              title="Mover a la izquierda"
-              className="grid size-8 place-items-center rounded-full text-white/80 transition-colors hover:bg-white/10 hover:text-white disabled:opacity-30 disabled:hover:bg-transparent"
-            >
-              <HugeIcon icon={ArrowLeft01Icon} size={16} strokeWidth={2} />
-            </button>
-            <button
-              type="button"
-              onClick={() => void handleMove(1)}
-              disabled={saving || safeIndex >= slides.length - 1 || activeSlide.locked}
-              title="Mover a la derecha"
-              className="grid size-8 place-items-center rounded-full text-white/80 transition-colors hover:bg-white/10 hover:text-white disabled:opacity-30 disabled:hover:bg-transparent"
-            >
-              <HugeIcon icon={ArrowRight01Icon} size={16} strokeWidth={2} />
-            </button>
 
-            <div className="mx-0.5 h-4 w-px bg-white/15" />
-
-            <button
-              type="button"
-              onClick={() => setEditingSlideId(activeSlide.id)}
-              disabled={saving}
-              title="Editar esta diapositiva"
-              className="grid size-8 place-items-center rounded-full bg-primary text-primary-foreground transition-colors hover:bg-primary/80 disabled:opacity-40"
-            >
-              <HugeIcon icon={Edit02Icon} size={16} strokeWidth={2} />
-            </button>
-            <button
-              type="button"
-              onClick={() => void handleAdd()}
-              disabled={saving || slides.length >= MAX_HERO_SLIDES}
-              title={slides.length >= MAX_HERO_SLIDES ? `Máximo ${MAX_HERO_SLIDES} diapositivas` : 'Agregar diapositiva'}
-              className="grid size-8 place-items-center rounded-full text-white/80 transition-colors hover:bg-white/10 hover:text-white disabled:opacity-30 disabled:hover:bg-transparent"
-            >
-              <HugeIcon icon={Add01Icon} size={16} strokeWidth={2} />
-            </button>
-            <button
-              type="button"
-              onClick={() => void handleDelete(safeIndex)}
-              disabled={saving || activeSlide.locked || slides.length <= 1}
-              title={
-                activeSlide.locked
-                  ? 'La diapositiva de marca no se puede eliminar'
-                  : 'Eliminar esta diapositiva'
-              }
-              className="grid size-8 place-items-center rounded-full text-white/80 transition-colors hover:bg-destructive hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-white/80"
-            >
-              <HugeIcon icon={Delete02Icon} size={16} strokeWidth={2} />
-            </button>
-          </div>
-        )}
 
         {/* min-h y no h fija: con un título de 4 líneas el texto se salía de la
             tarjeta y los botones quedaban pegados al borde de abajo. */}
@@ -463,20 +324,6 @@ export function Hero({ initialLanding }: { initialLanding?: LandingConfig | null
         </div>
       )}
 
-      <HeroSlideEditorDialog
-        slide={slides.find((s) => s.id === editingSlideId) ?? null}
-        saving={saving}
-        onSave={handleSaveSlide}
-        onClose={() => setEditingSlideId(null)}
-      />
-
-      <ConfirmDialog
-        open={slideToDeleteIndex !== null}
-        onOpenChange={(open) => !open && setSlideToDeleteIndex(null)}
-        title="Eliminar diapositiva"
-        description={`¿Seguro que deseas eliminar la diapositiva «${slideToDeleteIndex !== null ? slides[slideToDeleteIndex]?.title : ''}»? Esta acción no se puede deshacer.`}
-        onConfirm={confirmDeleteSlide}
-      />
     </section>
   );
 }

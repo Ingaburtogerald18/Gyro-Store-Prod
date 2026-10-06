@@ -651,3 +651,11 @@ html[data-area='store'] .catalog-filter-sort-menu [data-slot='select-item']:is([
     @apply outline-2 outline-dashed outline-primary ring-4 ring-primary/10 rounded-xl cursor-pointer;
   }
 }
+/* Indicación de selección sobre la vista previa del editor. */
+html[data-landing-preview="edit"] [data-landing-section] {
+  cursor: pointer;
+}
+html[data-landing-preview="edit"] [data-landing-section]:hover {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
