@@ -251,14 +251,11 @@ function CartBanner({
   link: string;
   onNavigate: (to: string) => void;
 }) {
-  // El banner nunca puede quedar más alto que la lista: con una imagen cuadrada
-  // ocupaba media pantalla del celular y empujaba los productos fuera de vista.
-  // Imagen arriba y centrada, con presencia parecida a la del carrito vacío
-  // (a 64px al costado del texto no se reconocía), pero topada a 112px de alto
-  // y sin recortar. El texto, si hay, va centrado debajo.
+  // Imagen suelta y centrada, al mismo tamaño que la del carrito vacío (160px,
+  // sin recortar). El texto, si hay, va centrado debajo.
   const body = (
     <>
-      {image && <img src={image} alt="" className="max-h-28 w-full object-contain" />}
+      {image && <img src={image} alt="" className="size-40 object-contain" />}
       {text && <p className="text-sm leading-snug font-semibold text-foreground">{text}</p>}
     </>
   );
