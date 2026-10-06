@@ -374,8 +374,12 @@ body {
    Contrastes medidos (WCAG): tinta sobre crema 15:1, tinta sobre amarillo
    11:1, teal profundo sobre crema 5.0:1, tinta sobre teal 8.4:1, tinta sobre
    coral 6.6:1; el oscuro tiene su propio bloque más abajo.
+
+   `.store-palette` aplica la misma paleta a un subárbol fuera de la tienda (el
+   acceso de colaboradores, /login, que es área admin para conservar Geist).
    ────────────────────────────────────────────────────────────── */
-html[data-area='store'] {
+html[data-area='store'],
+.store-palette {
   --ink: #102423;
   --background: #fffcf3;
   --foreground: var(--ink);
@@ -412,7 +416,8 @@ html[data-area='store'] {
 /* Oscuro de la tienda: negro neutro de verdad, sin tinte verde. El teal queda
    solo como acento chico (links, opción elegida) y el amarillo es el único color
    con peso. Contrastes: texto 17:1 sobre fondo, gris secundario 8:1, teal 9:1. */
-html[data-area='store'][data-theme='dark'] {
+html[data-area='store'][data-theme='dark'],
+html[data-theme='dark'] .store-palette {
   --background: #0e0f10;
   --foreground: #f4f4f2;
   --card: #18191b;
@@ -490,13 +495,15 @@ html[data-area='store'] .store-header .store-cart-button:active {
    nombre del logo en oscuro (la tinta no se vería contra el fondo negro). Los
    botones de WhatsApp en contorno llevan sombra de su propio verde y fondo de
    tarjeta, para que la sombra se lea como un objeto desplazado. */
-html[data-area='store'] {
+html[data-area='store'],
+.store-palette {
   --sticker-shadow: var(--ink);
 }
-html[data-area='store'][data-theme='dark'] {
+html[data-area='store'][data-theme='dark'],
+html[data-theme='dark'] .store-palette {
   --sticker-shadow: #a8402f;
 }
-html[data-area='store'] [data-slot='button']:is([data-variant='default'], [data-variant='whatsapp'], [data-variant='destructiveSolid']):not([aria-pressed]) {
+:is(html[data-area='store'], .store-palette) [data-slot='button']:is([data-variant='default'], [data-variant='whatsapp'], [data-variant='destructiveSolid']):not([aria-pressed]) {
   border: 2px solid var(--ink);
   box-shadow: 3px 3px 0 var(--sticker-shadow);
   transition-property: transform, box-shadow, background-color;
@@ -507,7 +514,7 @@ html[data-area='store'] [data-slot='button'][data-variant='whatsappOutline'] {
   box-shadow: 3px 3px 0 var(--whatsapp);
   transition-property: transform, box-shadow, background-color;
 }
-html[data-area='store'] [data-slot='button']:is([data-variant='default'], [data-variant='whatsapp'], [data-variant='whatsappOutline'], [data-variant='destructiveSolid']):not([aria-pressed]):active:not(:disabled) {
+:is(html[data-area='store'], .store-palette) [data-slot='button']:is([data-variant='default'], [data-variant='whatsapp'], [data-variant='whatsappOutline'], [data-variant='destructiveSolid']):not([aria-pressed]):active:not(:disabled) {
   transform: translate(2px, 2px);
   box-shadow: 1px 1px 0 var(--sticker-shadow);
 }

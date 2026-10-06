@@ -22,7 +22,7 @@ export default function Login() {
   const internalDomain = config?.internalDomain ?? "";
 
   const [busy, setBusy] = useState<null | "microsoft">(null);
-  const [greeting, setGreeting] = useState<{ text: string; emoji: string } | null>(null);
+  const [greeting, setGreeting] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => setGreeting(getGreeting()), []);
@@ -65,98 +65,83 @@ export default function Login() {
     }
   }
 
+  // Imagen propia del acceso (Recursos de imágenes → "Inicio de sesión"); si no
+  // se cargó, el logo estático, igual que el header de la tienda.
+  const loginImage = config?.images?.loginImage || config?.images?.logoStatic;
+
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Spinner className="text-primary" />
+      <div className="store-palette min-h-screen flex items-center justify-center bg-background">
+        <Spinner className="text-foreground" />
       </div>
     );
   }
 
   return (
-    // `data-skin="store"` era residuo del V1 (allá conmutaba una hoja de tokens
-    // propia); en este proyecto no engancha con nada. El tema lo fija `data-theme`
-    // en <html>, así que el atributo se retira.
-    <main className="relative min-h-screen w-full overflow-hidden bg-background font-sans text-foreground">
-      {/* Background concentric circles */}
-      <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden opacity-30">
-        <div className="absolute -left-64 -top-64 h-[800px] w-[800px] rounded-full border border-primary/10" />
-        <div className="absolute -left-32 -top-32 h-[500px] w-[500px] rounded-full border border-primary/10" />
-        <div className="absolute -bottom-64 -right-64 h-[800px] w-[800px] rounded-full border border-primary/10" />
-        <div className="absolute -bottom-32 -right-32 h-[500px] w-[500px] rounded-full border border-primary/10" />
-      </div>
+    // `.store-palette` trae la paleta de la tienda (crema, amarillo, tinta) sin
+    // salir del área admin, que es la que fija Geist como tipografía.
+    // Pantalla partida, sin tarjeta: la imagen sobre el teal de marca (en oscuro,
+    // gris carbón: el color lo pone la imagen) y el formulario sobre el fondo.
+    <main className="store-palette grid min-h-screen w-full bg-background font-sans text-foreground lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
+      <section
+        aria-label={brand}
+        className="flex items-center justify-center border-b-2 border-[var(--ink)] bg-brand px-6 py-8 lg:border-b-0 lg:border-r-2 lg:p-12 dark:border-border dark:bg-card lg:dark:border-r"
+      >
+        {loginImage ? (
+          <img
+            src={loginImage}
+            alt={brand}
+            className="max-h-36 w-full max-w-[520px] object-contain lg:max-h-[420px]"
+          />
+        ) : (
+          <span className="text-3xl font-extrabold tracking-tight text-brand-foreground lg:text-5xl">
+            {brand}
+          </span>
+        )}
+      </section>
 
-      {/* Top Left Back Button */}
-      <div className="absolute left-6 top-6 z-20">
-        <Button asChild variant="ghost" className="h-10 rounded-full bg-primary/20 px-4 text-primary hover:bg-primary/30 hover:text-primary transition-colors">
+      <section className="flex flex-col px-6 py-6 sm:px-10 lg:px-16 lg:py-10">
+        {/* Salir/cancelar va en rojo lleno, como en el resto del proyecto. */}
+        <Button asChild variant="destructiveSolid" className="w-fit font-semibold">
           <Link to="/">
-            <HugeIcon icon={ArrowLeft02Icon} size={16} strokeWidth={2} className="mr-2" /> Volver al catálogo
+            <HugeIcon icon={ArrowLeft02Icon} size={16} strokeWidth={2} /> Volver al catálogo
           </Link>
         </Button>
-      </div>
 
-      <div className="flex min-h-screen items-center justify-center p-4 sm:p-6 lg:p-12">
-        <div className="flex w-full max-w-[1000px] flex-col overflow-hidden rounded-[20px] bg-card shadow-2xl lg:flex-row border border-border animate-in fade-in zoom-in-95 duration-500">
-          
-          {/* Left Column: Actions */}
-          <div className="flex w-full flex-col justify-center p-8 sm:p-12 lg:w-[55%]">
-            <h1 className="text-3xl font-bold tracking-tight">Iniciar sesión</h1>
-            {greeting && (
-              <p className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
-                <span className="text-lg">{greeting.emoji}</span> {greeting.text} — ingresa con tu cuenta corporativa
-              </p>
-            )}
+        <div className="flex flex-1 items-center py-10">
+          <div className="w-full max-w-[400px]">
+            <p className="text-xs font-semibold uppercase tracking-wider text-primary-2">
+              Acceso colaboradores
+            </p>
+            <h1 className="mt-2 text-4xl font-bold tracking-tight">Iniciar sesión</h1>
+            <p className="mt-3 text-sm text-muted-foreground">
+              {greeting ? `${greeting}. ` : ""}Ingresa con tu cuenta corporativa de Microsoft.
+            </p>
 
-            <div className="mt-10">
-              <Button
-                variant="outline"
-                disabled={busy === "microsoft"}
-                onClick={runMicrosoft}
-                className="h-14 w-full rounded-xl border-foreground/10 bg-muted text-base font-bold text-foreground hover:bg-foreground/5 hover:border-foreground/20 transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5"
-              >
-                {busy !== "microsoft" ? <OutlookIcon className="mr-3 h-6 w-6" /> : <Spinner className="mr-3" />}
-                Continuar con Microsoft
-              </Button>
-              <p className="mt-6 text-center text-xs text-muted-foreground leading-relaxed">
-                Acceso exclusivo para colaboradores de {brand}.<br/>
-                Solo se admiten cuentas autorizadas{internalDomain ? ` (@${internalDomain}, @hotmail o @outlook)` : ""}.
-              </p>
-            </div>
-          </div>
-
-          {/* Right Column: Graphic */}
-          <div className="hidden flex-col bg-muted p-12 lg:flex lg:w-[45%] lg:justify-between border-l border-border">
-            <div className="flex flex-1 items-center justify-center">
-              {config?.images?.logoStatic ? (
-                <img 
-                  src={config.images.logoStatic} 
-                  alt="Mascota" 
-                  className="max-h-[300px] object-contain drop-shadow-2xl animate-in fade-in zoom-in duration-700" 
-                />
-              ) : (
-                <div className="h-[250px] w-[250px] rounded-2xl bg-background/50 flex items-center justify-center border border-foreground/10">
-                  <span className="text-muted-foreground font-medium">{brand}</span>
-                </div>
-              )}
-            </div>
-            <div className="mt-8">
-              <h2 className="text-3xl font-extrabold text-foreground">Acceso a Colaboradores</h2>
-              <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-                Accede al centro de administración para la gestión de {brand}.
-              </p>
-            </div>
+            <Button
+              disabled={busy === "microsoft"}
+              onClick={runMicrosoft}
+              className="mt-8 h-12 w-full rounded-xl text-base font-semibold"
+            >
+              {busy !== "microsoft" ? <OutlookIcon className="size-5" /> : <Spinner />}
+              Continuar con Microsoft
+            </Button>
+            <p className="mt-5 text-xs leading-relaxed text-muted-foreground">
+              Solo cuentas autorizadas de {brand}
+              {internalDomain ? ` (@${internalDomain}, @hotmail o @outlook)` : ""}.
+            </p>
           </div>
         </div>
-      </div>
+      </section>
     </main>
   );
 }
 
-function getGreeting(): { text: string; emoji: string } {
+function getGreeting(): string {
   const h = new Date().getHours();
-  if (h < 12) return { text: "Buenos días", emoji: "🌅" };
-  if (h < 19) return { text: "Buenas tardes", emoji: "☀️" };
-  return { text: "Buenas noches", emoji: "🌙" };
+  if (h < 12) return "Buenos días";
+  if (h < 19) return "Buenas tardes";
+  return "Buenas noches";
 }
 
 function OutlookIcon({ className }: { className?: string }) {

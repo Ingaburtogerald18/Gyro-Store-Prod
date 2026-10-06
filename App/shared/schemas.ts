@@ -164,6 +164,8 @@ export const imageResourcesSchema = z.object({
   cartEmpty: z.string().url('Debe ser una URL válida').or(z.literal('')).optional(),
   cartBanner: z.string().url('Debe ser una URL válida').or(z.literal('')).optional(),
   orderSuccess: z.string().url('Debe ser una URL válida').or(z.literal('')).optional(),
+  // Ilustración del acceso de colaboradores (/login). Vacía → logo estático.
+  loginImage: z.string().url('Debe ser una URL válida').or(z.literal('')).optional(),
 });
 export type ImageResources = z.infer<typeof imageResourcesSchema>;
 

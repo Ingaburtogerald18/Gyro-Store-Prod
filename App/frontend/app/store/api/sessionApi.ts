@@ -50,6 +50,7 @@ export interface StoreConfig {
     cartEmpty?: string;
     cartBanner?: string;
     orderSuccess?: string;
+    loginImage?: string;
   };
 }
 

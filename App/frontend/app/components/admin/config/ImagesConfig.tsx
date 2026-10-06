@@ -24,6 +24,7 @@ const EMPTY_IMAGES: ImageResources = {
   cartEmpty: '',
   cartBanner: '',
   orderSuccess: '',
+  loginImage: '',
 };
 
 export function ImagesConfig() {
@@ -42,6 +43,7 @@ export function ImagesConfig() {
       cartEmpty: raw?.cartEmpty || '',
       cartBanner: raw?.cartBanner || '',
       orderSuccess: raw?.orderSuccess || '',
+      loginImage: raw?.loginImage || '',
     }),
     // Guardado exitoso = ya no hay huérfanos que limpiar.
     successMessage: 'Recursos guardados correctamente.',
@@ -132,7 +134,7 @@ export function ImagesConfig() {
   return (
     <Section
       title="Recursos de imágenes"
-      description="Sube los logos, el favicon, el logo del ticket y las imágenes del carrito."
+      description="Sube los logos, el favicon, el logo del ticket, la imagen del inicio de sesión y las del carrito."
     >
       <QueryState
         loading={loading}
@@ -147,6 +149,7 @@ export function ImagesConfig() {
           {renderUploadBox("Logo animado", "Animación principal. Recomendado: 512x512px (WebM/GIF)", "logoAnimated")}
           {renderUploadBox("Favicon", "Ícono de la pestaña. Recomendado: 32x32px o 64x64px (PNG/ICO)", "favicon")}
           {renderUploadBox("Logo del ticket", "Impresoras térmicas. Recomendado: 300x300px o similar (Blanco y Negro puro)", "posLogo")}
+          {renderUploadBox("Inicio de sesión", "Ilustración del acceso de colaboradores. Vacía: se usa el logo estático. Recomendado: 600x600px (PNG sin fondo)", "loginImage")}
         </div>
 
         {/* Imágenes del carrito. Qué texto las acompaña y dónde aparece cada una
