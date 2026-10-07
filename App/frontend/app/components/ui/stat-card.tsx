@@ -143,10 +143,9 @@ export function StatCard({
 
   const shell = (
     <motion.div
-      initial={{ opacity: 0, y: 10 }}
+      initial={reduce ? false : { opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
-      whileHover={reduce ? undefined : { y: -3 }}
-      transition={{ type: "spring", stiffness: 320, damping: 26, delay }}
+      transition={{ duration: reduce ? 0 : 0.18, delay: reduce ? 0 : delay }}
       data-tone={chosenColor}
       title={hint}
       className={cn(
@@ -154,7 +153,7 @@ export function StatCard({
         theme.card,
         // El realce solo aparece si la tarjeta HACE algo. Una tarjeta que se
         // ilumina y no responde al click es peor que una que no se ilumina.
-        interactive && "cursor-pointer hover:border-primary/40 hover:shadow-lg",
+        interactive && "cursor-pointer hover:border-primary/40 hover:shadow-sm",
       )}
     >
       {inner}

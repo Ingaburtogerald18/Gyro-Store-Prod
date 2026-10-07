@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { asyncHandler } from '../utils/asyncHandler';
 import { requireSeller, requireAdmin } from '../middleware/auth';
 import { parseUuidParam } from '../utils/params';
+import { listSaleReturns, returnSaleLine } from '../services/salesConversions';
 import {
   payCommissionInputSchema,
   quoteInputSchema,
@@ -57,6 +58,10 @@ router.post(
       // El vendedor ve su comisión, no la estructura de costos de la tienda.
       // Se recortan también los unitarios: de `utilidadBrutaUnit` se despeja el
       // costo real restando al precio, así que dejarlos sería filtrar lo mismo.
+      // Y por el mismo criterio que en el detalle:
+      //   · `comisionPercent` → comisión ÷ % = utilidad neta → costo.
+      //   · `belowMinMargin` → tanteando precios hasta que se enciende, sale
+      //     costo × multiplicador. La venta igual se registra marcada.
       result.lines = result.lines.map((line) => {
         const {
           costeFinalSnap,
@@ -69,6 +74,8 @@ router.post(
           salaryUnit,
           utilidadNetaUnit,
           gananciaTiendaUnit,
+          comisionPercent,
+          belowMinMargin,
           ...rest
         } = line as any;
         return rest;
@@ -223,10 +230,11 @@ router.get(
           salaryUnit,
           utilidadNetaUnit,
           gananciaTiendaUnit,
+          belowMinMargin,
           ...rest
         }) => rest,
       );
-      const { totalGananciaTienda, totalSalary, ...trimmedSale } = sale;
+      const { totalGananciaTienda, totalSalary, belowMinMargin, ...trimmedSale } = sale;
       res.json(trimmedSale);
       return;
     }
@@ -261,6 +269,34 @@ router.post(
       return;
     }
     res.json({ ok: true });
+  }),
+);
+
+// ── Devoluciones (garantía o cambio) ──
+const saleReturnSchema = z.object({
+  productName: z.string().trim().min(1).max(200),
+  quantity: z.number().int().positive('La cantidad tiene que ser mayor a 0.'),
+  destination: z.enum(['stock', 'merma']),
+  refundAmount: z.number().min(0).optional(),
+  reason: z.string().trim().min(3, 'Escribí el motivo de la devolución.').max(500),
+});
+
+router.get(
+  '/:id/returns',
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const id = parseUuidParam(req.params.id, 'Venta no encontrada.');
+    res.json(await listSaleReturns(id));
+  }),
+);
+
+router.post(
+  '/:id/returns',
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const id = parseUuidParam(req.params.id, 'Venta no encontrada.');
+    const data = saleReturnSchema.parse(req.body);
+    res.status(201).json(await returnSaleLine(id, data, { uid: req.user!.uid }));
   }),
 );
 
@@ -307,11 +343,21 @@ router.get(
         : undefined
       : req.user!.email;
 
-    const sales = await listSales({ sellerEmail, status: status.success ? status.data : undefined });
+    // Rango opcional por fecha de venta (ISO). Sin rango, todo el histórico.
+    const isoDate = z.string().datetime({ offset: true }).optional();
+    const from = isoDate.safeParse(req.query.from);
+    const to = isoDate.safeParse(req.query.to);
+
+    const sales = await listSales({
+      sellerEmail,
+      status: status.success ? status.data : undefined,
+      from: from.success ? from.data : undefined,
+      to: to.success ? to.data : undefined,
+    });
     // Ganancia de tienda y fondo empresa: SENSIBLE, igual que en `/quote` y en el detalle de
     // una venta — un vendedor común no ve la estructura de costos de la
     // tienda, solo la suya (comisión).
-    res.json(admin ? sales : sales.map(({ totalGananciaTienda, totalSalary, ...rest }) => rest));
+    res.json(admin ? sales : sales.map(({ totalGananciaTienda, totalSalary, belowMinMargin, ...rest }) => rest));
   }),
 );
 

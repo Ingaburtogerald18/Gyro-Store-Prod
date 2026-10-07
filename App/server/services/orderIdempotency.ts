@@ -3,6 +3,7 @@ import type { PublicOrderInput } from '../../shared/schemas';
 
 export class OrderAttemptConflict extends Error {
   status = 409;
+  code = 'ORDER_ATTEMPT_CONFLICT';
   constructor() {
     super('Este intento corresponde a otro pedido. Recuperá el pedido anterior antes de enviar uno nuevo.');
   }

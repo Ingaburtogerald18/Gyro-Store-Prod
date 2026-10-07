@@ -196,7 +196,7 @@ export function Hero({ initialLanding }: { initialLanding?: LandingConfig | null
                         {socialItems.map(({ key, label, href, Icon }) => (
                           <DropdownMenuItem key={key} asChild className="min-h-11 gap-3 text-sm font-medium">
                             <a href={href} target="_blank" rel="noopener noreferrer">
-                              <Icon className="size-4 shrink-0" />
+                              <Icon className="size-5 shrink-0" />
                               {label}
                             </a>
                           </DropdownMenuItem>

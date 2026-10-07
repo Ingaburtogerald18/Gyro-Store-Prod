@@ -12,6 +12,11 @@ import {
 } from '@hugeicons/core-free-icons';
 import { useState } from 'react';
 import type { MetaFunction } from '@remix-run/node';
+import { Link, useNavigate } from '@remix-run/react';
+import { useAppSelector } from '~/store/hooks';
+import { selectIsAdmin } from '~/store/slices/authSlice';
+import { Button } from '~/components/ui/button';
+import { Spinner } from '~/components/ui/spinner';
 import { toast } from 'sonner';
 import { PUBLIC_ORDER_STATUSES, type PublicOrderStatus } from '@shared/schemas';
 
@@ -33,6 +38,7 @@ import { cn } from '~/lib/utils';
 import { buildWhatsappUrl, errMsg, formatCordobas, formatLongDate } from '~/lib/formatters';
 import { PUBLIC_ORDER_STATUS, publicOrderStatusLabel, statusMeta } from '~/lib/status';
 import {
+  useConvertPublicOrderToSaleMutation,
   useGetAdminPublicOrdersQuery,
   useUpdatePublicOrderStatusMutation,
   type AdminPublicOrder,
@@ -214,6 +220,62 @@ export default function AdminPedidosWeb() {
   );
 }
 
+// Convertir en venta: crea la venta pendiente en Ventas, a nombre de quien
+// convierte (se corrige editando la venta), con el stock que el pedido ya tenía
+// apartado. Solo admin, y una sola vez por pedido.
+function ConvertToSale({ order }: { order: AdminPublicOrder }) {
+  const isAdmin = useAppSelector(selectIsAdmin);
+  const navigate = useNavigate();
+  const [convert, { isLoading }] = useConvertPublicOrderToSaleMutation();
+  const [confirming, setConfirming] = useState(false);
+
+  if (order.saleId) {
+    return (
+      <Link
+        to={`/admin/ventas?status=all&sale=${order.saleId}`}
+        className="inline-flex h-9 items-center justify-center rounded-md border px-3 text-sm text-foreground transition-colors hover:bg-muted"
+      >
+        Ver la venta
+      </Link>
+    );
+  }
+  if (!isAdmin || order.status === 'cancelled') return null;
+
+  async function run() {
+    try {
+      const { saleId } = await convert({ id: order.id }).unwrap();
+      toast.success(`${shortId(order.id)} quedó como venta pendiente de aprobación.`);
+      navigate(`/admin/ventas?sale=${saleId}`);
+    } catch (err) {
+      toast.error(errMsg(err, 'No se pudo convertir el pedido en venta.'));
+    } finally {
+      setConfirming(false);
+    }
+  }
+
+  return confirming ? (
+    <div className="space-y-2 rounded-md border p-3">
+      <p className="text-xs text-muted-foreground">
+        Se crea una venta pendiente a tu nombre, con estos productos y el stock que el pedido ya tenía apartado. Podés
+        cambiar el vendedor editándola en Ventas.
+      </p>
+      <div className="flex gap-2">
+        <Button size="sm" onClick={run} disabled={isLoading} className="flex-1">
+          {isLoading && <Spinner className="mr-2" />}
+          Confirmar
+        </Button>
+        <Button size="sm" variant="ghost" onClick={() => setConfirming(false)} disabled={isLoading}>
+          Cancelar
+        </Button>
+      </div>
+    </div>
+  ) : (
+    <Button variant="outline" className="h-9" onClick={() => setConfirming(true)}>
+      Convertir en venta
+    </Button>
+  );
+}
+
 function OrderDetail({ order, onCopyTracking }: { order: AdminPublicOrder; onCopyTracking: () => void }) {
   const greeting = `Hola ${order.customerName?.split(' ')[0] ?? ''}, te escribimos de la tienda por tu pedido ${shortId(order.id)}.`;
   return (
@@ -290,6 +352,7 @@ function OrderDetail({ order, onCopyTracking }: { order: AdminPublicOrder; onCop
             <HugeIcon icon={Copy01Icon} size={14} aria-hidden />
             Copiar link de seguimiento
           </button>
+          <ConvertToSale order={order} />
         </div>
       </div>
     </div>

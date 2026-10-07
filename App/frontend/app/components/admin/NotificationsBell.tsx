@@ -163,7 +163,7 @@ export function NotificationsBell() {
         <Button
           variant="ghost"
           size="icon"
-          className="relative"
+          className="relative size-11 rounded-xl border border-border bg-card text-primary-2"
           aria-label={badge > 0 ? `Notificaciones: ${badge} sin ver` : 'Notificaciones'}
         >
           <HugeIcon icon={Notification03Icon} size={18} strokeWidth={2} aria-hidden />

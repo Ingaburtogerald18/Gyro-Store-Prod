@@ -267,7 +267,7 @@ export function DataTable<T>({
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
         {!hideSearch && (
-          <div className="flex h-9 flex-1 items-center gap-2 rounded-md border border-border bg-card px-2.5 transition-colors focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/30 sm:max-w-xs sm:flex-none">
+          <div className="flex h-11 min-w-0 basis-full flex-1 items-center gap-2 rounded-xl border border-border bg-card px-3 transition-colors focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/30 sm:max-w-xs sm:basis-auto sm:flex-none md:h-9">
             <HugeIcon icon={Search01Icon} size={16} strokeWidth={2} className="text-muted-foreground" />
             <input
               ref={searchRef}
@@ -275,7 +275,7 @@ export function DataTable<T>({
               onChange={(e) => setGlobalFilter(e.target.value)}
               placeholder={searchPlaceholder}
               aria-label={searchPlaceholder}
-              className="w-full bg-transparent py-2 text-sm outline-none placeholder:text-muted-foreground"
+              className="min-w-0 w-full bg-transparent py-2 text-base outline-none placeholder:text-muted-foreground md:text-sm"
             />
             <kbd className="hidden shrink-0 rounded border border-border px-1 text-2xs text-muted-foreground sm:inline">
               /
@@ -298,7 +298,7 @@ export function DataTable<T>({
             title={compact ? "Filas normales" : "Filas compactas"}
             aria-label={compact ? "Cambiar a filas normales" : "Cambiar a filas compactas"}
             aria-pressed={compact}
-            className="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="grid size-11 place-items-center rounded-xl text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:size-9"
           >
             <HugeIcon icon={MenuSquareIcon} size={16} strokeWidth={2} />
           </button>
@@ -309,7 +309,7 @@ export function DataTable<T>({
                 type="button"
                 title="Columnas"
                 aria-label="Elegir columnas visibles"
-                className="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="grid size-11 place-items-center rounded-xl text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:size-9"
               >
                 <HugeIcon icon={LayoutTable01Icon} size={16} strokeWidth={2} />
               </button>
@@ -340,7 +340,7 @@ export function DataTable<T>({
               onClick={exportCsv}
               title="Exportar CSV"
               aria-label="Exportar a CSV lo que se ve en la tabla"
-              className="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="grid size-11 place-items-center rounded-xl text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:size-9"
             >
               <HugeIcon icon={Download04Icon} size={16} strokeWidth={2} />
             </button>
@@ -613,7 +613,7 @@ export function DataTable<T>({
                 {mobileCard ? (
                   mobileCard(row.original)
                 ) : (
-                  <div className="space-y-1.5 rounded-card border bg-card shadow-lg p-4">
+                  <div className="space-y-2 rounded-2xl border bg-card p-4">
                     {row.getVisibleCells().map((cell) => {
                       const header = cell.column.columnDef.header;
                       const label = typeof header === "string" ? header : "";

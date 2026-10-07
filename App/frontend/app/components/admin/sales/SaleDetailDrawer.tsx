@@ -14,6 +14,7 @@ import {
   CheckmarkCircle01Icon,
   DropletIcon,
   Edit02Icon,
+  Alert02Icon,
 } from '@hugeicons/core-free-icons';
 import { useEffect, useMemo, useState } from 'react';
 import { useReducedMotion } from 'framer-motion';
@@ -28,6 +29,7 @@ import { SALE_STATUS, statusMeta } from '~/lib/status';
 import { useGetSaleQuery, type SaleWithItems } from '~/store/api/salesApi';
 import { InvoiceCodeCell } from '~/components/admin/invoices/InvoiceCodeCell';
 import { LineBreakdown, PozosBars, sumPozos } from './FinancialBreakdown';
+import { SaleReturnsSection } from './SaleReturnsSection';
 
 export function SaleDetailDrawer({
   saleId,
@@ -118,6 +120,17 @@ export function SaleDetailDrawer({
                   </div>
                 </dl>
 
+                {isAdmin && sale.belowMinMargin && (
+                  <p className="flex items-start gap-1.5 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
+                    <HugeIcon icon={Alert02Icon} size={14} strokeWidth={2} className="mt-px shrink-0" aria-hidden />
+                    <span>
+                      Hay productos vendidos por debajo del margen mínimo
+                      {' '}({sale.items.filter((it) => it.belowMinMargin).map((it) => it.productName).join(', ')}).
+                      Revisá el precio antes de aprobar.
+                    </span>
+                  </p>
+                )}
+
                 <section>
                   <h3 className="mb-2 text-2xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
                     Productos
@@ -144,6 +157,10 @@ export function SaleDetailDrawer({
                     dibuja el bloque para no dejar un encabezado vacío. */}
                 {isAdmin && sale.items.some((it) => it.gananciaTienda !== undefined) && (
                   <FinancialSection sale={sale} />
+                )}
+
+                {isAdmin && (sale.status === 'approved' || sale.status === 'paid') && (
+                  <SaleReturnsSection sale={sale} />
                 )}
               </div>
             )}

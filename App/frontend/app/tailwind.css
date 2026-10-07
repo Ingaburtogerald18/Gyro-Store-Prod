@@ -97,16 +97,14 @@
   --radius-card: 0.75rem;
   --radius-pill: 9999px;
 
-  /* Tipografía por ÁREA (ver `[data-area]` más abajo): la tienda usa Chivo y el
-     panel de administración, Geist. Los tokens apuntan a variables y no a la
+  /* Tipografía por ÁREA (ver `[data-area]` más abajo): tienda y panel usan Chivo. Los tokens apuntan a variables y no a la
      fuente literal porque `@theme inline` copia el valor en cada utilidad: con
      un literal, `font-heading` quedaría fijo en una sola fuente para las dos
      áreas. Registrar --font-heading acá es lo que genera la clase `font-heading`
      (la usan títulos de Dialog/Sheet/Card de shadcn y el panel). */
   --font-sans: var(--area-font-sans);
   --font-heading: var(--area-font-heading);
-  /* Chivo fija, sin depender del área: montos grandes del PANEL (métricas,
-     totales), que van en Chivo aunque el resto del panel siga en Geist. */
+  /* Chivo fija para montos grandes del panel (métricas y totales). */
   --font-display: "Chivo Variable", ui-sans-serif, system-ui, sans-serif;
   /* Chivo Mono: datos técnicos (specs, stock, contadores, códigos). */
   --font-spec: "Chivo Mono Variable", ui-monospace, monospace;
@@ -369,8 +367,8 @@ body {
 
 /* ──────────────────────────────────────────────────────────────
    Paleta de la TIENDA, sacada del logo (bolsa teal, nombre amarillo, contorno
-   tinta, cachetes coral). Solo aplica con data-area="store": el panel de
-   administración conserva los tokens de arriba.
+   tinta, cachetes coral). Tienda y administración comparten superficies;
+   el panel asigna roles propios al amarillo y la esmeralda más abajo.
 
    Reparto de roles:
      · Amarillo (--primary): la acción de compra. Siempre con texto tinta: el
@@ -386,9 +384,10 @@ body {
    coral 6.6:1; el oscuro tiene su propio bloque más abajo.
 
    `.store-palette` aplica la misma paleta a un subárbol fuera de la tienda (el
-   acceso de colaboradores, /login, que es área admin para conservar Geist).
+   acceso de colaboradores, /login).
    ────────────────────────────────────────────────────────────── */
 html[data-area='store'],
+html[data-area='admin'],
 .store-preview,
 .store-palette {
   --ink: #102423;
@@ -428,6 +427,7 @@ html[data-area='store'],
    solo como acento chico (links, opción elegida) y el amarillo es el único color
    con peso. Contrastes: texto 17:1 sobre fondo, gris secundario 8:1, teal 9:1. */
 html[data-area='store'][data-theme='dark'],
+html[data-area='admin'][data-theme='dark'],
 .store-preview[data-theme='dark'],
 html[data-theme='dark'] .store-palette {
   --background: #0e0f10;
@@ -661,6 +661,120 @@ html[data-area='store'] .catalog-filter-sort-menu [data-slot='select-item']:is([
 }
 html[data-area='store'] .catalog-filter-sort-menu [data-slot='select-item']:is([data-highlighted], [data-state='checked']) svg {
   color: var(--primary-2);
+}
+
+/* Admin Center comparte las superficies del catálogo. Esmeralda sigue siendo
+   el acento semántico del panel (selección, enlaces y datos); el amarillo se
+   reserva al botón de acción principal, para no volver amarillos los estados
+   de éxito y los textos que ya consumen --primary. Los portales heredan estos
+   tokens desde html igual que el contenido de cada módulo. */
+html[data-area='admin'] {
+  --area-font-sans: "Chivo Variable", ui-sans-serif, system-ui, sans-serif;
+  --area-font-heading: "Chivo Variable", ui-sans-serif, system-ui, sans-serif;
+  --primary: var(--primary-2);
+  --primary-foreground: #ffffff;
+  --admin-action: #ffc20e;
+  --admin-action-foreground: #102423;
+  --admin-action-shadow: #102423;
+  --sidebar: var(--card);
+  --sidebar-foreground: var(--foreground);
+  --sidebar-primary: var(--primary-2);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: color-mix(in srgb, var(--primary-2) 10%, var(--card));
+  --sidebar-accent-foreground: var(--primary-2);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--ring);
+}
+html[data-area='admin'][data-theme='dark'] {
+  --primary: var(--primary-2);
+  --primary-foreground: #102423;
+  --admin-action-shadow: #a8402f;
+  --sidebar-accent: color-mix(in srgb, var(--primary-2) 16%, var(--card));
+}
+html[data-area='admin'] .admin-topbar {
+  box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--primary-2) 65%, transparent);
+}
+html[data-area='admin'] .admin-nav-link {
+  border: 1px solid transparent;
+}
+html[data-area='admin'] .admin-nav-link[data-active='true'] {
+  border-color: color-mix(in srgb, var(--primary-2) 40%, transparent);
+  font-weight: 600;
+}
+html[data-area='admin'] [data-ui-button][data-variant='default']:not([aria-pressed]):not(:where(.store-preview, .store-preview *, .store-palette, .store-palette *)) {
+  background-color: var(--admin-action);
+  color: var(--admin-action-foreground);
+  border: 1.5px solid var(--ink);
+  box-shadow: 2px 2px 0 var(--admin-action-shadow);
+  transition-property: background-color, box-shadow, transform;
+}
+html[data-area='admin'] [data-ui-button][data-variant='default']:not([aria-pressed]):hover:not(:disabled):not(:where(.store-preview, .store-preview *, .store-palette, .store-palette *)) {
+  background-color: color-mix(in srgb, var(--admin-action) 92%, var(--ink));
+}
+html[data-area='admin'] [data-ui-button][data-variant='default']:not([aria-pressed]):active:not(:disabled):not(:where(.store-preview, .store-preview *, .store-palette, .store-palette *)) {
+  transform: translate(1px, 1px);
+  box-shadow: 1px 1px 0 var(--admin-action-shadow);
+}
+html[data-area='admin'] :is([data-ui-button], [data-slot='input'], [data-slot='textarea'], [data-slot='select-trigger'], [data-slot='native-select'], [data-slot='input-group']):not([class*='rounded-full']):not([class*='rounded-pill']):not(:where(.store-preview, .store-preview *, .store-palette, .store-palette *)) {
+  border-radius: 0.75rem;
+}
+html[data-area='admin'] :is([data-slot='input'], [data-slot='textarea'], [data-slot='select-trigger'], [data-slot='native-select'], [data-slot='input-group']):not(:where(.store-preview, .store-preview *, .store-palette, .store-palette *)) {
+  background-color: var(--card);
+  border-color: var(--input);
+}
+html[data-area='admin'] :is([data-slot='input'], [data-slot='textarea'], [data-slot='select-trigger'], [data-slot='native-select'])[aria-invalid='true']:not(:where(.store-preview, .store-preview *, .store-palette, .store-palette *)) {
+  border-color: var(--destructive);
+}
+html[data-area='admin'] :is([data-slot='dialog-content'], [data-slot='sheet-content']) > [data-ui-button][data-size='icon-sm'][class*='absolute']:not(:where(.store-preview, .store-preview *, .store-palette, .store-palette *)) {
+  width: 2.75rem;
+  height: 2.75rem;
+  top: 0.625rem;
+  right: 0.625rem;
+}
+html[data-area='admin'] :is([data-slot='dialog-header'], [data-slot='sheet-header']):not(:where(.store-preview, .store-preview *, .store-palette, .store-palette *)) {
+  padding-right: 2.5rem;
+}
+html[data-area='admin'] [data-slot='dialog-content']:not(:where(.store-preview, .store-preview *, .store-palette, .store-palette *)) {
+  max-height: calc(100dvh - 2rem);
+  overflow-y: auto;
+}
+html[data-area='admin'] [data-slot='tabs-list'][data-variant='default']:not(:where(.store-preview, .store-preview *, .store-palette, .store-palette *)) {
+  max-width: 100%;
+  height: auto;
+  min-height: 2.5rem;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+html[data-area='admin'] [data-slot='tabs-trigger']:not(:where(.store-preview, .store-preview *, .store-palette, .store-palette *)) {
+  min-height: 2rem;
+  padding-inline: 0.75rem;
+}
+@media (min-width: 768px) {
+  html[data-area='admin'] [data-ui-button]:not([data-size^='icon']):not([data-size='xs']):not(:where(.store-preview, .store-preview *, .store-palette, .store-palette *)) {
+    min-height: 2.25rem;
+  }
+  html[data-area='admin'] :is([data-slot='input'], [data-slot='select-trigger'], [data-slot='native-select'], [data-slot='input-group']):not(:where(.store-preview, .store-preview *, .store-palette, .store-palette *)) {
+    min-height: 2.25rem;
+  }
+}
+@media (max-width: 767px) {
+  html[data-area='admin'] :is([data-ui-button], [data-slot='input'], [data-slot='select-trigger'], [data-slot='native-select'], [data-slot='input-group'], [data-slot='tabs-trigger']):not(:where(.store-preview, .store-preview *, .store-palette, .store-palette *)) {
+    min-height: 2.75rem;
+  }
+  html[data-area='admin'] [data-ui-button][data-size^='icon']:not(:where(.store-preview, .store-preview *, .store-palette, .store-palette *)) {
+    min-width: 2.75rem;
+  }
+  html[data-area='admin'] :is([data-slot='dropdown-menu-item'], [data-slot='dropdown-menu-checkbox-item'], [data-slot='select-item']):not(:where(.store-preview, .store-preview *, .store-palette, .store-palette *)) {
+    min-height: 2.75rem;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  html[data-area='admin'] [data-ui-button]:active:not(:disabled):not(:where(.store-preview, .store-preview *, .store-palette, .store-palette *)) {
+    transform: none;
+  }
+  html[data-area='admin'] :is([data-slot='sidebar-gap'], [data-slot='sidebar-container'], [data-slot='sidebar-menu-button']):not(:where(.store-preview, .store-preview *, .store-palette, .store-palette *)) {
+    transition-duration: 0ms;
+  }
 }
 
 @layer base {

@@ -1,7 +1,9 @@
 import { Router } from 'express';
+import { syncPublicOrderReservation } from '../services/inventory';
 import { asyncHandler } from '../utils/asyncHandler';
 import { parseUuidParam } from '../utils/params';
-import { requireSeller } from '../middleware/auth';
+import { requireAdmin, requireSeller } from '../middleware/auth';
+import { convertPublicOrderToSale } from '../services/salesConversions';
 import { trackOrderLimiter } from '../middleware/rateLimiter';
 import {
   OrderReviewError,
@@ -19,6 +21,7 @@ import {
   updatePublicOrderStatusSchema,
 } from '../../shared/schemas';
 import { z } from 'zod';
+import { OrderAttemptConflict } from '../services/orderIdempotency';
 
 const router = Router();
 
@@ -37,6 +40,10 @@ router.post(
     try {
       order = await createPublicOrder(input);
     } catch (err) {
+      if (err instanceof OrderAttemptConflict) {
+        res.status(409).json({ error: err.message, code: err.code });
+        return;
+      }
       if (err instanceof OrderCheckoutUnavailable) {
         res.status(503).json({ error: err.message });
         return;
@@ -104,7 +111,24 @@ router.patch(
   asyncHandler(async (req, res) => {
     const id = parseUuidParam(req.params.id, 'El pedido no existe.');
     const { status } = updatePublicOrderStatusSchema.parse(req.body);
-    res.json(await updatePublicOrderStatus(id, status));
+    const updated = await updatePublicOrderStatus(id, status);
+    // Confirmado (preparing/shipped) aparta stock; entregado, cancelado o de
+    // vuelta a nuevo lo libera. `stock` dice qué no se pudo apartar.
+    const stock = await syncPublicOrderReservation(id, status);
+    res.json({ ...updated, stock });
+  }),
+);
+
+// Convierte el pedido web en una venta pendiente de aprobación, pasándole el
+// stock que el pedido ya tenía apartado. Solo admin: crea una venta con comisión.
+router.post(
+  '/admin/:id/convert-to-sale',
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const id = parseUuidParam(req.params.id, 'El pedido no existe.');
+    const { sellerId } = z.object({ sellerId: z.string().uuid().optional() }).parse(req.body ?? {});
+    const result = await convertPublicOrderToSale(id, { uid: req.user!.uid, email: req.user!.email }, { sellerId });
+    res.status(201).json(result);
   }),
 );
 

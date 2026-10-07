@@ -9,7 +9,7 @@
 // ── Por qué el título bajó de peso ──
 // `text-3xl font-extrabold` (30 px, 800) se lee como plantilla, no como
 // producto: el título gritaba más fuerte que los datos. El peso de la pantalla
-// lo tiene que dar la métrica, no el rótulo del módulo. Acá va 24 px / 600.
+// lo tiene que dar la métrica, no el rótulo del módulo. Acá va 24 px / 700, con la fuente de la marca.
 import type { ReactNode } from 'react';
 
 import { cn } from '~/lib/utils';
@@ -47,7 +47,7 @@ export function PageHeader({
             </p>
           )}
           <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-            <h1 className="font-heading text-2xl font-semibold tracking-tight text-foreground">
+            <h1 className="font-heading text-2xl leading-tight font-bold tracking-tight text-foreground">
               {title}
             </h1>
             {meta && <span className="text-xs text-muted-foreground">{meta}</span>}
@@ -57,7 +57,7 @@ export function PageHeader({
             <p className="mt-1 text-pretty text-sm text-muted-foreground">{description}</p>
           )}
         </div>
-        {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
+        {actions && <div className="flex max-w-full shrink-0 flex-wrap items-center gap-2">{actions}</div>}
       </div>
 
       {/* Los filtros van en su propia fila, separados por un borde. Apilados a

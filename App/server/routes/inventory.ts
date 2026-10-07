@@ -28,6 +28,8 @@ import {
   revertPurchase,
   deletePurchase,
   simulateCost,
+  adjustStock,
+  listStockMovements,
 } from '../services/inventory';
 
 const router = Router();
@@ -107,7 +109,8 @@ router.post(
   asyncHandler(async (req, res) => {
     const id = parseUuidParam(req.params.id, 'Compra no encontrada.');
     const shippingUnit = z.number().min(0).parse(req.body.shippingUnit);
-    const result = await simulateCost(id, shippingUnit);
+    const exchangeRate = z.number().positive().optional().parse(req.body.exchangeRate);
+    const result = await simulateCost(id, shippingUnit, exchangeRate);
     res.json(result);
   }),
 );
@@ -117,7 +120,7 @@ router.put(
   asyncHandler(async (req, res) => {
     const id = parseUuidParam(req.params.id, 'Compra no encontrada.');
     const data = updatePurchaseInputSchema.parse(req.body);
-    const ok = await updatePurchase(id, data);
+    const ok = await updatePurchase(id, data, req.user!.uid);
     if (!ok) {
       res.status(404).json({ error: 'Compra no encontrada.' });
       return;
@@ -136,6 +139,31 @@ router.patch(
       return;
     }
     res.json({ ok: true });
+  }),
+);
+
+// Ajuste de stock de un lote (merma, entrada o salida por conteo), con motivo.
+const adjustStockSchema = z.object({
+  kind: z.enum(['adjust_in', 'adjust_out', 'write_off']),
+  quantity: z.number().int().positive('La cantidad tiene que ser mayor a 0.').max(100000),
+  reason: z.string().trim().min(3, 'Escribí el motivo del ajuste.').max(300),
+});
+
+router.post(
+  '/purchases/:id/adjust',
+  asyncHandler(async (req, res) => {
+    const id = parseUuidParam(req.params.id, 'Compra no encontrada.');
+    const data = adjustStockSchema.parse(req.body);
+    res.json(await adjustStock(id, data, req.user!.uid));
+  }),
+);
+
+router.get(
+  '/movements',
+  asyncHandler(async (req, res) => {
+    const purchaseId =
+      typeof req.query.purchaseId === 'string' ? parseUuidParam(req.query.purchaseId, 'Compra no encontrada.') : undefined;
+    res.json(await listStockMovements(purchaseId));
   }),
 );
 

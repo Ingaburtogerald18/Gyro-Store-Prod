@@ -30,7 +30,7 @@ export function EditArrivalModal({
     handleSubmit,
     reset,
     setValue,
-    formState: { errors, dirtyFields },
+    formState: { errors },
   } = useForm<ArrivalFormValues, any, ArrivalFormInput>({
     resolver: zodResolver(arrivalFormSchema),
   });
@@ -56,10 +56,9 @@ export function EditArrivalModal({
           simulateCost({ id: purchase.id, shippingUnit: val })
             .unwrap()
             .then(res => {
+              // Solo se MUESTRA. Antes se copiaba solo al campo de precio al
+              // abrir el modal y pisaba el precio puesto a mano al guardar.
               setSimulatedPrice(res.precioSugerido);
-              if (!dirtyFields.suggestedPrice) {
-                setValue("suggestedPrice", res.precioSugerido, { shouldValidate: true });
-              }
             })
             .catch(err => {
               console.error("Error simulando costo:", err);
@@ -71,7 +70,7 @@ export function EditArrivalModal({
       }
     }, 400); // 400ms debounce
     return () => clearTimeout(timer);
-  }, [shippingUnit, purchase, simulateCost, setValue, dirtyFields.suggestedPrice]);
+  }, [shippingUnit, purchase, simulateCost]);
 
   async function onSubmit(data: ArrivalFormInput) {
     if (!purchase) return;
@@ -128,9 +127,17 @@ export function EditArrivalModal({
               <span className="font-semibold">Precio sugerido calculado:</span>{' '}
               <span className="nums">{formatCordobas(simulatedPrice, 'C$', 2)}</span>
             </p>
-            <p className="text-xs text-muted-foreground mt-1">
-              Si dejás el campo de abajo vacío, este será el precio que se asigne automáticamente.
-            </p>
+            <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs text-muted-foreground">Tu precio de abajo no cambia si no lo tocás.</p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setValue("suggestedPrice", simulatedPrice, { shouldDirty: true, shouldValidate: true })}
+              >
+                Usar este precio
+              </Button>
+            </div>
           </div>
         )}
 

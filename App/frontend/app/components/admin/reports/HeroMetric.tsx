@@ -56,8 +56,8 @@ export function HeroMetric({
         </span>
       </div>
 
-      {/* 48 px. Es el único número de la pantalla a este tamaño. */}
-      <p className="nums mt-3 font-display text-5xl font-bold tracking-tight text-foreground">
+      {/* La métrica conserva jerarquía sin salirse de teléfonos pequeños. */}
+      <p className="nums mt-3 font-display text-3xl font-bold tracking-tight text-foreground [overflow-wrap:anywhere] sm:text-5xl">
         <CountUp value={value} format={format} />
       </p>
 
@@ -93,7 +93,7 @@ export function HeroMetric({
   );
 
   const shell = cn(
-    'rounded-card border border-border bg-card p-6 transition-colors',
+    'min-w-0 rounded-2xl border border-border bg-card p-4 transition-colors sm:p-6',
     onClick && 'cursor-pointer text-left hover:border-primary/40',
     className,
   );

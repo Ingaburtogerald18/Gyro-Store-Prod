@@ -18,6 +18,8 @@ export interface AdminPublicOrder {
   codeDiscount: number;
   createdAt: string;
   items: PublicOrderLine[];
+  /** Venta en que se convirtió. Null si todavía no (o sin la migración 0023). */
+  saleId?: string | null;
 }
 
 export const publicOrdersApi = baseApi.injectEndpoints({
@@ -49,7 +51,23 @@ export const publicOrdersApi = baseApi.injectEndpoints({
       },
       invalidatesTags: (_res, _err, { id }) => [{ type: 'Orders' as const, id }],
     }),
+    // Crea una venta pendiente con el stock que el pedido ya tenía apartado.
+    convertPublicOrderToSale: build.mutation<
+      { saleId: string; newlyReserved: number },
+      { id: string; sellerId?: string }
+    >({
+      query: ({ id, sellerId }) => ({
+        url: `orders/admin/${id}/convert-to-sale`,
+        method: 'POST',
+        body: sellerId ? { sellerId } : {},
+      }),
+      invalidatesTags: ['Orders', 'Sale', 'Purchase', 'Product'],
+    }),
   }),
 });
 
-export const { useGetAdminPublicOrdersQuery, useUpdatePublicOrderStatusMutation } = publicOrdersApi;
+export const {
+  useGetAdminPublicOrdersQuery,
+  useUpdatePublicOrderStatusMutation,
+  useConvertPublicOrderToSaleMutation,
+} = publicOrdersApi;

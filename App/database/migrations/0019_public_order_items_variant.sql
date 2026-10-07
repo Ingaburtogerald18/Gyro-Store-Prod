@@ -11,8 +11,9 @@
 --   · Columna nullable: los pedidos históricos quedan con NULL y se leen igual.
 --   · `sku` NO cambia: sigue siendo el id del catalog_item (o `combo:<id>`),
 --     que es como lo interpretan el panel y el seguimiento.
---   · El servidor ya detecta si la columna falta y cae a la forma anterior, así
---     que el código puede desplegarse antes o después de esta migración.
+--   · Las lecturas históricas toleran que la columna falte. Para registrar
+--     pedidos nuevos, el servidor requiere 0021_atomic_public_order_checkout.sql,
+--     que incluye esta columna y evita perder la variante al guardar.
 --
 -- El precio aplicado ya se guardaba en `precio_unit`.
 -- ============================================================================

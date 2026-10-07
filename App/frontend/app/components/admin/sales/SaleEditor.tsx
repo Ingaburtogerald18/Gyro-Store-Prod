@@ -157,11 +157,6 @@ export function SaleEditor({
     return p && typeof l.quantity === 'number' && l.quantity > p.stock;
   });
 
-  // El margen mínimo lo evalúa el servidor: si lo marca, registrar va a fallar.
-  // Se avisa ANTES en vez de dejar que reviente al enviar.
-  const belowMinMarginNames = (result?.lines ?? [])
-    .filter((l) => l.belowMinMargin)
-    .map((l) => l.productName);
 
   // Total local optimista: mientras el servidor cotiza, el botón ya muestra el
   // importe. Así la cifra no parpadea ni desaparece entre cotizaciones.
@@ -199,9 +194,9 @@ export function SaleEditor({
           ? 'Hay un producto repetido: juntá las unidades en una sola línea.'
           : hasOverStock
             ? 'Hay líneas que exceden el stock disponible.'
-            : belowMinMarginNames.length > 0
-              ? `Hay líneas por debajo del margen mínimo (${belowMinMarginNames.join(', ')}).`
-              : isEdit && sale?.status !== 'pending_approval' && !editReason.trim()
+            // El margen mínimo ya no bloquea: la venta entra marcada y el admin
+            // decide al aprobar (el aviso por línea lo muestra QuoteSummary).
+            : isEdit && sale?.status !== 'pending_approval' && !editReason.trim()
                 ? 'Escribe el motivo de la edición para habilitar el guardado.'
                 : null;
 
@@ -334,7 +329,12 @@ export function SaleEditor({
           customerName: includeCustomer ? customerName.trim() || undefined : '',
           phone: includeCustomer ? phone.trim() || undefined : '',
           items: validLines,
-          soldAt: toLocalNoonIso(saleDate),
+          // Solo si se cambió la fecha: mandarla siempre le reescribía la hora
+          // a mediodía a cada venta editada.
+          soldAt:
+            sale.createdAt && saleDate === toYmd(new Date(sale.createdAt))
+              ? undefined
+              : toLocalNoonIso(saleDate),
           reason: editReason.trim() || undefined,
           ...overridePayload
         }).unwrap();

@@ -183,7 +183,13 @@ export default function AdminInventario() {
         open={commandPaletteOpen}
         onOpenChange={setCommandPaletteOpen}
         purchases={purchases}
-        onSelect={() => setCommandPaletteOpen(false)}
+        // Antes elegir una compra solo cerraba la paleta. Ahora la busca en Compras.
+        onSelect={(p) => {
+          setSearch(p.code);
+          setPurchaseStatus("all");
+          goToView("purchases");
+          setCommandPaletteOpen(false);
+        }}
       />
     </div>
   );

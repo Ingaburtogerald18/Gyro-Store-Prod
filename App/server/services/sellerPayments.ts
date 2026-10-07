@@ -248,82 +248,87 @@ export async function payCommissions(
   const orderIds = [...new Set(input.orderIds)];
   if (orderIds.length === 0) throw new BadRequestError('Elegí al menos una venta para pagar.');
 
-  const { data: orderRows, error: ordersError } = await db
+  // Las ventas se TOMAN primero (approved → paid, solo si siguen aprobadas y
+  // son de este vendedor) y recién después se emite el lote. Antes se leían,
+  // se emitía el lote y al final se marcaban: dos clics seguidos emitían dos
+  // lotes por las mismas ventas.
+  const { data: claimedRows, error: claimError } = await db
     .from('orders')
-    .select('id, seller_uid, seller_email, status')
+    .update({ status: 'paid' })
     .in('id', orderIds)
     .eq('seller_email', input.sellerEmail)
-    .eq('status', 'approved');
-  if (ordersError) throw ordersError;
+    .eq('status', 'approved')
+    .select('id, seller_uid');
+  if (claimError) throw claimError;
 
-  const orders = (orderRows ?? []) as unknown as {
-    id: string;
-    seller_uid: string | null;
-    seller_email: string;
-    status: string;
-  }[];
-
+  const orders = (claimedRows ?? []) as unknown as { id: string; seller_uid: string | null }[];
   if (orders.length === 0) {
     throw new BadRequestError('Ninguna de esas ventas está aprobada y pendiente de pago para este vendedor.');
   }
-
-  // La comisión sale del snapshot congelado en `order_items` al aprobar, NO se
-  // recalcula: recalcular acá pagaría un monto distinto del que el vendedor vio
-  // aprobado si la config financiera cambió en el medio (doc 11, regla de oro).
   const payableIds = orders.map((o) => o.id);
-  const { data: itemRows, error: itemsError } = await db
-    .from('order_items')
-    .select('order_id, comision')
-    .in('order_id', payableIds);
-  if (itemsError) throw itemsError;
 
-  const grossComision = round(
-    ((itemRows ?? []) as unknown as { comision: number | null }[]).reduce(
-      (sum, item) => sum + (Number(item.comision) || 0),
-      0,
-    ),
-    2,
-  );
+  // Si algo falla antes de emitir el lote, las ventas vuelven a "aprobada".
+  const unclaim = async () => {
+    const { error } = await db.from('orders').update({ status: 'approved' }).in('id', payableIds).eq('status', 'paid');
+    if (error) console.error('[sellerPayments] No se pudieron devolver ventas a aprobadas:', payableIds, error);
+  };
 
-  // El saldo pendiente se arrastra a este lote: si el vendedor tenía un ajuste
-  // a favor se le suma, y si debía se le descuenta.
-  const { balance, adjustmentIds, sellerName } = await getPendingBalance(input.sellerEmail);
-  const totalComision = round(grossComision + balance, 2);
+  try {
+    // La comisión sale del snapshot congelado en `order_items` al aprobar, NO se
+    // recalcula: recalcular acá pagaría un monto distinto del que el vendedor vio
+    // aprobado si la config financiera cambió en el medio (doc 11, regla de oro).
+    const { data: itemRows, error: itemsError } = await db
+      .from('order_items')
+      .select('order_id, comision')
+      .in('order_id', payableIds);
+    if (itemsError) throw itemsError;
 
-  const { data: payment, error: paymentError } = await db
-    .from('commission_payments')
-    .insert({
-      seller_uid: orders[0]?.seller_uid ?? null,
-      seller_email: input.sellerEmail,
-      seller_name: sellerName,
-      order_ids: payableIds,
-      gross_comision: grossComision,
-      saldo_aplicado: balance,
-      total_comision: totalComision,
-      is_settlement: false,
-      payment_method: input.paymentMethod,
-      receipt_url: input.receiptUrl ?? null,
-      no_receipt_comment: input.noReceiptComment ?? null,
-      created_by: createdBy,
-    })
-    .select(PAYMENT_COLUMNS)
-    .single();
-  if (paymentError) throw paymentError;
+    const grossComision = round(
+      ((itemRows ?? []) as unknown as { comision: number | null }[]).reduce(
+        (sum, item) => sum + (Number(item.comision) || 0),
+        0,
+      ),
+      2,
+    );
 
-  const paymentId = (payment as unknown as PaymentRow).id;
+    // El saldo pendiente se arrastra a este lote: si el vendedor tenía un ajuste
+    // a favor se le suma, y si debía se le descuenta.
+    const { balance, adjustmentIds, sellerName } = await getPendingBalance(input.sellerEmail);
+    const totalComision = round(grossComision + balance, 2);
 
-  // El lote ya existe: si algo falla de acá en adelante queda un pago emitido
-  // con ventas todavía en 'approved'. Es el lado seguro del error — se ve en el
-  // panel y se corrige, en vez de marcar ventas como pagadas sin respaldo.
-  const { error: statusError } = await db
-    .from('orders')
-    .update({ status: 'paid' })
-    .in('id', payableIds);
-  if (statusError) throw statusError;
+    const { data: payment, error: paymentError } = await db
+      .from('commission_payments')
+      .insert({
+        seller_uid: orders[0]?.seller_uid ?? null,
+        seller_email: input.sellerEmail,
+        seller_name: sellerName,
+        order_ids: payableIds,
+        gross_comision: grossComision,
+        saldo_aplicado: balance,
+        total_comision: totalComision,
+        is_settlement: false,
+        payment_method: input.paymentMethod,
+        receipt_url: input.receiptUrl ?? null,
+        no_receipt_comment: input.noReceiptComment ?? null,
+        created_by: createdBy,
+      })
+      .select(PAYMENT_COLUMNS)
+      .single();
+    if (paymentError) throw paymentError;
 
-  await settleAdjustments(adjustmentIds, paymentId);
-
-  return toPayment(payment as unknown as PaymentRow);
+    await settleAdjustments(adjustmentIds, (payment as unknown as PaymentRow).id);
+    return toPayment(payment as unknown as PaymentRow);
+  } catch (err) {
+    // Solo si el lote NO llegó a emitirse: `settleAdjustments` corre después del
+    // insert, y si falla ahí el pago ya existe y las ventas quedan pagadas.
+    const { data: existing } = await db
+      .from('commission_payments')
+      .select('id')
+      .contains('order_ids', payableIds)
+      .limit(1);
+    if (!existing || existing.length === 0) await unclaim();
+    throw err;
+  }
 }
 
 // Salda el saldo suelto de un vendedor, sin esperar al próximo corte de ventas.

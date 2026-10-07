@@ -15,6 +15,13 @@ import { cn } from "~/lib/utils";
 
 const fmtInt = (n: number) => n.toLocaleString("en-US");
 
+/** Unidades disponibles por producto (suma de sus lotes). */
+export function stockPerProduct(rows: { productName: string; available: number }[]): Map<string, number> {
+  const map = new Map<string, number>();
+  for (const r of rows) map.set(r.productName, (map.get(r.productName) ?? 0) + (r.available || 0));
+  return map;
+}
+
 /** Compras: qué se compró en el periodo y cuánto costó. */
 export function PurchaseMetrics({ period = "all" }: { period?: string }) {
   const { data: k, isLoading } = useGetInventoryKpisQuery(period);
@@ -29,13 +36,18 @@ export function PurchaseMetrics({ period = "all" }: { period?: string }) {
 
   return (
     <Strip>
+      {/* Antes mostraba `received` (todo lo comprado de lotes ya recibidos,
+          vendido incluido) bajo el nombre "en bodega". */}
       <Metric
         label="Unidades en bodega"
-        value={fmtInt(k.received)}
+        value={fmtInt(k.availableUnits)}
         sub={
-          <span className={cn(k.inTransit > 0 && "font-medium text-warning")}>
-            {fmtInt(k.inTransit)} en tránsito
-          </span>
+          <>
+            {fmtInt(k.received)} recibidas ·{" "}
+            <span className={cn(k.inTransit > 0 && "font-medium text-warning")}>
+              {fmtInt(k.inTransit)} en tránsito
+            </span>
+          </>
         }
       />
       <Metric
@@ -69,10 +81,13 @@ export function StockMetrics({ period = "all" }: { period?: string }) {
   if (isLoading) return <StripSkeleton />;
 
   const available = rows.reduce((acc, r) => acc + (r.available || 0), 0);
-  const inStock = rows.filter((r) => (r.available || 0) > 0).length;
   const shippingUsd = rows.reduce((acc, r) => acc + (r.shippingUnitUsd || 0) * (r.available || 0), 0);
   const valueUsd = rows.reduce((acc, r) => acc + (r.totalFinalUsd || 0), 0);
-  const outOfStock = rows.length - inStock;
+  // Por PRODUCTO, no por lote: un producto con el lote viejo vendido y uno
+  // nuevo con stock no está agotado.
+  const stockByProduct = stockPerProduct(rows);
+  const inStock = [...stockByProduct.values()].filter((n) => n > 0).length;
+  const outOfStock = stockByProduct.size - inStock;
 
   return (
     <Strip>

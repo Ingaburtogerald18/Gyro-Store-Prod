@@ -261,11 +261,12 @@ export function CheckoutPanel({
       const order = await createOrder(request).unwrap();
       acceptOrder(order, request, true);
     } catch (err) {
-      const failure = err as { status?: number | string; data?: { error?: string; issues?: OrderIssue[] } };
+      const failure = err as { status?: number | string; data?: { error?: string; code?: string; issues?: OrderIssue[] } };
       const data = failure.data;
-      // Un 4xx confirmado no registró el pedido. Red/5xx pueden haber perdido
-      // una respuesta después del commit: conservamos clave y request exactos.
-      if (typeof failure.status === 'number' && failure.status >= 400 && failure.status < 500) {
+      // Solo las validaciones 400/409 permiten corregir el formulario. Un
+      // conflicto de clave, límite de peticiones, red o 5xx conserva el intento:
+      // podría existir un pedido cuya respuesta todavía no recibimos.
+      if ((failure.status === 400 || failure.status === 409) && data?.code !== 'ORDER_ATTEMPT_CONFLICT') {
         clearCheckoutAttempt();
         dispatch(checkoutExtrasChanged({ attempt: null }));
       }

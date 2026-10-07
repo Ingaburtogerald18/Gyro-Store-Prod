@@ -7,8 +7,8 @@
 //     <MetricStrip>              hasta 4 números, divisores verticales
 //     tabla / contenido
 //
-// Radios: 8 px en controles (rounded-md), 12 px en contenedores
-// (rounded-card) y píldora solo en estados (StatusBadge). Montos grandes en
+// Radios: 12 px en controles, 16 px en la superficie de trabajo y
+// píldora solo en estados (StatusBadge). Montos grandes en
 // Chivo (`font-display`), en el color del texto: el color es para señales.
 import { useEffect, useRef, type ReactNode } from "react";
 import { Search01Icon } from "@hugeicons/core-free-icons";
@@ -19,7 +19,7 @@ import { Skeleton } from "~/components/ui/skeleton";
 import { cn } from "~/lib/utils";
 
 /** Alto y borde comunes de los controles de la barra. */
-export const TOOLBAR_CONTROL = "h-9 rounded-md border border-border bg-card text-sm";
+export const TOOLBAR_CONTROL = "h-11 rounded-xl border border-border bg-card text-sm md:h-9";
 
 /** ¿El foco está en un campo de texto? Los atajos de una letra no aplican ahí. */
 export function isTypingTarget() {
@@ -69,7 +69,7 @@ export function Kbd({ children, className }: { children: ReactNode; className?: 
  */
 export function Workspace({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <section className={cn("overflow-clip rounded-card border border-border bg-card", className)}>{children}</section>
+    <section className={cn("overflow-clip rounded-2xl border border-border bg-card", className)}>{children}</section>
   );
 }
 
@@ -94,7 +94,7 @@ export function SegmentedControl<T extends string>({
   label: string;
 }) {
   return (
-    <div role="group" aria-label={label} className="inline-flex rounded-md border border-border bg-card p-0.5">
+    <div role="group" aria-label={label} className={cn("inline-flex max-w-full flex-wrap gap-1 rounded-xl border border-border bg-card p-1", options.length > 2 && "grid w-full grid-cols-2 sm:inline-flex sm:w-auto")}>
       {options.map((o) => (
         <button
           key={o.value}
@@ -102,7 +102,7 @@ export function SegmentedControl<T extends string>({
           aria-pressed={value === o.value}
           onClick={() => onChange(o.value)}
           className={cn(
-            "rounded-[6px] px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            "min-h-11 rounded-lg px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:min-h-8",
             value === o.value ? "bg-primary/10 text-primary-2" : "text-muted-foreground hover:text-foreground",
           )}
         >
@@ -149,7 +149,7 @@ export function ToolbarSearch({
     <label
       className={cn(
         TOOLBAR_CONTROL,
-        "flex min-w-[220px] flex-1 items-center gap-2 px-2.5 focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/30",
+        "flex w-full min-w-0 flex-none items-center gap-2 px-3 focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/30 sm:w-auto sm:min-w-[220px] sm:flex-1",
         className,
       )}
     >
@@ -161,9 +161,9 @@ export function ToolbarSearch({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+        className="min-w-0 flex-1 bg-transparent text-base text-foreground outline-none placeholder:text-muted-foreground md:text-sm"
       />
-      <kbd className="rounded border border-border px-1.5 font-spec text-2xs text-muted-foreground">/</kbd>
+      <kbd className="hidden rounded border border-border px-1.5 font-spec text-2xs text-muted-foreground md:inline">/</kbd>
     </label>
   );
 }

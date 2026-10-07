@@ -1014,6 +1014,11 @@ export const newPurchaseInputSchema = z.object({
   costUnit: z.number().min(0),
   taxUnit: z.number().min(0),
   suggestedPrice: z.number().min(0).optional(),
+  // Producto y variante del catálogo (llave de `variant_mappings`, '' si el
+  // producto no tiene variantes). Sin ellos, compra de un producto que todavía
+  // no está en el catálogo.
+  catalogItemId: z.uuid().optional(),
+  variantKey: z.string().max(200).optional(),
 });
 export type NewPurchaseInput = z.infer<typeof newPurchaseInputSchema>;
 
@@ -1033,6 +1038,9 @@ export const updatePurchaseInputSchema = z.object({
   taxUnit: z.number().min(0).optional(),
   shippingUnit: z.number().min(0).optional(),
   suggestedPrice: z.number().min(0).optional(),
+  // null = desvincular del catálogo.
+  catalogItemId: z.uuid().nullable().optional(),
+  variantKey: z.string().max(200).optional(),
 });
 export type UpdatePurchaseInput = z.infer<typeof updatePurchaseInputSchema>;
 
@@ -1040,6 +1048,9 @@ export const arrivalInputSchema = z.object({
   arrivalDate: z.iso.date(),
   shippingUnit: z.number().min(0),
   suggestedPrice: z.number().min(0).optional(),
+  // Tasa C$/USD que se congela en el lote. Opcional: sin ella se usa la de
+  // Configuración (el modal la precarga con esa misma).
+  exchangeRate: z.number().positive().max(1000).optional(),
 });
 export type ArrivalInput = z.infer<typeof arrivalInputSchema>;
 
@@ -1129,7 +1140,8 @@ const proofMessage = {
 
 export const payCommissionInputSchema = z
   .object({
-    sellerEmail: z.string().email('Vendedor inválido.'),
+    // No `.email()`: en vendedores esporádicos `seller_email` guarda el nombre.
+    sellerEmail: z.string().trim().min(1, 'Vendedor inválido.').max(200),
     orderIds: z
       .array(z.uuid())
       .min(1, 'Elegí al menos una venta para pagar.')
@@ -1141,7 +1153,7 @@ export type PayCommissionInput = z.infer<typeof payCommissionInputSchema>;
 
 export const settleBalanceInputSchema = z
   .object({
-    sellerEmail: z.string().email('Vendedor inválido.'),
+    sellerEmail: z.string().trim().min(1, 'Vendedor inválido.').max(200),
     ...payoutProofSchema,
   })
   .refine(hasProof, proofMessage);

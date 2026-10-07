@@ -22,6 +22,8 @@ export function ArrivalModal({
   const [reportArrival, { isLoading }] = useReportArrivalMutation();
   const [simulateCost] = useSimulateCostMutation();
   const [simulatedPrice, setSimulatedPrice] = useState<number | null>(null);
+  // Tasa de Configuración, la que se usa si el campo queda vacío.
+  const [configRate, setConfigRate] = useState<number | null>(null);
 
   const {
     register,
@@ -32,20 +34,23 @@ export function ArrivalModal({
     formState: { errors, dirtyFields },
   } = useForm<ArrivalFormValues, any, ArrivalFormInput>({
     resolver: zodResolver(arrivalFormSchema),
-    defaultValues: { arrivalDate: undefined, shippingUnit: undefined, suggestedPrice: undefined },
+    defaultValues: { arrivalDate: undefined, shippingUnit: undefined, suggestedPrice: undefined, exchangeRate: undefined },
   });
 
   const shippingUnit = useWatch({ control, name: "shippingUnit" });
+  const exchangeRateInput = useWatch({ control, name: "exchangeRate" });
 
   useEffect(() => {
     const timer = setTimeout(() => {
       if (purchase && shippingUnit !== undefined && String(shippingUnit) !== "") {
         const val = Number(shippingUnit);
+        const rate = Number(exchangeRateInput);
         if (val >= 0 && !isNaN(val)) {
-          simulateCost({ id: purchase.id, shippingUnit: val })
+          simulateCost({ id: purchase.id, shippingUnit: val, exchangeRate: rate > 0 ? rate : undefined })
             .unwrap()
             .then(res => {
               setSimulatedPrice(res.precioSugerido);
+              if (!(rate > 0)) setConfigRate(res.exchangeRate);
               if (!dirtyFields.suggestedPrice) {
                 setValue("suggestedPrice", res.precioSugerido, { shouldValidate: true });
               }
@@ -60,13 +65,14 @@ export function ArrivalModal({
       }
     }, 500);
     return () => clearTimeout(timer);
-  }, [shippingUnit, purchase, simulateCost, setValue, dirtyFields.suggestedPrice]);
+  }, [shippingUnit, exchangeRateInput, purchase, simulateCost, setValue, dirtyFields.suggestedPrice]);
 
   async function onSubmit(data: ArrivalFormInput) {
     if (!purchase) return;
     try {
       await reportArrival({ id: purchase.id, body: data }).unwrap();
-      toast.success("Llegada reportada. Pendiente de aprobación.");
+      // No hay paso de aprobación: el lote queda en bodega al instante.
+      toast.success("Llegada registrada. El lote ya está en bodega.");
       reset();
       onClose();
     } catch (err: any) {
@@ -108,6 +114,24 @@ export function ArrivalModal({
           <FieldLabel htmlFor="arrival-shipping" required>Costo de envío unitario (USD)</FieldLabel>
           <Input id="arrival-shipping" type="number" step="0.0001" min={0} aria-required {...register("shippingUnit")} aria-invalid={!!errors.shippingUnit} />
           <FieldError errors={[errors.shippingUnit]} />
+        </Field>
+
+        <Field data-invalid={!!errors.exchangeRate}>
+          <FieldLabel htmlFor="arrival-rate">Tasa de cambio (C$ por USD)</FieldLabel>
+          <Input
+            id="arrival-rate"
+            type="number"
+            step="0.0001"
+            min={0}
+            placeholder={configRate ? String(configRate) : "La de Configuración"}
+            {...register("exchangeRate")}
+            aria-invalid={!!errors.exchangeRate}
+          />
+          <FieldDescription>
+            Queda fija en este lote. Si la dejás vacía se usa la de Configuración
+            {configRate ? ` (${configRate})` : ""}.
+          </FieldDescription>
+          <FieldError errors={[errors.exchangeRate]} />
         </Field>
 
 

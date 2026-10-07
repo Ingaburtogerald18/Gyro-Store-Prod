@@ -10,7 +10,7 @@ import { listPublishedCatalogByIds } from './catalog';
 import { getAvailableByCodes } from './inventory';
 import { resolveOrderLines, type ResolvedComboInfo } from './orderLines';
 import { isMissingColumn, persistOrder, restoreOrderAttempt, type OrderAttemptStore } from './orderPersistence';
-import { createAttemptRegistry, orderRequestHash } from './orderIdempotency';
+import { createAttemptRegistry, OrderAttemptConflict, orderRequestHash } from './orderIdempotency';
 import { NotFoundError } from '../utils/httpError';
 import { logger } from '../utils/logger';
 import {
@@ -133,6 +133,9 @@ function orderDatabaseError(error: { code?: string; message?: string }): never {
     throw new OrderCheckoutUnavailable();
   }
   if (error.code === 'PT409' || error.code === 'PT400') {
+    if (error.code === 'PT409' && error.message === 'Este intento corresponde a otro pedido.') {
+      throw new OrderAttemptConflict();
+    }
     throw Object.assign(new Error(error.message || 'No se pudo registrar el pedido.'), { status: error.code === 'PT409' ? 409 : 400 });
   }
   throw error;
@@ -310,6 +313,8 @@ export interface AdminPublicOrder {
   codeDiscount: number;
   createdAt: string;
   items: PublicOrderLine[];
+  /** Venta en que se convirtió (migración 0023). Null si todavía no. */
+  saleId: string | null;
 }
 
 const isKnownStatus = (s: unknown): s is PublicOrderStatus =>
@@ -454,16 +459,30 @@ export async function findPublicOrderByCode(input: TrackPublicOrderInput): Promi
 
 /** Lista para el panel: pedidos web más recientes primero, con sus líneas. */
 export async function listPublicOrders(limit = 300): Promise<AdminPublicOrder[]> {
-  const { data, error } = await db
-    .from('public_orders')
-    .select(
-      'id, status, customer_name, phone, delivery_method, address, location_url, note, total, discount_code, code_discount, created_at',
-    )
-    .order('created_at', { ascending: false })
-    .limit(limit);
+  const BASE =
+    'id, status, customer_name, phone, delivery_method, address, location_url, note, total, discount_code, code_discount, created_at';
+  const run = (columns: string) =>
+    db.from('public_orders').select(columns).order('created_at', { ascending: false }).limit(limit);
+  // `sale_id` llega con la 0023; sin ella se lista igual.
+  let { data, error } = await run(`${BASE}, sale_id`);
+  if (isMissingColumn(error)) ({ data, error } = await run(BASE));
   if (error) throw error;
 
-  const orders = data ?? [];
+  const orders = (data ?? []) as unknown as {
+    id: string;
+    status: string;
+    customer_name: string | null;
+    phone: string | null;
+    delivery_method: 'retiro' | 'envio' | null;
+    address: string | null;
+    location_url: string | null;
+    note: string | null;
+    total: number | null;
+    discount_code: string | null;
+    code_discount: number | null;
+    created_at: string;
+    sale_id?: string | null;
+  }[];
   const lines = await linesFor(orders.map((o) => o.id));
   return orders.map((o) => ({
     id: o.id,
@@ -479,6 +498,7 @@ export async function listPublicOrders(limit = 300): Promise<AdminPublicOrder[]>
     codeDiscount: Number(o.code_discount ?? 0),
     createdAt: o.created_at,
     items: lines.get(o.id) ?? [],
+    saleId: o.sale_id ?? null,
   }));
 }
 

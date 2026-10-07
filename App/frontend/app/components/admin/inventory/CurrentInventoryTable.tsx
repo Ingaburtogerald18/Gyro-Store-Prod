@@ -1,7 +1,7 @@
 // Inventario Actual: productos recibidos en bodega con todas las columnas
 // calculadas (cantidad = original − vendidos, precios USD y costo real en C$).
 import { HugeIcon } from "~/components/ui/icon";
-import { Alert02Icon, CheckmarkCircle01Icon, Edit02Icon, Delete02Icon } from "@hugeicons/core-free-icons";
+import { Alert02Icon, CheckmarkCircle01Icon, Edit02Icon, Delete02Icon, PackageIcon } from "@hugeicons/core-free-icons";
 import { useMemo, useState } from "react";
 import { type ColumnDef } from "@tanstack/react-table";
 import { toast } from "sonner";
@@ -12,6 +12,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "~/components/u
 import { Button } from "~/components/ui/button";
 import { RowActionsMenu } from "~/components/ui/RowActionsMenu";
 import { EditArrivalModal } from "./EditArrivalModal";
+import { StockAdjustDialog } from "./StockAdjustDialog";
+import { stockPerProduct } from "./InventoryMetrics";
 import {
   useGetCurrentInventoryQuery,
   useRevertPurchaseMutation,
@@ -41,7 +43,12 @@ export function CurrentInventoryTable({
   const { data: allRows = [], isLoading } = useGetCurrentInventoryQuery(period);
   const rows = useMemo(() => {
     if (mode === "inStock") return allRows.filter(r => (r.available || 0) > 0);
-    if (mode === "outOfStock") return allRows.filter(r => (r.available || 0) <= 0);
+    if (mode === "outOfStock") {
+      // Agotado = el PRODUCTO no tiene stock en ningún lote. Un lote viejo
+      // vendido entero de un producto que ya se repuso no es "para reponer".
+      const byProduct = stockPerProduct(allRows);
+      return allRows.filter(r => (byProduct.get(r.productName) ?? 0) <= 0);
+    }
     return allRows;
   }, [allRows, mode]);
   // Las compras se traen sin filtro de periodo: se usan para resolver el lote
@@ -66,6 +73,7 @@ export function CurrentInventoryTable({
   }, [catalog]);
 
   const [revertFor, setRevertFor] = useState<InventoryRow | null>(null);
+  const [adjustFor, setAdjustFor] = useState<InventoryRow | null>(null);
   const [editFor, setEditFor] = useState<Purchase | null>(null);
   const [reverting, setReverting] = useState(false);
 
@@ -104,7 +112,9 @@ export function CurrentInventoryTable({
         header: "Catálogo",
         cell: ({ row }) => {
           const rowData = row.original;
-          const catalogId = codeToCatalogMap.get(rowData.code);
+          // Vínculo por columna (elegido al registrar la compra) o, si no, el
+          // cargado a mano en el editor de Catálogo.
+          const catalogId = rowData.catalogItemId ?? codeToCatalogMap.get(rowData.code);
           // Texto con ícono, sin animación: "Sin vincular" parpadeaba en loop
           // en cada fila, y un parpadeo permanente deja de ser una señal.
           return catalogId ? (
@@ -160,6 +170,14 @@ export function CurrentInventoryTable({
         cell: (c) => <span className={(c.getValue() as number) > 0 ? "text-foreground" : "text-muted-foreground"}>{c.getValue() as number}</span>
       },
       {
+        // Sin esta columna Comprado − Vendido no daba el Stock cuando había
+        // ventas pendientes de aprobar.
+        accessorKey: "quantityReserved",
+        header: "Reservado",
+        meta: { align: "right" },
+        cell: (c) => <span className={(c.getValue() as number) > 0 ? "text-foreground" : "text-muted-foreground"}>{(c.getValue() as number) ?? 0}</span>
+      },
+      {
         accessorKey: "available",
         header: "Stock",
         meta: { align: "right" },
@@ -176,10 +194,19 @@ export function CurrentInventoryTable({
         cell: (c) => <MoneyCell value={c.getValue() as number} />
       },
       {
-        accessorKey: "costoFijoCordobas",
-        header: "Costo con fijos",
+        // Antes esta columna se llamaba "Costo con fijos" pero mostraba SOLO
+        // la parte fija (costo_f_u). La ganancia se calcula contra el costo
+        // final, así que es el que tiene que verse.
+        accessorKey: "costeFinalCordobas",
+        header: "Costo final",
         meta: { align: "right" },
-        cell: (c) => <MoneyCell tone="strong" value={c.getValue() as number} />,
+        cell: ({ row }) => (
+          <span
+            title={`Costo C$ ${(row.original.costRealCordobas ?? 0).toFixed(2)} + costos fijos C$ ${(row.original.costoFijoCordobas ?? 0).toFixed(2)}`}
+          >
+            <MoneyCell tone="strong" value={row.original.costeFinalCordobas ?? 0} />
+          </span>
+        ),
       },
       {
         id: "precioSugerido",
@@ -214,6 +241,7 @@ export function CurrentInventoryTable({
               <RowActionsMenu
                 actions={[
                   ...(p ? [{ label: "Editar", icon: <HugeIcon icon={Edit02Icon} size={16} strokeWidth={2} />, onClick: () => setEditFor(p) }] : []),
+                  { label: "Ajustar stock", icon: <HugeIcon icon={PackageIcon} size={16} strokeWidth={2} />, onClick: () => setAdjustFor(rowData) },
                   { label: "Descartar llegada", icon: <HugeIcon icon={Delete02Icon} size={16} strokeWidth={2} />, danger: true, separatorBefore: !!p, onClick: () => setRevertFor(rowData) }
                 ]}
               />
@@ -293,6 +321,7 @@ export function CurrentInventoryTable({
 </Dialog>
 
       <EditArrivalModal purchase={editFor} onClose={() => setEditFor(null)} />
+      <StockAdjustDialog lot={adjustFor} onClose={() => setAdjustFor(null)} />
     </>
   );
 }

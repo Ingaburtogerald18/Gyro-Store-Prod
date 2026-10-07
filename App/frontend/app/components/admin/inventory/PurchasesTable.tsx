@@ -28,6 +28,7 @@ import { cn } from "~/lib/utils";
 import { useDeletePurchaseMutation, useGetPurchasesQuery, type Purchase } from "~/store/api/inventoryV1Api";
 import { ArrivalModal } from "./ArrivalModal";
 import { EditPurchaseModal } from "./EditPurchaseModal";
+import { EditArrivalModal } from "./EditArrivalModal";
 
 export type PurchaseStatusFilter = "all" | "transit" | "received" | "late";
 
@@ -93,6 +94,7 @@ export function PurchasesTable({
 
   const [arrivalFor, setArrivalFor] = useState<Purchase | null>(null);
   const [editFor, setEditFor] = useState<Purchase | null>(null);
+  const [editArrivalFor, setEditArrivalFor] = useState<Purchase | null>(null);
   const [deleteFor, setDeleteFor] = useState<Purchase | null>(null);
 
   // "KZ Audífonos" → "Audífonos": el prefijo de marca es ruido en una columna
@@ -271,7 +273,8 @@ export function PurchasesTable({
                               ]
                             : [
                                 onViewStock && { label: "Ver en stock actual", icon: <HugeIcon icon={Store01Icon} size={16} strokeWidth={2} />, onClick: onViewStock },
-                                { label: "Editar", icon: <HugeIcon icon={Edit02Icon} size={16} strokeWidth={2} />, onClick: () => setEditFor(p) },
+                                { label: "Editar llegada y precio", icon: <HugeIcon icon={Edit02Icon} size={16} strokeWidth={2} />, onClick: () => setEditArrivalFor(p) },
+                                { label: "Editar datos de compra", icon: <HugeIcon icon={Edit02Icon} size={16} strokeWidth={2} />, onClick: () => setEditFor(p) },
                                 { label: "Eliminar", icon: <HugeIcon icon={Delete02Icon} size={16} strokeWidth={2} />, danger: true, separatorBefore: true, onClick: () => setDeleteFor(p) },
                               ]
                         }
@@ -303,6 +306,7 @@ export function PurchasesTable({
 
       <ArrivalModal purchase={arrivalFor} onClose={() => setArrivalFor(null)} />
       <EditPurchaseModal purchase={editFor} onClose={() => setEditFor(null)} />
+      <EditArrivalModal purchase={editArrivalFor} onClose={() => setEditArrivalFor(null)} />
       <Dialog open={!!deleteFor} onOpenChange={() => setDeleteFor(null)}>
         <DialogContent>
           <DialogHeader>

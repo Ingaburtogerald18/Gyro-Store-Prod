@@ -11,7 +11,8 @@ import { Button } from "~/components/ui/button";
 import { Field, FieldDescription, FieldError, FieldLabel } from "~/components/ui/field";
 import { purchaseFormSchema, type PurchaseFormInput, type PurchaseFormValues } from "~/lib/validators";
 import { useCreatePurchaseMutation, useGetPurchasesQuery } from "~/store/api/inventoryV1Api";
-import { useGetCategoriesQuery } from "~/store/api/catalogAdminApi";
+import { useGetAdminCatalogQuery, useGetCategoriesQuery } from "~/store/api/catalogAdminApi";
+import { CatalogVariantPicker, isCatalogLinkComplete, lotNameFor, type CatalogLinkValue } from "./CatalogVariantPicker";
 import { Input } from "~/components/ui/input";
 import { Combobox } from "~/components/ui/combobox";
 import { NativeSelect, NativeSelectOption } from "~/components/ui/native-select";
@@ -33,13 +34,18 @@ export function PurchaseForm({ onDone }: { onDone?: () => void } = {}) {
   const [createPurchase, { isLoading }] = useCreatePurchaseMutation();
   const { data: purchases = [] } = useGetPurchasesQuery();
   const { data: categories = [] } = useGetCategoriesQuery();
+  const { data: catalog = [] } = useGetAdminCatalogQuery();
   const [showSuccessPrompt, setShowSuccessPrompt] = useState(false);
+  // Producto y variante del catálogo: con esto el lote nace vinculado y la
+  // tienda lo ve sin pasar por el editor de Catálogo.
+  const [link, setLink] = useState<CatalogLinkValue | null>(null);
   const {
     register,
     control,
     handleSubmit,
     watch,
     reset,
+    setValue,
     formState: { errors },
   } = useForm<PurchaseFormValues, any, PurchaseFormInput>({
     resolver: zodResolver(purchaseFormSchema),
@@ -47,23 +53,13 @@ export function PurchaseForm({ onDone }: { onDone?: () => void } = {}) {
     mode: "onBlur",
   });
 
-  const usedNumbers = purchases
-    .map((p) => {
-      const match = p.code?.match(/^GS-IN-(\d+)$/i);
-      return match ? parseInt(match[1], 10) : NaN;
-    })
-    .filter((n) => !isNaN(n))
-    .sort((a, b) => a - b);
-
-  let nextCodeNumber = 1;
-  for (const n of usedNumbers) {
-    if (n === nextCodeNumber) {
-      nextCodeNumber++;
-    } else if (n > nextCodeNumber) {
-      break;
-    }
-  }
-  const nextCode = `GS-IN-${nextCodeNumber}`;
+  // Misma regla que el servidor: el mayor + 1, sin rellenar huecos de lotes
+  // borrados (su código puede seguir vinculado en Catálogo).
+  const maxCodeNumber = purchases.reduce((max, p) => {
+    const match = p.code?.match(/^GS-IN-(\d+)$/i);
+    return match ? Math.max(max, parseInt(match[1], 10)) : max;
+  }, 0);
+  const nextCode = `GS-IN-${maxCodeNumber + 1}`;
 
   const cost = Number(watch("costUnit")) || 0;
   const tax = Number(watch("taxUnit")) || 0;
@@ -75,8 +71,12 @@ export function PurchaseForm({ onDone }: { onDone?: () => void } = {}) {
   async function onSubmit(data: PurchaseFormInput) {
     // Normalizar a mayúsculas antes de guardar
     data.lot = data.lot.toUpperCase();
+    if (!isCatalogLinkComplete(link, catalog)) {
+      toast.error("Elegí la variante del producto.");
+      return;
+    }
     try {
-      await createPurchase(data).unwrap();
+      await createPurchase({ ...data, ...(link ?? {}) }).unwrap();
       toast.success("Compra registrada (En tránsito).");
       setShowSuccessPrompt(true);
     } catch (err: any) {
@@ -96,10 +96,10 @@ export function PurchaseForm({ onDone }: { onDone?: () => void } = {}) {
         </div>
         <p className="font-medium mt-4">¿Deseas registrar otra compra?</p>
         <div className="flex w-full sm:w-auto gap-3 pt-4">
-          <Button variant="outline" className="flex-1 sm:flex-none" onClick={() => { reset(EMPTY_PURCHASE); setShowSuccessPrompt(false); onDone?.(); }}>
+          <Button variant="outline" className="flex-1 sm:flex-none" onClick={() => { reset(EMPTY_PURCHASE); setLink(null); setShowSuccessPrompt(false); onDone?.(); }}>
             No, volver
           </Button>
-          <Button className="flex-1 sm:flex-none" onClick={() => { reset(EMPTY_PURCHASE); setShowSuccessPrompt(false); }}>
+          <Button className="flex-1 sm:flex-none" onClick={() => { reset(EMPTY_PURCHASE); setLink(null); setShowSuccessPrompt(false); }}>
             Sí, agregar otra
           </Button>
         </div>
@@ -154,23 +154,47 @@ export function PurchaseForm({ onDone }: { onDone?: () => void } = {}) {
           <FieldDescription>Siguiente asignación automática</FieldDescription>
         </Field>
 
-        {/* Fila 2: Nombre del producto — ancho completo */}
+        {/* Fila 2: producto del catálogo + variante. Con eso el nombre y la
+            categoría salen solos; sin producto del catálogo se escribe a mano. */}
+        <div className="sm:col-span-2 lg:col-span-3">
+          <CatalogVariantPicker
+            idPrefix="purchase"
+            value={link}
+            onChange={(next, product) => {
+              setLink(next);
+              if (next && product) {
+                setValue("productName", lotNameFor(product, next.variantKey), { shouldValidate: true });
+                if (product.categoryId) setValue("category", product.categoryId, { shouldValidate: true });
+              }
+            }}
+          />
+        </div>
+
         <Field className="sm:col-span-2 lg:col-span-3" data-invalid={!!errors.productName}>
           <FieldLabel htmlFor="purchase-product-name" required>Nombre del producto</FieldLabel>
-          <Controller
-            control={control}
-            name="productName"
-            render={({ field }) => (
-              <Combobox
-                id="purchase-product-name"
-                value={field.value || ""}
-                onChange={field.onChange}
-                options={Array.from(new Set(purchases.map((p) => p.productName).filter(Boolean))) as string[]}
-                placeholder="Seleccionar o escribir producto..."
-                aria-invalid={!!errors.productName}
-              />
-            )}
-          />
+          {link ? (
+            <Input id="purchase-product-name" value={watch("productName") || ""} disabled className="bg-muted text-muted-foreground" />
+          ) : (
+            <Controller
+              control={control}
+              name="productName"
+              render={({ field }) => (
+                <Combobox
+                  id="purchase-product-name"
+                  value={field.value || ""}
+                  onChange={field.onChange}
+                  options={Array.from(new Set(purchases.map((p) => p.productName).filter(Boolean))) as string[]}
+                  placeholder="Seleccionar o escribir producto..."
+                  aria-invalid={!!errors.productName}
+                />
+              )}
+            />
+          )}
+          {link && (
+            <FieldDescription>
+              Sale del catálogo. Si ya hay lotes de esta variante, se usa el mismo nombre que ellos.
+            </FieldDescription>
+          )}
           <FieldError errors={[errors.productName]} />
         </Field>
       </div>

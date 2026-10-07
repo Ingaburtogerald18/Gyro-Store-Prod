@@ -23,13 +23,23 @@ import { round, computeCosteFinal } from './finance';
 import { getFinancialConfig } from './appConfig';
 import { 
   getAvailableInventory, 
+  getCurrentInventory,
   reserveForItems,
   consumeReservation,
   releaseReservations,
   releaseConsumedReservations,
   type InventoryRow,
 } from './inventory';
-import { formatInvoiceCode, linkInvoiceToSale, parseInvoiceCode, voidInvoice } from './invoice';
+import {
+  attachInvoiceToSale,
+  claimInvoice,
+  formatInvoiceCode,
+  parseInvoiceCode,
+  releaseInvoiceClaim,
+  unlinkInvoiceFromSale,
+  voidInvoice,
+} from './invoice';
+import { fetchAllRows } from '../utils/fetchAllRows';
 import { BadRequestError } from '../utils/httpError';
 import { computeLineCommission, computeOrderLineSnapshot } from './commission';
 import type { SaleLineInput, RegisterSaleInput, UpdateSaleInput } from '../../shared/schemas';
@@ -37,6 +47,7 @@ import { firstOfEmbed } from '../utils/firstOfEmbed';
 import { recordCommissionAdjustment } from './sellerPayments';
 import { enqueueApprovedSale } from './spoOutbox';
 import { getIsoWeek } from '../utils/isoWeek';
+import { resolveVariantPrice } from './catalogPresenter';
 
 // `getIsoWeek` (doc 03 B.4: orders.week_of agrupa pagos de comisión) vive ahora
 // en utils/isoWeek.ts: lo comparte con las carpetas semanales de comprobantes en
@@ -53,10 +64,55 @@ export interface SellableProduct {
   code: string | null;
   /** Todos los códigos de lote con stock: el buscador matchea contra cualquiera. */
   codes: string[];
+  /** De dónde sale `price`: la variante del catálogo (lo normal) o el lote (sin vínculo). */
+  priceSource: 'catalog' | 'lot';
+}
+
+interface CatalogPriceRow {
+  id: string;
+  price: number | null;
+  base_price: number | null;
+  is_promo: boolean;
+  variant_mappings: Record<string, unknown> | null;
+}
+
+// Precio de venta por código de lote, según la variante del catálogo a la que
+// pertenece (decisión 2026-10-07: el precio vive en el catálogo; el del lote
+// solo sugiere). Mismo cálculo que la tienda, promoción incluida.
+async function catalogPriceByCode(rows: InventoryRow[]): Promise<Map<string, number>> {
+  const out = new Map<string, number>();
+  const { data, error } = await db.from('catalog_items').select('id, price, base_price, is_promo, variant_mappings');
+  if (error) throw error;
+  const items = new Map(((data ?? []) as unknown as CatalogPriceRow[]).map((item) => [item.id, item]));
+
+  const priceOf = (item: CatalogPriceRow, key: string) => {
+    const entry = (item.variant_mappings ?? {})[key] as Record<string, unknown> | undefined;
+    const num = (v: unknown) => (typeof v === 'number' && v > 0 ? v : undefined);
+    return resolveVariantPrice(item, entry ? { price: num(entry.price), promoPrice: num(entry.promoPrice) } : undefined).price;
+  };
+
+  // 1) Vínculo por columna (migración 0022).
+  for (const row of rows) {
+    const item = row.catalogItemId ? items.get(row.catalogItemId) : undefined;
+    if (item) out.set(row.code, priceOf(item, row.variantKey ?? ''));
+  }
+  // 2) Vínculo cargado a mano en el editor de Catálogo.
+  for (const item of items.values()) {
+    for (const [key, entry] of Object.entries(item.variant_mappings ?? {})) {
+      if (!entry || typeof entry !== 'object') continue;
+      const codes = (entry as { codes?: unknown }).codes;
+      if (!Array.isArray(codes)) continue;
+      for (const code of codes) {
+        if (typeof code === 'string' && !out.has(code)) out.set(code, priceOf(item, key));
+      }
+    }
+  }
+  return out;
 }
 
 export async function listSellableProducts(): Promise<SellableProduct[]> {
   const rows = await getAvailableInventory();
+  const catalogPrices = await catalogPriceByCode(rows);
   const byProduct = new Map<string, SellableProduct>();
 
   for (const row of rows) {
@@ -67,10 +123,16 @@ export async function listSellableProducts(): Promise<SellableProduct[]> {
       // Se acumulan TODOS para que buscar por cualquiera de ellos encuentre el
       // producto; el que se muestra es el primero (`code`).
       if (row.code && !existing.codes.includes(row.code)) existing.codes.push(row.code);
+      if (existing.priceSource === 'lot' && catalogPrices.has(row.code)) {
+        existing.price = catalogPrices.get(row.code)!;
+        existing.priceSource = 'catalog';
+      }
     } else {
+      const catalogPrice = catalogPrices.get(row.code);
       byProduct.set(row.productName, {
         productName: row.productName,
-        price: row.suggestedPrice ?? 0,
+        price: catalogPrice ?? row.suggestedPrice ?? 0,
+        priceSource: catalogPrice !== undefined ? 'catalog' : 'lot',
         stock: row.available,
         code: row.code ?? null,
         codes: row.code ? [row.code] : [],
@@ -116,6 +178,133 @@ function estimateLineCost(
     costoFU: taken > 0 ? round(costoFUWeighted / taken, 2) : 0,
     available,
   };
+}
+
+// ── Margen mínimo ──
+// Un precio por debajo del mínimo ya no bloquea el registro: la venta entra
+// marcada y el admin decide al aprobar. Bloquear tenía dos problemas: rebotaba
+// facturas ya cobradas con un descuento grande, y le permitía al vendedor
+// tantear precios hasta encontrar el costo (mínimo = costo × multiplicador).
+function isBelowMinMargin(precioUnit: number, costeFinal: number, minMargin: number): boolean {
+  return costeFinal > 0 && precioUnit < round(costeFinal * minMargin, 2);
+}
+
+async function logBelowMinMargin(
+  orderId: string,
+  lines: { productName: string; precioUnit: number; costeFinal: number }[],
+  minMargin: number,
+  authorUid: string,
+): Promise<void> {
+  const below = lines.filter((l) => isBelowMinMargin(l.precioUnit, l.costeFinal, minMargin));
+  if (!below.length) return;
+  await db.from('audit_logs').insert({
+    entity: 'orders',
+    entity_id: orderId,
+    action: 'below_min_margin',
+    reason: below
+      .map((l) => `${l.productName}: C$ ${l.precioUnit.toFixed(2)} (mínimo C$ ${round(l.costeFinal * minMargin, 2).toFixed(2)})`)
+      .join(' · '),
+    author_uid: authorUid,
+  });
+}
+
+// ── Contacto del cliente ──
+// Antes se hacía `upsert` por teléfono con el nombre de ESTA venta: una venta
+// sin nombre le borraba el nombre al contacto, y una con otro nombre lo
+// renombraba. Y una venta con nombre pero sin teléfono creaba un contacto
+// nuevo cada vez. Ahora:
+//   · con teléfono: se reusa el contacto; el nombre solo se completa si estaba
+//     vacío, o se corrige si `overwriteName` (edición explícita de un admin).
+//   · solo nombre: se reusa un contacto sin teléfono con el mismo nombre.
+// Best-effort: un fallo acá no frena la venta, que igual guarda el teléfono.
+async function resolveContact(
+  rawName: string | null | undefined,
+  rawPhone: string | null | undefined,
+  opts: { overwriteName?: boolean } = {},
+): Promise<string | null> {
+  const name = rawName?.trim() || null;
+  const phone = rawPhone?.trim() || null;
+  if (!name && !phone) return null;
+
+  try {
+    if (phone) {
+      const findByPhone = () =>
+        db.from('contacts').select('id, name').eq('phone', phone).maybeSingle();
+      let { data: existing } = await findByPhone();
+      if (!existing) {
+        const { data: created, error } = await db
+          .from('contacts')
+          .insert({ phone, name })
+          .select('id, name')
+          .single();
+        if (!error && created) return created.id as string;
+        // Otro registro lo creó entre medio (unique por teléfono): se relee.
+        ({ data: existing } = await findByPhone());
+        if (!existing) return null;
+      }
+      const currentName = (existing.name as string | null)?.trim() || null;
+      if (name && (!currentName || (opts.overwriteName && currentName !== name))) {
+        await db.from('contacts').update({ name }).eq('id', existing.id);
+      }
+      return existing.id as string;
+    }
+
+    const { data: sameName } = await db
+      .from('contacts')
+      .select('id')
+      .is('phone', null)
+      .ilike('name', name!.replace(/[%_\\]/g, (c) => `\\${c}`))
+      .limit(1);
+    if (sameName && sameName.length > 0) return (sameName[0] as { id: string }).id;
+
+    const { data: created } = await db.from('contacts').insert({ name }).select('id').single();
+    return (created?.id as string) ?? null;
+  } catch (err) {
+    console.error('[sales] No se pudo resolver el contacto del cliente:', err);
+    return null;
+  }
+}
+
+// ── Vendedor elegido por el admin ──
+// Antes, si el id no se encontraba, la venta quedaba a nombre de quien la
+// registraba, sin aviso: la comisión terminaba en la persona equivocada.
+async function resolveOverrideSeller(sellerId: string): Promise<{ uid: string; email: string }> {
+  const { data, error } = await db.from('profiles').select('email').eq('id', sellerId).maybeSingle();
+  if (error) throw error;
+  if (!data?.email) {
+    throw new BadRequestError('El vendedor elegido no existe o no tiene correo. Elegí otro o recargá la lista.');
+  }
+  return { uid: sellerId, email: data.email as string };
+}
+
+// ── Inventario visto desde una venta que se está editando ──
+// Las unidades que la propia venta ya tiene reservadas (o vendidas, si estaba
+// aprobada) cuentan como disponibles: se van a devolver antes de volver a
+// reservar. Sin esto el editor estimaba el costo y validaba el stock sin esas
+// unidades, y editar el precio de una venta que se llevó el último lote
+// daba "stock insuficiente".
+async function inventoryForEdit(
+  orderId: string,
+  reservationStatus: 'active' | 'consumed',
+): Promise<InventoryRow[]> {
+  const [rows, { data, error }] = await Promise.all([
+    getCurrentInventory(),
+    db
+      .from('stock_reservations')
+      .select('purchase_id, quantity')
+      .eq('order_id', orderId)
+      .eq('status', reservationStatus),
+  ]);
+  if (error) throw error;
+
+  const own = new Map<string, number>();
+  for (const r of (data ?? []) as { purchase_id: string; quantity: number }[]) {
+    own.set(r.purchase_id, (own.get(r.purchase_id) ?? 0) + Number(r.quantity));
+  }
+
+  return rows
+    .map((row) => ({ ...row, available: (row.available ?? 0) + (own.get(row.id) ?? 0) }))
+    .filter((row) => row.available > 0);
 }
 
 // ── Cotizador (no persiste, no reserva) ──
@@ -337,13 +526,6 @@ export async function registerSale(
       config,
     );
 
-    const minPrice = round(snapshot.costeFinalSnap * minMargin, 2);
-    if (snapshot.precioUnit < minPrice) {
-      throw new BadRequestError(
-        `El precio de venta para "${item.productName}" está por debajo del margen mínimo. El mínimo aceptable es C$ ${minPrice.toFixed(2)}.`,
-      );
-    }
-
     return { productName: item.productName, quantity: item.quantity, precioUnit: snapshot.precioUnit, snapshot };
   });
 
@@ -362,24 +544,7 @@ export async function registerSale(
   );
   const total = invoiceTotal ?? linesTotal;
 
-  let contactId: string | null = null;
-  if (finalCustomerName || finalPhone) {
-    if (finalPhone) {
-      const { data, error } = await db
-        .from('contacts')
-        .upsert({ phone: finalPhone, name: finalCustomerName || null }, { onConflict: 'phone' })
-        .select('id')
-        .single();
-      if (!error && data) contactId = data.id;
-    } else if (finalCustomerName) {
-      const { data, error } = await db
-        .from('contacts')
-        .insert({ name: finalCustomerName })
-        .select('id')
-        .single();
-      if (!error && data) contactId = data.id;
-    }
-  }
+  const contactId = await resolveContact(finalCustomerName, finalPhone);
 
   // ── A nombre de quién queda la venta ──
   // Por defecto, quien la está registrando. PERO si la venta nace de una factura
@@ -428,16 +593,18 @@ export async function registerSale(
     finalSellerEmail = invoiceSeller.email;
   } else if (seller.isAdmin) {
     if (input.overrideSellerId) {
-      const { data } = await db.from('profiles').select('email').eq('id', input.overrideSellerId).maybeSingle();
-      if (data) {
-        finalSellerUid = input.overrideSellerId;
-        finalSellerEmail = data.email;
-      }
+      const chosen = await resolveOverrideSeller(input.overrideSellerId);
+      finalSellerUid = chosen.uid;
+      finalSellerEmail = chosen.email;
     } else if (input.overrideSellerName) {
       finalSellerUid = null;
       finalSellerEmail = input.overrideSellerName;
     }
   }
+
+  // La factura se toma ANTES de crear la venta (ver `claimInvoice`): si otro
+  // registro ya la tomó, se corta acá sin haber reservado nada.
+  if (invoiceIdToLink) await claimInvoice(invoiceIdToLink);
 
   const { data: order, error: orderError } = await db
     .from('orders')
@@ -453,7 +620,10 @@ export async function registerSale(
     })
     .select('id, status, total')
     .single();
-  if (orderError) throw orderError;
+  if (orderError) {
+    if (invoiceIdToLink) await releaseInvoiceClaim(invoiceIdToLink);
+    throw orderError;
+  }
 
   try {
     const { error: itemsError } = await db.from('order_items').insert(
@@ -486,17 +656,24 @@ export async function registerSale(
       order.id,
       pricedLines.map((line) => ({ productName: line.productName, quantity: line.quantity })),
     );
+
+    if (invoiceIdToLink) await attachInvoiceToSale(invoiceIdToLink, order.id);
   } catch (err) {
     // reserveForItems ya se compensa a sí misma si falla a mitad de camino;
-    // esto cubre que haya fallado el insert de order_items en cambio.
+    // esto cubre que haya fallado el insert de order_items o el ligado de la
+    // factura. La factura vuelve a quedar libre: el ticket sigue siendo válido.
     await releaseReservations(order.id);
     await db.from('orders').delete().eq('id', order.id);
+    if (invoiceIdToLink) await releaseInvoiceClaim(invoiceIdToLink);
     throw err;
   }
 
-  if (invoiceIdToLink) {
-    await linkInvoiceToSale(invoiceIdToLink, order.id);
-  }
+  await logBelowMinMargin(
+    order.id,
+    pricedLines.map((l) => ({ productName: l.productName, precioUnit: l.precioUnit, costeFinal: l.snapshot.costeFinalSnap })),
+    minMargin,
+    seller.uid,
+  );
 
   if (customCreatedAt) {
     await db.from('audit_logs').insert({
@@ -551,12 +728,44 @@ export async function approveSale(orderId: string): Promise<boolean> {
     .from('stock_reservations')
     .select('quantity, purchases(product_name, coste_final, costo_f_u)')
     .eq('order_id', orderId)
-    .eq('status', 'active');
+    // 'consumed' también: si un intento anterior de aprobar se cortó a mitad
+    // de camino, esas reservas ya se movieron a vendido pero siguen siendo
+    // parte del costo de esta venta.
+    .in('status', ['active', 'consumed']);
   if (reservationsError) throw reservationsError;
   const reservations = (reservationRows ?? []) as unknown as {
     quantity: number;
     purchases: PurchaseEmbed | PurchaseEmbed[] | null;
   }[];
+
+  // Cada reserva tiene que corresponder a una línea (por el nombre del lote).
+  // Si alguna no calza —un lote renombrado después de registrar la venta—, esa
+  // línea se aprobaría con costo 0 y la comisión y los pozos saldrían
+  // inflados, congelados así para siempre. Mejor frenar y avisar.
+  const itemNames = new Set(items.map((item) => item.sku));
+  const orphan = reservations.find((r) => !itemNames.has(firstOfEmbed(r.purchases)?.product_name ?? ''));
+  if (orphan) {
+    const lotName = firstOfEmbed(orphan.purchases)?.product_name ?? 'sin nombre';
+    throw new BadRequestError(
+      `No se puede costear la venta: el lote "${lotName}" no coincide con ningún producto de la venta (¿se renombró en Inventario?). Devolvele el nombre original o editá la venta.`,
+    );
+  }
+
+  // Y cada línea tiene que tener TODAS sus unidades reservadas. Si una edición
+  // o un registro se cortó a mitad de camino, la línea quedaría con menos
+  // unidades costeadas que vendidas (o con costo 0 si no tiene ninguna).
+  const reservedByName = new Map<string, number>();
+  for (const r of reservations) {
+    const name = firstOfEmbed(r.purchases)?.product_name ?? '';
+    reservedByName.set(name, (reservedByName.get(name) ?? 0) + r.quantity);
+  }
+  const uncovered = items.find((item) => (reservedByName.get(item.sku) ?? 0) < item.quantity);
+  if (uncovered) {
+    const reserved = reservedByName.get(uncovered.sku) ?? 0;
+    throw new BadRequestError(
+      `No se puede aprobar: "${uncovered.sku}" tiene ${reserved} de ${uncovered.quantity} unidad(es) reservadas. Editá la venta para volver a reservar el stock, o rechazala.`,
+    );
+  }
 
   const config = await getFinancialConfig();
   await consumeReservation(orderId);
@@ -598,11 +807,15 @@ export async function approveSale(orderId: string): Promise<boolean> {
     if (updateItemError) throw updateItemError;
   }
 
-  const { error: updateOrderError } = await db
+  const { data: approvedRow, error: updateOrderError } = await db
     .from('orders')
     .update({ status: 'approved', week_of: getIsoWeek(new Date()) })
-    .eq('id', orderId);
+    .eq('id', orderId)
+    .eq('status', 'pending_approval') // otra aprobación simultánea ya la cerró
+    .select('id')
+    .maybeSingle();
   if (updateOrderError) throw updateOrderError;
+  if (!approvedRow) return true;
 
   // Espejo en SharePoint (doc: Docs/17 y la sección `spo_outbox` del schema). Solo se
   // ENCOLA: la subida a Graph la hace un worker aparte. Va después del update
@@ -629,16 +842,28 @@ export async function rejectSale(orderId: string, reason: string, rejectedBy: st
     throw new BadRequestError('Solo se pueden rechazar ventas pendientes.');
   }
 
+  const { data: rejectedRow, error: updateError } = await db
+    .from('orders')
+    .update({ status: 'rejected' })
+    .eq('id', orderId)
+    .eq('status', 'pending_approval') // no rechazar una que se aprobó entre medio
+    .select('id')
+    .maybeSingle();
+  if (updateError) throw updateError;
+  if (!rejectedRow) throw new BadRequestError('Solo se pueden rechazar ventas pendientes.');
+
   await releaseReservations(orderId);
 
-  const { error: updateError } = await db.from('orders').update({ status: 'rejected' }).eq('id', orderId);
-  if (updateError) throw updateError;
+  // La factura queda libre para registrar la venta corregida con el mismo
+  // ticket. Antes quedaba "ligada" a una venta rechazada para siempre, y la
+  // única salida era borrar la venta, que anula la factura.
+  const freedInvoice = await unlinkInvoiceFromSale(orderId);
 
   const { error: auditError } = await db.from('audit_logs').insert({
     entity: 'orders',
     entity_id: orderId,
     action: 'sale_rejected',
-    reason,
+    reason: freedInvoice ? `${reason} (factura ${freedInvoice} liberada)` : reason,
     author_uid: rejectedBy,
   });
   if (auditError) throw auditError;
@@ -673,6 +898,8 @@ export interface SaleListItem {
   deliveryFee: number;
   createdAt: string;
   isManualDate?: boolean;
+  /** Alguna línea quedó por debajo del margen mínimo. Solo admin: la ruta lo recorta. */
+  belowMinMargin?: boolean;
 }
 
 /**
@@ -706,6 +933,8 @@ export interface SaleWithItems extends SaleListItem {
     gananciaTienda?: number;
     /** El reparto del Costo F/U de esta línea en los 7 pozos (doc 11 §2). */
     pozos?: Record<string, number>;
+    /** Precio por debajo del margen mínimo. Solo admin: permite despejar el costo. */
+    belowMinMargin?: boolean;
 
     // ── La misma cadena, POR UNIDAD ──
     // Es de donde sale el tramo de comisión (se busca por la utilidad neta
@@ -816,6 +1045,10 @@ export async function getSaleById(id: string): Promise<SaleWithItems | null> {
     .limit(1);
   const isManualDate = Boolean(manualDateLogs && manualDateLogs.length > 0);
 
+  const minMargin = (await getFinancialConfig()).minMarginMultiplier ?? 1.15;
+  const lineBelowMin = (it: { precio_unit: number | null; coste_final_snap: number | null }) =>
+    isBelowMinMargin(it.precio_unit ?? 0, it.coste_final_snap ?? 0, minMargin);
+
   return {
     id: row.id,
     status: row.status,
@@ -834,6 +1067,7 @@ export async function getSaleById(id: string): Promise<SaleWithItems | null> {
     deliveryFee,
     createdAt: row.created_at,
     isManualDate,
+    belowMinMargin: itemRows.some(lineBelowMin),
     items: itemRows.map((it) => {
       const quantity = it.quantity;
       const costeFinalSnap = it.coste_final_snap ?? 0;
@@ -866,6 +1100,7 @@ export async function getSaleById(id: string): Promise<SaleWithItems | null> {
         comisionPercent: utilidadNeta > 0 ? round(comision / utilidadNeta, 4) : 0,
         gananciaTienda,
         pozos: it.pozos ?? undefined,
+        belowMinMargin: lineBelowMin(it),
         utilidadBrutaUnit: perUnit(utilidadBruta),
         salaryUnit: perUnit(salary),
         utilidadNetaUnit: perUnit(utilidadNeta),
@@ -876,19 +1111,29 @@ export async function getSaleById(id: string): Promise<SaleWithItems | null> {
   };
 }
 
-export async function listSales(filters: { sellerEmail?: string; status?: string }): Promise<SaleListItem[]> {
-  let query = db
-    .from('orders')
-    .select('id, status, sale_origin, seller_uid, seller_email, week_of, phone, total, created_at')
-    .order('created_at', { ascending: false });
+// Ids por consulta en los `.in(...)`: con cientos de ventas la URL de
+// PostgREST se pasa de largo y la consulta falla.
+const IN_CHUNK = 150;
 
-  if (filters.sellerEmail) query = query.eq('seller_email', filters.sellerEmail);
-  if (filters.status) query = query.eq('status', filters.status);
+async function inChunks<T>(ids: string[], run: (chunk: string[]) => PromiseLike<{ data: T[] | null; error: unknown }>): Promise<T[]> {
+  const out: T[] = [];
+  for (let k = 0; k < ids.length; k += IN_CHUNK) {
+    const { data, error } = await run(ids.slice(k, k + IN_CHUNK));
+    if (error) throw error;
+    out.push(...(data ?? []));
+  }
+  return out;
+}
 
-  const { data, error } = await query;
-  if (error) throw error;
-
-  const rows = (data ?? []) as unknown as {
+export async function listSales(filters: {
+  sellerEmail?: string;
+  status?: string;
+  from?: string;
+  to?: string;
+}): Promise<SaleListItem[]> {
+  // Paginado: PostgREST corta en 1000 filas sin avisar, y "Todas" o
+  // "Aprobadas" pasan ese número con el tiempo.
+  type OrderRow = {
     id: string;
     status: string;
     sale_origin: string;
@@ -898,7 +1143,20 @@ export async function listSales(filters: { sellerEmail?: string; status?: string
     phone: string | null;
     total: number | null;
     created_at: string;
-  }[];
+  };
+  const rows = await fetchAllRows<OrderRow>((from, to) => {
+    let query = db
+      .from('orders')
+      .select('id, status, sale_origin, seller_uid, seller_email, week_of, phone, total, created_at')
+      .order('created_at', { ascending: false })
+      .order('id', { ascending: false });
+
+    if (filters.sellerEmail) query = query.eq('seller_email', filters.sellerEmail);
+    if (filters.status) query = query.eq('status', filters.status);
+    if (filters.from) query = query.gte('created_at', filters.from);
+    if (filters.to) query = query.lte('created_at', filters.to);
+    return query.range(from, to) as unknown as PromiseLike<{ data: OrderRow[] | null; error: unknown }>;
+  });
 
   // El nombre del vendedor se resuelve con una SEGUNDA query y no con un embed
   // de PostgREST (`profiles!seller_uid(name)`): el embed depende de que
@@ -909,44 +1167,66 @@ export async function listSales(filters: { sellerEmail?: string; status?: string
   const namesByUid = new Map<string, string>();
 
   if (uids.length > 0) {
-    const { data: profiles } = await db.from('profiles').select('id, name').in('id', uids);
-    for (const p of (profiles ?? []) as { id: string; name: string | null }[]) {
-      if (p.name?.trim()) namesByUid.set(p.id, p.name.trim());
+    try {
+      const profiles = await inChunks<{ id: string; name: string | null }>(uids, (chunk) =>
+        db.from('profiles').select('id, name').in('id', chunk) as unknown as PromiseLike<{
+          data: { id: string; name: string | null }[] | null;
+          error: unknown;
+        }>,
+      );
+      for (const p of profiles) {
+        if (p.name?.trim()) namesByUid.set(p.id, p.name.trim());
+      }
+    } catch (err) {
+      console.error('[sales] No se pudieron resolver los nombres de vendedor:', err);
     }
   }
 
-  // Comisión y ganancia de tienda TOTALES de la venta: una venta puede tener
-  // varias líneas, cada una con su propio tramo. Se suman con una TERCERA
-  // query en lote (mismo criterio que el nombre del vendedor arriba) y no con
-  // un JOIN/embed: si la venta no tiene líneas todavía, quedan en 0 y la
-  // venta igual se lista. `ganancia_tienda` viaja en la misma fila que
-  // `comision` — no hace falta una cuarta query para sumarla aparte.
+  // Comisión, fondo y ganancia TOTALES de cada venta (una venta puede tener
+  // varias líneas, cada una con su tramo). A diferencia del nombre, acá un
+  // error NO se traga: antes una consulta fallida mostraba comisión y ganancia
+  // en 0 sin aviso, y las métricas de arriba sumaban de menos.
   const orderIds = rows.map((r) => r.id);
   const salaryByOrderId = new Map<string, number>();
   const comisionByOrderId = new Map<string, number>();
   const gananciaTiendaByOrderId = new Map<string, number>();
+  const belowMinByOrderId = new Set<string>();
   if (orderIds.length > 0) {
-    const { data: items } = await db
-      .from('order_items')
-      .select('order_id, salary, comision, ganancia_tienda')
-      .in('order_id', orderIds);
-    for (const it of (items ?? []) as { order_id: string; salary: number | null; comision: number | null; ganancia_tienda: number | null }[]) {
+    const minMargin = (await getFinancialConfig()).minMarginMultiplier ?? 1.15;
+    type ItemRow = {
+      order_id: string;
+      salary: number | null;
+      comision: number | null;
+      ganancia_tienda: number | null;
+      precio_unit: number | null;
+      coste_final_snap: number | null;
+    };
+    const items = await inChunks<ItemRow>(orderIds, (chunk) =>
+      db
+        .from('order_items')
+        .select('order_id, salary, comision, ganancia_tienda, precio_unit, coste_final_snap')
+        .in('order_id', chunk) as unknown as PromiseLike<{ data: ItemRow[] | null; error: unknown }>,
+    );
+    for (const it of items) {
       salaryByOrderId.set(it.order_id, (salaryByOrderId.get(it.order_id) ?? 0) + (it.salary ?? 0));
       comisionByOrderId.set(it.order_id, (comisionByOrderId.get(it.order_id) ?? 0) + (it.comision ?? 0));
       gananciaTiendaByOrderId.set(it.order_id, (gananciaTiendaByOrderId.get(it.order_id) ?? 0) + (it.ganancia_tienda ?? 0));
+      if (isBelowMinMargin(it.precio_unit ?? 0, it.coste_final_snap ?? 0, minMargin)) belowMinByOrderId.add(it.order_id);
     }
   }
 
-  // Nº de factura con que se registró cada venta (`invoices.sale_id`). CUARTA
-  // query en lote, mismo criterio que las de arriba (nunca embed): si no se
-  // resuelve, la venta igual se lista, solo que sin código de factura.
+  // Nº de factura con que se registró cada venta (`invoices.sale_id`). Mismo
+  // criterio: si falla, se corta (el total sin delivery depende de esto).
   const invoiceBySaleId = new Map<string, { number: number; code: string; deliveryFee: number }>();
   if (orderIds.length > 0) {
-    const { data: invoices } = await db
-      .from('invoices')
-      .select('sale_id, invoice_number, invoice_code, delivery_fee')
-      .in('sale_id', orderIds);
-    for (const inv of (invoices ?? []) as { sale_id: string | null; invoice_number: number; invoice_code: string | null; delivery_fee: number | null }[]) {
+    type InvRow = { sale_id: string | null; invoice_number: number; invoice_code: string | null; delivery_fee: number | null };
+    const invoices = await inChunks<InvRow>(orderIds, (chunk) =>
+      db
+        .from('invoices')
+        .select('sale_id, invoice_number, invoice_code, delivery_fee')
+        .in('sale_id', chunk) as unknown as PromiseLike<{ data: InvRow[] | null; error: unknown }>,
+    );
+    for (const inv of invoices) {
       if (!inv.sale_id) continue;
       invoiceBySaleId.set(inv.sale_id, {
         number: inv.invoice_number,
@@ -976,10 +1256,62 @@ export async function listSales(filters: { sellerEmail?: string; status?: string
     invoiceCode: invoiceBySaleId.get(row.id)?.code ?? null,
     deliveryFee: invoiceBySaleId.get(row.id)?.deliveryFee ?? 0,
     createdAt: row.created_at,
+    belowMinMargin: belowMinByOrderId.has(row.id),
   }));
 }
 
 // ── Modificación y Anulación ──
+
+// Vuelta atrás de `updateSale` cuando algo falla después de liberar el stock:
+// líneas, datos de la venta y reserva como estaban. Best-effort: si la propia
+// restauración falla, queda asentado en auditoría para revisarlo a mano.
+async function restoreSaleAfterFailedEdit(
+  orderId: string,
+  order: Record<string, any>,
+  oldItemRows: Record<string, unknown>[],
+  reservationStatus: 'active' | 'consumed',
+  authorUid: string,
+): Promise<void> {
+  try {
+    await releaseReservations(orderId);
+    await db.from('order_items').delete().eq('order_id', orderId);
+    if (oldItemRows.length) {
+      const { error } = await db.from('order_items').insert(oldItemRows);
+      if (error) throw error;
+    }
+    const { error: orderError } = await db
+      .from('orders')
+      .update({
+        status: order.status,
+        total: order.total,
+        phone: order.phone,
+        contact_id: order.contact_id,
+        seller_uid: order.seller_uid,
+        seller_email: order.seller_email,
+        week_of: order.week_of,
+        created_at: order.created_at,
+      })
+      .eq('id', orderId);
+    if (orderError) throw orderError;
+
+    const oldLines = (oldItemRows as { sku: string | null; quantity: number }[])
+      .filter((it) => it.sku)
+      .map((it) => ({ productName: it.sku as string, quantity: it.quantity }));
+    await reserveForItems(orderId, oldLines);
+    if (reservationStatus === 'consumed') await consumeReservation(orderId);
+  } catch (restoreErr) {
+    console.error(`[sales] No se pudo restaurar la venta ${orderId} tras una edición fallida:`, restoreErr);
+    await db.from('audit_logs').insert({
+      entity: 'orders',
+      entity_id: orderId,
+      action: 'edit_rollback_failed',
+      reason: `La edición falló y no se pudo restaurar la venta: revisar líneas y stock reservado. ${
+        restoreErr instanceof Error ? restoreErr.message : ''
+      }`.trim(),
+      author_uid: authorUid,
+    });
+  }
+}
 
 export async function updateSale(
   orderId: string,
@@ -997,7 +1329,12 @@ export async function updateSale(
     throw new BadRequestError('El motivo de edición es obligatorio para ventas ya procesadas.');
   }
 
-  const [config, availableRows] = await Promise.all([getFinancialConfig(), getAvailableInventory()]);
+  // Pendiente → sus unidades están reservadas; aprobada/pagada → vendidas.
+  const reservationStatus: 'active' | 'consumed' = order.status === 'pending_approval' ? 'active' : 'consumed';
+  const [config, availableRows] = await Promise.all([
+    getFinancialConfig(),
+    inventoryForEdit(orderId, reservationStatus),
+  ]);
   const minMargin = config.minMarginMultiplier ?? 1.15;
 
   const pricedLines = input.items.map((item) => {
@@ -1014,14 +1351,23 @@ export async function updateSale(
       config,
     );
 
-    const minPrice = round(snapshot.costeFinalSnap * minMargin, 2);
-    if (snapshot.precioUnit < minPrice) {
-      throw new BadRequestError(
-        `El precio de venta para "${item.productName}" está por debajo del margen mínimo. El mínimo aceptable es C$ ${minPrice.toFixed(2)}.`,
-      );
-    }
     return { productName: item.productName, quantity: item.quantity, precioUnit: snapshot.precioUnit, snapshot };
   });
+
+  // ── Stock: se valida ANTES de tocar nada ──
+  // Las unidades de esta misma venta cuentan como disponibles (ver
+  // `inventoryForEdit`). Antes la edición liberaba primero y fallaba después,
+  // dejando la venta sin reserva y esas unidades libres en bodega.
+  for (const line of pricedLines) {
+    const available = availableRows
+      .filter((row) => row.productName === line.productName)
+      .reduce((sum, row) => sum + (row.available ?? 0), 0);
+    if (line.quantity > available) {
+      throw new BadRequestError(
+        `Stock insuficiente de "${line.productName}": hay ${available} unidad(es) contando las de esta venta.`,
+      );
+    }
+  }
 
   const linesTotal = round(
     pricedLines.reduce((sum, line) => sum + line.precioUnit * line.quantity, 0),
@@ -1063,10 +1409,13 @@ export async function updateSale(
   // Alimentan dos cosas: el ajuste de comisión post-pago y saber si la edición
   // tocó de verdad los productos. Si no los tocó (se corrigió el teléfono, el
   // vendedor…), la factura no tiene por qué moverse.
-  const { data: oldItemRows } = await db
+  // `*`: si la edición falla a mitad de camino, estas filas se restauran tal
+  // cual (con su snapshot financiero congelado).
+  const { data: oldItemRows, error: oldItemsError } = await db
     .from('order_items')
-    .select('sku, quantity, precio_unit, comision')
+    .select('*')
     .eq('order_id', orderId);
+  if (oldItemsError) throw oldItemsError;
   const oldItems = (oldItemRows ?? []) as unknown as {
     sku: string | null;
     quantity: number;
@@ -1145,37 +1494,18 @@ export async function updateSale(
       : round(linesTotal + (activeInvoice.delivery_fee ?? 0), 2);
   }
 
-  if (order.status === 'pending_approval') {
-    await releaseReservations(orderId);
-  } else {
-    await releaseConsumedReservations(orderId);
-  }
-
+  // ── Contacto y vendedor: se resuelven antes de tocar nada ──
+  // Un vendedor inexistente tiene que cortar acá, no a mitad de la edición.
   let contactId: string | null = order.contact_id ?? null;
   if (input.customerName || input.phone) {
-    if (input.phone) {
-      const { data, error } = await db
-        .from('contacts')
-        .upsert({ phone: input.phone, name: input.customerName || null }, { onConflict: 'phone' })
-        .select('id')
-        .single();
-      if (!error && data) contactId = data.id;
-    } else if (input.customerName) {
-      const { data, error } = await db
-        .from('contacts')
-        .insert({ name: input.customerName })
-        .select('id')
-        .single();
-      if (!error && data) contactId = data.id;
-    }
-  } else {
-     if (input.customerName === '' && input.phone === '') {
-       contactId = null;
-     }
+    // Edición explícita de un admin: si corrige el nombre, se corrige.
+    contactId = (await resolveContact(input.customerName, input.phone, { overwriteName: true })) ?? contactId;
+  } else if (input.customerName === '' && input.phone === '') {
+    contactId = null;
   }
 
   const isAdmin = user.roles.includes('admin') || user.roles.includes('global_admin');
-  
+
   // Si no es admin, mantenemos los valores originales de la base de datos (por eso no incluimos los campos en el update).
   // Si es admin, evaluamos los overrides.
   const updatePayload: any = {
@@ -1198,54 +1528,64 @@ export async function updateSale(
 
   if (isAdmin) {
     if (input.overrideSellerId) {
-      const { data } = await db.from('profiles').select('email').eq('id', input.overrideSellerId).maybeSingle();
-      if (data) {
-        updatePayload.seller_uid = input.overrideSellerId;
-        updatePayload.seller_email = data.email;
-      }
+      const chosen = await resolveOverrideSeller(input.overrideSellerId);
+      updatePayload.seller_uid = chosen.uid;
+      updatePayload.seller_email = chosen.email;
     } else if (input.overrideSellerName) {
       updatePayload.seller_uid = null;
       updatePayload.seller_email = input.overrideSellerName;
     }
   }
 
-  const { error: updError } = await db
-    .from('orders')
-    .update(updatePayload)
-    .eq('id', orderId);
-  if (updError) throw updError;
-
-  await db.from('order_items').delete().eq('order_id', orderId);
+  // ── Mover stock y líneas, con vuelta atrás ──
+  // Sin transacción real: si algo falla entre liberar y volver a reservar, se
+  // restaura la venta como estaba (líneas, datos y reserva). Antes quedaba
+  // pendiente, sin reserva, y al aprobarla esas líneas entraban con costo 0.
+  if (reservationStatus === 'active') {
+    await releaseReservations(orderId);
+  } else {
+    await releaseConsumedReservations(orderId);
+  }
 
   const itemCreatedAt = updatePayload.created_at || order.created_at;
 
-  const { error: itemsError } = await db.from('order_items').insert(
-    pricedLines.map((line) => ({
-      order_id: orderId,
-      sku: line.productName,
-      quantity: line.quantity,
-      precio_unit: line.precioUnit,
-      // Igual que en registerSale: la edición vuelve la venta a
-      // pending_approval, así que se re-guarda el snapshot estimado para que la
-      // comisión se siga viendo. approveSale lo re-congela con el costo real.
-      coste_final_snap: line.snapshot.costeFinalSnap,
-      utilidad_bruta: line.snapshot.utilidadBruta,
-      salary: line.snapshot.salary,
-      utilidad_neta: line.snapshot.utilidadNeta,
-      comision: line.snapshot.comision,
-      ganancia_tienda: line.snapshot.gananciaTienda,
-      pozos: line.snapshot.pozos,
-      ...(itemCreatedAt ? { created_at: itemCreatedAt } : {}),
-    })),
-  );
-  if (itemsError) throw itemsError;
-
   try {
+    const { error: updError } = await db
+      .from('orders')
+      .update(updatePayload)
+      .eq('id', orderId);
+    if (updError) throw updError;
+
+    const { error: delItemsError } = await db.from('order_items').delete().eq('order_id', orderId);
+    if (delItemsError) throw delItemsError;
+
+    const { error: itemsError } = await db.from('order_items').insert(
+      pricedLines.map((line) => ({
+        order_id: orderId,
+        sku: line.productName,
+        quantity: line.quantity,
+        precio_unit: line.precioUnit,
+        // Igual que en registerSale: la edición vuelve la venta a
+        // pending_approval, así que se re-guarda el snapshot estimado para que la
+        // comisión se siga viendo. approveSale lo re-congela con el costo real.
+        coste_final_snap: line.snapshot.costeFinalSnap,
+        utilidad_bruta: line.snapshot.utilidadBruta,
+        salary: line.snapshot.salary,
+        utilidad_neta: line.snapshot.utilidadNeta,
+        comision: line.snapshot.comision,
+        ganancia_tienda: line.snapshot.gananciaTienda,
+        pozos: line.snapshot.pozos,
+        ...(itemCreatedAt ? { created_at: itemCreatedAt } : {}),
+      })),
+    );
+    if (itemsError) throw itemsError;
+
     await reserveForItems(
       orderId,
       pricedLines.map((line) => ({ productName: line.productName, quantity: line.quantity })),
     );
   } catch (err) {
+    await restoreSaleAfterFailedEdit(orderId, order, oldItemRows ?? [], reservationStatus, user.uid);
     throw err;
   }
 
@@ -1304,24 +1644,77 @@ export async function updateSale(
   }
 
   if (order.status === 'approved' || order.status === 'paid') {
-    await approveSale(orderId);
+    try {
+      await approveSale(orderId);
+    } catch (err) {
+      // El stock ya quedó reservado con las líneas nuevas: la venta queda
+      // pendiente y se aprueba a mano. Se avisa en vez de fallar en silencio.
+      const detail = err instanceof Error ? err.message : '';
+      throw new BadRequestError(
+        `Los cambios se guardaron, pero la venta no se pudo volver a aprobar y quedó en Pendientes. Aprobala desde ahí.${detail ? ` (${detail})` : ''}`,
+      );
+    }
+
+    // Re-aprobar no la mueve de semana: sigue en el corte de comisiones donde
+    // ya estaba (approveSale pone la semana actual).
+    const restore: Record<string, unknown> = {};
+    if (order.week_of) restore.week_of = order.week_of;
+    if (order.status === 'paid') restore.status = 'paid';
+    if (Object.keys(restore).length) {
+      const { error: restoreError } = await db.from('orders').update(restore).eq('id', orderId);
+      if (restoreError) throw restoreError;
+    }
 
     if (order.status === 'paid') {
-      await db.from('orders').update({ status: 'paid' }).eq('id', orderId);
       const { data: newItems } = await db.from('order_items').select('comision').eq('order_id', orderId);
       const newComision = (newItems || []).reduce((sum, it) => sum + (Number(it.comision) || 0), 0);
+      const reason = input.reason || 'Edición post-pago';
+      const newSellerEmail: string = updatePayload.seller_email ?? order.seller_email;
+      const newSellerUid: string | null =
+        'seller_uid' in updatePayload ? updatePayload.seller_uid : order.seller_uid;
 
-      await recordCommissionAdjustment({
-        sellerEmail: order.seller_email,
-        sellerUid: order.seller_uid,
-        orderId: orderId,
-        comisionVieja: oldComision,
-        comisionNueva: newComision,
-        reason: input.reason || 'Edición post-pago',
-        createdBy: user.uid,
-      });
+      if (newSellerEmail === order.seller_email) {
+        await recordCommissionAdjustment({
+          sellerEmail: order.seller_email,
+          sellerUid: order.seller_uid,
+          orderId: orderId,
+          comisionVieja: oldComision,
+          comisionNueva: newComision,
+          reason,
+          createdBy: user.uid,
+        });
+      } else {
+        // Cambió el vendedor de una venta ya pagada: al anterior se le
+        // descuenta lo que cobró y al nuevo se le acredita lo suyo. Antes se
+        // anotaba todo al anterior con la comisión del nuevo.
+        await recordCommissionAdjustment({
+          sellerEmail: order.seller_email,
+          sellerUid: order.seller_uid,
+          orderId: orderId,
+          comisionVieja: oldComision,
+          comisionNueva: 0,
+          reason: `${reason} (venta reasignada)`,
+          createdBy: user.uid,
+        });
+        await recordCommissionAdjustment({
+          sellerEmail: newSellerEmail,
+          sellerUid: newSellerUid,
+          orderId: orderId,
+          comisionVieja: 0,
+          comisionNueva: newComision,
+          reason: `${reason} (venta reasignada)`,
+          createdBy: user.uid,
+        });
+      }
     }
   }
+
+  await logBelowMinMargin(
+    orderId,
+    pricedLines.map((l) => ({ productName: l.productName, precioUnit: l.precioUnit, costeFinal: l.snapshot.costeFinalSnap })),
+    minMargin,
+    user.uid,
+  );
 
   await db.from('audit_logs').insert({
     entity: 'orders',
@@ -1360,7 +1753,7 @@ export async function deleteSale(orderId: string, reason: string, user: { uid: s
     .eq('sale_id', orderId)
     .maybeSingle();
   if (linkedInvoice && linkedInvoice.status !== 'void') {
-    await voidInvoice(linkedInvoice.id, reason || 'Venta eliminada', user.uid);
+    await voidInvoice(linkedInvoice.id, reason || 'Venta eliminada', user.uid, { allowLinked: true });
   }
 
   if (order.status === 'pending_approval') {
@@ -1375,8 +1768,10 @@ export async function deleteSale(orderId: string, reason: string, user: { uid: s
     oldComision = (oldItems || []).reduce((sum, it) => sum + (Number(it.comision) || 0), 0);
   }
 
-  await db.from('order_items').delete().eq('order_id', orderId);
-  await db.from('orders').delete().eq('id', orderId);
+  const { error: delItemsError } = await db.from('order_items').delete().eq('order_id', orderId);
+  if (delItemsError) throw delItemsError;
+  const { error: delOrderError } = await db.from('orders').delete().eq('id', orderId);
+  if (delOrderError) throw delOrderError;
 
   if (order.status === 'paid') {
     await recordCommissionAdjustment({

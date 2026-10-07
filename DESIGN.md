@@ -9,6 +9,28 @@
 
 ---
 
+## Actualización visual del Admin Center — octubre de 2026
+
+El panel comparte la identidad del catálogo: Chivo, fondo crema y tarjetas
+blancas en claro; fondo negro neutro y tarjetas gris carbón en oscuro. Estos
+overrides viven en `tailwind.css`, bajo `html[data-area='admin']`, y también
+alcanzan los diálogos y menús que se montan en portales.
+
+- Amarillo `#ffc20e`: botones de acción principal, con texto tinta y relieve
+  discreto de 2px. No se usa para textos informativos sobre fondo claro.
+- Esmeralda: selección, enlaces, foco y navegación. El token `--primary` del
+  panel conserva este rol para no cambiar el significado de los estados y
+  gráficos existentes; los botones principales usan `--admin-action`.
+- Rojo: errores y acciones destructivas. Cerrar y Cancelar siguen neutrales.
+- Controles de 44px en móvil; controles normales de al menos 36px en escritorio.
+- Menú lateral visible en escritorio y controlado por botón; sin expansión
+  automática por hover. En móvil tiene botón de abrir, cerrar y cierre al navegar.
+- La vista previa `.store-preview` conserva los estilos del catálogo; los
+  overrides de controles del panel la excluyen.
+
+No se modifican fórmulas, permisos, validaciones ni el flujo de negocio de los
+módulos. La densidad y composición de cada módulo se revisarán por separado.
+
 ## 0. En una frase
 
 Rhea es la variante **compacta** de shadcn: controles y superficies más densos que Maia o Luma.
@@ -154,11 +176,10 @@ la ruta:
 | Área | Rutas | `--font-sans` (cuerpo) | `--font-heading` (titulares) |
 |---|---|---|---|
 | `store` | tienda pública: `/`, `/producto`, `/combo`, `/contacto`… | **Chivo** | **Chivo** |
-| `admin` | `/admin*`, `/login`, `/auth*` | **Geist** | **Geist** |
+| `admin` | `/admin*`, `/login`, `/auth*` | **Chivo** | **Chivo** |
 
-En el **panel**, los montos grandes (métricas y totales) usan **Chivo** con la clase
-`font-display` (`--font-display`, fija, no depende del área); el resto del panel sigue en
-Geist. Referencia: la franja de métricas de Inventario.
+En el **panel**, los montos grandes (métricas y totales) mantienen la clase
+`font-display`; tanto los datos como el cuerpo y los títulos usan Chivo.
 
 Además, **Chivo Mono** (`--font-spec`, clase `font-spec`) queda reservada a **códigos**
 (número de pedido, contador de la galería). Las specs de la tarjeta y de la ficha, la
@@ -172,8 +193,8 @@ Los subsets no latinos no se descargan: cada `@font-face` declara su `unicode-ra
 
 **Por qué el área va en `<html>` y no en el layout de cada ruta.** Los `Dialog`/`Sheet` de
 shadcn se renderizan en un portal colgado de `<body>`, fuera del árbol del layout. Con la
-variable en `<html>`, el título del carrito sale en Chivo y el de un diálogo del panel, en
-Geist, sin tocar las primitivas.
+variable en `<html>`, el título del carrito y el de un diálogo del panel salen
+en Chivo, sin tocar las primitivas.
 
 **Por qué los tokens apuntan a variables.** `@theme inline` copia el valor del token dentro de
 cada utilidad. Con un literal (`--font-heading: "Geist Variable"…`), `font-heading` quedaría
