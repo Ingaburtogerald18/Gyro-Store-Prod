@@ -1,5 +1,5 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
-import type { LandingConfig } from '@shared/schemas';
+import type { CategoryMode, LandingConfig } from '@shared/schemas';
 
 interface BuilderState {
   // Estado borrador de la configuración actual, solo activo durante el Modo Edición.
@@ -28,6 +28,12 @@ const builderSlice = createSlice({
       if (state.draftLandingConfig) {
         state.draftLandingConfig.headerCategories = action.payload;
       }
+    },
+    // Modo de cada zona de categorías (automático / elegidas / oculta).
+    setCategoryMode(state, action: PayloadAction<{ zone: 'header' | 'home'; mode: CategoryMode }>) {
+      if (!state.draftLandingConfig) return;
+      if (action.payload.zone === 'header') state.draftLandingConfig.headerCategoriesMode = action.payload.mode;
+      else state.draftLandingConfig.homeCategoriesMode = action.payload.mode;
     },
     // Actualiza el orden de los carriles (homeCategories)
     updateHomeCategories(state, action: PayloadAction<string[]>) {
@@ -66,6 +72,7 @@ export const {
   initBuilderSession, 
   updateHeaderCategories, 
   updateHomeCategories, 
+  setCategoryMode,
   clearBuilderSession,
   updateHeroSlides,
   updateCartContent,

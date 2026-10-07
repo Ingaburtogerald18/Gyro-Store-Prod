@@ -22,7 +22,12 @@ export function loadCart(): CartItem[] {
           && typeof item.quantity === 'number' && Number.isFinite(item.quantity);
       })
       .slice(0, MAX_CART_LINES)
-      .map((i) => ({ ...i, quantity: clampCartQuantity(i.quantity) }))
+      .map((i) => {
+        const { maxQuantity, ...rest } = i;
+        // Un tope corrupto se descarta: el servidor revalida igual.
+        const validMax = typeof maxQuantity === 'number' && maxQuantity > 0;
+        return { ...rest, quantity: clampCartQuantity(i.quantity), ...(validMax ? { maxQuantity } : {}) };
+      })
       .filter((i) => i.quantity > 0);
   } catch {
     return [];

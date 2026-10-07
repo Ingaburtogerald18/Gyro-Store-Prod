@@ -15,7 +15,7 @@ import { useElementInView } from '~/hooks/useElementInView';
 export function MobileBuyBar({
   name,
   price,
-  disabled,
+  mode = 'add',
   onAdd,
   onWhatsApp,
   addLabel,
@@ -24,7 +24,9 @@ export function MobileBuyBar({
   name: string;
   /** Ya formateado: el formato del dinero vive en lib/formatters. */
   price: string;
-  disabled?: boolean;
+  /** 'consult': agotado o sin stock verificable — la acción es consultar. */
+  mode?: 'add' | 'consult';
+  /** Agregar; si falta elegir opciones, lleva al selector y lo explica. */
   onAdd: () => void;
   onWhatsApp: () => void;
   addLabel: string;
@@ -51,27 +53,40 @@ export function MobileBuyBar({
           <p className="font-heading text-lg font-extrabold tracking-tight text-foreground tabular-nums">{price}</p>
         </div>
 
-        <Button
-          variant="whatsappOutline"
-          size="icon"
-          onClick={onWhatsApp}
-          aria-label={`Consultar por ${name} por WhatsApp`}
-          // 44px: mínimo táctil, aunque el botón se vea compacto al lado del CTA.
-          className="h-11 w-11 shrink-0"
-          tabIndex={hidden ? -1 : undefined}
-        >
-          <WhatsappIcon className="h-[18px] w-[18px]" />
-        </Button>
+        {mode === 'consult' ? (
+          <Button
+            variant="whatsapp"
+            onClick={onWhatsApp}
+            className="h-12 shrink-0 px-4"
+            tabIndex={hidden ? -1 : undefined}
+          >
+            <WhatsappIcon className="size-[18px]" />
+            Consultar
+          </Button>
+        ) : (
+          <>
+            <Button
+              variant="whatsappOutline"
+              size="icon"
+              onClick={onWhatsApp}
+              aria-label={`Consultar por ${name} por WhatsApp`}
+              // 48px: objetivo táctil cómodo al lado del CTA.
+              className="size-12 shrink-0"
+              tabIndex={hidden ? -1 : undefined}
+            >
+              <WhatsappIcon className="size-[18px]" />
+            </Button>
 
-        <Button
-          onClick={onAdd}
-          disabled={disabled}
-          className="h-11 shrink-0 px-5"
-          tabIndex={hidden ? -1 : undefined}
-        >
-          <HugeIcon icon={ShoppingCart02Icon} size={16} strokeWidth={2} aria-hidden />
-          {addLabel}
-        </Button>
+            <Button
+              onClick={onAdd}
+              className="h-12 shrink-0 px-5 text-base"
+              tabIndex={hidden ? -1 : undefined}
+            >
+              <HugeIcon icon={ShoppingCart02Icon} size={18} strokeWidth={2} aria-hidden />
+              {addLabel}
+            </Button>
+          </>
+        )}
       </div>
     </motion.div>
   );

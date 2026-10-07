@@ -30,6 +30,10 @@ export function ProductGallery({
   const [zoomed, setZoomed] = useState(false);
   const reduce = useReducedMotion();
   const stageRef = useRef<HTMLButtonElement>(null);
+  // La primera foto se pinta visible desde el HTML del servidor: el fundido
+  // solo acompaña los CAMBIOS de foto. Antes arrancaba en opacity 0 y quedaba
+  // invisible hasta hidratar.
+  const [changed, setChanged] = useState(false);
 
   // Si cambia el juego de fotos (otra variante de color), volver a la primera:
   // el índice viejo puede no existir en la lista nueva.
@@ -39,7 +43,13 @@ export function ProductGallery({
   const hasMany = images.length > 1;
 
   function step(direction: 1 | -1) {
+    setChanged(true);
     setActive((prev) => (prev + direction + images.length) % images.length);
+  }
+
+  function show(index: number) {
+    setChanged(true);
+    setActive(index);
   }
 
   return (
@@ -58,7 +68,9 @@ export function ProductGallery({
             alt={name}
             loading="eager"
             decoding="async"
-            initial={{ opacity: reduce ? 1 : 0 }}
+            width={480}
+            height={480}
+            initial={changed && !reduce ? { opacity: 0 } : false}
             animate={{ opacity: 1 }}
             transition={{ duration: reduce ? 0 : 0.18 }}
             // El drag solo existe con más de una foto; con una sola, arrastrar
@@ -101,7 +113,7 @@ export function ProductGallery({
             <button
               key={src}
               type="button"
-              onClick={() => setActive(i)}
+              onClick={() => show(i)}
               aria-label={`Ver imagen ${i + 1} de ${images.length}`}
               aria-current={i === active}
               // El botón aporta los 44px táctiles; el punto visible mide 6px.
@@ -110,7 +122,7 @@ export function ProductGallery({
               <span
                 className={cn(
                   'h-1.5 rounded-full transition-all motion-reduce:transition-none',
-                  i === active ? 'w-4 bg-primary' : 'w-1.5 bg-border',
+                  i === active ? 'w-4 bg-primary-2' : 'w-1.5 bg-muted-foreground/40',
                 )}
               />
             </button>
@@ -125,7 +137,7 @@ export function ProductGallery({
             <button
               key={src}
               type="button"
-              onClick={() => setActive(i)}
+              onClick={() => show(i)}
               aria-label={`Ver imagen ${i + 1} de ${name}`}
               aria-current={i === active}
               className={cn(

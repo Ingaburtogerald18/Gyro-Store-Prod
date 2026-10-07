@@ -4,7 +4,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { Link } from '@remix-run/react';
 import { motion, AnimatePresence, useAnimationControls, useReducedMotion } from 'framer-motion';
-import { Menu01Icon, ShoppingCart02Icon, Search01Icon, Cancel01Icon } from '@hugeicons/core-free-icons';
+import { GridViewIcon, ShoppingCart02Icon, Search01Icon, Cancel01Icon } from '@hugeicons/core-free-icons';
+import { categoryMode } from '@shared/schemas';
+import { inCategory } from '~/components/store/category-nav';
 import { SearchBar } from '~/components/catalog/search-bar';
 import { CategoriesDrawer } from '~/components/store/categories-drawer';
 import { CategoryNav } from '~/components/store/category-nav';
@@ -41,7 +43,7 @@ function CartButton() {
       whileTap={reduce ? undefined : { scale: 0.92 }}
       onClick={() => dispatch(toggleCart())}
       aria-label={count > 0 ? `Abrir carrito, ${count} artículo${count === 1 ? "" : "s"}` : "Abrir carrito"}
-      className="store-cart-button relative grid h-10 w-10 place-items-center rounded-full border transition-[background-color,box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:h-11 sm:w-11"
+      className="store-cart-button relative grid size-11 place-items-center rounded-full border transition-[background-color,box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
     >
       <HugeIcon icon={ShoppingCart02Icon} size={20} strokeWidth={2} aria-hidden />
       <AnimatePresence>
@@ -53,7 +55,7 @@ function CartButton() {
             exit={{ scale: 0, opacity: 0 }}
             transition={reduce ? { duration: 0 } : { type: "spring", stiffness: 520, damping: 20 }}
             // ring-background lo separa del header con un halo del color de fondo → "flota".
-            className="font-spec absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-destructive px-1 text-2xs font-bold tabular-nums text-destructive-foreground ring-2 ring-background shadow-lg"
+            className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-destructive px-1 text-2xs font-bold tabular-nums text-destructive-foreground ring-2 ring-background shadow-lg"
           >
             {count > 99 ? '99+' : count}
           </motion.span>
@@ -84,34 +86,42 @@ export function StoreHeader() {
     [config?.categories],
   );
 
+  // Modo de la zona (auto / elegidas / oculta), compatible con configuraciones
+  // viejas sin modo. «Automático» = las categorías que tienen productos.
+  const mode = categoryMode(landing?.headerCategoriesMode, landing?.headerCategories);
   const headerNavCategories = useMemo(() => {
-    if (!landing?.headerCategories || landing.headerCategories.length === 0) {
-      return allCategories.slice(0, 7);
+    if (mode === 'hidden') return [];
+    if (mode === 'auto') {
+      const withProducts = allCategories.filter((c) => products.length === 0 || products.some((p) => inCategory(p, c)));
+      return withProducts.slice(0, 7);
     }
-    return landing.headerCategories
+    return (landing?.headerCategories ?? [])
       .map(id => allCategories.find(c => c.id === id))
       .filter((c): c is NonNullable<typeof c> => Boolean(c))
       .slice(0, 7);
-  }, [allCategories, landing?.headerCategories]);
+  }, [mode, allCategories, products, landing?.headerCategories]);
+  const showCategories = headerNavCategories.length > 0;
 
   return (
     <header data-landing-section="navigation" className="store-header sticky top-0 z-40 border-b border-border transition-all">
       <div className="mx-auto flex h-14 max-w-7xl items-center gap-2 px-4 sm:gap-3">
-        {(
+        {/* Categorías en panel hasta escritorio ancho: en tablet, la fila de
+            categorías y el buscador se tapaban entre sí. */}
+        {showCategories && (
           <Button
             variant="ghost"
             size="icon"
             onClick={() => setCategoriesOpen(true)}
             aria-label="Ver categorías"
-            className="h-9 w-9 shrink-0 text-primary-2 sm:h-10 sm:w-10 md:hidden"
+            className="size-11 shrink-0 text-primary-2 lg:hidden"
           >
-            <HugeIcon icon={Menu01Icon} size={20} strokeWidth={2} aria-hidden />
+            <HugeIcon icon={GridViewIcon} size={20} strokeWidth={2} aria-hidden />
           </Button>
         )}
 
         <Link
           to="/"
-          className="group flex shrink-0 items-center gap-2 rounded-xl py-1 transition-all duration-300 sm:px-2 hover:bg-primary-2/5 motion-safe:active:scale-95"
+          className="group flex shrink-0 items-center gap-2 rounded-xl py-1 transition-colors hover:bg-primary-2/5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
           aria-label={`Ir al inicio de ${config?.brandName || getBrandName()}`}
         >
           {/* Logo: el que se sube en el panel (Recursos de imágenes → logo
@@ -160,11 +170,13 @@ export function StoreHeader() {
             vivía tras un ícono y solo en la home; en una tienda es la forma más
             rápida de llegar a un producto, así que está a la vista en toda página. */}
         <div className="hidden min-w-0 flex-1 items-center justify-end gap-3 md:flex">
-          <div className="flex min-w-0 flex-1 items-center gap-1">
-            <CategoryNav categories={headerNavCategories} products={products} />
-          </div>
+          {showCategories && (
+            <div className="hidden min-w-0 flex-1 items-center gap-1 lg:flex">
+              <CategoryNav categories={headerNavCategories} products={products} />
+            </div>
+          )}
 
-          {<SearchBar className="w-56 shrink-0 lg:w-80" />}
+          <SearchBar className="w-full max-w-sm shrink lg:w-72 lg:shrink-0 xl:w-80" />
         </div>
         {/* Zona derecha */}
         <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-3">
@@ -175,7 +187,7 @@ export function StoreHeader() {
               onClick={() => setMobileSearchOpen((o) => !o)}
               aria-label={mobileSearchOpen ? 'Cerrar búsqueda' : 'Buscar productos'}
               aria-expanded={mobileSearchOpen}
-              className="h-9 w-9 text-primary-2 sm:h-10 sm:w-10 md:hidden"
+              className="size-11 text-primary-2 md:hidden"
             >
               <HugeIcon
                 icon={mobileSearchOpen ? Cancel01Icon : Search01Icon}
@@ -200,7 +212,7 @@ export function StoreHeader() {
       <CategoriesDrawer
         open={categoriesOpen}
         onOpenChange={setCategoriesOpen}
-        categories={allCategories}
+        categories={mode === 'custom' ? headerNavCategories : allCategories}
         products={products}
       />
     </header>

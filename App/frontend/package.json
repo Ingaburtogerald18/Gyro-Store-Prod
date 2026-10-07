@@ -11,7 +11,7 @@
     "start": "remix-serve ./build/server/index.js",
     "typecheck": "tsc --noEmit",
     "lint": "eslint app",
-    "test": "node --import ../node_modules/tsx/dist/loader.mjs --test tests/cart.test.ts"
+    "test": "node --import ../node_modules/tsx/dist/loader.mjs --test tests/cart.test.ts tests/purchase.test.ts tests/catalogQuery.test.ts tests/editor.test.ts tests/checkout.test.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

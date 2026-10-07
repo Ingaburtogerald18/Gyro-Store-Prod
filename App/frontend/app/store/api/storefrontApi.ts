@@ -41,6 +41,8 @@ export interface CreatedPublicOrder {
 /** Línea de un pedido ya resuelta por el servidor (nombre e imagen actuales). */
 export interface PublicOrderLine {
   name: string;
+  /** Combinación elegida; null en pedidos previos a la migración 0019. */
+  variantName: string | null;
   image: string | null;
   quantity: number;
   unitPrice: number;
@@ -89,6 +91,10 @@ export const storefrontApi = baseApi.injectEndpoints({
       transformResponse: (response: { order: CreatedPublicOrder }) => response.order,
       invalidatesTags: ['Orders'],
     }),
+    recoverPublicOrder: build.mutation<CreatedPublicOrder | null, string>({
+      query: (idempotencyKey) => ({ url: 'orders/public/recover', method: 'POST', body: { idempotencyKey } }),
+      transformResponse: (response: { order: CreatedPublicOrder | null }) => response.order,
+    }),
 
     // ── Configuración del landing: slides del hero + orden de categorías.
     // GET es público (lo necesita la home); PUT lo restringe el backend a admin.
@@ -136,6 +142,7 @@ export const {
   useGetCatalogDetailQuery,
   useGetCombosQuery,
   useCreatePublicOrderMutation,
+  useRecoverPublicOrderMutation,
   useGetLandingConfigQuery,
   useUpdateLandingConfigMutation,
   useSendContactMutation,

@@ -156,3 +156,33 @@ export function htmlToText(html: string | null | undefined): string {
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 }
+
+/**
+ * Mensajes de WhatsApp desde el catálogo. «Pedir» solo con una selección
+ * válida (lleva variante, cantidad y precio); «consultar» sirve sin elegir y
+ * no promete stock.
+ */
+export function productWhatsappMessage({
+  kind,
+  name,
+  variant,
+  quantity = 1,
+  total,
+  url,
+}: {
+  kind: 'order' | 'availability' | 'info';
+  name: string;
+  variant?: string;
+  quantity?: number;
+  /** Ya formateado con formatCordobas. */
+  total?: string;
+  url: string;
+}): string {
+  const label = variant ? `${name} (${variant})` : name;
+  if (kind === 'order') {
+    const qty = quantity > 1 ? `${quantity}× ` : '';
+    return `Hola, quiero pedir: ${qty}${label}${total ? ` — ${total}` : ''}. ${url}`;
+  }
+  if (kind === 'availability') return `Hola, ¿tienen disponible ${label}? ${url}`;
+  return `Hola, quiero consultar por ${label}. ${url}`;
+}

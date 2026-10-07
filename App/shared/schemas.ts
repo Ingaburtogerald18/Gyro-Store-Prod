@@ -101,6 +101,15 @@ export const specRowSchema = z.object({
   value: z.string(),
 });
 
+// Disponibilidad cualitativa: lo único que el cliente ve del inventario.
+//   · available → hay unidades en los lotes vinculados.
+//   · sold_out  → la variante está vinculada a bodega y no quedan unidades.
+//   · unknown   → no hay vínculo con bodega: el stock no se conoce. Se ofrece
+//                 «Consultar disponibilidad» por WhatsApp, nunca como compra.
+export const AVAILABILITY = ['available', 'sold_out', 'unknown'] as const;
+export const availabilitySchema = z.enum(AVAILABILITY);
+export type Availability = z.infer<typeof availabilitySchema>;
+
 export const catalogProductSchema = z.object({
   id: z.uuid(),
   name: z.string(),
@@ -109,15 +118,32 @@ export const catalogProductSchema = z.object({
   category: z.string(),
   categoryId: z.string().uuid().nullable().optional(),
   images: z.array(z.string()),
+  // Precio que muestra la tarjeta: el menor de las variantes comprables (o de
+  // todas, si ninguna lo es). Con `priceFrom` se presenta como «Desde …».
   price: z.number(),
+  // Precio «antes» SOLO cuando todas las variantes comparten el mismo precio y
+  // la misma rebaja: una tarjeta no muestra la rebaja del modelo entero si
+  // solo una variante está rebajada.
   compareAtPrice: z.number().optional(),
+  // Las variantes no valen todas lo mismo: la tarjeta dice «Desde».
+  priceFrom: z.boolean().default(false),
+  // Unidades disponibles sumadas (0 si se desconoce). Sirve para limitar
+  // cantidades; la interfaz nunca la muestra como número.
   stock: z.number(),
+  availability: availabilitySchema.default('unknown'),
+  // Alguna variante tiene promoción vigente.
   isPromo: z.boolean(),
+  // 'all' = todas las variantes rebajadas; 'some' = solo algunas (la tarjeta
+  // no promete la rebaja para todas); 'none' = sin promoción.
+  promoScope: z.enum(['none', 'some', 'all']).default('none'),
   specs: z.array(specRowSchema),
   // Opciones no-color ofrecidas: alimentan las pills de la tarjeta.
   axesSummary: z.array(z.string()),
   // Nº de combinaciones: si es >1 hay que elegir variante antes de agregar.
   variantCount: z.number().int(),
+  // Con UNA sola combinación, su identidad: la tarjeta agrega directo sin
+  // inventar una variante «Estándar».
+  singleVariant: z.string().optional(),
   templateId: z.string().nullable(),
 });
 
@@ -136,11 +162,20 @@ export const catalogAxisSchema = z.object({
 // Una combinación concreta de opciones, con su precio y su stock REAL ya
 // resuelto contra bodega. Los códigos de lote que la respaldan no viajan: son
 // datos internos del inventario.
+// `variantName` es la IDENTIDAD de la combinación: las opciones en el orden de
+// los ejes unidas con ' / ' — la misma llave con la que el panel guarda el
+// vínculo con bodega (`variant_mappings`). El servidor la resuelve contra el
+// producto al crear el pedido; nunca confía en el precio ni el stock del cliente.
 export const catalogVariantSchema = z.object({
   variantName: z.string(),
   axisValues: z.array(z.string()),
+  // Precio vigente de ESTA combinación (promoción incluida).
   price: z.number(),
+  // Precio regular cuando la combinación tiene promoción.
+  compareAtPrice: z.number().optional(),
+  isPromo: z.boolean().default(false),
   stock: z.number().int(),
+  availability: availabilitySchema.default('unknown'),
 });
 
 export const catalogDetailSchema = catalogProductSchema.extend({
@@ -282,6 +317,10 @@ export type AdminTemplate = z.infer<typeof adminTemplateSchema>;
 export const variantMappingSchema = z.object({
   codes: z.array(z.string().min(1).max(40)).max(20),
   price: z.number().min(0).max(9_999_999).optional(),
+  // Promoción de ESTA variante (contrato mínimo, sin editor propio todavía):
+  // solo aplica si es mayor que 0 y menor que su precio regular. Se configura en
+  // `catalog_items.variant_mappings` → { "<variante>": { codes, price, promoPrice } }.
+  promoPrice: z.number().min(0).max(9_999_999).optional(),
 });
 export type VariantMapping = z.infer<typeof variantMappingSchema>;
 
@@ -413,19 +452,35 @@ export const cartContentSchema = z.object({
 export type CartContent = z.infer<typeof cartContentSchema>;
 export type CartImageKey = (typeof CART_IMAGE_KEYS)[number];
 
+// Cómo se eligen las categorías de una zona de la portada:
+//   · auto   → todas las que tienen productos, en su orden natural;
+//   · custom → solo las elegidas, en ese orden;
+//   · hidden → la zona no muestra categorías.
+// Opcional para que las configuraciones guardadas antes sigan valiendo: sin
+// modo, una lista vacía es «auto» y una con elementos es «custom».
+export const CATEGORY_MODES = ['auto', 'custom', 'hidden'] as const;
+export type CategoryMode = (typeof CATEGORY_MODES)[number];
+
 export const landingConfigSchema = z.object({
   // Ids de categoría en el orden/visibilidad que eligió el admin. Vacío = todas
   // en su orden natural (los nombres salen del catálogo, no de aquí).
   headerCategories: z.array(z.string().max(64)).max(50),
+  headerCategoriesMode: z.enum(CATEGORY_MODES).optional(),
   heroSlides: z.array(heroSlideSchema).max(MAX_HERO_SLIDES),
   // Categorías que se muestran como carriles en la home.
   homeCategories: z.array(z.string().max(64)).max(50).optional(),
+  homeCategoriesMode: z.enum(CATEGORY_MODES).optional(),
   // Textos e imágenes del carrito (modo edición). Opcional: sin esto, los de siempre.
   cart: cartContentSchema.optional(),
 });
 
 export type HeroSlide = z.infer<typeof heroSlideSchema>;
 export type LandingConfig = z.infer<typeof landingConfigSchema>;
+
+/** Modo efectivo de una zona, compatible con configuraciones sin modo. */
+export function categoryMode(mode: CategoryMode | undefined, ids: string[] | undefined): CategoryMode {
+  return mode ?? ((ids?.length ?? 0) > 0 ? 'custom' : 'auto');
+}
 
 // ============================================================================
 // ── SCHEMAS DEL DOMINIO: COMBOS ──
@@ -746,9 +801,14 @@ export const publicOrderItemInputSchema = z
     // Techo por línea: sin él, un `quantity` absurdo (1e9) infla el total y puede
     // desbordar los cálculos financieros. El mayoreo real se cotiza con un vendedor.
     quantity: z.number().int().positive().max(999, 'Máximo 999 unidades por producto.'),
-    // Variante elegida (ej. "negro / 128GB"). Es SOLO para el mensaje de WhatsApp:
-    // el precio nunca depende de esto, lo resuelve el servidor por catalogItemId.
-    variantName: z.string().max(120).optional(),
+    // Identidad de la variante elegida (`CatalogVariant.variantName`, ej.
+    // "Negro / Con micrófono"). El servidor la resuelve contra las combinaciones
+    // del producto para obtener precio y disponibilidad; una etiqueta que no
+    // corresponde a ninguna combinación se rechaza en vez de adivinarse.
+    variantName: z.string().max(200).optional(),
+    // Precio unitario que el cliente vio. NO fija el precio: si difiere del que
+    // calcula el servidor, el pedido no se crea y se pide revisar el cambio.
+    unitPrice: z.number().min(0).max(9_999_999).optional(),
   })
   // Sin esta regla, una línea sin ningún id pasaría la validación y el service
   // la descartaría en silencio — que es exactamente el bug que esto cierra: el
@@ -814,6 +874,10 @@ export const publicOrderInputSchema = publicOrderFieldsSchema
     // enlazar el pedido con el resto del embudo (evento `order_created`). No
     // influye en precios ni en nada del pedido; si no vino, el pedido igual se crea.
     sessionId: z.string().max(64).optional(),
+    // Clave de idempotencia de ESTE intento de pedido (la genera el checkout una
+    // vez por envío). Un doble clic o un reintento con la misma clave devuelve el
+    // mismo pedido en vez de crear otro.
+    idempotencyKey: z.uuid().optional(),
   })
   .refine(hasDeliveryDestination, {
     message: DELIVERY_DESTINATION_MESSAGE,
@@ -823,6 +887,30 @@ export const publicOrderInputSchema = publicOrderFieldsSchema
 export type PublicOrderItemInput = z.infer<typeof publicOrderItemInputSchema>;
 export type PublicOrderFields = z.infer<typeof publicOrderFieldsSchema>;
 export type PublicOrderInput = z.infer<typeof publicOrderInputSchema>;
+
+// Motivos por los que el servidor pide revisar el carrito antes de crear el
+// pedido (respuesta 409). El checkout los muestra por línea; nada se borra ni se
+// reemplaza en silencio.
+export const ORDER_ISSUE_REASONS = [
+  'not_found',        // el producto o combo ya no está publicado
+  'variant_required', // falta elegir opciones (carrito viejo sin variante)
+  'invalid_variant',  // la variante guardada ya no existe en el producto
+  'sold_out',         // la variante se agotó
+  'unknown_stock',    // la variante no tiene stock verificable
+  'insufficient',     // pide más unidades de las disponibles
+  'price_changed',    // el precio cambió desde que se agregó
+] as const;
+export type OrderIssueReason = (typeof ORDER_ISSUE_REASONS)[number];
+
+export interface OrderIssue {
+  /** Posición de la línea en `items` del request. */
+  index: number;
+  reason: OrderIssueReason;
+  /** Precio vigente (price_changed). */
+  currentPrice?: number;
+  /** Máximo que se puede pedir hoy (insufficient). No se muestra como número. */
+  maxQuantity?: number;
+}
 
 // ── Seguimiento del pedido web ──
 //
@@ -1251,4 +1339,4 @@ export type LoanPayment = z.infer<typeof loanPaymentSchema>;
 
 
 
-
+

@@ -1,23 +1,21 @@
-// Editor de textos e imágenes del carrito (modo edición de la tienda).
+// Editor de textos e imágenes del carrito (dentro del editor de portada).
 //
-// Se abre desde el menú «Editar carrito» de la barra de edición, una parte por
-// vez (carrito vacío, carrito con productos, pedido recibido), con una VISTA
-// PREVIA de esa parte al lado de los campos. No pasa por el carrito real: así
-// no se confunde con lo que el admin tenga agregado.
+// Una parte por vez (carrito vacío, carrito con productos, pedido recibido),
+// con una vista previa hecha con las MISMAS piezas del carrito real. Edita una
+// copia local: pasa al borrador con «Aplicar al borrador» y la tienda cambia al
+// publicar. Cerrar con cambios sin aplicar pide confirmación.
 //
-// Mismo patrón que el editor de slides: guarda en el BORRADOR (builderSlice) y
-// se publica con «Guardar cambios». Las imágenes se eligen entre las de
-// "Recursos de imágenes"; cada lugar usa la suya por defecto.
+// Las imágenes se eligen entre las de "Recursos de imágenes"; cada lugar usa la
+// suya por defecto.
 import { useEffect, useState } from 'react';
 import { Link } from '@remix-run/react';
 import { toast } from 'sonner';
-import { Cancel01Icon, CheckmarkCircle02Icon, ShoppingBag02Icon } from '@hugeicons/core-free-icons';
 
 import { CART_IMAGE_KEYS, type CartContent } from '@shared/schemas';
 import { Button } from '~/components/ui/button';
+import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import {
   Dialog,
-  DialogClose,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -25,9 +23,10 @@ import {
   DialogTitle,
 } from '~/components/ui/dialog';
 import { Field, FieldDescription, FieldLabel } from '~/components/ui/field';
-import { HugeIcon } from '~/components/ui/icon';
 import { Input } from '~/components/ui/input';
 import { Textarea } from '~/components/ui/textarea';
+import { CartBanner, CartEmptyState, CartLine } from '~/components/cart/cart-drawer';
+import { OrderPlaced } from '~/components/cart/checkout-panel';
 import {
   CART_DEFAULTS,
   CART_IMAGE_FALLBACK,
@@ -36,10 +35,13 @@ import {
   type CartImages,
   type ResolvedCartContent,
 } from '~/hooks/useCartContent';
+import { useStoreConfig } from '~/hooks/useStoreConfig';
 import { useGetConfigQuery } from '~/store/api/sessionApi';
 import { useAppDispatch, useAppSelector } from '~/store/hooks';
 import { selectDraftLandingConfig, updateCartContent } from '~/store/slices/builderSlice';
+import { formatCordobas } from '~/lib/formatters';
 import { cn } from '~/lib/utils';
+import type { CartItem } from '~/types/cart';
 
 export type CartEditorSection = 'empty' | 'items' | 'success';
 
@@ -76,7 +78,7 @@ function ImagePicker({
           aria-pressed={!selected}
           onClick={() => onChange('')}
           className={cn(
-            'grid size-16 place-items-center rounded-lg border text-[11px] leading-tight text-muted-foreground',
+            'grid size-16 place-items-center rounded-lg border text-2xs leading-tight text-muted-foreground',
             !selected && 'border-primary-2 ring-2 ring-primary-2/30',
           )}
         >
@@ -108,66 +110,57 @@ function ImagePicker({
   );
 }
 
-/** Vista previa de la parte que se edita, con los mismos estilos del carrito. */
-function Preview({ section, c }: { section: CartEditorSection; c: ResolvedCartContent }) {
+/**
+ * Vista previa con las MISMAS piezas del carrito real (CartEmptyState,
+ * CartBanner, CartLine, OrderPlaced) dentro de `.store-preview`: misma escala,
+ * textos y estilos que la tienda. Es solo visual: no agrega nada al carrito ni
+ * crea pedidos.
+ */
+const SAMPLE_LINE: CartItem = {
+  catalogId: 'preview',
+  name: 'Producto de ejemplo',
+  variantName: 'Negro',
+  price: 650,
+  image: '',
+  quantity: 1,
+};
+
+function Preview({ section, c, currency }: { section: CartEditorSection; c: ResolvedCartContent; currency?: string }) {
   if (section === 'empty') {
-    return (
-      <div className="flex flex-col items-center gap-3 py-6 text-center">
-        {c.emptyImage ? (
-          <img src={c.emptyImage} alt="" className="size-28 object-contain" />
-        ) : (
-          <div className="grid size-14 place-items-center rounded-full bg-muted text-muted-foreground">
-            <HugeIcon icon={ShoppingBag02Icon} size={24} strokeWidth={2} aria-hidden />
-          </div>
-        )}
-        <p className="font-bold">{c.emptyTitle}</p>
-        <p className="max-w-[14rem] text-xs text-muted-foreground">{c.emptyText}</p>
-        <Button size="sm" tabIndex={-1}>{c.emptyButton}</Button>
-      </div>
-    );
+    return <CartEmptyState content={c} active={false} onExplore={() => {}} />;
   }
   if (section === 'success') {
     return (
-      <div className="flex flex-col gap-2 p-2">
-        {c.successImage ? (
-          <img src={c.successImage} alt="" className="size-24 object-contain" />
-        ) : (
-          <span className="grid size-10 place-items-center rounded-full bg-success/15 text-success" aria-hidden>
-            <HugeIcon icon={CheckmarkCircle02Icon} size={22} strokeWidth={2} />
-          </span>
-        )}
-        <p className="font-bold">{c.successTitle}</p>
-        <p className="text-xs text-muted-foreground">
-          Tu número de pedido es <span className="font-semibold text-foreground">#A1B2C3D4</span>. {c.successText}
-        </p>
-      </div>
+      <OrderPlaced
+        order={{ id: 'a1b2c3d4-0000-4000-8000-000000000000', total: 650, whatsappUrl: '#' }}
+        content={c}
+        currency={currency}
+        onDone={() => {}}
+      />
     );
   }
   return (
-    <div className="flex flex-col gap-3">
-      <div className="border-b pb-2">
-        <p className="font-bold">{c.title}</p>
-        <p className="text-xs text-muted-foreground">
-          2 artículos · {c.subtitle || 'envío o retiro lo elegís al finalizar'}
-        </p>
+    <div className="flex flex-col">
+      <div className="border-b border-border pb-2">
+        <p className="text-lg font-bold">{c.title}</p>
+        <p className="text-sm text-muted-foreground">1 artículo{c.subtitle ? ` · ${c.subtitle}` : ''}</p>
       </div>
-      {(c.bannerImage || c.bannerText) && (
-        <div className={cn('flex gap-2 rounded-xl border bg-background p-2', c.bannerText ? 'items-center' : 'justify-center')}>
-          {c.bannerText ? (
-            <>
-              {c.bannerImage && <img src={c.bannerImage} alt="" className="size-12 shrink-0 rounded-lg object-contain" />}
-              <p className="min-w-0 flex-1 text-xs font-semibold">{c.bannerText}</p>
-            </>
-          ) : (
-            <img src={c.bannerImage} alt="" className="max-h-20 w-full rounded-lg object-contain" />
-          )}
+      <div className="space-y-3 py-3">
+        {(c.bannerImage || c.bannerText) && (
+          <CartBanner active={false} image={c.bannerImage} text={c.bannerText} link="" onNavigate={() => {}} />
+        )}
+        <ul className="space-y-2.5">
+          <CartLine item={SAMPLE_LINE} itemKey="preview" currency={currency} />
+        </ul>
+      </div>
+      <div className="space-y-3 border-t border-border pt-3">
+        <div className="flex items-baseline justify-between text-sm">
+          <span className="text-muted-foreground">Subtotal de productos</span>
+          <span className="text-xl font-bold tabular-nums">{formatCordobas(650, currency)}</span>
         </div>
-      )}
-      <div className="flex items-center gap-2 rounded-xl border bg-background p-2 text-xs text-muted-foreground">
-        <span className="size-8 rounded-md bg-muted" /> Producto de ejemplo
+        <Button className="h-12 w-full text-base" tabIndex={-1}>{c.checkoutButton}</Button>
+        {c.footerNote && <p className="text-center text-xs text-muted-foreground">{c.footerNote}</p>}
       </div>
-      <Button size="sm" className="w-full" tabIndex={-1}>{c.checkoutButton}</Button>
-      {c.footerNote && <p className="text-center text-[11px] text-muted-foreground">{c.footerNote}</p>}
     </div>
   );
 }
@@ -175,35 +168,55 @@ function Preview({ section, c }: { section: CartEditorSection; c: ResolvedCartCo
 export function CartContentEditor({
   section,
   onClose,
+  onDirtyChange,
 }: {
   /** Parte que se edita; null = cerrado. */
   section: CartEditorSection | null;
   onClose: () => void;
+  /** Avisa si el formulario tiene cambios sin aplicar al borrador. */
+  onDirtyChange?: (dirty: boolean) => void;
 }) {
   const dispatch = useAppDispatch();
   const landingDraft = useAppSelector(selectDraftLandingConfig);
+  const config = useStoreConfig();
   // Se pide la config de nuevo al abrir: si el admin acaba de subir una imagen
   // en Recursos (en otra pestaña), la vista previa la muestra sin recargar.
-  const { data: config, refetch } = useGetConfigQuery();
-  const images: CartImages = config?.images ?? {};
+  const { data: freshConfig, refetch } = useGetConfigQuery();
+  const images: CartImages = freshConfig?.images ?? config?.images ?? {};
   const [draft, setDraft] = useState<CartContent>({});
+  const [initial, setInitial] = useState('{}');
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const [previewTheme, setPreviewTheme] = useState<'light' | 'dark'>('light');
+  const dirty = section !== null && JSON.stringify(draft) !== initial;
 
   useEffect(() => {
     if (section) {
-      setDraft(landingDraft?.cart ?? {});
+      const start = landingDraft?.cart ?? {};
+      setDraft(start);
+      setInitial(JSON.stringify(start));
       void refetch();
     }
     // Solo al abrir: después, el estado local es el que se edita.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [section]);
 
+  useEffect(() => {
+    onDirtyChange?.(dirty);
+  }, [dirty, onDirtyChange]);
+
   const set = <K extends keyof CartContent>(key: K, value: CartContent[K]) =>
     setDraft((d) => ({ ...d, [key]: value }));
 
-  function save() {
+  function apply() {
     dispatch(updateCartContent(draft));
-    toast.success('Guardado en el borrador. Publicalo con «Guardar cambios».');
+    toast.success('Aplicado al borrador. Publicá para que se vea en la tienda.');
+    onDirtyChange?.(false);
     onClose();
+  }
+
+  function requestClose() {
+    if (dirty) setConfirmDiscard(true);
+    else onClose();
   }
 
   const text = (key: TextField, label: string, placeholder: string, max: number, multiline = false) => (
@@ -226,71 +239,90 @@ export function CartContentEditor({
   const meta = section ? CART_EDITOR_SECTIONS[section] : null;
 
   return (
-    <Dialog open={section !== null} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent showCloseButton={false} className="flex max-h-[90vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl">
-        <DialogClose asChild>
-          <Button variant="destructiveSolid" size="icon" className="absolute top-4 right-4 z-10 size-9 rounded-full" aria-label="Cerrar">
-            <HugeIcon icon={Cancel01Icon} size={16} strokeWidth={2} aria-hidden />
-          </Button>
-        </DialogClose>
+    <>
+      <Dialog open={section !== null} onOpenChange={(open) => !open && requestClose()}>
+        <DialogContent className="flex max-h-[90dvh] flex-col gap-0 overflow-hidden p-0 sm:max-w-4xl">
+          <DialogHeader className="shrink-0 border-b px-6 py-4 pr-14">
+            <DialogTitle>Editar carrito · {meta?.label}</DialogTitle>
+            <DialogDescription>
+              {meta?.hint} Lo que dejes vacío usa el texto de siempre. Los cambios pasan al borrador al aplicar.
+            </DialogDescription>
+          </DialogHeader>
 
-        <DialogHeader className="shrink-0 border-b px-6 py-4 pr-14">
-          <DialogTitle>Editar carrito · {meta?.label}</DialogTitle>
-          <DialogDescription>
-            {meta?.hint} Lo que dejes vacío usa el texto de siempre.
-          </DialogDescription>
-        </DialogHeader>
+          <div className="grid flex-1 gap-6 overflow-y-auto px-6 py-5 md:grid-cols-[1fr_22rem]">
+            <div className="space-y-4">
+              {section === 'empty' && (
+                <>
+                  {picker('emptyImage')}
+                  {text('emptyTitle', 'Título', CART_DEFAULTS.emptyTitle, 80)}
+                  {text('emptyText', 'Texto', CART_DEFAULTS.emptyText, 200, true)}
+                  {text('emptyButton', 'Botón', CART_DEFAULTS.emptyButton, 40)}
+                </>
+              )}
+              {section === 'items' && (
+                <>
+                  {text('title', 'Título del carrito', CART_DEFAULTS.title, 60)}
+                  {text('subtitle', 'Línea de abajo (opcional)', 'Ej.: retiro en tienda o envío', 120)}
+                  <p className="pt-2 text-sm font-bold">Banner de promo (opcional)</p>
+                  {picker('bannerImage')}
+                  {text('bannerText', 'Texto del banner', 'Ej.: Seguinos en redes y pedí tu código', 120)}
+                  {text('bannerLink', 'Enlace al tocarlo (opcional)', '/?categoria=audifonos o https://…', 2048)}
+                  <p className="pt-2 text-sm font-bold">Pie</p>
+                  {text('checkoutButton', 'Botón', CART_DEFAULTS.checkoutButton, 40)}
+                  {text('footerNote', 'Nota chica (opcional)', 'Ej.: ¿Tenés código? Lo aplicás al finalizar', 160)}
+                </>
+              )}
+              {section === 'success' && (
+                <>
+                  {picker('successImage')}
+                  {text('successTitle', 'Título', CART_DEFAULTS.successTitle, 80)}
+                  {text('successText', 'Texto', CART_DEFAULTS.successText, 300, true)}
+                </>
+              )}
+            </div>
 
-        <div className="grid flex-1 gap-6 overflow-y-auto px-6 py-5 md:grid-cols-[1fr_16rem]">
-          <div className="space-y-4">
-            {section === 'empty' && (
-              <>
-                {picker('emptyImage')}
-                {text('emptyTitle', 'Título', CART_DEFAULTS.emptyTitle, 80)}
-                {text('emptyText', 'Texto', CART_DEFAULTS.emptyText, 200, true)}
-                {text('emptyButton', 'Botón', CART_DEFAULTS.emptyButton, 40)}
-              </>
-            )}
-            {section === 'items' && (
-              <>
-                {text('title', 'Título del carrito', CART_DEFAULTS.title, 60)}
-                {text('subtitle', 'Línea de abajo', 'envío o retiro lo elegís al finalizar', 120)}
-                <p className="pt-2 text-sm font-bold">Banner de promo (opcional)</p>
-                {picker('bannerImage')}
-                {text('bannerText', 'Texto del banner', 'Ej.: Seguinos y llevate 15% de descuento', 120)}
-                {text('bannerLink', 'Link al tocarlo (opcional)', '/?categoria=mouses#catalogo o https://…', 2048)}
-                <p className="pt-2 text-sm font-bold">Pie</p>
-                {text('checkoutButton', 'Botón', CART_DEFAULTS.checkoutButton, 40)}
-                {text('footerNote', 'Nota chica (opcional)', 'Ej.: ¿Tenés código? Lo aplicás al finalizar', 160)}
-              </>
-            )}
-            {section === 'success' && (
-              <>
-                {picker('successImage')}
-                {text('successTitle', 'Título', CART_DEFAULTS.successTitle, 80)}
-                {text('successText', 'Texto', CART_DEFAULTS.successText, 300, true)}
-              </>
-            )}
+            {/* Vista previa: fija arriba mientras se recorren los campos. */}
+            <aside className="md:sticky md:top-0 md:self-start" aria-label="Vista previa">
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-xs font-medium text-muted-foreground">Vista previa</p>
+                <div role="group" aria-label="Tema de la vista previa" className="flex rounded-md border p-0.5 text-xs">
+                  {(['light', 'dark'] as const).map((theme) => (
+                    <button key={theme} type="button" aria-pressed={previewTheme === theme} onClick={() => setPreviewTheme(theme)}
+                      className={cn('rounded px-2 py-1', previewTheme === theme ? 'bg-muted font-semibold' : 'text-muted-foreground')}>
+                      {theme === 'light' ? 'Claro' : 'Oscuro'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {/* inert: se ve, pero no se puede usar (ni con teclado). */}
+              <div data-theme={previewTheme} className="store-preview pointer-events-none rounded-2xl border p-4 select-none" {...{ inert: '' }}>
+                {section && <Preview section={section} c={resolveCartContent(draft, images)} currency={config?.currency} />}
+              </div>
+            </aside>
           </div>
 
-          {/* Vista previa: fija arriba mientras se recorren los campos. */}
-          <aside className="md:sticky md:top-0 md:self-start">
-            <p className="mb-2 text-xs font-medium text-muted-foreground">Vista previa</p>
-            <div className="pointer-events-none rounded-2xl border bg-card p-3">
-              {section && <Preview section={section} c={resolveCartContent(draft, images)} />}
-            </div>
-          </aside>
-        </div>
-
-        <DialogFooter className="shrink-0 border-t px-6 py-4">
-          <Button variant="destructiveSolid" onClick={onClose} className="h-11 px-5">
-            Cancelar
-          </Button>
-          <Button onClick={save} className="h-11 px-5">
-            Guardar en el borrador
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          <DialogFooter className="shrink-0 border-t px-6 py-4">
+            <Button variant="outline" onClick={requestClose} className="h-10 px-5">
+              Cancelar
+            </Button>
+            <Button onClick={apply} className="h-10 px-5">
+              Aplicar al borrador
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <ConfirmDialog
+        open={confirmDiscard}
+        onOpenChange={setConfirmDiscard}
+        title="¿Descartar estos cambios?"
+        description="Los cambios de este formulario todavía no se aplicaron al borrador."
+        confirmText="Descartar cambios"
+        cancelText="Seguir editando"
+        onConfirm={() => {
+          onDirtyChange?.(false);
+          onClose();
+        }}
+      />
+    </>
   );
 }

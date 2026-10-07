@@ -1,21 +1,36 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion, useInView, useReducedMotion } from 'framer-motion';
+import { cn } from '~/lib/utils';
 
 type GyroCartMascotProps = {
   src: string;
   active: boolean;
   interactive?: boolean;
+  /** 'lg' (≈152px) en el carrito vacío; 'sm' (≈104px) sobre la lista. */
+  size?: 'lg' | 'sm';
 };
 
-/** La imagen sigue siendo editable desde el admin. Solo animamos el recorte
- * completo; no necesita vídeo, GIF ni una nueva versión de la ilustración. */
-export function GyroCartMascot({ src, active, interactive = true }: GyroCartMascotProps) {
+const SIZE = { lg: 'size-38', sm: 'size-26' } as const;
+
+/**
+ * Gyro libre, sin fondo ni marco. La imagen sigue siendo editable desde el
+ * admin; solo se anima el recorte completo.
+ *
+ * Movimiento acotado: entrada breve y dos balanceos suaves, nada perpetuo. Se
+ * detiene con el carrito cerrado, fuera de vista o con la pestaña oculta, y
+ * `prefers-reduced-motion` muestra la imagen quieta.
+ *
+ * El salto al tocarla es decoración: NO entra en el orden de tabulación ni
+ * recibe el foco inicial del carrito (las acciones de compra van primero).
+ */
+export function GyroCartMascot({ src, active, interactive = true, size = 'lg' }: GyroCartMascotProps) {
   const stage = useRef<HTMLDivElement>(null);
   const inView = useInView(stage, { amount: 0.5 });
   const reduce = useReducedMotion() !== false;
   const [pageVisible, setPageVisible] = useState(true);
   const [celebrating, setCelebrating] = useState(false);
   const canAnimate = active && inView && pageVisible && !reduce;
+  const box = SIZE[size];
 
   useEffect(() => {
     const updateVisibility = () => setPageVisible(!document.hidden);
@@ -33,13 +48,13 @@ export function GyroCartMascot({ src, active, interactive = true }: GyroCartMasc
       src={src}
       alt=""
       draggable={false}
-      className="size-40 select-none object-contain"
+      className={cn(box, 'select-none object-contain')}
       initial={false}
       animate={canAnimate && !celebrating
         ? { rotate: [0, -1.2, 0, 1.2, 0], y: [0, -2.5, 0, -2.5, 0] }
         : { rotate: 0, y: 0 }}
       transition={canAnimate && !celebrating
-        ? { duration: 3.2, ease: 'easeInOut', repeat: Infinity, repeatDelay: 5.5 }
+        ? { duration: 3.2, ease: 'easeInOut', repeat: 1, repeatDelay: 4 }
         : { duration: 0.15 }}
     />
   );
@@ -47,18 +62,19 @@ export function GyroCartMascot({ src, active, interactive = true }: GyroCartMasc
   return (
     <motion.div
       ref={stage}
-      className="size-40 shrink-0"
-      initial={reduce ? false : { opacity: 0, y: 10 }}
+      aria-hidden
+      className={cn(box, 'shrink-0')}
+      initial={reduce ? false : { opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: reduce ? 0 : 0.28, ease: 'easeOut' }}
+      transition={{ duration: reduce ? 0 : 0.24, ease: 'easeOut' }}
     >
-      {reduce ? (
-        <img src={src} alt="" draggable={false} className="size-40 object-contain" />
-      ) : interactive ? (
+      {reduce || !interactive ? (
+        reduce ? <img src={src} alt="" draggable={false} className={cn(box, 'object-contain')} /> : illustration
+      ) : (
         <motion.button
           type="button"
-          aria-label="Animar a Gyro"
-          className="block size-40 cursor-pointer rounded-2xl border-0 bg-transparent p-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-2 focus-visible:ring-offset-2 focus-visible:ring-offset-card"
+          tabIndex={-1}
+          className={cn(box, 'block cursor-pointer rounded-2xl border-0 bg-transparent p-0 outline-none')}
           initial={false}
           animate={canAnimate && celebrating
             ? { y: [0, -10, 0, -3, 0], rotate: [0, -3, 2, 0, 0] }
@@ -71,7 +87,7 @@ export function GyroCartMascot({ src, active, interactive = true }: GyroCartMasc
         >
           {illustration}
         </motion.button>
-      ) : illustration}
+      )}
     </motion.div>
   );
 }

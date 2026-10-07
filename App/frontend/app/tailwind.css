@@ -156,6 +156,16 @@ html[data-area='store'] {
   --area-font-heading: "Chivo Variable", ui-sans-serif, system-ui, sans-serif;
 }
 
+/* Vista previa de piezas de la tienda DENTRO del editor (área admin): mismos
+   tokens, fuente y estilos de componente que la tienda real, solo en ese bloque. */
+.store-preview {
+  --area-font-sans: "Chivo Variable", ui-sans-serif, system-ui, sans-serif;
+  --area-font-heading: "Chivo Variable", ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--area-font-sans);
+  background-color: var(--background);
+  color: var(--foreground);
+}
+
 body {
   background-color: var(--background);
   color: var(--foreground);
@@ -379,6 +389,7 @@ body {
    acceso de colaboradores, /login, que es área admin para conservar Geist).
    ────────────────────────────────────────────────────────────── */
 html[data-area='store'],
+.store-preview,
 .store-palette {
   --ink: #102423;
   --background: #fffcf3;
@@ -417,6 +428,7 @@ html[data-area='store'],
    solo como acento chico (links, opción elegida) y el amarillo es el único color
    con peso. Contrastes: texto 17:1 sobre fondo, gris secundario 8:1, teal 9:1. */
 html[data-area='store'][data-theme='dark'],
+.store-preview[data-theme='dark'],
 html[data-theme='dark'] .store-palette {
   --background: #0e0f10;
   --foreground: #f4f4f2;
@@ -435,7 +447,6 @@ html[data-theme='dark'] .store-palette {
   --accent-foreground: #f4f4f2;
   --border: rgb(255 255 255 / 10%);
   --input: rgb(255 255 255 / 16%);
-  --ring: #ffc20e;
   --brand: #141517;
   --brand-foreground: #f4f4f2;
   --header-nav-foreground: #d5d7d8;
@@ -496,35 +507,58 @@ html[data-area='store'] .store-header .store-cart-button:active {
    botones de WhatsApp en contorno llevan sombra de su propio verde y fondo de
    tarjeta, para que la sombra se lea como un objeto desplazado. */
 html[data-area='store'],
+.store-preview,
 .store-palette {
   --sticker-shadow: var(--ink);
 }
 html[data-area='store'][data-theme='dark'],
+.store-preview[data-theme='dark'],
 html[data-theme='dark'] .store-palette {
   --sticker-shadow: #a8402f;
 }
-:is(html[data-area='store'], .store-palette) [data-slot='button']:is([data-variant='default'], [data-variant='whatsapp'], [data-variant='destructiveSolid']):not([aria-pressed]) {
+:is(html[data-area='store'], .store-palette, .store-preview) [data-slot='button']:is([data-variant='default'], [data-variant='whatsapp'], [data-variant='destructiveSolid']):not([aria-pressed]) {
   border: 2px solid var(--ink);
   box-shadow: 3px 3px 0 var(--sticker-shadow);
   transition-property: transform, box-shadow, background-color;
 }
-html[data-area='store'] [data-slot='button'][data-variant='whatsappOutline'] {
+/* WhatsApp en contorno es una acción SECUNDARIA: borde del canal, sin relieve.
+   El relieve queda para las acciones principales (comprar, continuar). */
+:is(html[data-area='store'], .store-preview) [data-slot='button'][data-variant='whatsappOutline'] {
   background-color: var(--card);
   border: 2px solid var(--whatsapp);
-  box-shadow: 3px 3px 0 var(--whatsapp);
-  transition-property: transform, box-shadow, background-color;
+  transition-property: transform, background-color;
 }
-:is(html[data-area='store'], .store-palette) [data-slot='button']:is([data-variant='default'], [data-variant='whatsapp'], [data-variant='whatsappOutline'], [data-variant='destructiveSolid']):not([aria-pressed]):active:not(:disabled) {
+:is(html[data-area='store'], .store-palette, .store-preview) [data-slot='button']:is([data-variant='default'], [data-variant='whatsapp'], [data-variant='destructiveSolid']):not([aria-pressed]):active:not(:disabled) {
   transform: translate(2px, 2px);
   box-shadow: 1px 1px 0 var(--sticker-shadow);
 }
-html[data-area='store'] [data-slot='button'][data-variant='whatsappOutline']:active:not(:disabled) {
-  box-shadow: 1px 1px 0 var(--whatsapp);
+:is(html[data-area='store'], .store-preview) [data-slot='button'][data-variant='whatsappOutline']:active:not(:disabled) {
+  transform: translateY(1px);
 }
-html[data-area='store'][data-theme='light'] .product-stage {
+@media (prefers-reduced-motion: reduce) {
+  :is(html[data-area='store'], .store-palette, .store-preview) [data-slot='button']:active:not(:disabled) {
+    transform: none;
+  }
+}
+
+/* Radios de la tienda: controles ≈12px, tarjetas ≈16px, paneles 24px. Los
+   botones redondos (rounded-full) conservan su forma. */
+:is(html[data-area='store'], .store-preview) :is([data-slot='button'], [data-slot='input'], [data-slot='textarea'], [data-slot='select-trigger'], [data-slot='input-group']):not([class*='rounded-full']):not([class*='rounded-pill']) {
+  border-radius: 0.75rem;
+}
+
+/* Cerrar de paneles y diálogos: 44px de objetivo táctil (el ícono sigue chico)
+   y neutral — cerrar no es una acción destructiva. */
+:is(html[data-area='store'], .store-preview) :is([data-slot='sheet-content'], [data-slot='dialog-content']) > [data-slot='button'][data-size='icon-sm'][class*='absolute'] {
+  width: 2.75rem;
+  height: 2.75rem;
+  top: 0.625rem;
+  right: 0.625rem;
+}
+:is(html[data-area='store'][data-theme='light'], .store-preview[data-theme='light']) .product-stage {
   position: relative;
 }
-html[data-area='store'][data-theme='light'] .product-stage::after {
+:is(html[data-area='store'][data-theme='light'], .store-preview[data-theme='light']) .product-stage::after {
   content: '';
   position: absolute;
   inset: 0;
@@ -534,32 +568,30 @@ html[data-area='store'][data-theme='light'] .product-stage::after {
   pointer-events: none;
 }
 
-/* Opciones elegidas (variantes, filtros): teal de marca, no amarillo. Si iban
-   en amarillo con sombra se confundían con el botón de compra. */
-html[data-area='store'] [data-slot='button'][aria-pressed='true'] {
-  background-color: var(--brand);
-  color: var(--brand-foreground);
-  border: 2px solid var(--brand-foreground);
+/* Selección (variantes, filtros, categorías): ESMERALDA en los dos temas. El
+   amarillo queda solo para comprar y continuar: si también marcara selección,
+   no se sabría qué es acción y qué es estado. Además del color cambia el peso
+   (font-semibold en el componente) y el borde: no depende solo del color. */
+:is(html[data-area='store'], .store-preview) [data-slot='button'][aria-pressed='true'] {
+  background-color: color-mix(in srgb, var(--primary-2) 12%, var(--card));
+  color: var(--foreground);
+  border: 2px solid var(--primary-2);
 }
-html[data-area='store'][data-theme='dark'] [data-slot='button'][aria-pressed='true'] {
-  /* En oscuro, contorno amarillo: un relleno teal volvía a teñir de verde la
-     pantalla, y uno amarillo se confundiría con el botón de compra. */
-  background-color: rgb(255 194 14 / 10%);
-  color: var(--primary);
-  border-color: var(--primary);
+:is(html[data-area='store'], .store-preview) [data-slot='button'][aria-pressed='true']:hover {
+  background-color: color-mix(in srgb, var(--primary-2) 18%, var(--card));
 }
 
 /* Campos de formulario en claro: blancos con borde, en vez del relleno gris
    de shadcn (bg-input/50), que sobre el crema se veía sucio y apagado. */
-html[data-area='store'][data-theme='light'] :is([data-slot='input'], [data-slot='textarea'], [data-slot='select-trigger'], [data-slot='input-group']) {
+:is(html[data-area='store'][data-theme='light'], .store-preview[data-theme='light']) :is([data-slot='input'], [data-slot='textarea'], [data-slot='select-trigger'], [data-slot='input-group']) {
   background-color: var(--card);
   border-color: var(--input);
 }
-html[data-area='store'][data-theme='light'] :is([data-slot='input'], [data-slot='textarea'], [data-slot='select-trigger']):focus-visible,
-html[data-area='store'][data-theme='light'] [data-slot='input-group']:focus-within {
+:is(html[data-area='store'][data-theme='light'], .store-preview[data-theme='light']) :is([data-slot='input'], [data-slot='textarea'], [data-slot='select-trigger']):focus-visible,
+:is(html[data-area='store'][data-theme='light'], .store-preview[data-theme='light']) [data-slot='input-group']:focus-within {
   border-color: var(--ring);
 }
-html[data-area='store'][data-theme='light'] :is([data-slot='input'], [data-slot='textarea'], [data-slot='select-trigger'])[aria-invalid='true'] {
+:is(html[data-area='store'][data-theme='light'], .store-preview[data-theme='light']) :is([data-slot='input'], [data-slot='textarea'], [data-slot='select-trigger'])[aria-invalid='true'] {
   border-color: var(--destructive);
 }
 

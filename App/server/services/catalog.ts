@@ -68,3 +68,19 @@ export async function getPublishedCatalogItem(
 
   return parseDbRows(publicCatalogItemSchema, [data], 'catalog_items')[0] ?? null;
 }
+
+// Varios ítems publicados por id, con las mismas columnas públicas. Lo usa el
+// pedido para resolver precio y variante con la misma presentación que la ficha.
+export async function listPublishedCatalogByIds(ids: string[]): Promise<PublicCatalogItem[]> {
+  if (ids.length === 0) return [];
+  const { data, error } = await db
+    .from('catalog_items')
+    .select(PUBLIC_CATALOG_COLUMNS)
+    .in('id', ids)
+    .eq('published', true);
+
+  if (error) {
+    throw error;
+  }
+  return parseDbRows(publicCatalogItemSchema, data, 'catalog_items');
+}

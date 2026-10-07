@@ -7,8 +7,8 @@ import { useReducedMotion } from 'framer-motion';
 
 import type { CatalogProduct } from '@shared/schemas';
 import type { StoreCategory } from '~/store/api/sessionApi';
-import { useAppDispatch, useAppSelector } from '~/store/hooks';
-import { categorySet, selectActiveCategory } from '~/store/slices/uiSlice';
+import { useAppSelector } from '~/store/hooks';
+import { selectActiveCategory } from '~/store/slices/uiSlice';
 import { cn } from '~/lib/utils';
 
 export function inCategory(p: CatalogProduct, c: StoreCategory) {
@@ -25,14 +25,13 @@ export function CategoryNav({
   categories: StoreCategory[];
   products?: CatalogProduct[];
 }) {
-  const dispatch = useAppDispatch();
   const reduce = useReducedMotion();
   const activeCategory = useAppSelector(selectActiveCategory);
 
   if (categories.length === 0) return null;
 
-  function onSelect(slug: string | null) {
-    dispatch(categorySet(slug));
+  function onSelect() {
+    // El filtro lo aplica la URL (CatalogUrlSync); acá solo se baja al catálogo.
     setTimeout(
       () => document.getElementById('catalogo')?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' }),
       80,
@@ -45,7 +44,7 @@ export function CategoryNav({
         <NavTab
           to={categoryHref(null)}
           selected={activeCategory === null}
-          onSelect={() => onSelect(null)}
+          onSelect={onSelect}
         >
           Todo
         </NavTab>
@@ -55,7 +54,7 @@ export function CategoryNav({
             key={c.id}
             to={categoryHref(c.slug)}
             selected={activeCategory === c.slug}
-            onSelect={() => onSelect(c.slug)}
+            onSelect={onSelect}
           >
             {c.name}
           </NavTab>

@@ -26,6 +26,7 @@ import {
   selectSearch,
 } from '~/store/slices/uiSlice';
 import { formatCordobas } from '~/lib/formatters';
+import { findCategory, priceRangeError } from '~/lib/catalogQuery';
 
 interface Chip {
   id: string;
@@ -50,28 +51,27 @@ export function ActiveFilters({ categories = [] }: { categories?: StoreCategory[
   if (search.trim()) {
     chips.push({
       id: 'search',
-      label: `Búsqueda: "${search.trim()}"`,
+      label: `Búsqueda: «${search.trim()}»`,
       onRemove: () => dispatch(searchSet('')),
     });
   }
 
   if (activeCategory) {
-    const cat = categories.find((c) => c.id === activeCategory);
+    // Siempre el NOMBRE legible: nunca el slug o el id técnico.
+    const cat = findCategory(categories, activeCategory);
     chips.push({
       id: 'category',
-      // Si la categoría ya no está en la config, el id crudo es mejor que un
-      // chip mudo que no se puede relacionar con nada.
-      label: `Categoría: ${cat?.name ?? activeCategory}`,
+      label: cat ? cat.name : 'Categoría no disponible',
       onRemove: () => dispatch(categorySet(null)),
     });
   }
 
-  if (priceMin != null || priceMax != null) {
+  if ((priceMin != null || priceMax != null) && !priceRangeError({ priceMin, priceMax })) {
     const min = priceMin != null ? formatCordobas(priceMin, currency) : null;
     const max = priceMax != null ? formatCordobas(priceMax, currency) : null;
     chips.push({
       id: 'price',
-      label: min && max ? `${min} – ${max}` : min ? `Desde ${min}` : `Hasta ${max}`,
+      label: min && max ? `Precio: ${min} a ${max}` : min ? `Precio desde ${min}` : `Precio hasta ${max}`,
       onRemove: () => {
         dispatch(priceMinSet(null));
         dispatch(priceMaxSet(null));
@@ -95,7 +95,7 @@ export function ActiveFilters({ categories = [] }: { categories?: StoreCategory[
 
   return (
     <div className="catalog-active-filters mb-4 flex flex-wrap items-center gap-2">
-      <span className="text-xs font-medium text-muted-foreground">Filtros:</span>
+      <span className="text-sm font-medium text-muted-foreground">Filtros:</span>
 
       {/* El CHIP ENTERO es el botón de quitar, no una X diminuta a su derecha:
           así el objetivo táctil llega a 44px de alto sin inflar el diseño, y no
@@ -106,7 +106,7 @@ export function ActiveFilters({ categories = [] }: { categories?: StoreCategory[
           type="button"
           onClick={chip.onRemove}
           aria-label={`Quitar filtro ${chip.label}`}
-          className="catalog-filter-chip group inline-flex min-h-11 items-center gap-1.5 rounded-xl border px-3 text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+          className="catalog-filter-chip group inline-flex min-h-11 items-center gap-1.5 rounded-xl border px-3 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
         >
           {chip.label}
           <HugeIcon

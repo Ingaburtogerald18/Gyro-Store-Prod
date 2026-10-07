@@ -16,9 +16,10 @@ import {
   SheetTitle,
 } from '~/components/ui/sheet';
 import { inCategory } from '~/components/store/category-nav';
-import { useAppDispatch, useAppSelector } from '~/store/hooks';
-import { categorySet, selectActiveCategory } from '~/store/slices/uiSlice';
+import { useAppSelector } from '~/store/hooks';
+import { selectActiveCategory } from '~/store/slices/uiSlice';
 import { cn } from '~/lib/utils';
+import { useReducedMotion } from 'framer-motion';
 
 export function CategoriesDrawer({
   open,
@@ -31,12 +32,12 @@ export function CategoriesDrawer({
   categories: Category[];
   products: CatalogProduct[];
 }) {
-  const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const activeCategory = useAppSelector(selectActiveCategory);
+  const reduce = useReducedMotion();
 
   function pick(slug: string | null) {
-    dispatch(categorySet(slug));
+    // El filtro lo aplica la URL (CatalogUrlSync); acá solo se baja al catálogo.
     onOpenChange(false);
     if (slug) {
       navigate(`/?categoria=${encodeURIComponent(slug)}#catalogo`);
@@ -44,7 +45,7 @@ export function CategoriesDrawer({
       navigate('/#catalogo');
     }
     setTimeout(
-      () => document.getElementById('catalogo')?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
+      () => document.getElementById('catalogo')?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' }),
       120,
     );
   }

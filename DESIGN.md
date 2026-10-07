@@ -93,11 +93,12 @@ sigue a `data-theme`, no al `prefers-color-scheme` del sistema (lo controla `use
 | `--destructive` | Error y acciones destructivas |
 | `--destructive-foreground` | Texto sobre rojo lleno: blanco en claro, tinta en oscuro |
 
-El editor de diapositivas usa `Button variant="destructiveSolid"` para Cancelar y
-cerrar, con fondo rojo y el mismo contorno/sombra de los botones de la tienda.
-La variante `destructive` existente conserva su fondo tenue. La subida muestra
+Cerrar y Cancelar son **neutrales** (`outline` / `ghost`), también en el editor de
+portada: el rojo queda para errores, eliminar y descartes que pierden trabajo.
+La variante `destructive` conserva su fondo tenue. La subida del editor muestra
 porcentaje real solo durante el envío; mientras el servidor procesa y almacena,
-`Progress value={null}` muestra una animación indeterminada, sin porcentaje.
+`Progress value={null}` muestra una animación indeterminada, sin porcentaje, y
+«Archivo listo» recién con la URL confirmada. La carga se puede cancelar siempre.
 Las animaciones de carga respetan `prefers-reduced-motion`.
 
 En Tailwind se usan como `bg-background`, `text-muted-foreground`, `border-border`, etc. — nunca
@@ -159,10 +160,11 @@ En el **panel**, los montos grandes (métricas y totales) usan **Chivo** con la 
 `font-display` (`--font-display`, fija, no depende del área); el resto del panel sigue en
 Geist. Referencia: la franja de métricas de Inventario.
 
-Además, **Chivo Mono** (`--font-spec`, clase `font-spec`) se usa **solo en el storefront y solo
-para datos técnicos**: la línea de specs de la tarjeta ("24 Ω · 112 dB"), la tabla de
-especificaciones de la ficha, el indicador de stock, los badges de stock ("Agotado",
-"¡Último disponible!") y los contadores del carrito.
+Además, **Chivo Mono** (`--font-spec`, clase `font-spec`) queda reservada a **códigos**
+(número de pedido, contador de la galería). Las specs de la tarjeta y de la ficha, la
+disponibilidad y los badges van en Chivo normal, con su etiqueta ("Impedancia: 24 Ω").
+La tienda **nunca muestra cantidades de inventario**: solo «Disponible», «Agotado» o
+«Consultar disponibilidad».
 
 Las tres se sirven localmente con `@fontsource-variable` (sin Google Fonts). El woff2 latino de
 Chivo se precarga en `links()` de `root.tsx` para que el titular del hero no salte de fuente.
@@ -354,16 +356,26 @@ Las primitivas son de shadcn; estas piezas son **nuestras** y siguen vigentes:
 - **`Hero`** — slider de slides editables desde el admin (`heroSlides` en `app_config`).
 - **Navbar** — crema en claro y carbón en oscuro; categorías con selección esmeralda
   (fondo tenue y peso, sin subrayado), buscador blanco/gris con foco esmeralda, carrito
-  amarillo con icono tinta y sombra roja, cuenta en un único círculo esmeralda.
+  amarillo con icono tinta y sombra roja, menú (pedidos, ayuda, apariencia) en un
+  único círculo esmeralda sobre `DropdownMenu` (Escape y retorno de foco).
   Los tokens `--header-*` limitan esta paleta al encabezado del storefront. La
-  altura base se mantiene en 57px para la navegación sticky de la ficha; en móvil
-  se conserva el menú de categorías y la búsqueda desplegable.
+  altura base se mantiene en 57px para la navegación sticky de la ficha. Las
+  categorías en línea aparecen recién en `lg`; en móvil y tablet van en el panel
+  de categorías, para que no compitan con el buscador.
+- **Selección** — variantes, filtros y categorías elegidas: **esmeralda** en los dos
+  temas (borde 2px `--primary-2` + fondo tenue + peso). El amarillo es solo para
+  comprar y continuar; el foco en oscuro también es esmeralda.
 - **`ProductCarousel`** — scroll-snap + flechas que se deshabilitan en los extremos.
-- **Gyro en el carrito vacío y con productos** — ilustración editable de 160px,
-  sin fondo ni marco.
-  Entrada breve, balanceo suave con pausas y un salto pequeño al tocarla o activarla
-  con teclado. Se detiene con el carrito cerrado, fuera de vista o con la pestaña
-  oculta; `prefers-reduced-motion` muestra la imagen estática.
+- **Gyro en el carrito vacío y con productos** — ilustración editable, sin fondo ni
+  marco: 152px con el carrito vacío y 104px junto al banner del carrito con productos.
+  Entrada breve y dos balanceos suaves (nada perpetuo); el salto al tocarla es
+  decorativo y no entra en el orden de tabulación. Se detiene con el carrito cerrado,
+  fuera de vista o con la pestaña oculta; `prefers-reduced-motion` muestra la imagen
+  estática.
+- **Carrito y checkout** — un solo panel por pasos (carrito → datos → pedido
+  registrado), sin dos modales a la vez. Campos y botón final de 48px con letra de
+  16px. Si el servidor detecta cambios (precio, stock, variante), el pedido no se
+  crea y se muestran por línea con su acción.
   Si el banner tiene un enlace, conserva la navegación al tocarlo y solo usa
   entrada y balanceo, sin agregar un botón dentro del enlace.
 - **Filtros del catálogo** — controles de 44px con borde visible, selección

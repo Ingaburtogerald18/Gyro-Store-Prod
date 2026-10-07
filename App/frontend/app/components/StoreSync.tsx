@@ -4,6 +4,8 @@ import { setupListeners } from '@reduxjs/toolkit/query';
 import type { AppStore } from '~/store/store';
 import { hydrate } from '~/store/slices/cartSlice';
 import { loadCart, persistCart } from '~/lib/cartStorage';
+import { loadCheckoutAttempt } from '~/lib/checkoutAttempt';
+import { checkoutExtrasChanged, checkoutFieldsChanged } from '~/store/slices/checkoutSlice';
 
 const useAppStore = useStore.withTypes<AppStore>();
 
@@ -13,7 +15,16 @@ export function StoreSync() {
 
   useEffect(() => {
     const stopListeners = setupListeners(store.dispatch);
+    // La vista previa del editor de portada es aislada: no toca el carrito real
+    // guardado en este navegador (mismo origen que la tienda).
+    if (new URLSearchParams(window.location.search).get('landing-preview') === '1') return stopListeners;
     store.dispatch(hydrate(loadCart()));
+    const attempt = loadCheckoutAttempt();
+    if (attempt) {
+      const { customerName, phone, deliveryMethod, address, locationUrl, note } = attempt;
+      store.dispatch(checkoutFieldsChanged({ customerName, phone, deliveryMethod, address, locationUrl, note }));
+      store.dispatch(checkoutExtrasChanged({ attempt, codeInput: attempt.discountCode ?? '' }));
+    }
     let items = store.getState().cart.items;
     const unsubscribe = store.subscribe(() => {
       const nextItems = store.getState().cart.items;

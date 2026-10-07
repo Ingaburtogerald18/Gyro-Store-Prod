@@ -226,7 +226,10 @@ function OrderDetail({ order, onCopyTracking }: { order: AdminPublicOrder; onCop
             ) : (
               <span className="size-10 shrink-0 rounded-md bg-muted" aria-hidden />
             )}
-            <span className="min-w-0 flex-1 truncate text-sm text-foreground">{item.name}</span>
+            <span className="min-w-0 flex-1 truncate text-sm text-foreground">
+              {item.name}
+              {item.variantName && <span className="text-muted-foreground"> · {item.variantName}</span>}
+            </span>
             <span className="text-xs text-muted-foreground tabular-nums">×{item.quantity}</span>
             <span className="w-24 text-right text-sm tabular-nums text-foreground">
               {formatCordobas(item.unitPrice * item.quantity)}

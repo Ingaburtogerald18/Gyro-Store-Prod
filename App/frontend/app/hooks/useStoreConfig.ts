@@ -46,15 +46,19 @@ export function useStoreLanding(): LandingConfig | undefined {
   return undefined;
 }
 
-/** Catálogo público: RTK en el cliente y, mientras no responde, los productos
- *  que trajo el loader de la home. Lo usa el header (conteos por categoría). */
+/** Catálogo público. Si la ruta lo trajo en su loader (la home), ESE es la
+ *  fuente: header, conteos y grilla leen lo mismo y no se repite la consulta en
+ *  el cliente. En otras rutas, RTK Query. */
 export function useStoreCatalog(): CatalogProduct[] {
-  const { data } = useGetCatalogQuery();
   const matches = useMatches();
-  if (data) return data;
+  let fromLoader: CatalogProduct[] | undefined;
   for (let i = matches.length - 1; i >= 0; i--) {
     const d = matches[i].data as { products?: CatalogProduct[] } | undefined;
-    if (d && typeof d === 'object' && Array.isArray(d.products)) return d.products;
+    if (d && typeof d === 'object' && Array.isArray(d.products)) {
+      fromLoader = d.products;
+      break;
+    }
   }
-  return [];
+  const { data } = useGetCatalogQuery(undefined, { skip: Boolean(fromLoader) });
+  return fromLoader ?? data ?? [];
 }

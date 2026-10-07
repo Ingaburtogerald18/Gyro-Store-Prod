@@ -4,6 +4,7 @@ import { authReducer, signedOut } from './slices/authSlice';
 import { cartReducer } from './slices/cartSlice';
 import { uiReducer } from './slices/uiSlice';
 import { builderReducer } from './slices/builderSlice';
+import { checkoutReducer } from './slices/checkoutSlice';
 
 const appReducer = combineReducers({
   [baseApi.reducerPath]: baseApi.reducer,
@@ -11,6 +12,7 @@ const appReducer = combineReducers({
   cart: cartReducer,
   ui: uiReducer,
   builder: builderReducer,
+  checkout: checkoutReducer,
 });
 
 type AppState = ReturnType<typeof appReducer>;

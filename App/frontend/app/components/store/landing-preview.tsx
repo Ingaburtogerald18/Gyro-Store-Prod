@@ -19,6 +19,11 @@ export function LandingPreviewBridge() {
       if (!parsed.success) return;
       interactive = event.data.interactive === true;
       document.documentElement.dataset.landingPreview = interactive ? 'view' : 'edit';
+      // Tema de la vista previa: se aplica al documento del iframe SIN guardar
+      // la preferencia (la tienda real conserva la suya).
+      if (event.data.theme === 'light' || event.data.theme === 'dark') {
+        document.documentElement.dataset.theme = event.data.theme;
+      }
       dispatch(initBuilderSession(parsed.data));
       dispatch(selectHeroSlide(typeof event.data.slideId === 'string' ? event.data.slideId : null));
       if (!editingRef.current) dispatch(toggleEditMode());

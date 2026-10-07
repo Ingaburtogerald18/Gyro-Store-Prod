@@ -4,7 +4,10 @@ import { parseUuidParam } from '../utils/params';
 import { requireSeller } from '../middleware/auth';
 import { trackOrderLimiter } from '../middleware/rateLimiter';
 import {
+  OrderReviewError,
+  OrderCheckoutUnavailable,
   createPublicOrder,
+  recoverPublicOrder,
   findPublicOrderByCode,
   getPublicOrderTracking,
   listPublicOrders,
@@ -15,6 +18,7 @@ import {
   trackPublicOrderSchema,
   updatePublicOrderStatusSchema,
 } from '../../shared/schemas';
+import { z } from 'zod';
 
 const router = Router();
 
@@ -28,12 +32,40 @@ router.post(
     const input = publicOrderInputSchema.parse(req.body);
 
     // 2. Procesar la creación de la orden (recalcula los precios desde la BD).
-    const order = await createPublicOrder(input);
+    // Si el carrito necesita revisión, 409 con los problemas por línea.
+    let order;
+    try {
+      order = await createPublicOrder(input);
+    } catch (err) {
+      if (err instanceof OrderCheckoutUnavailable) {
+        res.status(503).json({ error: err.message });
+        return;
+      }
+      if (err instanceof OrderReviewError) {
+        res.status(409).json({ error: err.message, issues: err.issues });
+        return;
+      }
+      throw err;
+    }
 
     // 3. Responder con el recurso creado.
     res.status(201).json({ order });
   })
 );
+
+// La clave aleatoria es el secreto de recuperación, no un número de pedido.
+router.post('/public/recover', trackOrderLimiter, asyncHandler(async (req, res) => {
+  const { idempotencyKey } = z.object({ idempotencyKey: z.uuid() }).parse(req.body);
+  try {
+    res.json({ order: await recoverPublicOrder(idempotencyKey) });
+  } catch (err) {
+    if (err instanceof OrderCheckoutUnavailable) {
+      res.status(503).json({ error: err.message });
+      return;
+    }
+    throw err;
+  }
+}));
 
 // Rastreo sin link: número corto + teléfono → id completo. Público, con límite
 // propio de intentos. Va antes de `/public/:id` para que "track" no se lea como id.

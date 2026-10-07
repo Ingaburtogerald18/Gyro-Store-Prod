@@ -8,6 +8,7 @@
 // solo se normaliza. Los campos jsonb (`images`, `axis_options`, template.axes)
 // son opacos en el contrato: se leen de forma tolerante y nunca tiran excepción.
 import type {
+  Availability,
   CatalogDetail,
   CatalogProduct,
   CatalogVariant,
@@ -130,9 +131,9 @@ export function normalizeSpecs(value: unknown): SpecRow[] {
 // ── Vínculo con bodega ──
 //
 // `variant_mappings` es jsonb opaco: { "Negro / Con micrófono": { codes: [...],
-// price?: 390 } }. Se lee tolerando la forma vieja de v1 (`skus`/`sku`, cuando
-// el vínculo era contra un SKU compartido) para que los datos migrados no se
-// pierdan en silencio.
+// price?: 390, promoPrice?: 350 } }. Se lee tolerando la forma vieja de v1
+// (`skus`/`sku`, cuando el vínculo era contra un SKU compartido) para que los
+// datos migrados no se pierdan en silencio.
 function readMapping(raw: unknown): VariantMapping | null {
   if (!raw || typeof raw !== 'object') return null;
   const entry = raw as Record<string, unknown>;
@@ -145,10 +146,12 @@ function readMapping(raw: unknown): VariantMapping | null {
   if (!codes.length) return null;
 
   const price = typeof entry.price === 'number' && entry.price > 0 ? entry.price : undefined;
-  return { codes: [...new Set(codes)], price };
+  const promoPrice =
+    typeof entry.promoPrice === 'number' && entry.promoPrice > 0 ? entry.promoPrice : undefined;
+  return { codes: [...new Set(codes)], price, promoPrice };
 }
 
-function mappingsOf(item: PublicCatalogItem): Map<string, VariantMapping> {
+function mappingsOf(item: Pick<PublicCatalogItem, 'variant_mappings'>): Map<string, VariantMapping> {
   const out = new Map<string, VariantMapping>();
   const raw = item.variant_mappings;
   if (!raw || typeof raw !== 'object') return out;
@@ -162,7 +165,7 @@ function mappingsOf(item: PublicCatalogItem): Map<string, VariantMapping> {
 // Todos los códigos de lote que un ítem referencia. La ruta los junta de varios
 // ítems para pedir la disponibilidad a bodega en UNA sola consulta, en vez de
 // una por producto (N+1).
-export function collectMappedCodes(item: PublicCatalogItem): string[] {
+export function collectMappedCodes(item: Pick<PublicCatalogItem, 'variant_mappings'>): string[] {
   return [...mappingsOf(item).values()].flatMap((m) => m.codes);
 }
 
@@ -181,12 +184,120 @@ function buildCombinations(item: PublicCatalogItem, axes: Axis[]): string[][] {
   return combos;
 }
 
+// ── Precio ──
+//
+// Una sola regla para la tarjeta, la ficha, el selector rápido y el pedido:
+//   1. Precio regular de la variante: el suyo propio (`mapping.price`) o, si no
+//      tiene, el del producto (`base_price` con oferta activa — ahí `price` es
+//      el de oferta —; `price` sin oferta, con `base_price` de respaldo).
+//   2. Promoción vigente, la más específica primero:
+//      · `mapping.promoPrice` (promoción de ESA variante);
+//      · `price` del producto cuando `is_promo` (oferta del modelo entero).
+//      Solo cuenta si es > 0 y menor que el regular: una «oferta» que no
+//      rebaja no se anuncia.
+//   3. Sin promoción, un `base_price` mayor al regular sigue funcionando como
+//      precio «antes» (comportamiento previo del panel).
+export interface ResolvedPrice {
+  price: number;
+  compareAtPrice?: number;
+  isPromo: boolean;
+}
+
+type PriceFields = Pick<PublicCatalogItem, 'price' | 'base_price' | 'is_promo'>;
+
+export function resolveVariantPrice(
+  item: PriceFields,
+  mapping?: Pick<VariantMapping, 'price' | 'promoPrice'>,
+): ResolvedPrice {
+  const itemPrice = item.price ?? null;
+  const basePrice = item.base_price ?? null;
+  const productRegular = item.is_promo
+    ? (basePrice && basePrice > 0 ? basePrice : (itemPrice ?? 0))
+    : (itemPrice ?? basePrice ?? 0);
+  const regular = mapping?.price && mapping.price > 0 ? mapping.price : productRegular;
+
+  const candidates = [mapping?.promoPrice, item.is_promo ? (itemPrice ?? undefined) : undefined];
+  const promo = candidates.find((p): p is number => typeof p === 'number' && p > 0 && p < regular);
+  if (promo !== undefined) return { price: promo, compareAtPrice: regular, isPromo: true };
+
+  const compareAtPrice = !item.is_promo && basePrice && basePrice > regular ? basePrice : undefined;
+  return { price: regular, ...(compareAtPrice ? { compareAtPrice } : {}), isPromo: false };
+}
+
+// ── Disponibilidad ──
+//
 // Stock real de una variante: suma de lo disponible en los lotes vinculados.
-// Sin lotes mapeados el resultado es 0 — «Agotado», que es la verdad: no hay
-// nada en bodega que se le pueda entregar al cliente.
-function variantStock(mapping: VariantMapping | undefined, stockByCode: Map<string, number>): number {
-  if (!mapping) return 0;
-  return mapping.codes.reduce((sum, code) => sum + (stockByCode.get(code) ?? 0), 0);
+//   · Sin vínculo con bodega → 'unknown': no se sabe, y no se inventa una
+//     unidad para poder venderla (antes se mostraba stock 1).
+//   · Vinculada y sin unidades → 'sold_out'.
+export function resolveAvailability(
+  mapping: Pick<VariantMapping, 'codes'> | undefined,
+  stockByCode: Map<string, number>,
+): { stock: number; availability: Availability } {
+  if (!mapping || mapping.codes.length === 0) return { stock: 0, availability: 'unknown' };
+  const stock = mapping.codes.reduce((sum, code) => sum + (stockByCode.get(code) ?? 0), 0);
+  return { stock, availability: stock > 0 ? 'available' : 'sold_out' };
+}
+
+export function buildVariants(
+  item: PublicCatalogItem,
+  stockByCode: Map<string, number> = new Map(),
+): CatalogVariant[] {
+  const axes = normalizeAxes(item.template?.axes);
+  const mappings = mappingsOf(item);
+  return buildCombinations(item, axes).map((axisValues) => {
+    const variantName = axisValues.join(' / ');
+    const mapping = mappings.get(variantName);
+    return {
+      variantName,
+      axisValues,
+      ...resolveVariantPrice(item, mapping),
+      ...resolveAvailability(mapping, stockByCode),
+    };
+  });
+}
+
+type VariantSummary = Pick<
+  CatalogProduct,
+  'price' | 'compareAtPrice' | 'priceFrom' | 'stock' | 'availability' | 'isPromo' | 'promoScope'
+>;
+
+// Resumen de las variantes para la tarjeta del listado.
+export function summarizeVariants(variants: CatalogVariant[]): VariantSummary {
+  if (variants.length === 0) {
+    return { price: 0, priceFrom: false, stock: 0, availability: 'unknown', isPromo: false, promoScope: 'none' };
+  }
+  const buyable = variants.filter((v) => v.availability === 'available');
+  // El precio de la tarjeta sale de lo que se puede comprar; si no hay nada
+  // comprable, de todas las variantes (sigue sirviendo para consultar).
+  const pool = buyable.length ? buyable : variants;
+  const prices = pool.map((v) => v.price);
+  const price = Math.min(...prices);
+  const priceFrom = new Set(prices).size > 1;
+
+  const promos = pool.filter((v) => v.isPromo);
+  const promoScope = promos.length === 0 ? 'none' : promos.length === pool.length ? 'all' : 'some';
+  // El «antes» solo se muestra si todas las variantes comparten precio y rebaja.
+  const compareSet = new Set(pool.map((v) => v.compareAtPrice ?? null));
+  const compareAtPrice = !priceFrom && compareSet.size === 1 ? pool[0]?.compareAtPrice : undefined;
+
+  // Agotado solo si TODO lo verificable está agotado y nada es desconocido:
+  // una variante sin vínculo con bodega se puede consultar.
+  const availability: Availability = buyable.length
+    ? 'available'
+    : variants.some((v) => v.availability === 'unknown')
+      ? 'unknown'
+      : 'sold_out';
+
+  return {
+    price,
+    ...(compareAtPrice ? { compareAtPrice } : {}),
+    priceFrom,
+    stock: buyable.reduce((sum, v) => sum + v.stock, 0),
+    availability,
+    isPromo: promos.length > 0,
+    promoScope,
+  };
 }
 
 // Detalle: lo mismo que el listado + los ejes resueltos (para el selector de
@@ -199,19 +310,6 @@ export function toCatalogDetail(
   stockByCode: Map<string, number> = new Map(),
 ): CatalogDetail {
   const axes = normalizeAxes(item.template?.axes);
-  const mappings = mappingsOf(item);
-  const basePrice = item.price ?? item.base_price ?? 0;
-
-  const variants: CatalogVariant[] = buildCombinations(item, axes).map((axisValues) => {
-    const variantName = axisValues.join(' / ');
-    const mapping = mappings.get(variantName);
-    return {
-      variantName,
-      axisValues,
-      price: mapping?.price ?? basePrice,
-      stock: variantStock(mapping, stockByCode),
-    };
-  });
 
   const rawColorImages = item.images_by_color as Record<string, unknown> | null;
   const colorImages: Record<string, string[]> = {};
@@ -224,13 +322,15 @@ export function toCatalogDetail(
 
   return {
     ...toCatalogProduct(item, stockByCode),
+    // Solo las opciones que ESTE producto ofrece (`axis_options` recorta el
+    // molde): una opción del molde que no se vende no es «agotada», no existe.
     axes: axes.map((axis) => ({
       key: axis.key,
       label: axis.label,
-      options: axis.options,
+      options: includedOptions(item, axis),
       isColor: axis.isColor,
     })),
-    variants,
+    variants: buildVariants(item, stockByCode),
     ...(Object.keys(colorImages).length > 0 ? { colorImages } : {}),
   };
 }
@@ -247,24 +347,10 @@ export function toCatalogProduct(
     ? ownImages
     : Object.values(item.images_by_color ?? {}).flatMap(normalizeImages);
 
-  // El precio de la tarjeta se resuelve así:
-  //   1. Promo: el precio de oferta (`price`) manda.
-  //   2. Sin promo: el menor precio de las variantes vinculadas en bodega.
-  //   3. Sin variantes vinculadas: cae a `price` o `base_price` como fallback.
-  const mappings = mappingsOf(item);
-  const variantPrices = [...mappings.values()]
-    .map((m) => m.price)
-    .filter((p): p is number => typeof p === 'number' && p > 0);
-
-  const fallbackPrice = item.price ?? item.base_price ?? 0;
-  const price = item.is_promo
-    ? fallbackPrice
-    : (variantPrices.length ? Math.min(...variantPrices) : fallbackPrice);
-  const basePrice = item.base_price ?? 0;
-  const compareAtPrice = basePrice > price ? basePrice : undefined;
-
-  const mappedCodes = collectMappedCodes(item);
-  const totalStock = mappedCodes.reduce((sum, code) => sum + (stockByCode.get(code) ?? 0), 0);
+  // Precio, promoción y disponibilidad salen de las MISMAS variantes que ve la
+  // ficha: la tarjeta no puede prometer algo que la ficha no sostiene.
+  const variants = buildVariants(item, stockByCode);
+  const summary = summarizeVariants(variants);
 
   return {
     id: item.id,
@@ -273,17 +359,11 @@ export function toCatalogProduct(
     category: item.category?.name ?? '',
     categoryId: item.category_id,
     images,
-    price,
-    compareAtPrice,
-    // Stock = suma de lo disponible en TODOS los lotes vinculados a alguna
-    // variante. Un producto sin ningún mapeo conserva el placeholder de 1: no
-    // se sabe su stock, y mostrarlo agotado esconderría del storefront a los
-    // productos que todavía no pasaron por el editor de variantes.
-    stock: mappedCodes.length ? totalStock : 1,
-    isPromo: item.is_promo,
+    ...summary,
     specs: normalizeSpecs(item.template?.specs),
     axesSummary: buildAxesSummary(item, axes),
     variantCount: countCombos(item, axes),
+    ...(variants.length === 1 && variants[0] ? { singleVariant: variants[0].variantName } : {}),
     templateId: item.template_id,
   };
 }
