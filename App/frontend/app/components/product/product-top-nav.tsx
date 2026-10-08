@@ -14,6 +14,9 @@ import { Link } from '@remix-run/react';
 import { toast } from 'sonner';
 
 import { Button } from '~/components/ui/button';
+import { categoryHref } from '~/components/store/category-nav';
+import { useStoreConfig } from '~/hooks/useStoreConfig';
+import { findCategory } from '~/lib/catalogQuery';
 
 import {
   Breadcrumb,
@@ -33,6 +36,9 @@ export function ProductTopNav({
   categoryName?: string;
   categoryId?: string;
 }) {
+  // Mismo enlace que el navbar (por slug), no el id técnico.
+  const config = useStoreConfig();
+  const category = findCategory(config?.categories ?? [], categoryId) ?? findCategory(config?.categories ?? [], categoryName);
 
   async function handleShare() {
     const url = window.location.href;
@@ -63,19 +69,19 @@ export function ProductTopNav({
           <BreadcrumbList>
             <BreadcrumbItem className="hidden sm:block">
               <BreadcrumbLink asChild>
-                <Link to="/#catalogo" prefetch="intent">
+                <Link to="/" prefetch="intent">
                   Inicio
                 </Link>
               </BreadcrumbLink>
             </BreadcrumbItem>
             
-            {categoryName && categoryId && (
+            {category && (
               <>
                 <BreadcrumbSeparator className="hidden sm:block" />
                 <BreadcrumbItem>
                   <BreadcrumbLink asChild>
-                    <Link to={`/?categoria=${encodeURIComponent(categoryId)}#catalogo`} prefetch="intent">
-                      {categoryName}
+                    <Link to={categoryHref(category.slug)} prefetch="intent">
+                      {category.name}
                     </Link>
                   </BreadcrumbLink>
                 </BreadcrumbItem>

@@ -9,7 +9,8 @@ import { HugeIcon } from '~/components/ui/icon';
 import { PackageSearchIcon, Tag01Icon } from '@hugeicons/core-free-icons';
 
 import { Button } from '~/components/ui/button';
-import { Input } from '~/components/ui/input';
+import { PriceInput } from '~/components/catalog/filter-bar';
+import { priceRangeError } from '~/lib/catalogQuery';
 import { Label } from '~/components/ui/label';
 import {
   Sheet,
@@ -44,6 +45,7 @@ export function FilterSheet() {
   const priceMax = useAppSelector(selectPriceMax);
   const onlyOnSale = useAppSelector(selectOnlyOnSale);
   const onlyInStock = useAppSelector(selectOnlyInStock);
+  const priceError = priceRangeError({ priceMin, priceMax });
 
   return (
     <Sheet open={open} onOpenChange={(next) => dispatch(filterSheetSet(next))}>
@@ -55,7 +57,7 @@ export function FilterSheet() {
 
         <div className="space-y-6 px-4 pb-2">
           <fieldset className="space-y-2">
-            <legend className="text-xs font-medium tracking-[0.08em] text-muted-foreground uppercase">
+            <legend className="text-sm font-semibold text-foreground">
               Rango de precio ({config?.currency ?? 'C$'})
             </legend>
             <div className="flex items-center gap-3">
@@ -64,6 +66,7 @@ export function FilterSheet() {
                 label="Mínimo"
                 value={priceMin}
                 onChange={(v) => dispatch(priceMinSet(v))}
+                invalid={Boolean(priceError)}
               />
               <span className="mt-5 text-muted-foreground" aria-hidden>
                 —
@@ -73,8 +76,12 @@ export function FilterSheet() {
                 label="Máximo"
                 value={priceMax}
                 onChange={(v) => dispatch(priceMaxSet(v))}
+                invalid={Boolean(priceError)}
               />
             </div>
+            {priceError && (
+              <p role="alert" className="text-sm font-medium text-destructive">{priceError}</p>
+            )}
           </fieldset>
 
           <div className="space-y-1 border-t border-border pt-4">
@@ -94,10 +101,10 @@ export function FilterSheet() {
         </div>
 
         <SheetFooter className="flex-row gap-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
-          <Button variant="outline" onClick={() => dispatch(filtersReset())} className="h-11 flex-1">
+          <Button variant="outline" onClick={() => dispatch(filtersReset())} className="h-12 flex-1">
             Limpiar
           </Button>
-          <Button onClick={() => dispatch(filterSheetSet(false))} className="h-11 flex-[2]">
+          <Button onClick={() => dispatch(filterSheetSet(false))} className="h-12 flex-[2]">
             Ver resultados
           </Button>
         </SheetFooter>
@@ -106,36 +113,26 @@ export function FilterSheet() {
   );
 }
 
-/** Campo de precio. Vacío = sin tope, que no es lo mismo que 0. */
+/** Campo de precio con su rótulo visible. Vacío = sin tope, que no es lo mismo que 0. */
 function PriceField({
   id,
   label,
   value,
   onChange,
+  invalid,
 }: {
   id: string;
   label: string;
   value: number | null;
   onChange: (v: number | null) => void;
+  invalid?: boolean;
 }) {
   return (
     <div className="flex-1 space-y-1.5">
-      <Label htmlFor={id} className="text-xs text-muted-foreground">
+      <Label htmlFor={id} className="text-sm text-muted-foreground">
         {label}
       </Label>
-      <Input
-        id={id}
-        type="number"
-        inputMode="numeric"
-        min={0}
-        value={value ?? ''}
-        onChange={(e) => {
-          const raw = e.target.value.trim();
-          onChange(raw === '' ? null : Number(raw));
-        }}
-        placeholder="—"
-        className="h-11 tabular-nums"
-      />
+      <PriceInput id={id} label={label} placeholder="Sin tope" value={value} invalid={invalid} onChange={onChange} className="h-12 w-full text-base" />
     </div>
   );
 }

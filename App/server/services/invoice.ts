@@ -216,6 +216,65 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<Invoice>
   return toInvoice(invoice as unknown as InvoiceRow);
 }
 
+// ── Ligado en dos pasos (registro de venta) ──
+// `registerSale` primero RESERVA la factura (unlinked → linked, solo si sigue
+// libre) y recién después crea la venta. Así dos registros simultáneos de la
+// misma factura —o un doble clic— no pueden crear dos ventas: el segundo
+// encuentra la factura ya tomada y corta antes de reservar stock.
+
+export async function claimInvoice(invoiceNumber: number): Promise<void> {
+  const { data, error } = await db
+    .from('invoices')
+    .update({ status: 'linked' })
+    .eq('invoice_number', invoiceNumber)
+    .eq('status', 'unlinked') // compare-and-swap: solo si nadie la tomó entre medio
+    .is('sale_id', null)
+    .select('id')
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) {
+    throw new BadRequestError('Esta factura ya está vinculada a otra venta o fue anulada.');
+  }
+}
+
+// Deshace `claimInvoice` si el registro falló después de tomarla.
+export async function releaseInvoiceClaim(invoiceNumber: number): Promise<void> {
+  const { error } = await db
+    .from('invoices')
+    .update({ status: 'unlinked', sale_id: null })
+    .eq('invoice_number', invoiceNumber)
+    .eq('status', 'linked');
+  if (error) console.error(`[invoice] No se pudo liberar la factura ${invoiceNumber}: revisar a mano.`, error);
+}
+
+export async function attachInvoiceToSale(invoiceNumber: number, saleId: string): Promise<void> {
+  const { data, error } = await db
+    .from('invoices')
+    .update({ sale_id: saleId })
+    .eq('invoice_number', invoiceNumber)
+    .eq('status', 'linked')
+    .is('sale_id', null)
+    .select('id')
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) throw new BadRequestError('La factura cambió mientras se registraba la venta. Intentá de nuevo.');
+}
+
+// Al rechazar una venta, su factura vuelve a quedar libre: el ticket sigue
+// siendo válido y la venta corregida se tiene que poder registrar con él.
+// Devuelve el código liberado (o null si la venta no tenía factura).
+export async function unlinkInvoiceFromSale(saleId: string): Promise<string | null> {
+  const { data, error } = await db
+    .from('invoices')
+    .update({ status: 'unlinked', sale_id: null })
+    .eq('sale_id', saleId)
+    .eq('status', 'linked')
+    .select('invoice_number, invoice_code');
+  if (error) throw error;
+  const row = (data ?? [])[0] as { invoice_number: number; invoice_code: string | null } | undefined;
+  return row ? row.invoice_code ?? formatInvoiceCode(row.invoice_number) : null;
+}
+
 // Liga una factura existente a una venta aprobada.
 export async function linkInvoiceToSale(rawCode: string | number, saleId: string): Promise<Invoice> {
   const invoiceNumber = parseInvoiceCode(rawCode);
@@ -245,10 +304,12 @@ export async function linkInvoiceToSale(rawCode: string | number, saleId: string
       status: 'linked'
     })
     .eq('id', existing.id)
+    .eq('status', 'unlinked') // compare-and-swap: otro registro pudo tomarla entre medio
     .select(INVOICE_COLUMNS)
-    .single();
-    
+    .maybeSingle();
+
   if (updateError) throw updateError;
+  if (!updated) throw new BadRequestError('Esta factura ya está vinculada a una venta o está anulada.');
   return toInvoice(updated as unknown as InvoiceRow);
 }
 
@@ -482,10 +543,14 @@ export async function voidInvoice(
   id: string,
   reason: string,
   voidedBy: string | null,
+  // Solo `deleteSale` anula una factura ligada: la venta se está borrando en
+  // el mismo paso. Desde Facturación, anular una factura ligada dejaba la
+  // venta aprobada (stock y comisión) apuntando a un ticket anulado.
+  opts: { allowLinked?: boolean } = {},
 ): Promise<Invoice | null> {
   const { data: existing, error: findError } = await db
     .from('invoices')
-    .select('id, status')
+    .select('id, status, sale_id')
     .eq('id', id)
     .maybeSingle();
   if (findError) throw findError;
@@ -493,6 +558,11 @@ export async function voidInvoice(
 
   if (existing.status === 'void') {
     throw new BadRequestError('Esta factura ya está anulada.');
+  }
+  if (existing.status === 'linked' && existing.sale_id && !opts.allowLinked) {
+    throw new BadRequestError(
+      'Esta factura está ligada a una venta. Rechazá la venta (si está pendiente) para liberarla, o eliminá la venta, antes de anularla.',
+    );
   }
 
   const { data, error } = await db

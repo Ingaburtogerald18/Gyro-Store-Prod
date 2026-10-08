@@ -21,9 +21,12 @@ export interface PayoutSummaryTarget {
 export function SellerPayoutSummaryDialog({
   target,
   onClose,
+  onPay,
 }: {
   target: PayoutSummaryTarget | null;
   onClose: () => void;
+  /** Abre el pago de comisiones de este vendedor. */
+  onPay?: (sellerEmail: string) => void;
 }) {
   const { data: summary, isLoading } = useGetSellerSummaryForQuery(target?.sellerEmail ?? '', {
     skip: !target,
@@ -86,7 +89,12 @@ export function SellerPayoutSummaryDialog({
           </div>
         </div>
 
-        <div className="mt-2 flex justify-end">
+        <div className="mt-2 flex justify-end gap-2">
+          {onPay && target && (
+            <Button variant="outline" onClick={() => onPay(target.sellerEmail)}>
+              Pagar ahora
+            </Button>
+          )}
           <Button onClick={onClose}>Listo</Button>
         </div>
       </DialogContent>

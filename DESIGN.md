@@ -9,6 +9,28 @@
 
 ---
 
+## Actualización visual del Admin Center — octubre de 2026
+
+El panel comparte la identidad del catálogo: Chivo, fondo crema y tarjetas
+blancas en claro; fondo negro neutro y tarjetas gris carbón en oscuro. Estos
+overrides viven en `tailwind.css`, bajo `html[data-area='admin']`, y también
+alcanzan los diálogos y menús que se montan en portales.
+
+- Amarillo `#ffc20e`: botones de acción principal, con texto tinta y relieve
+  discreto de 2px. No se usa para textos informativos sobre fondo claro.
+- Esmeralda: selección, enlaces, foco y navegación. El token `--primary` del
+  panel conserva este rol para no cambiar el significado de los estados y
+  gráficos existentes; los botones principales usan `--admin-action`.
+- Rojo: errores y acciones destructivas. Cerrar y Cancelar siguen neutrales.
+- Controles de 44px en móvil; controles normales de al menos 36px en escritorio.
+- Menú lateral visible en escritorio y controlado por botón; sin expansión
+  automática por hover. En móvil tiene botón de abrir, cerrar y cierre al navegar.
+- La vista previa `.store-preview` conserva los estilos del catálogo; los
+  overrides de controles del panel la excluyen.
+
+No se modifican fórmulas, permisos, validaciones ni el flujo de negocio de los
+módulos. La densidad y composición de cada módulo se revisarán por separado.
+
 ## 0. En una frase
 
 Rhea es la variante **compacta** de shadcn: controles y superficies más densos que Maia o Luma.
@@ -93,11 +115,12 @@ sigue a `data-theme`, no al `prefers-color-scheme` del sistema (lo controla `use
 | `--destructive` | Error y acciones destructivas |
 | `--destructive-foreground` | Texto sobre rojo lleno: blanco en claro, tinta en oscuro |
 
-El editor de diapositivas usa `Button variant="destructiveSolid"` para Cancelar y
-cerrar, con fondo rojo y el mismo contorno/sombra de los botones de la tienda.
-La variante `destructive` existente conserva su fondo tenue. La subida muestra
+Cerrar y Cancelar son **neutrales** (`outline` / `ghost`), también en el editor de
+portada: el rojo queda para errores, eliminar y descartes que pierden trabajo.
+La variante `destructive` conserva su fondo tenue. La subida del editor muestra
 porcentaje real solo durante el envío; mientras el servidor procesa y almacena,
-`Progress value={null}` muestra una animación indeterminada, sin porcentaje.
+`Progress value={null}` muestra una animación indeterminada, sin porcentaje, y
+«Archivo listo» recién con la URL confirmada. La carga se puede cancelar siempre.
 Las animaciones de carga respetan `prefers-reduced-motion`.
 
 En Tailwind se usan como `bg-background`, `text-muted-foreground`, `border-border`, etc. — nunca
@@ -153,16 +176,16 @@ la ruta:
 | Área | Rutas | `--font-sans` (cuerpo) | `--font-heading` (titulares) |
 |---|---|---|---|
 | `store` | tienda pública: `/`, `/producto`, `/combo`, `/contacto`… | **Chivo** | **Chivo** |
-| `admin` | `/admin*`, `/login`, `/auth*` | **Geist** | **Geist** |
+| `admin` | `/admin*`, `/login`, `/auth*` | **Chivo** | **Chivo** |
 
-En el **panel**, los montos grandes (métricas y totales) usan **Chivo** con la clase
-`font-display` (`--font-display`, fija, no depende del área); el resto del panel sigue en
-Geist. Referencia: la franja de métricas de Inventario.
+En el **panel**, los montos grandes (métricas y totales) mantienen la clase
+`font-display`; tanto los datos como el cuerpo y los títulos usan Chivo.
 
-Además, **Chivo Mono** (`--font-spec`, clase `font-spec`) se usa **solo en el storefront y solo
-para datos técnicos**: la línea de specs de la tarjeta ("24 Ω · 112 dB"), la tabla de
-especificaciones de la ficha, el indicador de stock, los badges de stock ("Agotado",
-"¡Último disponible!") y los contadores del carrito.
+Además, **Chivo Mono** (`--font-spec`, clase `font-spec`) queda reservada a **códigos**
+(número de pedido, contador de la galería). Las specs de la tarjeta y de la ficha, la
+disponibilidad y los badges van en Chivo normal, con su etiqueta ("Impedancia: 24 Ω").
+La tienda **nunca muestra cantidades de inventario**: solo «Disponible», «Agotado» o
+«Consultar disponibilidad».
 
 Las tres se sirven localmente con `@fontsource-variable` (sin Google Fonts). El woff2 latino de
 Chivo se precarga en `links()` de `root.tsx` para que el titular del hero no salte de fuente.
@@ -170,8 +193,8 @@ Los subsets no latinos no se descargan: cada `@font-face` declara su `unicode-ra
 
 **Por qué el área va en `<html>` y no en el layout de cada ruta.** Los `Dialog`/`Sheet` de
 shadcn se renderizan en un portal colgado de `<body>`, fuera del árbol del layout. Con la
-variable en `<html>`, el título del carrito sale en Chivo y el de un diálogo del panel, en
-Geist, sin tocar las primitivas.
+variable en `<html>`, el título del carrito y el de un diálogo del panel salen
+en Chivo, sin tocar las primitivas.
 
 **Por qué los tokens apuntan a variables.** `@theme inline` copia el valor del token dentro de
 cada utilidad. Con un literal (`--font-heading: "Geist Variable"…`), `font-heading` quedaría
@@ -354,11 +377,28 @@ Las primitivas son de shadcn; estas piezas son **nuestras** y siguen vigentes:
 - **`Hero`** — slider de slides editables desde el admin (`heroSlides` en `app_config`).
 - **Navbar** — crema en claro y carbón en oscuro; categorías con selección esmeralda
   (fondo tenue y peso, sin subrayado), buscador blanco/gris con foco esmeralda, carrito
-  amarillo con icono tinta y sombra roja, cuenta en un único círculo esmeralda.
+  amarillo con icono tinta y sombra roja, menú (pedidos, ayuda, apariencia) en un
+  único círculo esmeralda sobre `DropdownMenu` (Escape y retorno de foco).
   Los tokens `--header-*` limitan esta paleta al encabezado del storefront. La
-  altura base se mantiene en 57px para la navegación sticky de la ficha; en móvil
-  se conserva el menú de categorías y la búsqueda desplegable.
+  altura base se mantiene en 57px para la navegación sticky de la ficha. Las
+  categorías en línea aparecen recién en `lg`; en móvil y tablet van en el panel
+  de categorías, para que no compitan con el buscador.
+- **Selección** — variantes, filtros y categorías elegidas: **esmeralda** en los dos
+  temas (borde 2px `--primary-2` + fondo tenue + peso). El amarillo es solo para
+  comprar y continuar; el foco en oscuro también es esmeralda.
 - **`ProductCarousel`** — scroll-snap + flechas que se deshabilitan en los extremos.
+- **Gyro en el carrito vacío y con productos** — ilustración editable, sin fondo ni
+  marco: 152px con el carrito vacío y 104px junto al banner del carrito con productos.
+  Entrada breve y dos balanceos suaves (nada perpetuo); el salto al tocarla es
+  decorativo y no entra en el orden de tabulación. Se detiene con el carrito cerrado,
+  fuera de vista o con la pestaña oculta; `prefers-reduced-motion` muestra la imagen
+  estática.
+- **Carrito y checkout** — un solo panel por pasos (carrito → datos → pedido
+  registrado), sin dos modales a la vez. Campos y botón final de 48px con letra de
+  16px. Si el servidor detecta cambios (precio, stock, variante), el pedido no se
+  crea y se muestran por línea con su acción.
+  Si el banner tiene un enlace, conserva la navegación al tocarlo y solo usa
+  entrada y balanceo, sin agregar un botón dentro del enlace.
 - **Filtros del catálogo** — controles de 44px con borde visible, selección
   esmeralda y un check en los filtros binarios activos. El contador usa amarillo;
   los chips y el menú de orden comparten el acento esmeralda en ambos temas.
@@ -366,7 +406,17 @@ Las primitivas son de shadcn; estas piezas son **nuestras** y siguen vigentes:
   Estos estilos se limitan al storefront mediante las clases `catalog-filter-*`.
 - **`QueryState`** — envuelve el patrón loading/error/vacío de los listados admin. Cada estado
   puede traer su propio fallback; si no, cae en uno genérico.
-- **PDP** — galería sticky, specs en grilla con hairlines, descripción a 65ch, CTA + WhatsApp.
+- **PDP** — nombre y precio antes de la galería en móvil; dos columnas en escritorio,
+  con galería sticky de hasta 480px y fotos completas (`object-contain`). Variantes
+  en filas, cantidad y CTA + WhatsApp de al menos 48px. Descripción y specs abiertas
+  debajo del bloque principal: fuente de lectura normal, divisores finos y rótulo
+  junto al valor en escritorio. En móvil, las filas cortas conservan etiqueta y valor
+  juntos, las largas se apilan y se muestran tres especificaciones con opción de ver
+  todas. Los beneficios de compra forman una franja debajo, sin tarjetas individuales;
+  en móvil están dentro de «Envío, pago y garantía», desplegable y cerrado inicialmente.
+  La barra móvil se oculta mientras los botones de
+  compra principales o el footer están a la vista. Cambio de foto con fade breve
+  que respeta `prefers-reduced-motion`.
 
 ---
 

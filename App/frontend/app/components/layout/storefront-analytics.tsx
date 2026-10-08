@@ -82,14 +82,14 @@ export function StorefrontAnalytics() {
               <button
                 type="button"
                 onClick={() => decide('denied')}
-                className="min-h-9 rounded-lg border border-border px-3 text-xs font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="min-h-11 rounded-xl border border-border px-4 text-sm font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 Rechazar
               </button>
               <button
                 type="button"
                 onClick={() => decide('granted')}
-                className="min-h-9 rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="min-h-11 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 Aceptar
               </button>

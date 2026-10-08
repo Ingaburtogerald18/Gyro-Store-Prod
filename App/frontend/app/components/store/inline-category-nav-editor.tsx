@@ -12,7 +12,7 @@ import {
   arrayMove,
   SortableContext,
   sortableKeyboardCoordinates,
-  horizontalListSortingStrategy,
+  verticalListSortingStrategy,
   useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -57,14 +57,14 @@ function SortableCategoryItem({
       ref={setNodeRef}
       style={style}
       className={cn(
-        "group relative flex items-center gap-2 rounded-xl border border-transparent bg-transparent px-3 py-1.5 text-sm font-medium transition-colors hover:bg-muted",
+        "group relative flex w-full items-center gap-2 rounded-xl border border-transparent bg-transparent px-3 py-1.5 text-sm font-medium transition-colors hover:bg-muted",
         isDragging && "opacity-50 ring-2 ring-primary bg-muted shadow-lg"
       )}
     >
       <div 
         {...attributes} 
         {...listeners}
-        className="cursor-grab active:cursor-grabbing text-foreground touch-none flex items-center gap-2"
+        className="cursor-grab active:cursor-grabbing text-foreground touch-none flex flex-1 items-center gap-2"
         aria-label="Arrastrar para reordenar"
       >
         {category.icon && <span>{category.icon}</span>}
@@ -74,8 +74,8 @@ function SortableCategoryItem({
       {/* Botón de quitar, solo visible en hover (desktop) o siempre en móvil */}
       <button
         onClick={() => onRemove(id)}
-        className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-destructive/10 text-destructive opacity-0 transition-opacity hover:bg-destructive hover:text-destructive-foreground focus-visible:opacity-100 group-hover:opacity-100"
-        aria-label="Quitar categoría"
+        className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-destructive/10 text-destructive transition-opacity hover:bg-destructive hover:text-destructive-foreground focus-visible:opacity-100 group-hover:opacity-100"
+        aria-label={`Quitar ${category.name} de la navegación`}
       >
         <HugeIcon icon={Cancel01Icon} size={12} strokeWidth={2.5} />
       </button>
@@ -119,7 +119,7 @@ export function InlineCategoryNavEditor({ allCategories }: InlineCategoryNavEdit
   };
 
   return (
-    <div className="flex w-full items-center gap-1 overflow-x-auto no-scrollbar">
+    <div className="flex w-full flex-col items-stretch gap-2">
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
@@ -127,7 +127,7 @@ export function InlineCategoryNavEditor({ allCategories }: InlineCategoryNavEdit
       >
         <SortableContext
           items={draftHeaderCategories}
-          strategy={horizontalListSortingStrategy}
+          strategy={verticalListSortingStrategy}
         >
           {draftHeaderCategories.map((id) => {
             const cat = allCategories.find((c) => c.id === id);

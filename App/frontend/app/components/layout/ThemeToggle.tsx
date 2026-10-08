@@ -20,7 +20,7 @@ export function ThemeToggle() {
       // saber antes de apretar.
       aria-label={isDark ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'}
       title={isDark ? 'Tema claro' : 'Tema oscuro'}
-      className="grid size-9 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="grid size-11 place-items-center rounded-xl border border-border bg-card text-primary-2 transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       <HugeIcon icon={isDark ? Sun01Icon : Moon02Icon} size={18} strokeWidth={2} />
     </button>

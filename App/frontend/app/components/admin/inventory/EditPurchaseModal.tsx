@@ -1,5 +1,5 @@
 // Modal para editar los datos base de una compra en tránsito (China).
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
@@ -8,7 +8,8 @@ import { Button } from "~/components/ui/button";
 import { Field, FieldError, FieldLabel } from "~/components/ui/field";
 import { purchaseFormSchema, type PurchaseFormInput, type PurchaseFormValues } from "~/lib/validators";
 import { useUpdatePurchaseMutation, type Purchase } from "~/store/api/inventoryV1Api";
-import { useGetCategoriesQuery } from "~/store/api/catalogAdminApi";
+import { useGetAdminCatalogQuery, useGetCategoriesQuery } from "~/store/api/catalogAdminApi";
+import { CatalogVariantPicker, isCatalogLinkComplete, type CatalogLinkValue } from "./CatalogVariantPicker";
 import { Input } from "~/components/ui/input";
 import { NativeSelect, NativeSelectOption } from "~/components/ui/native-select";
 import { formatUsd } from "~/lib/formatters";
@@ -18,6 +19,10 @@ import { DatePicker } from "~/components/ui/date-picker";
 export function EditPurchaseModal({ purchase, onClose }: { purchase: Purchase | null; onClose: () => void }) {
   const [updatePurchase, { isLoading }] = useUpdatePurchaseMutation();
   const { data: categories = [] } = useGetCategoriesQuery();
+  const { data: catalog = [] } = useGetAdminCatalogQuery();
+  // Vínculo con el catálogo. Cambiarlo hace que la tienda vea (o deje de ver)
+  // este lote en esa variante.
+  const [link, setLink] = useState<CatalogLinkValue | null>(null);
 
   // Valor guardado que ya no está en la lista (compra vieja, o categoría
   // borrada en Catálogo). Se agrega como opción propia para no perderlo.
@@ -33,6 +38,7 @@ export function EditPurchaseModal({ purchase, onClose }: { purchase: Purchase | 
 
   useEffect(() => {
     if (purchase) {
+      setLink(purchase.catalogItemId ? { catalogItemId: purchase.catalogItemId, variantKey: purchase.variantKey ?? "" } : null);
       reset({
         purchaseDate: purchase.purchaseDate || "",
         lot: purchase.lot || "",
@@ -55,8 +61,21 @@ export function EditPurchaseModal({ purchase, onClose }: { purchase: Purchase | 
   async function onSubmit(data: PurchaseFormInput) {
     if (!purchase) return;
     data.lot = data.lot.toUpperCase();
+    if (!isCatalogLinkComplete(link, catalog)) {
+      toast.error("Elegí la variante del producto.");
+      return;
+    }
+    const linkChanged =
+      (link?.catalogItemId ?? null) !== (purchase.catalogItemId ?? null) ||
+      (link?.variantKey ?? null) !== (purchase.catalogItemId ? purchase.variantKey ?? "" : null);
     try {
-      await updatePurchase({ id: purchase.id, body: data }).unwrap();
+      await updatePurchase({
+        id: purchase.id,
+        body: {
+          ...data,
+          ...(linkChanged ? { catalogItemId: link?.catalogItemId ?? null, variantKey: link?.variantKey ?? "" } : {}),
+        },
+      }).unwrap();
       toast.success("Compra modificada correctamente.");
       onClose();
     } catch (err: any) {
@@ -95,6 +114,12 @@ export function EditPurchaseModal({ purchase, onClose }: { purchase: Purchase | 
             <Input id="edit-purchase-lot" aria-required {...register("lot")} aria-invalid={!!errors.lot} />
             <FieldError errors={[errors.lot]} />
           </Field>
+
+          {/* Vínculo con el catálogo: al vincular, el nombre pasa a ser el de
+              los otros lotes de esa variante (lo pone el servidor). */}
+          <div className="sm:col-span-2">
+            <CatalogVariantPicker idPrefix="edit-purchase" value={link} onChange={(next) => setLink(next)} />
+          </div>
 
           {/* Fila 3: Nombre — ancho completo */}
           <Field className="sm:col-span-2" data-invalid={!!errors.productName}>

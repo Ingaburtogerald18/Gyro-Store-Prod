@@ -25,7 +25,7 @@ import { Toaster } from 'sonner';
 import { createAppStore } from '~/store/store';
 import { useAppDispatch } from '~/store/hooks';
 import { themeSet } from '~/store/slices/uiSlice';
-import { defaultThemeFor, restoreTheme, THEME_INIT_SCRIPT } from '~/lib/theme';
+import { defaultThemeFor, isTheme, restoreTheme, THEME_INIT_SCRIPT, THEME_STORAGE_KEY } from '~/lib/theme';
 import tailwindHref from './tailwind.css?url';
 import gyroBag from '~/assets/brand/gyro-bag.png';
 import chivoWoff2 from '@fontsource-variable/chivo/files/chivo-latin-wght-normal.woff2?url';
@@ -131,11 +131,20 @@ export function ErrorBoundary() {
   return <RouteError />;
 }
 
-/** Sincroniza DOM y Redux después de hidratar, sin depender de un botón visible. */
+/** Sincroniza DOM y Redux después de hidratar, sin depender de un botón visible.
+ *  También entre pestañas: elegir el tema en una pestaña lo aplica en las demás
+ *  (el evento `storage` solo llega a las OTRAS pestañas del mismo origen). */
 function ThemeSync() {
   const dispatch = useAppDispatch();
   useEffect(() => {
     dispatch(themeSet(restoreTheme()));
+    function onStorage(event: StorageEvent) {
+      if (event.key !== THEME_STORAGE_KEY || !isTheme(event.newValue)) return;
+      document.documentElement.dataset.theme = event.newValue;
+      dispatch(themeSet(event.newValue));
+    }
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
   }, [dispatch]);
   return null;
 }
@@ -170,6 +179,8 @@ function DynamicFavicon() {
 
 export default function App() {
   const [store] = useState(createAppStore);
+  const { search } = useLocation();
+  const editorPreview = new URLSearchParams(search).get('landing-preview') === '1';
   return (
     <Provider store={store}>
       <StoreSync />
@@ -183,7 +194,7 @@ export default function App() {
         <GlobalProgress />
         <DynamicFavicon />
         <AuthSync />
-        <StorefrontAnalytics />
+        {!editorPreview && <StorefrontAnalytics />}
         <Outlet />
         {/* Toasts pintados con los tokens de marca, no con el tema de sonner. */}
         <Toaster

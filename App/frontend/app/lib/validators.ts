@@ -56,7 +56,11 @@ export const purchaseFormSchema = z.object({
     z.number({ message: "Requerido" }).int("Debe ser entero").positive("Debe ser mayor a 0"),
   ),
   costUnit: requiredPositiveNumber("Precio base requerido"),
-  taxUnit: requiredPositiveNumber("Impuesto requerido"),
+  // 0 es válido: hay compras sin impuesto (el servidor ya lo aceptaba).
+  taxUnit: z.preprocess(
+    (v) => (v === "" || v === null || v === undefined ? NaN : Number(v)),
+    z.number({ message: "Impuesto requerido" }).nonnegative("No puede ser negativo"),
+  ),
   suggestedPrice: z.coerce.number().nonnegative("No puede ser negativo").optional(),
 });
 export type PurchaseFormInput = z.infer<typeof purchaseFormSchema>;
@@ -72,6 +76,11 @@ export const arrivalFormSchema = z.object({
   arrivalDate: z.string().min(1, "Fecha de ingreso requerida"),
   shippingUnit: z.coerce.number().nonnegative("No puede ser negativo"),
   suggestedPrice: z.coerce.number().nonnegative("No puede ser negativo").optional(),
+  // Vacío = la tasa de Configuración.
+  exchangeRate: z.preprocess(
+    (v) => (v === "" || v === null || v === undefined ? undefined : Number(v)),
+    z.number().positive("Debe ser mayor a 0").max(1000, "Revisá la tasa").optional(),
+  ),
 });
 export type ArrivalFormInput = z.infer<typeof arrivalFormSchema>;
 // Mismo motivo: shippingUnit/suggestedPrice usan z.coerce.number().

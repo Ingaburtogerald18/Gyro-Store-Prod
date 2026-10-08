@@ -9,6 +9,7 @@ import { db } from '../supabase';
 import { getFinancialConfig } from './appConfig';
 import { costPurchaseOnArrival, round } from './finance';
 import { BadRequestError } from '../utils/httpError';
+import { isMissingColumn } from './orderPersistence';
 import type {
   NewPurchaseInput,
   UpdatePurchaseInput,
@@ -41,6 +42,10 @@ export interface Purchase {
   quantityReserved: number;
   suggestedPrice: number | null;
   status: PurchaseStatus;
+  /** Producto del catálogo al que pertenece el lote (migración 0022). */
+  catalogItemId: string | null;
+  /** Variante dentro de ese producto ("Negro / Con micrófono"; '' sin variantes). */
+  variantKey: string | null;
 }
 
 export interface InventoryRow {
@@ -63,12 +68,16 @@ export interface InventoryRow {
   totalFinalUsd?: number;
   suggestedPrice?: number | null;
   gananciaUnitCordobas?: number;
+  catalogItemId?: string | null;
+  variantKey?: string | null;
 }
 
 export interface InventoryKpis {
   totalPurchases: number;
   inTransit: number;
   received: number;
+  /** Lo que de verdad queda en bodega: recibido − vendido − reservado. */
+  availableUnits: number;
   subtotalInvertidoUsd: number;
   totalImpuestosUsd: number;
   totalInversionConImpuestosUsd: number;
@@ -100,6 +109,8 @@ interface PurchaseRow {
   suggested_price: number | null;
   costo_f_u: number | null;
   coste_final: number | null;
+  catalog_item_id?: string | null;
+  variant_key?: string | null;
 }
 
 const PURCHASE_COLUMNS = [
@@ -110,6 +121,12 @@ const PURCHASE_COLUMNS = [
   'product_name', 'category', 'arrival_date', 'suggested_price',
   'costo_f_u', 'coste_final',
 ].join(', ');
+
+// Columnas del vínculo con el catálogo (migración 0022). Mientras la migración
+// no esté aplicada no existen: toda lectura reintenta sin ellas y el módulo
+// sigue funcionando como antes.
+const LINK_COLUMNS = 'catalog_item_id, variant_key';
+const PURCHASE_COLUMNS_LINKED = `${PURCHASE_COLUMNS}, ${LINK_COLUMNS}`;
 
 // ============================================================================
 // ── Helpers ──
@@ -152,6 +169,8 @@ function toPurchase(row: PurchaseRow): Purchase {
     quantityReserved: row.quantity_reserved,
     suggestedPrice: row.suggested_price,
     status: row.status,
+    catalogItemId: row.catalog_item_id ?? null,
+    variantKey: row.variant_key ?? null,
   };
 }
 
@@ -183,25 +202,151 @@ function toInventoryRow(row: PurchaseRow): InventoryRow {
     totalFinalUsd: round(priceUnitFinal * available, 4),
     suggestedPrice: row.suggested_price,
     gananciaUnitCordobas: round(suggested - costeFinal, 2),
+    catalogItemId: row.catalog_item_id ?? null,
+    variantKey: row.variant_key ?? null,
   };
 }
 
 async function fetchPurchaseRows(period?: string, status?: PurchaseStatus): Promise<PurchaseRow[]> {
-  let query = db
-    .from('purchases')
-    .select(PURCHASE_COLUMNS)
-    .order('purchase_date', { ascending: true })
-    .order('created_at', { ascending: true });
+  const run = (columns: string) => {
+    let query = db
+      .from('purchases')
+      .select(columns)
+      .order('purchase_date', { ascending: true })
+      .order('created_at', { ascending: true });
 
-  if (status) query = query.eq('status', status);
-  if (period) {
-    const { start, end } = periodRange(period);
-    query = query.gte('purchase_date', start).lt('purchase_date', end);
-  }
+    if (status) query = query.eq('status', status);
+    if (period) {
+      const { start, end } = periodRange(period);
+      query = query.gte('purchase_date', start).lt('purchase_date', end);
+    }
+    return query;
+  };
 
-  const { data, error } = await query;
+  let { data, error } = await run(PURCHASE_COLUMNS_LINKED);
+  if (isMissingColumn(error)) ({ data, error } = await run(PURCHASE_COLUMNS));
   if (error) throw error;
   return (data ?? []) as unknown as PurchaseRow[];
+}
+
+// ── Vínculo lote ↔ variante del catálogo ──
+
+export interface CatalogLink {
+  catalogItemId: string;
+  variantKey: string;
+}
+
+/** Códigos de una entrada de `variant_mappings`, tolerando la forma vieja de v1. */
+function codesOfMapping(entry: unknown): string[] {
+  if (!entry || typeof entry !== 'object') return [];
+  const e = entry as Record<string, unknown>;
+  return [
+    ...(Array.isArray(e.codes) ? e.codes.filter((c): c is string => typeof c === 'string') : []),
+    ...(Array.isArray(e.skus) ? e.skus.filter((c): c is string => typeof c === 'string') : []),
+    ...(typeof e.sku === 'string' && e.sku ? [e.sku] : []),
+  ];
+}
+
+/**
+ * Lotes vinculados por columna (0022), agrupados por producto y variante.
+ * Vacío si la migración todavía no se aplicó.
+ */
+export async function getLinkedCodesByItem(itemIds: string[]): Promise<Map<string, Map<string, string[]>>> {
+  const out = new Map<string, Map<string, string[]>>();
+  const ids = [...new Set(itemIds.filter(Boolean))];
+  if (ids.length === 0) return out;
+
+  const { data, error } = await db
+    .from('purchases')
+    .select('code, catalog_item_id, variant_key')
+    .in('catalog_item_id', ids);
+  if (isMissingColumn(error)) return out;
+  if (error) throw error;
+
+  for (const row of (data ?? []) as unknown as { code: string; catalog_item_id: string; variant_key: string | null }[]) {
+    const byVariant = out.get(row.catalog_item_id) ?? new Map<string, string[]>();
+    const key = row.variant_key ?? '';
+    byVariant.set(key, [...(byVariant.get(key) ?? []), row.code]);
+    out.set(row.catalog_item_id, byVariant);
+  }
+  return out;
+}
+
+/**
+ * Suma a `variant_mappings` los lotes vinculados por columna, para que todo lo
+ * que lee stock por códigos (tienda, ficha, checkout) vea también las compras
+ * nuevas sin que nadie las tenga que vincular a mano en Catálogo. No escribe
+ * nada: es solo la vista en memoria.
+ */
+export async function withLinkedLots<T extends { id: string; variant_mappings: Record<string, unknown> }>(
+  items: T[],
+): Promise<T[]> {
+  const linked = await getLinkedCodesByItem(items.map((item) => item.id));
+  if (linked.size === 0) return items;
+
+  return items.map((item) => {
+    const byVariant = linked.get(item.id);
+    if (!byVariant) return item;
+    const mappings: Record<string, unknown> = { ...(item.variant_mappings ?? {}) };
+    for (const [key, codes] of byVariant) {
+      const current = mappings[key];
+      const base = current && typeof current === 'object' ? (current as Record<string, unknown>) : {};
+      mappings[key] = { ...base, codes: [...new Set([...codesOfMapping(current), ...codes])] };
+    }
+    return { ...item, variant_mappings: mappings };
+  });
+}
+
+/** Todos los códigos de lote de una variante: los vinculados en Catálogo + los vinculados por columna. */
+export async function codesForVariant(link: CatalogLink): Promise<string[]> {
+  const { data: item, error } = await db
+    .from('catalog_items')
+    .select('id, variant_mappings')
+    .eq('id', link.catalogItemId)
+    .maybeSingle();
+  if (error) throw error;
+  const fromMappings = item
+    ? codesOfMapping((item.variant_mappings as Record<string, unknown> | null)?.[link.variantKey])
+    : [];
+  const fromColumns = (await getLinkedCodesByItem([link.catalogItemId])).get(link.catalogItemId)?.get(link.variantKey) ?? [];
+  return [...new Set([...fromMappings, ...fromColumns])];
+}
+
+/**
+ * Nombre del lote para una variante del catálogo. Si ya hay lotes de esa
+ * variante se reutiliza su nombre: Ventas descuenta por nombre (FIFO), así que
+ * todas las compras de la misma variante tienen que llamarse igual.
+ */
+async function nameForVariant(link: CatalogLink): Promise<{ productName: string; categoryId: string | null }> {
+  const { data: item, error } = await db
+    .from('catalog_items')
+    .select('id, name, category_id, template:templates(name)')
+    .eq('id', link.catalogItemId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!item) throw new BadRequestError('El producto elegido ya no existe en Catálogo.');
+
+  const codes = await codesForVariant(link);
+  if (codes.length) {
+    const { data: existing } = await db
+      .from('purchases')
+      .select('product_name')
+      .in('code', codes)
+      .order('purchase_date', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (existing?.product_name) {
+      return { productName: existing.product_name as string, categoryId: (item.category_id as string | null) ?? null };
+    }
+  }
+
+  const template = Array.isArray(item.template) ? item.template[0] : item.template;
+  const baseName = ((item.name as string | null) || (template as { name?: string } | null)?.name || 'Producto').trim();
+  const parts = link.variantKey ? link.variantKey.split(' / ').map((p) => p.trim()).filter(Boolean) : [];
+  return {
+    productName: [baseName, ...parts].join(' | '),
+    categoryId: (item.category_id as string | null) ?? null,
+  };
 }
 
 // ============================================================================
@@ -237,13 +382,16 @@ export async function getInventoryKpis(period?: string): Promise<InventoryKpis> 
   const rows = await fetchPurchaseRows(period);
   let inTransit = 0;
   let received = 0;
+  let availableUnits = 0;
   let subtotalInvertidoUsd = 0;
   let totalImpuestosUsd = 0;
   let totalEnviosUsd = 0;
 
   for (const row of rows) {
-    if (row.status === 'received') received += row.quantity;
-    else inTransit += row.quantity;
+    if (row.status === 'received') {
+      received += row.quantity;
+      availableUnits += Math.max(0, row.quantity - row.quantity_sold - row.quantity_reserved);
+    } else inTransit += row.quantity;
     subtotalInvertidoUsd += (row.costo_china_usd ?? 0) * row.quantity;
     totalImpuestosUsd += (row.impuesto_unit_usd ?? 0) * row.quantity;
     totalEnviosUsd += (row.envio_unit_usd ?? 0) * row.quantity;
@@ -253,6 +401,7 @@ export async function getInventoryKpis(period?: string): Promise<InventoryKpis> 
     totalPurchases: rows.reduce((acc, r) => acc + r.quantity, 0),
     inTransit,
     received,
+    availableUnits,
     subtotalInvertidoUsd: round(subtotalInvertidoUsd, 4),
     totalImpuestosUsd: round(totalImpuestosUsd, 4),
     totalInversionConImpuestosUsd: round(subtotalInvertidoUsd + totalImpuestosUsd, 4),
@@ -265,7 +414,9 @@ export async function getInventoryKpis(period?: string): Promise<InventoryKpis> 
 // ============================================================================
 
 export async function createPurchase(input: NewPurchaseInput): Promise<Purchase> {
-  // Generar código GS-IN-XX automático usando el primer hueco disponible
+  // Código GS-IN-N automático: siempre el mayor + 1. NO se rellenan huecos: el
+  // catálogo vincula variantes por código, y reutilizar el de un lote borrado
+  // le pasaría su vínculo (y su stock en la tienda) a un producto distinto.
   const { data: codes, error: codeErr } = await db
     .from('purchases')
     .select('code')
@@ -273,40 +424,62 @@ export async function createPurchase(input: NewPurchaseInput): Promise<Purchase>
 
   if (codeErr) throw codeErr;
 
-  const usedNumbers = (codes || [])
+  const maxUsed = (codes || [])
     .map(r => parseInt(r.code.replace('GS-IN-', ''), 10))
     .filter(n => !isNaN(n))
-    .sort((a, b) => a - b);
+    .reduce((max, n) => Math.max(max, n), 0);
+  const generatedCode = `GS-IN-${maxUsed + 1}`;
 
-  let nextId = 1;
-  for (const n of usedNumbers) {
-    if (n === nextId) {
-      nextId++;
-    } else if (n > nextId) {
-      break;
-    }
+  // Compra de un producto del catálogo: el nombre y la categoría salen de ahí,
+  // y el lote nace vinculado a su variante (la tienda lo ve sin pasos extra).
+  const link: CatalogLink | null = input.catalogItemId
+    ? { catalogItemId: input.catalogItemId, variantKey: input.variantKey ?? '' }
+    : null;
+  const fromCatalog = link ? await nameForVariant(link) : null;
+
+  const row = {
+    code: generatedCode,
+    lot: input.lot,
+    product_name: fromCatalog?.productName ?? input.productName,
+    category: input.category || fromCatalog?.categoryId || null,
+    purchase_date: input.purchaseDate,
+    quantity: input.quantity,
+    costo_china_usd: input.costUnit,
+    impuesto_unit_usd: input.taxUnit,
+    suggested_price: input.suggestedPrice ?? null,
+    status: 'china',
+  };
+
+  let { data, error } = link
+    ? await db
+        .from('purchases')
+        .insert({ ...row, catalog_item_id: link.catalogItemId, variant_key: link.variantKey })
+        .select(PURCHASE_COLUMNS_LINKED)
+        .single()
+    : await db.from('purchases').insert(row).select(PURCHASE_COLUMNS).single();
+  // Sin la migración 0022 el lote se guarda igual, con el nombre del catálogo,
+  // pero sin el vínculo por columna.
+  if (link && isMissingColumn(error)) {
+    ({ data, error } = await db.from('purchases').insert(row).select(PURCHASE_COLUMNS).single());
   }
-  const generatedCode = `GS-IN-${nextId}`;
-
-  const { data, error } = await db
-    .from('purchases')
-    .insert({
-      code: generatedCode,
-      lot: input.lot,
-      product_name: input.productName,
-      category: input.category,
-      purchase_date: input.purchaseDate,
-      quantity: input.quantity,
-      costo_china_usd: input.costUnit,
-      impuesto_unit_usd: input.taxUnit,
-      suggested_price: input.suggestedPrice ?? null,
-      status: 'china',
-    })
-    .select(PURCHASE_COLUMNS)
-    .single();
 
   if (error) throw error;
   return toPurchase(data as unknown as PurchaseRow);
+}
+
+/**
+ * Vincula (o desvincula, con `null`) un lote existente a una variante del
+ * catálogo. Requiere la migración 0022.
+ */
+export async function setPurchaseLink(id: string, link: CatalogLink | null): Promise<void> {
+  const { error } = await db
+    .from('purchases')
+    .update({ catalog_item_id: link?.catalogItemId ?? null, variant_key: link ? link.variantKey : null })
+    .eq('id', id);
+  if (isMissingColumn(error)) {
+    throw new BadRequestError('Para vincular lotes desde Inventario falta aplicar la migración 0022 en la base.');
+  }
+  if (error) throw error;
 }
 
 // "Sube stock" (doc 09 ítem 51): pasa el lote a `received` y persiste la
@@ -323,13 +496,16 @@ export async function reportArrival(id: string, input: ArrivalInput): Promise<bo
   if (!existing) return false;
 
   const config = await getFinancialConfig();
+  // La tasa que se congela es la que confirma quien recibe (el modal la
+  // precarga con la de Configuración); sin ella, la vigente.
+  const exchangeRate = input.exchangeRate ?? config.exchangeRate;
   const costing = costPurchaseOnArrival(
     {
       quantity: existing.quantity,
       costoChinaUsd: existing.costo_china_usd ?? 0,
       impuestoUnitUsd: existing.impuesto_unit_usd ?? 0,
       envioUnitUsd: input.shippingUnit,
-      exchangeRate: config.exchangeRate,
+      exchangeRate,
     },
     config,
   );
@@ -340,7 +516,7 @@ export async function reportArrival(id: string, input: ArrivalInput): Promise<bo
       status: 'received',
       arrival_date: input.arrivalDate,
       envio_unit_usd: input.shippingUnit,
-      exchange_rate: config.exchangeRate,
+      exchange_rate: exchangeRate,
       costo_real_usd: costing.costoRealUsd,
       costo_real_cs: costing.costoRealCs,
       costo_f_u: costing.costoFU,
@@ -353,7 +529,11 @@ export async function reportArrival(id: string, input: ArrivalInput): Promise<bo
   return true;
 }
 
-export async function simulateCost(id: string, shippingUnit: number): Promise<{ precioSugerido: number }> {
+export async function simulateCost(
+  id: string,
+  shippingUnit: number,
+  exchangeRateOverride?: number,
+): Promise<{ precioSugerido: number; exchangeRate: number }> {
   const { data: existing, error: fetchError } = await db
     .from('purchases')
     .select('quantity, costo_china_usd, impuesto_unit_usd')
@@ -363,50 +543,92 @@ export async function simulateCost(id: string, shippingUnit: number): Promise<{ 
   if (!existing) throw new BadRequestError('Lote no encontrado');
 
   const config = await getFinancialConfig();
+  const exchangeRate = exchangeRateOverride ?? config.exchangeRate;
   const costing = costPurchaseOnArrival(
     {
       quantity: existing.quantity,
       costoChinaUsd: existing.costo_china_usd ?? 0,
       impuestoUnitUsd: existing.impuesto_unit_usd ?? 0,
       envioUnitUsd: shippingUnit,
-      exchangeRate: config.exchangeRate,
+      exchangeRate,
     },
     config,
   );
 
-  return { precioSugerido: costing.precioSugerido };
+  return { precioSugerido: costing.precioSugerido, exchangeRate };
 }
 
-export async function updatePurchase(id: string, input: UpdatePurchaseInput): Promise<boolean> {
+export async function updatePurchase(
+  id: string,
+  rawInput: UpdatePurchaseInput,
+  authorUid?: string,
+): Promise<boolean> {
+  let input = rawInput;
   const { data: existing, error: fetchError } = await db
     .from('purchases')
-    .select('status, quantity, costo_china_usd, impuesto_unit_usd, envio_unit_usd, exchange_rate')
+    .select('*')
     .eq('id', id)
     .maybeSingle();
   if (fetchError) throw fetchError;
   if (!existing) return false;
 
+  const sold = existing.quantity_sold ?? 0;
+  const reserved = existing.quantity_reserved ?? 0;
+
+  // Vincular a una variante del catálogo: el lote toma el nombre que ya usan
+  // los otros lotes de esa variante (Ventas los agrupa por nombre). Si tiene
+  // unidades reservadas se conserva el nombre: renombrar rompería el costeo.
+  if (input.catalogItemId !== undefined) {
+    const link: CatalogLink | null = input.catalogItemId
+      ? { catalogItemId: input.catalogItemId, variantKey: input.variantKey ?? '' }
+      : null;
+    const canonical = link && reserved === 0 ? await nameForVariant(link) : null;
+    await setPurchaseLink(id, link);
+    if (canonical) input = { ...input, productName: canonical.productName };
+  }
+
+  // El código lo genera el sistema y es la llave del vínculo con el catálogo:
+  // cambiarlo dejaría la variante apuntando a un lote que ya no existe.
+  if (input.code !== undefined && input.code !== existing.code) {
+    throw new BadRequestError('El código del lote no se puede cambiar.');
+  }
+  // Las ventas pendientes se costean al aprobarlas buscando su lote por este
+  // nombre: renombrar en el medio dejaría esas líneas con costo 0.
+  if (input.productName !== undefined && input.productName !== existing.product_name && reserved > 0) {
+    throw new BadRequestError(
+      `No se puede cambiar el nombre: hay ${reserved} unidad(es) reservadas en ventas o pedidos web pendientes. Resolvelos primero.`,
+    );
+  }
+  if (input.quantity !== undefined && input.quantity < sold + reserved) {
+    throw new BadRequestError(
+      `La cantidad no puede ser menor a ${sold + reserved}: ya hay ${sold} vendida(s) y ${reserved} reservada(s).`,
+    );
+  }
+
+  // Solo se toma como "cambio" lo que es distinto de lo guardado: el panel
+  // manda el formulario entero aunque se haya tocado un solo campo.
+  const differs = (next: number | undefined, current: number | null) =>
+    next !== undefined && Number(next) !== Number(current ?? 0);
+
   const patch: Record<string, unknown> = {};
   if (input.purchaseDate !== undefined) patch.purchase_date = input.purchaseDate;
   if (input.lot !== undefined) patch.lot = input.lot;
-  if (input.code !== undefined) patch.code = input.code;
   if (input.productName !== undefined) patch.product_name = input.productName;
   if (input.category !== undefined) patch.category = input.category;
-  if (input.quantity !== undefined) patch.quantity = input.quantity;
-  if (input.costUnit !== undefined) patch.costo_china_usd = input.costUnit;
-  if (input.taxUnit !== undefined) patch.impuesto_unit_usd = input.taxUnit;
-  if (input.shippingUnit !== undefined) patch.envio_unit_usd = input.shippingUnit;
+  if (differs(input.quantity, existing.quantity)) patch.quantity = input.quantity;
+  if (differs(input.costUnit, existing.costo_china_usd)) patch.costo_china_usd = input.costUnit;
+  if (differs(input.taxUnit, existing.impuesto_unit_usd)) patch.impuesto_unit_usd = input.taxUnit;
+  if (differs(input.shippingUnit, existing.envio_unit_usd)) patch.envio_unit_usd = input.shippingUnit;
   if (input.suggestedPrice !== undefined) patch.suggested_price = input.suggestedPrice;
 
-  // Si el lote ya fue recibido y algún insumo del costeo cambió, se recalcula
-  // toda la cadena — pero con la tasa YA congelada del lote (regla de oro #4:
-  // no se vuelve a leer la tasa vigente).
+  // Si el lote ya fue recibido y un insumo del costeo cambió DE VERDAD, se
+  // recalcula la cadena de costos con la tasa YA congelada del lote (regla de
+  // oro #4). El precio de venta NO se toca: es una decisión de quien vende,
+  // y antes se pisaba con el sugerido en cualquier edición, aunque solo se
+  // hubiera corregido el nombre. Para cambiarlo hay que mandarlo explícito.
   const costingInputsChanged =
     existing.status === 'received' &&
-    (input.quantity !== undefined ||
-      input.costUnit !== undefined ||
-      input.taxUnit !== undefined ||
-      input.shippingUnit !== undefined);
+    ('quantity' in patch || 'costo_china_usd' in patch || 'impuesto_unit_usd' in patch || 'envio_unit_usd' in patch);
 
   if (costingInputsChanged) {
     if (existing.exchange_rate == null) {
@@ -427,13 +649,24 @@ export async function updatePurchase(id: string, input: UpdatePurchaseInput): Pr
     patch.costo_real_cs = costing.costoRealCs;
     patch.costo_f_u = costing.costoFU;
     patch.coste_final = costing.costeFinal;
-    if (input.suggestedPrice === undefined) {
-      patch.suggested_price = costing.precioSugerido;
-    }
   }
 
-  const { error } = await db.from('purchases').update(patch).eq('id', id);
+  if (Object.keys(patch).length === 0) return true;
+
+  const { data: updated, error } = await db.from('purchases').update(patch).eq('id', id).select('*').maybeSingle();
   if (error) throw error;
+
+  // Rastro de quién cambió qué: cantidades, costos y precio mueven la plata.
+  await db.from('audit_logs').insert({
+    entity: 'purchases',
+    entity_id: id,
+    action: 'update',
+    reason: 'Edición desde panel',
+    author_uid: authorUid ?? null,
+    before: existing,
+    after: updated ?? null,
+  });
+
   return true;
 }
 
@@ -460,7 +693,6 @@ export async function revertPurchase(id: string): Promise<boolean> {
     .update({
       status: 'china',
       arrival_date: null,
-      category: null,
       envio_unit_usd: 0,
       exchange_rate: null,
       costo_real_usd: null,
@@ -485,6 +717,13 @@ export async function deletePurchase(id: string, authorUid: string): Promise<boo
 
   if (existing.quantity_sold > 0 || existing.quantity_reserved > 0) {
     throw new BadRequestError('No se puede borrar un lote con stock ya vendido o reservado.');
+  }
+
+  const linkedTo = (await listAvailableLots()).find((lot) => lot.code === existing.code)?.linkedTo;
+  if (linkedTo) {
+    throw new BadRequestError(
+      `El lote ${existing.code} está vinculado a "${linkedTo}" en Catálogo. Desvinculalo ahí antes de borrarlo.`,
+    );
   }
 
   const { error } = await db.from('purchases').delete().eq('id', id);
@@ -534,19 +773,24 @@ interface FifoTakenLot {
 
 const FIFO_MAX_PASSES = 3;
 
-async function walkFifoLots(
-  productName: string,
+/** Qué lotes entran al FIFO: los de un nombre (Ventas) o los de una lista de códigos (variante del catálogo). */
+type FifoTarget = string | { codes: string[]; label: string };
+
+export async function walkFifoLots(
+  target: FifoTarget,
   quantity: number,
   column: 'quantity_reserved' | 'quantity_sold',
 ): Promise<FifoTakenLot[]> {
   let remaining = quantity;
   const taken: FifoTakenLot[] = [];
+  const productName = typeof target === 'string' ? target : target.label;
 
   for (let pass = 0; pass < FIFO_MAX_PASSES && remaining > 0; pass++) {
-    const { data, error } = await db
+    let query = db
       .from('purchases')
-      .select('id, code, quantity, quantity_sold, quantity_reserved, coste_final, exchange_rate')
-      .eq('product_name', productName)
+      .select('id, code, quantity, quantity_sold, quantity_reserved, coste_final, exchange_rate');
+    query = typeof target === 'string' ? query.eq('product_name', target) : query.in('code', target.codes);
+    const { data, error } = await query
       .eq('status', 'received')
       .order('purchase_date', { ascending: true })
       .order('created_at', { ascending: true });
@@ -599,18 +843,27 @@ async function walkFifoLots(
   return taken;
 }
 
-async function releaseFifoLot(
+export async function releaseFifoLot(
   purchaseId: string,
   column: 'quantity_reserved' | 'quantity_sold',
   quantity: number,
 ): Promise<void> {
-  const { data } = await db.from('purchases').select(column).eq('id', purchaseId).maybeSingle();
-  if (!data) return; // best-effort: si esto falla queda para revisión manual
-  const current = (data as unknown as Record<string, number>)[column] ?? 0;
-  await db
-    .from('purchases')
-    .update({ [column]: Math.max(0, current - quantity) })
-    .eq('id', purchaseId);
+  // Compare-and-swap con reintentos: sin el `.eq(column, current)` dos
+  // liberaciones simultáneas se pisaban y una se perdía.
+  for (let pass = 0; pass < FIFO_MAX_PASSES; pass++) {
+    const { data } = await db.from('purchases').select(column).eq('id', purchaseId).maybeSingle();
+    if (!data) return; // best-effort: si esto falla queda para revisión manual
+    const current = (data as unknown as Record<string, number>)[column] ?? 0;
+    const { data: updated } = await db
+      .from('purchases')
+      .update({ [column]: Math.max(0, current - quantity) })
+      .eq('id', purchaseId)
+      .eq(column, current)
+      .select('id')
+      .maybeSingle();
+    if (updated) return;
+  }
+  console.error(`[inventory] No se pudo liberar ${quantity} de ${column} en el lote ${purchaseId}: revisar a mano.`);
 }
 
 // Reserva stock para las líneas de un pedido/cotización (quantity_reserved),
@@ -672,33 +925,44 @@ export async function consumeReservation(orderId: string): Promise<{ consumed: n
   const reservations = (data ?? []) as unknown as { id: string; purchase_id: string; quantity: number }[];
   if (!reservations.length) return { consumed: 0 };
 
-  const updatePromises = reservations.map(async (reservation) => {
-    const { data: purchase, error: purchaseError } = await db
-      .from('purchases')
-      .select('quantity_sold, quantity_reserved')
-      .eq('id', reservation.purchase_id)
-      .single();
-    if (purchaseError) throw purchaseError;
+  // En serie y con reintentos: antes, si el compare-and-swap no encontraba la
+  // fila (otro proceso tocó el lote en el medio) no había error, la reserva se
+  // marcaba consumida igual y esas unidades quedaban reservadas para siempre.
+  for (const reservation of reservations) {
+    let done = false;
+    for (let pass = 0; pass < FIFO_MAX_PASSES && !done; pass++) {
+      const { data: purchase, error: purchaseError } = await db
+        .from('purchases')
+        .select('quantity_sold, quantity_reserved')
+        .eq('id', reservation.purchase_id)
+        .single();
+      if (purchaseError) throw purchaseError;
 
-    const { error: updateError } = await db
-      .from('purchases')
-      .update({
-        quantity_sold: purchase.quantity_sold + reservation.quantity,
-        quantity_reserved: purchase.quantity_reserved - reservation.quantity,
-      })
-      .eq('id', reservation.purchase_id)
-      .eq('quantity_reserved', purchase.quantity_reserved); // compare-and-swap
-    if (updateError) throw updateError;
-  });
-
-  await Promise.all(updatePromises);
-
-  const reservationIds = reservations.map(r => r.id);
-  const { error: markError } = await db
-    .from('stock_reservations')
-    .update({ status: 'consumed' })
-    .in('id', reservationIds);
-  if (markError) throw markError;
+      const { data: updated, error: updateError } = await db
+        .from('purchases')
+        .update({
+          quantity_sold: purchase.quantity_sold + reservation.quantity,
+          quantity_reserved: purchase.quantity_reserved - reservation.quantity,
+        })
+        .eq('id', reservation.purchase_id)
+        .eq('quantity_reserved', purchase.quantity_reserved) // compare-and-swap
+        .eq('quantity_sold', purchase.quantity_sold)
+        .select('id')
+        .maybeSingle();
+      if (updateError) throw updateError;
+      done = !!updated;
+    }
+    if (!done) {
+      throw new BadRequestError('El stock del lote cambió mientras se aprobaba la venta. Intentá aprobarla de nuevo.');
+    }
+    // Se marca una por una: si la siguiente falla, un reintento solo procesa
+    // las que siguen activas y no vuelve a sumar a vendido las ya movidas.
+    const { error: markError } = await db
+      .from('stock_reservations')
+      .update({ status: 'consumed' })
+      .eq('id', reservation.id);
+    if (markError) throw markError;
+  }
 
   return { consumed: reservations.length };
 }
@@ -818,6 +1082,28 @@ export async function listAvailableLots(excludeProductId?: string): Promise<Avai
     }
   }
 
+  // Lotes vinculados por columna (0022): cuentan como vinculados aunque el
+  // editor de Catálogo no los tenga en su lista.
+  const linkedRows = await db.from('purchases').select('code, catalog_item_id').not('catalog_item_id', 'is', null);
+  if (!isMissingColumn(linkedRows.error)) {
+    if (linkedRows.error) throw linkedRows.error;
+    const names = new Map(
+      ((catalogResult.data ?? []) as { id: string; name: string }[]).map((item) => [item.id, item.name]),
+    );
+    const missing = (linkedRows.data ?? []).filter((r) => !names.has(r.catalog_item_id as string));
+    if (missing.length) {
+      const { data: extra } = await db
+        .from('catalog_items')
+        .select('id, name')
+        .in('id', [...new Set(missing.map((r) => r.catalog_item_id as string))]);
+      for (const item of (extra ?? []) as { id: string; name: string }[]) names.set(item.id, item.name);
+    }
+    for (const r of (linkedRows.data ?? []) as { code: string; catalog_item_id: string }[]) {
+      if (excludeProductId && r.catalog_item_id === excludeProductId) continue;
+      if (!codeToProduct.has(r.code)) codeToProduct.set(r.code, names.get(r.catalog_item_id) ?? 'Producto sin nombre');
+    }
+  }
+
   const rows = (purchasesResult.data ?? []) as unknown as {
     code: string;
     product_name: string;
@@ -865,4 +1151,318 @@ export async function getAvailableByCodes(codes: string[]): Promise<Map<string, 
     available.set(row.code, (available.get(row.code) ?? 0) + free);
   }
   return available;
+}
+
+// ============================================================================
+// ── Reservas de pedidos web ──
+// ============================================================================
+// Regla del negocio: el pedido web NO descuenta al crearse (se coordina por
+// WhatsApp). Cuando la tienda lo confirma (pasa a "preparing" o "shipped") se
+// apartan sus unidades para que la tienda no se las prometa a otro cliente; al
+// entregarse, cancelarse o volver a "new" se liberan. La venta formal se sigue
+// registrando en Ventas, que es la que descuenta el stock de verdad.
+//
+// Requiere la migración 0022 (stock_reservations.public_order_id). Sin ella no
+// hace nada.
+
+const RESERVING_STATUSES = new Set(['preparing', 'shipped']);
+
+export interface PublicOrderReservationResult {
+  reserved: number;
+  /** Unidades que no se pudieron apartar (sin stock o variante sin lotes). */
+  missing: { name: string; quantity: number }[];
+}
+
+// Requiere la 0023 (public_orders.sale_id). Sin ella ningún pedido figura
+// como convertido.
+export async function isPublicOrderConverted(publicOrderId: string): Promise<boolean> {
+  const { data, error } = await db.from('public_orders').select('sale_id').eq('id', publicOrderId).maybeSingle();
+  if (isMissingColumn(error)) return false;
+  if (error) throw error;
+  return !!(data as { sale_id?: string | null } | null)?.sale_id;
+}
+
+async function hasPublicReservationColumn(): Promise<boolean> {
+  const { error } = await db.from('stock_reservations').select('public_order_id').limit(1);
+  if (isMissingColumn(error)) return false;
+  if (error) throw error;
+  return true;
+}
+
+export async function releasePublicOrderReservations(publicOrderId: string): Promise<{ released: number }> {
+  if (!(await hasPublicReservationColumn())) return { released: 0 };
+  const { data, error } = await db
+    .from('stock_reservations')
+    .select('id, purchase_id, quantity')
+    .eq('public_order_id', publicOrderId)
+    .eq('status', 'active');
+  if (error) throw error;
+  const reservations = (data ?? []) as unknown as { id: string; purchase_id: string; quantity: number }[];
+  for (const r of reservations) {
+    await releaseFifoLot(r.purchase_id, 'quantity_reserved', r.quantity);
+    const { error: markError } = await db.from('stock_reservations').update({ status: 'released' }).eq('id', r.id);
+    if (markError) throw markError;
+  }
+  return { released: reservations.length };
+}
+
+export async function reservePublicOrder(publicOrderId: string): Promise<PublicOrderReservationResult> {
+  const result: PublicOrderReservationResult = { reserved: 0, missing: [] };
+  if (!(await hasPublicReservationColumn())) return result;
+
+  // Ya se convirtió en venta: su stock lo maneja la venta, no el pedido.
+  if (await isPublicOrderConverted(publicOrderId)) return result;
+
+  // Ya tiene reservas activas: no se aparta dos veces (preparing → shipped).
+  const { data: active, error: activeError } = await db
+    .from('stock_reservations')
+    .select('id')
+    .eq('public_order_id', publicOrderId)
+    .eq('status', 'active')
+    .limit(1);
+  if (activeError) throw activeError;
+  if (active?.length) return result;
+
+  type Line = { sku: string | null; quantity: number; variant_name?: string | null; product_name?: string | null };
+  const readLines = (columns: string) =>
+    db.from('public_order_items').select(columns).eq('public_order_id', publicOrderId);
+  let { data: lines, error } = await readLines('sku, quantity, variant_name, product_name');
+  // Sin 0019/0021 esas columnas no existen: sin variante solo se puede apartar
+  // en productos de una sola combinación ('').
+  if (isMissingColumn(error)) ({ data: lines, error } = await readLines('sku, quantity'));
+  if (error) throw error;
+
+  for (const line of (lines ?? []) as unknown as Line[]) {
+    // Los combos no tienen stock propio.
+    if (!line.sku || line.sku.startsWith('combo:')) continue;
+    const variantKey = line.variant_name ?? '';
+    const label = [line.product_name || 'Producto', variantKey].filter(Boolean).join(' · ');
+    const codes = await codesForVariant({ catalogItemId: line.sku, variantKey });
+    if (!codes.length) {
+      result.missing.push({ name: label, quantity: line.quantity });
+      continue;
+    }
+
+    const free = [...(await getAvailableByCodes(codes)).values()].reduce((a, b) => a + b, 0);
+    const want = Math.min(line.quantity, free);
+    if (want < line.quantity) result.missing.push({ name: label, quantity: line.quantity - want });
+    if (want <= 0) continue;
+
+    const taken = await walkFifoLots({ codes, label }, want, 'quantity_reserved');
+    for (const lot of taken) {
+      const { error: insertError } = await db.from('stock_reservations').insert({
+        public_order_id: publicOrderId,
+        purchase_id: lot.purchaseId,
+        code: lot.code,
+        quantity: lot.quantity,
+        unit_final_usd: lot.costeFinalUsd,
+        status: 'active',
+      });
+      if (insertError) {
+        await releaseFifoLot(lot.purchaseId, 'quantity_reserved', lot.quantity);
+        throw insertError;
+      }
+      result.reserved += lot.quantity;
+    }
+  }
+  return result;
+}
+
+/** Ajusta las reservas de un pedido web a su nuevo estado. */
+export async function syncPublicOrderReservation(
+  publicOrderId: string,
+  status: string,
+): Promise<PublicOrderReservationResult | { released: number }> {
+  return RESERVING_STATUSES.has(status)
+    ? reservePublicOrder(publicOrderId)
+    : releasePublicOrderReservations(publicOrderId);
+}
+
+// ============================================================================
+// ── Movimientos de stock (devoluciones, merma, ajustes) ──
+// ============================================================================
+// Todo cambio de stock que NO es una venta normal queda registrado en
+// `stock_movements` (migración 0023): devolución a bodega, merma y ajuste de
+// conteo. Antes un ajuste solo se podía hacer editando la cantidad del lote, y
+// no quedaba rastro de por qué cambió.
+
+export type StockMovementKind = 'return_to_stock' | 'write_off' | 'adjust_in' | 'adjust_out';
+
+export interface StockMovement {
+  id: string;
+  purchaseId: string | null;
+  code: string | null;
+  kind: StockMovementKind;
+  quantity: number;
+  unitCostCs: number | null;
+  reason: string;
+  orderId: string | null;
+  createdBy: string | null;
+  createdAt: string;
+}
+
+const MISSING_0023 = 'Falta aplicar la migración 0023 en Supabase para registrar movimientos de stock.';
+
+export async function hasStockMovementsTable(): Promise<boolean> {
+  const { error } = await db.from('stock_movements').select('id').limit(1);
+  if (!error) return true;
+  // 42P01 = tabla inexistente; PGRST205 = PostgREST no la tiene en caché.
+  const code = (error as { code?: string }).code;
+  if (code === '42P01' || code === 'PGRST205' || code === 'PGRST204') return false;
+  throw error;
+}
+
+export async function recordStockMovement(input: {
+  purchaseId: string;
+  kind: StockMovementKind;
+  quantity: number;
+  reason: string;
+  orderId?: string | null;
+  createdBy?: string | null;
+}): Promise<void> {
+  const { data: lot } = await db
+    .from('purchases')
+    .select('code, coste_final')
+    .eq('id', input.purchaseId)
+    .maybeSingle();
+  const { error } = await db.from('stock_movements').insert({
+    purchase_id: input.purchaseId,
+    code: (lot?.code as string | undefined) ?? null,
+    kind: input.kind,
+    quantity: input.quantity,
+    unit_cost_cs: (lot?.coste_final as number | null | undefined) ?? null,
+    reason: input.reason,
+    order_id: input.orderId ?? null,
+    created_by: input.createdBy ?? null,
+  });
+  if (error) throw error;
+}
+
+// Mueve unidades vendidas de un lote: `stock` las vuelve disponibles
+// (quantity_sold − n); `merma` las saca del lote (quantity − n y
+// quantity_sold − n), así no vuelven a venderse pero el lote cuadra.
+export async function returnSoldUnits(
+  purchaseId: string,
+  quantity: number,
+  destination: 'stock' | 'merma',
+): Promise<void> {
+  for (let pass = 0; pass < FIFO_MAX_PASSES; pass++) {
+    const { data, error } = await db
+      .from('purchases')
+      .select('quantity, quantity_sold')
+      .eq('id', purchaseId)
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) throw new BadRequestError('El lote de esa venta ya no existe.');
+    const lot = data as { quantity: number; quantity_sold: number };
+    if (lot.quantity_sold < quantity) {
+      throw new BadRequestError('El lote no tiene tantas unidades vendidas para devolver.');
+    }
+    const patch =
+      destination === 'stock'
+        ? { quantity_sold: lot.quantity_sold - quantity }
+        : { quantity: lot.quantity - quantity, quantity_sold: lot.quantity_sold - quantity };
+    const { data: updated, error: updateError } = await db
+      .from('purchases')
+      .update(patch)
+      .eq('id', purchaseId)
+      .eq('quantity', lot.quantity) // compare-and-swap
+      .eq('quantity_sold', lot.quantity_sold)
+      .select('id')
+      .maybeSingle();
+    if (updateError) throw updateError;
+    if (updated) return;
+  }
+  throw new BadRequestError('El stock del lote cambió mientras se procesaba la devolución. Intentá de nuevo.');
+}
+
+// Ajuste manual de conteo o merma sobre un lote recibido. Una salida no puede
+// dejar el lote por debajo de lo vendido + reservado.
+export async function adjustStock(
+  purchaseId: string,
+  input: { kind: 'adjust_in' | 'adjust_out' | 'write_off'; quantity: number; reason: string },
+  authorUid: string,
+): Promise<{ quantity: number; available: number }> {
+  if (!(await hasStockMovementsTable())) throw new BadRequestError(MISSING_0023);
+  if (!Number.isInteger(input.quantity) || input.quantity <= 0) {
+    throw new BadRequestError('La cantidad tiene que ser un entero mayor a 0.');
+  }
+  if (!input.reason.trim()) throw new BadRequestError('Escribí el motivo del ajuste.');
+
+  const delta = input.kind === 'adjust_in' ? input.quantity : -input.quantity;
+
+  for (let pass = 0; pass < FIFO_MAX_PASSES; pass++) {
+    const { data, error } = await db
+      .from('purchases')
+      .select('status, quantity, quantity_sold, quantity_reserved')
+      .eq('id', purchaseId)
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) throw new BadRequestError('El lote no existe.');
+    const lot = data as { status: string; quantity: number; quantity_sold: number; quantity_reserved: number };
+    if (lot.status !== 'received') throw new BadRequestError('Solo se ajusta stock de lotes ya recibidos.');
+
+    const next = lot.quantity + delta;
+    const free = lot.quantity - lot.quantity_sold - lot.quantity_reserved;
+    if (next < lot.quantity_sold + lot.quantity_reserved) {
+      throw new BadRequestError(`Solo hay ${free} unidad(es) libres en este lote para sacar.`);
+    }
+
+    const { data: updated, error: updateError } = await db
+      .from('purchases')
+      .update({ quantity: next })
+      .eq('id', purchaseId)
+      .eq('quantity', lot.quantity) // compare-and-swap
+      .eq('quantity_sold', lot.quantity_sold)
+      .eq('quantity_reserved', lot.quantity_reserved)
+      .select('id')
+      .maybeSingle();
+    if (updateError) throw updateError;
+    if (!updated) continue;
+
+    await recordStockMovement({
+      purchaseId,
+      kind: input.kind,
+      quantity: input.quantity,
+      reason: input.reason.trim(),
+      createdBy: authorUid,
+    });
+    return { quantity: next, available: next - lot.quantity_sold - lot.quantity_reserved };
+  }
+  throw new BadRequestError('El stock del lote cambió mientras se ajustaba. Intentá de nuevo.');
+}
+
+export async function listStockMovements(purchaseId?: string, limit = 200): Promise<StockMovement[]> {
+  if (!(await hasStockMovementsTable())) return [];
+  let query = db
+    .from('stock_movements')
+    .select('id, purchase_id, code, kind, quantity, unit_cost_cs, reason, order_id, created_by, created_at')
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  if (purchaseId) query = query.eq('purchase_id', purchaseId);
+  const { data, error } = await query;
+  if (error) throw error;
+  return ((data ?? []) as unknown as {
+    id: string;
+    purchase_id: string | null;
+    code: string | null;
+    kind: StockMovementKind;
+    quantity: number;
+    unit_cost_cs: number | null;
+    reason: string;
+    order_id: string | null;
+    created_by: string | null;
+    created_at: string;
+  }[]).map((r) => ({
+    id: r.id,
+    purchaseId: r.purchase_id,
+    code: r.code,
+    kind: r.kind,
+    quantity: r.quantity,
+    unitCostCs: r.unit_cost_cs == null ? null : Number(r.unit_cost_cs),
+    reason: r.reason,
+    orderId: r.order_id,
+    createdBy: r.created_by,
+    createdAt: r.created_at,
+  }));
 }

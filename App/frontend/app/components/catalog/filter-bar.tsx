@@ -38,7 +38,8 @@ import {
 import { cn } from '~/lib/utils';
 
 const SORTS: Array<{ value: CatalogSort; label: string }> = [
-  { value: 'relevant', label: 'Relevancia' },
+  // Sin un cálculo de relevancia real: el orden que define la tienda.
+  { value: 'relevant', label: 'Recomendados' },
   { value: 'price-asc', label: 'Precio: menor a mayor' },
   { value: 'price-desc', label: 'Precio: mayor a menor' },
 ];
@@ -52,7 +53,7 @@ export function FilterBar({ products, categories = [] }: { products: CatalogProd
   const onlyInStock = useAppSelector(selectOnlyInStock);
   const activeCount = useAppSelector(selectActiveFilterCount);
 
-  const { filtered } = useCatalogFilter(products, categories);
+  const { filtered, priceError } = useCatalogFilter(products, categories);
   const count = filtered.length;
 
   return (
@@ -76,35 +77,20 @@ export function FilterBar({ products, categories = [] }: { products: CatalogProd
 
       {/* Escritorio: los filtros a la vista, sin abrir nada. */}
       <div className="mr-auto hidden items-center gap-3 lg:flex">
-        <div role="group" aria-label="Rango de precio" className="flex items-center gap-2">
-          <span className="mr-1 text-sm font-semibold text-foreground">Precio</span>
-          <Input
-            type="number"
-            inputMode="numeric"
-            min={0}
-            value={priceMin ?? ''}
-            onChange={(e) =>
-              dispatch(priceMinSet(e.target.value.trim() === '' ? null : Number(e.target.value)))
-            }
-            placeholder="Mín"
-            aria-label="Precio mínimo"
-            className="catalog-filter-control w-24 tabular-nums"
-          />
-          <span className="text-muted-foreground" aria-hidden>
-            —
-          </span>
-          <Input
-            type="number"
-            inputMode="numeric"
-            min={0}
-            value={priceMax ?? ''}
-            onChange={(e) =>
-              dispatch(priceMaxSet(e.target.value.trim() === '' ? null : Number(e.target.value)))
-            }
-            placeholder="Máx"
-            aria-label="Precio máximo"
-            className="catalog-filter-control w-24 tabular-nums"
-          />
+        <div className="relative">
+          <div role="group" aria-label="Rango de precio" aria-describedby={priceError ? 'catalog-price-error' : undefined} className="flex items-center gap-2">
+            <span className="mr-1 text-sm font-semibold text-foreground">Precio</span>
+            <PriceInput label="Precio mínimo" placeholder="Mín" value={priceMin} invalid={Boolean(priceError)} onChange={(v) => dispatch(priceMinSet(v))} />
+            <span className="text-muted-foreground" aria-hidden>
+              —
+            </span>
+            <PriceInput label="Precio máximo" placeholder="Máx" value={priceMax} invalid={Boolean(priceError)} onChange={(v) => dispatch(priceMaxSet(v))} />
+          </div>
+          {priceError && (
+            <p id="catalog-price-error" role="alert" className="absolute top-full left-0 mt-1 text-xs font-medium whitespace-nowrap text-destructive">
+              {priceError}
+            </p>
+          )}
         </div>
 
         <FilterToggle
@@ -126,7 +112,8 @@ export function FilterBar({ products, categories = [] }: { products: CatalogProd
           {/* Ancho flexible en móvil: los órdenes largos se truncan dentro del
               control, sin empujar el botón Filtros fuera de la barra. */}
           <SelectTrigger className="catalog-filter-control w-full min-w-0 sm:w-56 lg:w-60" aria-label="Ordenar catálogo">
-            <SelectValue />
+            {/* Texto explícito: se ve desde el HTML del servidor, antes de hidratar. */}
+            <SelectValue>{SORTS.find((o) => o.value === sort)?.label}</SelectValue>
           </SelectTrigger>
           <SelectContent className="catalog-filter-sort-menu p-1" position="popper" align="end">
             {SORTS.map((option) => (
@@ -148,6 +135,45 @@ export function FilterBar({ products, categories = [] }: { products: CatalogProd
   );
 }
 
+/** Precio: vacío = sin tope (no es 0); negativos y texto no se aceptan. */
+export function PriceInput({
+  label,
+  placeholder,
+  value,
+  invalid,
+  onChange,
+  id,
+  className,
+}: {
+  label: string;
+  placeholder: string;
+  value: number | null;
+  invalid?: boolean;
+  onChange: (v: number | null) => void;
+  id?: string;
+  className?: string;
+}) {
+  return (
+    <Input
+      id={id}
+      type="number"
+      inputMode="numeric"
+      min={0}
+      step={1}
+      value={value ?? ''}
+      onChange={(e) => {
+        const raw = e.target.value.trim();
+        const n = Number(raw);
+        onChange(raw === '' || !Number.isFinite(n) ? null : Math.max(0, n));
+      }}
+      placeholder={placeholder}
+      aria-label={id ? undefined : label}
+      aria-invalid={invalid || undefined}
+      className={cn('catalog-filter-control w-24 tabular-nums', className)}
+    />
+  );
+}
+
 /** Filtro binario. El estado activo cambia fondo Y peso, no solo color (§8). */
 function FilterToggle({
   icon,
@@ -162,7 +188,7 @@ function FilterToggle({
 }) {
   return (
     <Button
-      variant={active ? 'default' : 'outline'}
+      variant="outline"
       onClick={onToggle}
       aria-pressed={active}
       className={cn('catalog-filter-control catalog-filter-toggle', active && 'font-semibold')}

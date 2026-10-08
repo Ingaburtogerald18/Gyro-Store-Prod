@@ -13,19 +13,27 @@
 // solo lo veía quien llegaba a la home — y la dirección, la garantía y el acceso
 // del personal son justo lo que se busca desde una ficha de producto.
 import type { ReactNode } from 'react';
+import { useSearchParams } from '@remix-run/react';
+import { LandingEditor } from '~/components/store/landing-editor';
+import { LandingPreviewBridge } from '~/components/store/landing-preview';
 
 import { CartDrawer } from '~/components/cart/cart-drawer';
 import { PublicFooter } from '~/components/layout/public-footer';
 import { StoreHeader } from '~/components/store/store-header';
 import { useAppSelector } from '~/store/hooks';
-import { selectEditMode } from '~/store/slices/authSlice';
+import { selectEditMode, selectIsAdmin } from '~/store/slices/authSlice';
 import { cn } from '~/lib/utils';
 
 export function StorefrontShell({ children }: { children: ReactNode }) {
   const editMode = useAppSelector(selectEditMode);
+  const isAdmin = useAppSelector(selectIsAdmin);
+  const [params] = useSearchParams();
+  const preview = params.get('landing-preview') === '1';
+  if (editMode && isAdmin && !preview) return <LandingEditor />;
 
   return (
     <div className={cn("flex min-h-dvh flex-col pb-[var(--consent-height,0px)] transition-all duration-300", editMode && "editing-mode")}>
+      {preview && <LandingPreviewBridge />}
       <StoreHeader />
       {/* flex-1 empuja el footer al fondo aunque la página sea corta. */}
       <div className="flex flex-1 flex-col">{children}</div>

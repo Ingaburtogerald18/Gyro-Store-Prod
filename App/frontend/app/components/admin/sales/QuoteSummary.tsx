@@ -166,7 +166,8 @@ function InvoiceTotalBreakdown({ invoice }: { invoice: Invoice }) {
 }
 
 /**
- * Avisos que bloquean el registro. Son lo único del desglose que es propio del
+ * Avisos del cotizador. El stock insuficiente bloquea; el margen mínimo no
+ * (la venta entra marcada para que el admin decida) y solo lo ve el admin. Son lo único del desglose que es propio del
  * cotizador: una venta ya registrada no tiene "stock insuficiente" que avisar,
  * porque la reserva ya se hizo.
  */
@@ -184,7 +185,7 @@ function QuoteWarnings({ line }: { line: QuoteLine }) {
       {line.belowMinMargin && (
         <p className="flex items-center gap-1.5 text-xs font-medium text-destructive">
           <HugeIcon icon={Alert02Icon} size={13} strokeWidth={2} className="shrink-0" aria-hidden />
-          El precio queda por debajo del margen mínimo.
+          Bajo el margen mínimo: la venta queda marcada para revisar al aprobar.
         </p>
       )}
     </>

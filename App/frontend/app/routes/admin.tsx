@@ -1,6 +1,6 @@
 import type { IconSvgElement } from "@hugeicons/react";
 import { HugeIcon } from "~/components/ui/icon";
-import { Analytics01Icon, Coupon01Icon, CreditCardIcon, DashboardSquare01Icon, File01Icon, Logout03Icon, Package01Icon, PackageIcon, Settings02Icon, ShoppingCart02Icon, Store01Icon, UserCircleIcon, UserMultiple02Icon, UserSettings01Icon } from "@hugeicons/core-free-icons";
+import { Analytics01Icon, Cancel01Icon, Coupon01Icon, CreditCardIcon, DashboardSquare01Icon, File01Icon, Logout03Icon, Package01Icon, PackageIcon, Settings02Icon, ShoppingBag01Icon, ShoppingCart02Icon, Store01Icon, UserCircleIcon, UserMultiple02Icon, UserSettings01Icon } from "@hugeicons/core-free-icons";
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from '@remix-run/react';
 import type { User } from '@supabase/supabase-js';
@@ -32,9 +32,10 @@ import {
   SidebarMenuItem,
   SidebarProvider,
   SidebarRail,
+  SidebarTrigger,
   useSidebar,
 } from '~/components/ui/sidebar';
-import { cn } from '~/lib/utils';
+import gyroBag from '~/assets/brand/gyro-bag.png';
 import { getSupabaseClient, signOut } from '~/lib/supabase.client';
 import { useAppSelector } from '~/store/hooks';
 import { selectIsAdmin, selectIsStaff, selectUser, selectUserPhoto } from '~/store/slices/authSlice';
@@ -65,6 +66,7 @@ const NAV_GROUPS: NavGroup[] = [
       // lectura, para copiar el número y registrar la venta en Ventas.
       { name: 'Mis Facturas', to: '/admin/mis-facturas', icon: File01Icon },
       { name: 'Ventas', to: '/admin/ventas', icon: ShoppingCart02Icon },
+      { name: 'Pedidos web', to: '/admin/pedidos-web', icon: ShoppingBag01Icon },
       { name: 'Cuotas', to: '/admin/cuotas', icon: CreditCardIcon },
     ],
   },
@@ -99,74 +101,36 @@ const NAV_GROUPS: NavGroup[] = [
 
 function AdminSidebar({ isAdmin, role, pathname }: { isAdmin: boolean; role: string | null; pathname: string }) {
   const { data: config } = useGetConfigQuery();
-  const reduceMotion = useReducedMotion();
-  const { setOpen } = useSidebar();
+  const { isMobile, setOpenMobile } = useSidebar();
 
-  // Expansión por hover: en escritorio el panel arranca colapsado (rail de
-  // iconos) y se despliega al acercar el mouse, colapsando al salir. El
-  // `SidebarTrigger` del header sigue funcionando para click/teclado (y en
-  // touch, donde no hay hover). Los handlers van sobre el contenedor del
-  // Sidebar, así que solo disparan al entrar al panel, no de paso.
+  // Navegación estable: se abre por botón y se cierra al elegir una ruta en móvil.
   return (
-    <Sidebar
-      collapsible="icon"
-      onMouseEnter={() => setOpen(true)}
-      onMouseLeave={() => setOpen(false)}
-    >
-      {/* La marca va DENTRO de SidebarContent, no en un SidebarHeader.
-          `SidebarHeader` es un hermano flex del contenido, así que quedaba
-          clavado arriba mientras el menú se centraba: logo y botones sin
-          relación visual. Metiéndola acá, marca + navegación son un solo bloque
-          y el `safe center` los centra juntos.
-
-          `safe center` y no `justify-center` a secas: con doce módulos + labels,
-          en una ventana baja el contenido es más alto que el sidebar. Con
-          centrado normal el desborde se reparte arriba y abajo y la parte de
-          arriba queda INALCANZABLE al scrollear. `safe` centra mientras entra y
-          cae a alineado-al-tope cuando no. */}
-      <SidebarContent className="[justify-content:safe_center]">
+    <Sidebar collapsible="icon">
+      <SidebarContent className="gap-3 pt-4 pb-6">
+        {isMobile && (
+          <div className="flex justify-end px-3">
+            <Button variant="outline" size="icon" className="size-11" aria-label="Cerrar menú de administración" onClick={() => setOpenMobile(false)}>
+              <HugeIcon icon={Cancel01Icon} size={18} strokeWidth={2} aria-hidden />
+            </Button>
+          </div>
+        )}
         <NavLink
           to="/admin"
-          className="flex shrink-0 flex-col items-center gap-1.5 rounded-lg px-2 py-3 transition-opacity hover:opacity-80 group-data-[collapsible=icon]:py-2"
+          aria-label={`Inicio del centro de administración de ${config?.brandName || getBrandName()}`}
+          onClick={() => setOpenMobile(false)}
+          className="admin-sidebar-brand flex shrink-0 flex-col items-center gap-2 rounded-xl px-3 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring group-data-[collapsible=icon]:px-2"
         >
-          {/* Con `prefers-reduced-motion` se usa el logo ESTÁTICO, no el video. */}
-          {(config?.images?.logoStatic || config?.images?.logoAnimated) ? (
-            (() => {
-              const isVideo = !reduceMotion &&
-                (config?.images?.logoAnimated?.match(/\.(webm|mp4|mov|m4v)($|\?)/i) ||
-                  config?.images?.logoAnimated?.includes('video'));
-              return isVideo ? (
-                <video
-                  src={config.images.logoAnimated}
-                  autoPlay loop muted playsInline
-                  preload="metadata"
-                  aria-hidden
-                  className="size-16 shrink-0 rounded-full object-contain transition-[width,height] duration-200 group-data-[collapsible=icon]:size-6"
-                />
-              ) : (
-                <img
-                  src={config?.images?.logoStatic || config?.images?.logoAnimated}
-                  alt={config?.brandName || getBrandName()}
-                  width={64}
-                  height={64}
-                  loading="lazy"
-                  decoding="async"
-                  className="size-16 shrink-0 object-contain transition-[width,height] duration-200 group-data-[collapsible=icon]:size-6"
-                />
-              );
-            })()
-          ) : (
-            <div className="flex size-16 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground shadow-sm transition-[width,height] duration-200 group-data-[collapsible=icon]:size-6">
-              <HugeIcon icon={Store01Icon} size={36} strokeWidth={2} />
-            </div>
-          )}
-
-          <div className="flex flex-col items-center text-center leading-tight group-data-[collapsible=icon]:hidden">
-            <span className="whitespace-nowrap text-sm font-bold tracking-tight">{config?.brandName || getBrandName()}</span>
-            <span className="whitespace-nowrap text-2xs font-medium uppercase tracking-wider text-muted-foreground">
-              Panel Admin
-            </span>
-          </div>
+          <img
+            src={config?.images?.logoStatic || gyroBag}
+            alt=""
+            height={40}
+            decoding="async"
+            className="h-10 w-auto max-w-[168px] object-contain group-data-[collapsible=icon]:hidden"
+          />
+          <img src={gyroBag} alt="" width={28} height={28} className="hidden size-7 object-contain group-data-[collapsible=icon]:block" />
+          <span className="text-xs font-medium text-muted-foreground group-data-[collapsible=icon]:hidden">
+            Centro de administración
+          </span>
         </NavLink>
 
         {NAV_GROUPS.map((group, groupIdx) => {
@@ -178,7 +142,7 @@ function AdminSidebar({ isAdmin, role, pathname }: { isAdmin: boolean; role: str
             if (item.name === 'Mis Facturas') return role === 'seller';
             // "Catálogo" lo ve el vendedor en modo LECTURA (ver admin.catalogo.tsx).
             // "CRM y clientes" también es de admin+seller (doc 10 §6).
-            return isAdmin ? true : ['Ventas', 'Personal', 'Catálogo', 'CRM y clientes'].includes(item.name);
+            return isAdmin ? true : ['Ventas', 'Pedidos web', 'Personal', 'Catálogo', 'CRM y clientes'].includes(item.name);
           });
           if (allowedItems.length === 0) return null;
 
@@ -186,7 +150,7 @@ function AdminSidebar({ isAdmin, role, pathname }: { isAdmin: boolean; role: str
             <SidebarGroup key={group.label} className="px-2 py-1">
               {/* `hidden` en rail: la etiqueta del grupo se recortaba a dos
                   letras ilegibles y dejaba un hueco entre bloques de iconos. */}
-              <SidebarGroupLabel className="text-2xs uppercase tracking-[0.08em] text-muted-foreground/70 group-data-[collapsible=icon]:hidden">
+              <SidebarGroupLabel className="text-xs font-medium text-muted-foreground group-data-[collapsible=icon]:hidden">
                 {group.label}
               </SidebarGroupLabel>
               {/* Línea separadora sutil entre grupos en modo colapsado (no en el primero) */}
@@ -199,29 +163,11 @@ function AdminSidebar({ isAdmin, role, pathname }: { isAdmin: boolean; role: str
 
                   return (
                     <SidebarMenuItem key={item.name} className="relative">
-                      {isActive && (
-                        <motion.div
-                          layoutId="sidebar-active-pill"
-                          className="absolute inset-0 rounded-lg bg-sidebar-accent"
-                          transition={reduceMotion ? { duration: 0 } : { type: "spring", bounce: 0.15, duration: 0.5 }}
-                        />
-                      )}
-                      {/* Dos overrides sobre `sidebarMenuButtonVariants`:
-                          · `[&_svg]:size-[18px]` pisa el `[&_svg]:size-4` que la
-                            primitiva fuerza sobre TODO svg — por eso el `size`
-                            del icono no se veía. 18 px queda proporcional a la
-                            etiqueta de 17 px y a los 16 px del resto de la app,
-                            sin dominar como los 20 px anteriores.
-                          · `size-10!` pisa el `size-8!` del estado colapsado, y
-                            centra el icono en el rail de 56 px. */}
                       <SidebarMenuButton
                         asChild
-                        isActive={false}
+                        isActive={isActive}
                         tooltip={item.name}
-                        className={cn(
-                          "[&_svg]:size-4 group-data-[collapsible=icon]:size-8!",
-                          isActive && "relative z-10 text-sidebar-accent-foreground font-medium hover:bg-transparent hover:text-sidebar-accent-foreground",
-                        )}
+                        className="admin-nav-link h-11 px-3 text-sm [&_svg]:size-[18px] md:h-10 group-data-[collapsible=icon]:size-8!"
                       >
                         {item.external ? (
                           <a href={item.to} target="_blank" rel="noopener noreferrer">
@@ -230,16 +176,16 @@ function AdminSidebar({ isAdmin, role, pathname }: { isAdmin: boolean; role: str
                               size={16}
                               strokeWidth={2}
                             />
-                            <span className="text-[13px]">{item.name}</span>
+                            <span className="text-sm">{item.name}</span>
                           </a>
                         ) : (
-                          <NavLink to={item.to} end={item.end} prefetch="intent">
+                          <NavLink to={item.to} end={item.end} prefetch="intent" onClick={() => setOpenMobile(false)}>
                             <HugeIcon
                               icon={item.icon}
                               size={16}
                               strokeWidth={2}
                             />
-                            <span className="text-[13px]">{item.name}</span>
+                            <span className="text-sm">{item.name}</span>
                           </NavLink>
                         )}
                       </SidebarMenuButton>
@@ -355,18 +301,24 @@ export default function AdminLayout() {
   }
 
   return (
-    // Arranca colapsado (rail de iconos): el panel es hover-based en escritorio
-    // (ver AdminSidebar) y se abre/cierra con el SidebarTrigger en touch.
-    <SidebarProvider data-skin="admin" defaultOpen={false}>
+    // Etiquetas visibles en escritorio; en móvil se abre desde el botón del encabezado.
+    <SidebarProvider data-skin="admin" defaultOpen={true}>
       <AdminSidebar isAdmin={isAdmin} role={role} pathname={location.pathname} />
 
       {/* La barra de progreso NO se monta acá: `root.tsx` ya tiene una para
           toda la app y dos instancias dibujarían dos barras. */}
       <SidebarInset className="relative min-w-0">
-        <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-2 border-b border-border bg-card/90 px-4 backdrop-blur-md">
+        <header className="admin-topbar sticky top-0 z-30 flex h-16 shrink-0 items-center gap-2 bg-card/95 px-3 backdrop-blur-md sm:px-6">
+          <SidebarTrigger className="size-11 shrink-0 rounded-xl border border-border bg-card text-primary-2" />
+          <div className="min-w-0 flex-1">
+            <p className="hidden text-xs text-muted-foreground sm:block">Centro de administración</p>
+            <p className="truncate font-heading text-sm font-semibold text-foreground">
+              {location.pathname === '/admin/mi-perfil' ? 'Mi perfil' : NAV_GROUPS.flatMap(group => group.items).find(item => item.end ? location.pathname === item.to : location.pathname.startsWith(item.to))?.name || 'Administración'}
+            </p>
+          </div>
 
 
-          <div className="ml-auto flex items-center gap-2">
+          <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
             <ThemeToggle />
             <NotificationsBell />
 
@@ -375,7 +327,7 @@ export default function AdminLayout() {
                 <DropdownMenuTrigger asChild>
                   <button
                     aria-label="Menú de usuario"
-                    className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="grid size-11 place-items-center rounded-full border border-border bg-secondary text-primary-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     <Avatar>
                       <AvatarImage src={profilePhoto ?? user.user_metadata?.avatar_url} alt="" />
@@ -429,7 +381,7 @@ export default function AdminLayout() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: reduceMotion ? 0 : 0.15, ease: 'easeOut' }}
-          className="mx-auto flex w-full min-w-0 max-w-[1600px] flex-1 flex-col px-4 py-6 lg:px-8 lg:py-8"
+          className="admin-page mx-auto flex w-full min-w-0 max-w-[1600px] flex-1 flex-col px-4 py-5 sm:py-6 lg:px-8 lg:py-8"
         >
           <Outlet />
         </motion.main>

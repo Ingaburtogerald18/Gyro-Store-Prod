@@ -7,13 +7,12 @@
 // piezas separadas leen el mismo filtro: la barra de herramientas (que muestra
 // el conteo), la grilla (que renderiza) y los chips de filtros activos. Con
 // estado local se desincronizaban.
-import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
+import { createSelector, createSlice, type PayloadAction } from '@reduxjs/toolkit';
 import { DEFAULT_THEME, type Theme } from '~/lib/theme';
+import type { CatalogFilters, CatalogSort } from '~/lib/catalogQuery';
 
 export type { Theme } from '~/lib/theme';
-
-/** Orden de la grilla del catálogo. */
-export type CatalogSort = 'relevant' | 'price-asc' | 'price-desc';
+export type { CatalogSort } from '~/lib/catalogQuery';
 
 // La apertura del carrito NO vive acá: es estado del propio carrito (cartSlice),
 // igual que en la v1, para que haya una sola fuente de verdad.
@@ -21,8 +20,10 @@ interface UiState {
   theme: Theme;
   mobileNavOpen: boolean;
   // ── Catálogo público ──
+  // Reflejo de la URL de la home (ver lib/catalogQuery y CatalogUrlSync): la
+  // URL es la fuente de verdad; estos campos la siguen en los dos sentidos.
   search: string;
-  /** id de categoría, o null = todas. */
+  /** slug de categoría, o null = todas. */
   activeCategory: string | null;
   priceMin: number | null;
   priceMax: number | null;
@@ -92,6 +93,17 @@ const uiSlice = createSlice({
       state.onlyOnSale = false;
       state.onlyInStock = false;
     },
+    /** Todos los filtros de una vez, leídos de la URL (un parámetro ausente = valor por defecto). */
+    catalogFiltersApplied(state, action: PayloadAction<CatalogFilters>) {
+      const f = action.payload;
+      state.search = f.search;
+      state.activeCategory = f.category;
+      state.priceMin = clampPrice(f.priceMin);
+      state.priceMax = clampPrice(f.priceMax);
+      state.sort = f.sort;
+      state.onlyOnSale = f.onlyOnSale;
+      state.onlyInStock = f.onlyInStock;
+    },
     /** "Limpiar todo" de los chips: deja el catálogo como recién cargado. */
     filtersClearedAll(state) {
       state.search = '';
@@ -140,6 +152,7 @@ export const {
   filterSheetSet,
   filtersReset,
   filtersClearedAll,
+  catalogFiltersApplied,
 } = uiSlice.actions;
 
 export const {
@@ -157,3 +170,21 @@ export const {
 } = uiSlice.selectors;
 
 export const uiReducer = uiSlice.reducer;
+
+type UiRoot = { ui: UiState };
+
+/** Los filtros del catálogo como un objeto estable (cambia solo si cambia algo). */
+export const selectCatalogFilters = createSelector(
+  [
+    (s: UiRoot) => s.ui.search,
+    (s: UiRoot) => s.ui.activeCategory,
+    (s: UiRoot) => s.ui.priceMin,
+    (s: UiRoot) => s.ui.priceMax,
+    (s: UiRoot) => s.ui.sort,
+    (s: UiRoot) => s.ui.onlyOnSale,
+    (s: UiRoot) => s.ui.onlyInStock,
+  ],
+  (search, category, priceMin, priceMax, sort, onlyOnSale, onlyInStock): CatalogFilters => ({
+    search, category, priceMin, priceMax, sort, onlyOnSale, onlyInStock,
+  }),
+);

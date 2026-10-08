@@ -21,8 +21,8 @@ test('los reducers mantienen cantidades y combos sin acceder al almacenamiento',
     state = cartReducer(state, addItem({ ...product, comboId: 'combo', quantity: 1 }));
     assert.equal(state.items.length, 2);
     assert.deepEqual(toOrderItems(state.items), [
-      { catalogItemId: 'product', quantity: 999, variantName: 'Negro' },
-      { comboId: 'combo', quantity: 1 },
+      { catalogItemId: 'product', quantity: 999, variantName: 'Negro', unitPrice: 100 },
+      { comboId: 'combo', quantity: 1, unitPrice: 100 },
     ]);
     state = cartReducer(state, setQuantity({ key: lineKey(product), quantity: 3 }));
     assert.equal(state.items[0]?.quantity, 3);

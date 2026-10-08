@@ -12,8 +12,10 @@
 // la barra de herramientas y esta grilla cuenten siempre lo mismo. Las
 // categorías se eligen desde el header (CategoryNav / CategoriesDrawer).
 import { useMemo } from 'react';
+import { useRevalidator } from '@remix-run/react';
 import { HugeIcon } from '~/components/ui/icon';
-import { PackageSearchIcon } from '@hugeicons/core-free-icons';
+import { PackageSearchIcon, WifiError01Icon } from '@hugeicons/core-free-icons';
+import { Button } from '~/components/ui/button';
 
 import type { CatalogProduct } from '@shared/schemas';
 import type { StoreCategory } from '~/store/api/sessionApi';
@@ -23,12 +25,14 @@ import { Skeleton } from '~/components/ui/skeleton';
 import { isDeal, useCatalogFilter } from '~/hooks/useCatalogFilter';
 import { useSearchTelemetry } from '~/hooks/useSearchTelemetry';
 
-import { useAppSelector } from '~/store/hooks';
+import { useAppDispatch, useAppSelector } from '~/store/hooks';
 import { selectEditMode } from '~/store/slices/authSlice';
+import { filtersClearedAll, searchSet, selectActiveCategory, selectSearch } from '~/store/slices/uiSlice';
+import { findCategory } from '~/lib/catalogQuery';
+import { categoryMode } from '@shared/schemas';
 import { selectDraftLandingConfig } from '~/store/slices/builderSlice';
 import { useStoreLanding } from '~/hooks/useStoreConfig';
 import { categoryHref } from '~/components/store/category-nav';
-import { InlineRailsEditor } from '~/components/store/inline-rails-editor';
 
 export { isDeal };
 
@@ -42,10 +46,19 @@ interface ProductGridProps {
   products: CatalogProduct[];
   categories?: StoreCategory[];
   isLoading?: boolean;
+  /** El API no respondió: no es un catálogo vacío. */
+  error?: boolean;
 }
 
-export function ProductGrid({ products, categories = [], isLoading }: ProductGridProps) {
-  const { filtered, isDefault } = useCatalogFilter(products, categories);
+/** Con pocos productos, una grilla compacta en vez de filas casi vacías. */
+const FEW_PRODUCTS = 8;
+
+export function ProductGrid({ products, categories = [], isLoading, error }: ProductGridProps) {
+  const dispatch = useAppDispatch();
+  const revalidator = useRevalidator();
+  const search = useAppSelector(selectSearch);
+  const activeCategory = useAppSelector(selectActiveCategory);
+  const { filtered, isDefault, unknownCategory } = useCatalogFilter(products, categories);
   useSearchTelemetry(filtered.length);
   // En la vista por defecto `filtered` es el catálogo completo ya ordenado: los
   // carriles salen de ahí para que el selector de orden también los ordene.
@@ -55,19 +68,24 @@ export function ProductGrid({ products, categories = [], isLoading }: ProductGri
   const draftLanding = useAppSelector(selectDraftLandingConfig);
   const realLanding = useStoreLanding();
 
-  // Determinar qué categorías usar para los carriles según el estado
-  const railCategoriesIds = useMemo(() => {
-    const configToUse = editMode ? draftLanding : realLanding;
-    return configToUse?.homeCategories || [];
-  }, [editMode, draftLanding, realLanding]);
+  // Categorías de los carriles según el modo de la portada (auto / elegidas /
+  // ocultas), compatible con configuraciones sin modo.
+  const landingToUse = editMode ? draftLanding : realLanding;
+  const railMode = categoryMode(landingToUse?.homeCategoriesMode, landingToUse?.homeCategories);
+  const railCategoriesIds = useMemo(
+    () => (railMode === 'custom' ? landingToUse?.homeCategories ?? [] : []),
+    [railMode, landingToUse?.homeCategories],
+  );
 
-  // Una fila por categoría CON productos, y las ofertas fuera.
-  // Ahora usamos el orden de railCategoriesIds si existe, si no, caemos a todas.
+  // Una fila por categoría CON productos. Las ofertas también siguen en su
+  // categoría: destacarlas arriba no las saca de su recorrido natural.
+  // Se usa el orden de railCategoriesIds si existe; si no, todas.
   const rows = useMemo(() => {
-    const rest = filtered.filter((p) => !isDeal(p));
+    const rest = filtered;
     let orderedCategories = categories;
 
-    if (railCategoriesIds.length > 0) {
+    if (railMode === 'hidden') return [];
+    if (railMode === 'custom') {
       orderedCategories = railCategoriesIds
         .map(id => categories.find(c => c.id === id))
         .filter((c): c is StoreCategory => Boolean(c));
@@ -76,31 +94,52 @@ export function ProductGrid({ products, categories = [], isLoading }: ProductGri
     return orderedCategories
       .map((c) => ({ category: c, items: rest.filter((p) => inCategory(p, c)) }))
       .filter((row) => row.items.length > 0);
-  }, [filtered, categories, railCategoriesIds]);
+  }, [filtered, categories, railCategoriesIds, railMode]);
 
   // Productos que no caen en ninguna categoría de la config
   const uncategorized = useMemo(() => {
-    if (categories.length === 0) return [];
-    return filtered.filter((p) => !isDeal(p) && !categories.some((c) => inCategory(p, c)));
-  }, [filtered, categories]);
+    if (categories.length === 0 || railMode !== 'auto') return [];
+    return filtered.filter((p) => !categories.some((c) => inCategory(p, c)));
+  }, [filtered, categories, railMode]);
 
   if (isLoading) return <GridSkeleton />;
 
-  // "No hay catálogo" y "tu filtro no encontró nada" son problemas distintos, y
-  // el usuario solo puede resolver el segundo.
+  // Cada vacío dice POR QUÉ está vacío y qué se puede hacer.
+  if (error) {
+    return (
+      <EmptyState
+        icon={WifiError01Icon}
+        title="No pudimos cargar el catálogo"
+        text="Puede ser un problema de conexión. Tu carrito sigue guardado."
+        action={
+          <Button onClick={() => revalidator.revalidate()} disabled={revalidator.state !== 'idle'} className="h-12 px-6">
+            {revalidator.state !== 'idle' ? 'Reintentando…' : 'Reintentar'}
+          </Button>
+        }
+      />
+    );
+  }
   if (products.length === 0) {
-    return <EmptyState text="Aún no hay productos publicados." />;
+    return <EmptyState title="Todavía no hay productos publicados" text="Volvé pronto o escribinos por WhatsApp." />;
   }
 
   if (isDefault) {
+    if (products.length <= FEW_PRODUCTS || railMode === 'hidden') {
+      return (
+        <section aria-labelledby="catalog-all" className="space-y-4 pb-2 md:pb-12">
+          <h2 id="catalog-all" className="font-heading text-2xl font-bold tracking-tight text-foreground md:text-3xl">
+            Catálogo
+          </h2>
+          <ProductResultsGrid products={filtered} />
+        </section>
+      );
+    }
     return (
       <div className="space-y-2 pb-2 md:space-y-6 md:pb-12">
-        {editMode && <InlineRailsEditor allCategories={categories} />}
-
         {deals.length > 0 && (
           <ProductCarousel
-            title="SuperOfertas"
-            subtitle="Precios rebajados por tiempo limitado"
+            title="Ofertas"
+            subtitle="Productos con precio rebajado."
             products={deals}
             variant="showcase"
           />
@@ -129,20 +168,44 @@ export function ProductGrid({ products, categories = [], isLoading }: ProductGri
     );
   }
 
+  const category = findCategory(categories, activeCategory);
+  const query = search.trim();
+  let empty: { title: string; text: string; action: React.ReactNode } | null = null;
+  if (filtered.length === 0) {
+    const clearAll = (
+      <Button onClick={() => dispatch(filtersClearedAll())} className="h-12 px-6">
+        Ver todo el catálogo
+      </Button>
+    );
+    if (unknownCategory) {
+      empty = { title: 'Esa categoría ya no está disponible', text: 'Puede que la hayan renombrado o quitado.', action: clearAll };
+    } else if (query) {
+      empty = {
+        title: `No encontramos «${query}»`,
+        text: 'Probá con menos palabras o revisá cómo está escrito.',
+        action: (
+          <Button variant="outline" onClick={() => dispatch(searchSet(''))} className="h-12 px-6">
+            Limpiar búsqueda
+          </Button>
+        ),
+      };
+    } else if (category && products.every((p) => !inCategory(p, category))) {
+      empty = { title: `Todavía no hay productos en ${category.name}`, text: 'Mirá el resto del catálogo mientras tanto.', action: clearAll };
+    } else {
+      empty = { title: 'Ningún producto coincide con los filtros', text: 'Probá quitar alguno.', action: clearAll };
+    }
+  }
+
   return (
     <div className="space-y-4 pb-2 md:pb-12">
       <h2 className="font-heading text-2xl font-bold tracking-tight text-foreground md:text-3xl">
-        Resultados{' '}
+        {category?.name ?? 'Resultados'}{' '}
         <span className="ml-1 text-sm font-medium text-muted-foreground tabular-nums">
           ({filtered.length})
         </span>
       </h2>
 
-      {filtered.length > 0 ? (
-        <ProductResultsGrid products={filtered} />
-      ) : (
-        <EmptyState text="Ningún producto coincide con lo que buscás. Probá quitar algún filtro." />
-      )}
+      {empty ? <EmptyState {...empty} /> : <ProductResultsGrid products={filtered} />}
     </div>
   );
 }
@@ -179,15 +242,25 @@ function GridSkeleton() {
   );
 }
 
-function EmptyState({ text }: { text: string }) {
+function EmptyState({
+  title,
+  text,
+  action,
+  icon = PackageSearchIcon,
+}: {
+  title: string;
+  text: string;
+  action?: React.ReactNode;
+  icon?: Parameters<typeof HugeIcon>[0]['icon'];
+}) {
   return (
-    <div className="flex flex-col items-center gap-4 rounded-card border bg-card py-20 text-center">
-      <span
-        className="relative grid h-16 w-16 place-items-center rounded-2xl bg-primary/8 text-primary-2 ring-1 ring-primary-2/15 ring-inset"
-        aria-hidden >
-        <HugeIcon icon={PackageSearchIcon} size={28} strokeWidth={2} className="relative" />
+    <div role="status" className="flex flex-col items-center gap-3 rounded-2xl border bg-card px-4 py-14 text-center">
+      <span className="grid size-14 place-items-center rounded-2xl bg-primary-2/10 text-primary-2" aria-hidden>
+        <HugeIcon icon={icon} size={26} strokeWidth={2} />
       </span>
-      <p className="max-w-xs text-sm text-balance text-muted-foreground">{text}</p>
+      <p className="font-heading text-lg font-bold text-balance text-foreground">{title}</p>
+      <p className="max-w-sm text-sm text-balance text-muted-foreground">{text}</p>
+      {action && <div className="mt-2">{action}</div>}
     </div>
   );
 }

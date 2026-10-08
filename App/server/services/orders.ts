@@ -1,10 +1,26 @@
+import { randomUUID } from 'node:crypto';
 import { db } from '../supabase';
 import { config } from '../config';
 import { round } from './finance';
-import { redeemDiscountCode, computeCodeDiscount, checkDiscountCode } from './discountCode';
+import { computeCodeDiscount, checkDiscountCode } from './discountCode';
 import { findOrCreateOrderContact } from './crm';
 import { ingestEvents } from './analytics';
-import type { PublicOrderInput } from '../../shared/schemas';
+import { collectMappedCodes, normalizeImages, toCatalogDetail } from './catalogPresenter';
+import { listPublishedCatalogByIds } from './catalog';
+import { getAvailableByCodes } from './inventory';
+import { resolveOrderLines, type ResolvedComboInfo } from './orderLines';
+import { isMissingColumn, persistOrder, restoreOrderAttempt, type OrderAttemptStore } from './orderPersistence';
+import { createAttemptRegistry, OrderAttemptConflict, orderRequestHash } from './orderIdempotency';
+import { NotFoundError } from '../utils/httpError';
+import { logger } from '../utils/logger';
+import {
+  PUBLIC_ORDER_STATUSES,
+  type CatalogDetail,
+  type OrderIssue,
+  type PublicOrderInput,
+  type PublicOrderStatus,
+  type TrackPublicOrderInput,
+} from '../../shared/schemas';
 
 /** Una línea ya resuelta contra la BD: o es un producto, o es un combo. */
 export interface CreatedPublicOrderItem {
@@ -25,10 +41,27 @@ export interface CreatedPublicOrder {
   whatsappUrl: string;
 }
 
+/**
+ * El carrito necesita revisión antes de crear el pedido (precio cambiado,
+ * variante agotada, etc.). Sale como 409 con la lista de problemas por línea:
+ * el cliente decide, nada se corrige en silencio.
+ */
+export class OrderReviewError extends Error {
+  status = 409;
+  constructor(public issues: OrderIssue[]) {
+    super('Algunos productos del carrito cambiaron. Revisalos antes de enviar el pedido.');
+  }
+}
+
 // `public_order_items.sku` es texto libre sin FK. Para una línea de combo se
 // guarda con este prefijo: deja la fila identificable y greppable sin necesitar
-// una columna nueva (misma convención que usa el carrito del cliente).
+// una columna nueva (misma convención que usa el carrito del cliente). Para un
+// producto sigue siendo el `catalog_items.id`: el panel y el seguimiento lo leen
+// así. La variante va en su propia columna (`variant_name`, migración 0019).
 const comboSku = (comboId: string) => `combo:${comboId}`;
+
+/** Link público de seguimiento. Va en el mensaje de WhatsApp para que quede en el chat del cliente. */
+const trackingUrl = (orderId: string) => `${config.appUrl.replace(/\/$/, '')}/pedido/${orderId}`;
 
 interface MessageLine {
   name: string;
@@ -39,11 +72,14 @@ interface MessageLine {
 
 // El mensaje se arma en el SERVIDOR a propósito: lleva el total recalculado
 // (autoritativo) y el número de la tienda sale de config, nunca del cliente.
+// Con el pedido ya registrado, el mensaje lo presenta como tal: el pago y el
+// envío se coordinan en el chat.
 function buildWhatsappMessage(
   input: PublicOrderInput,
   lines: MessageLine[],
   total: number,
   discount?: { code: string; amount: number } | null,
+  trackUrl?: string,
 ): string {
   const money = (n: number) => `${config.currency}${Number(n || 0).toLocaleString('es-NI')}`;
   const div = '━━━━━━━━━━━━━━━';
@@ -74,116 +110,119 @@ function buildWhatsappMessage(
   if (discount && discount.amount > 0) {
     msg += `🎟️ Código ${discount.code}:  -${money(discount.amount)}\n`;
   }
-  msg += `💰 *TOTAL:  ${money(total)}*\n`;
+  msg += `💰 *TOTAL PRODUCTOS:  ${money(total)}*\n`;
+  if (input.deliveryMethod === 'envio') msg += '🚚 Envío: por confirmar\n';
   msg += `${div}\n`;
-  msg += '_¡Gracias! Quedo atento(a) para coordinar el pago._ 🙌';
+  if (trackUrl) msg += `📦 Seguimiento: ${trackUrl}\n`;
+  msg += '_¡Gracias! Quedo atento(a) para coordinar el pago y la entrega._ 🙌';
 
   return `https://wa.me/${config.whatsapp.replace(/\D/g, '')}?text=${encodeURIComponent(msg)}`;
 }
 
-export async function createPublicOrder(input: PublicOrderInput): Promise<CreatedPublicOrder> {
+export class OrderCheckoutUnavailable extends Error {
+  status = 503;
+  constructor() {
+    super('El registro de pedidos no está disponible temporalmente. Tu carrito sigue guardado; intentá más tarde.');
+  }
+}
+
+type OrderDraft = { header: Record<string, unknown>; rows: Record<string, unknown>[]; response: CreatedPublicOrder };
+function orderDatabaseError(error: { code?: string; message?: string }): never {
+  if (['PGRST202', 'PGRST204', 'PGRST205', '42883', '42P01', '42703'].includes(error.code ?? '')) {
+    logger.error('[orders] Falta aplicar 0021_atomic_public_order_checkout.sql', { code: error.code });
+    throw new OrderCheckoutUnavailable();
+  }
+  if (error.code === 'PT409' || error.code === 'PT400') {
+    if (error.code === 'PT409' && error.message === 'Este intento corresponde a otro pedido.') {
+      throw new OrderAttemptConflict();
+    }
+    throw Object.assign(new Error(error.message || 'No se pudo registrar el pedido.'), { status: error.code === 'PT409' ? 409 : 400 });
+  }
+  throw error;
+}
+const orderStore: OrderAttemptStore<CreatedPublicOrder, OrderDraft> = {
+  async find(key) {
+    const { data, error } = await db.rpc('recover_public_order_attempt', { p_key: key });
+    if (error) orderDatabaseError(error);
+    return data as { requestHash: string; response: CreatedPublicOrder } | null;
+  },
+  async commit(key, hash, draft) {
+    const { data, error } = await db.rpc('register_public_order_attempt', {
+      p_key: key, p_request_hash: hash, p_header: draft.header, p_items: draft.rows, p_response: draft.response,
+    });
+    if (error) orderDatabaseError(error);
+    return data as { response: CreatedPublicOrder; replayed: boolean };
+  },
+};
+const attempts = createAttemptRegistry<CreatedPublicOrder>();
+
+export function createPublicOrder(input: PublicOrderInput): Promise<CreatedPublicOrder> {
+  const key = input.idempotencyKey ?? randomUUID();
+  const hash = orderRequestHash(input);
+  return attempts.run(key, hash, async () => {
+    // Recuperar ANTES de revalidar stock/cupón: el pedido ya registrado puede
+    // haber agotado el código o cambiado de disponibilidad desde el primer envío.
+    const stored = await restoreOrderAttempt(orderStore, key, hash);
+    return stored ?? createPublicOrderOnce(input, key, hash);
+  });
+}
+export function recoverPublicOrder(key: string): Promise<CreatedPublicOrder | null> {
+  return restoreOrderAttempt(orderStore, key);
+}
+
+async function loadDetails(ids: string[]): Promise<Map<string, CatalogDetail>> {
+  const rows = await listPublishedCatalogByIds(ids);
+  const stockByCode = await getAvailableByCodes(rows.flatMap(collectMappedCodes));
+  return new Map(rows.map((row) => [row.id, toCatalogDetail(row, stockByCode)]));
+}
+
+async function createPublicOrderOnce(input: PublicOrderInput, key: string, hash: string): Promise<CreatedPublicOrder> {
   // 1. Separar las dos clases de línea. El schema ya garantizó que cada ítem
   // trae exactamente uno de los dos ids, así que los filtros no se solapan.
-  const catalogIds = input.items
-    .map((item) => item.catalogItemId)
-    .filter((id): id is string => Boolean(id));
-  const comboIds = input.items
-    .map((item) => item.comboId)
-    .filter((id): id is string => Boolean(id));
+  const catalogIds = [...new Set(input.items.map((item) => item.catalogItemId).filter((id): id is string => Boolean(id)))];
+  const comboIds = [...new Set(input.items.map((item) => item.comboId).filter((id): id is string => Boolean(id)))];
 
-  // 2. Consultar catalog_items y combos EN PARALELO, filtrando por ids y
-  // exigiendo que estén publicados. De catalog_items se trae el nombre del
-  // template para nombrar cada línea en el mensaje de WhatsApp sin confiar en
-  // lo que mandó el cliente; de combos, su nombre y su precio de paquete.
-  //
-  // Un `.in('id', [])` traería la tabla entera en algunos backends, así que la
-  // consulta se omite cuando no hay ids de ese tipo.
-  const [catalogRes, comboRes] = await Promise.all([
-    catalogIds.length
-      ? db
-          .from('catalog_items')
-          .select('id, price, base_price, template:templates(name)')
-          .in('id', catalogIds)
-          .eq('published', true)
-      : Promise.resolve({ data: [], error: null } as const),
+  // 2. Productos con la MISMA presentación que la ficha (precio por variante,
+  // promoción y disponibilidad desde bodega) y combos publicados, en paralelo.
+  const [details, comboRes] = await Promise.all([
+    loadDetails(catalogIds),
     comboIds.length
-      ? db.from('combos').select('id, name, price').in('id', comboIds).eq('published', true)
+      ? db.from('combos').select('id, name, price, images').in('id', comboIds).eq('published', true)
       : Promise.resolve({ data: [], error: null } as const),
   ]);
+  if (comboRes.error) throw comboRes.error;
 
-  if (catalogRes.error) {
-    throw catalogRes.error;
-  }
-  if (comboRes.error) {
-    throw comboRes.error;
-  }
-
-  // 3. Armar los mapas de precio y nombre por tipo de línea.
-  const priceMap = new Map<string, number | null>();
-  const nameMap = new Map<string, string>();
-  for (const row of catalogRes.data ?? []) {
-    priceMap.set(row.id, row.price ?? row.base_price);
-    // El join llega como objeto o como array según la cardinalidad inferida.
-    const template = row.template as unknown as { name?: string | null } | { name?: string | null }[] | null;
-    const name = Array.isArray(template) ? template[0]?.name : template?.name;
-    nameMap.set(row.id, name ?? 'Producto');
-  }
-
-  const comboPriceMap = new Map<string, number | null>();
-  const comboNameMap = new Map<string, string>();
+  const combos = new Map<string, ResolvedComboInfo>();
   for (const row of comboRes.data ?? []) {
-    comboPriceMap.set(row.id, row.price);
-    comboNameMap.set(row.id, row.name ?? 'Combo');
+    combos.set(row.id, { id: row.id, name: row.name ?? 'Combo', price: row.price });
   }
 
-  const orderItems: CreatedPublicOrderItem[] = [];
-  // Nombre por línea para el mensaje: se resuelve acá, donde todavía se sabe si
-  // la línea era un producto o un combo.
-  const messageLines: MessageLine[] = [];
+  // 3. Resolver cada línea: variante exacta, precio autorizado y disponibilidad.
+  // Cualquier diferencia con lo que vio el cliente frena el pedido para revisar.
+  const { lines, issues } = resolveOrderLines(input.items, details, combos);
+  if (issues.length) throw new OrderReviewError(issues);
 
-  // 4 y 5. Resolver precio y nombre de cada línea contra la BD.
-  for (const item of input.items) {
-    const isCombo = Boolean(item.comboId);
-    const id = (isCombo ? item.comboId : item.catalogItemId) as string;
-    const price = isCombo ? comboPriceMap.get(id) : priceMap.get(id);
+  const orderItems: CreatedPublicOrderItem[] = lines.map((line) => ({
+    ...(line.comboId ? { comboId: line.comboId } : { catalogItemId: line.catalogItemId }),
+    quantity: line.quantity,
+    unitPrice: line.unitPrice,
+    ...(line.variantName ? { variantName: line.variantName } : {}),
+  }));
+  const messageLines: MessageLine[] = lines.map((line) => ({
+    name: line.name,
+    variantName: line.variantName,
+    quantity: line.quantity,
+    lineTotal: line.unitPrice * line.quantity,
+  }));
 
-    // Es crucial el == null en lugar de !price para no tratar un valor de 0 como
-    // error. Un combo despublicado o sin precio cae acá igual que un producto
-    // no disponible: desde afuera son el mismo 400.
-    if (price == null) {
-      const err = new Error(
-        isCombo
-          ? 'Uno o más combos del pedido ya no están disponibles.'
-          : 'Uno o más productos del pedido no están disponibles.',
-      ) as Error & { status?: number };
-      err.status = 400;
-      throw err;
-    }
-
-    orderItems.push({
-      ...(isCombo ? { comboId: id } : { catalogItemId: id }),
-      quantity: item.quantity,
-      unitPrice: price,
-      variantName: item.variantName,
-    });
-    messageLines.push({
-      name: (isCombo ? comboNameMap.get(id) : nameMap.get(id)) ?? (isCombo ? 'Combo' : 'Producto'),
-      // En una línea de combo `variantName` es la etiqueta "Combo", que no aporta
-      // nada al mensaje: el paquete ya se distingue por su nombre.
-      variantName: isCombo ? undefined : item.variantName,
-      quantity: item.quantity,
-      lineTotal: price * item.quantity,
-    });
-  }
-
-  // 6. Calcular el subtotal sumando unitPrice * quantity
+  // 4. Subtotal autoritativo.
   const subtotal = round(
     orderItems.reduce((acc, item) => acc + item.unitPrice * item.quantity, 0),
     2,
   );
 
-  // 6b. Validar (preview) el código de descuento (si vino).
-  // Solo leemos el código para calcular el descuento antes de crear la orden.
+  // 5. Preview del código (no consume uso). El canje real va al FINAL, cuando el
+  // pedido y sus líneas ya están guardados: un fallo previo no gasta el código.
   let discountCode: string | null = null;
   let codeDiscount = 0;
   if (input.discountCode) {
@@ -193,92 +232,287 @@ export async function createPublicOrder(input: PublicOrderInput): Promise<Create
   }
   const total = round(subtotal - codeDiscount, 2);
 
-  // 6c. Registrar/enlazar al COMPRADOR en el CRM (best-effort). Un pedido web es
-  // un lead gestionable: find-or-create por teléfono deja el contacto listo para
-  // seguimiento desde el panel. Si falla, devuelve null y el pedido igual se guarda.
+  // 6. Registrar/enlazar al COMPRADOR en el CRM (best-effort). Si falla,
+  // devuelve null y el pedido igual se guarda.
   const contactId = await findOrCreateOrderContact(input.phone, input.customerName);
 
-  // 7. Insertar en public_orders con los datos de entrega del comprador. La tabla
-  // ya tiene las columnas (0001), pero hasta ahora solo se guardaba phone/total:
-  // persistir el destino evita depender del mensaje de WhatsApp para despachar.
-  const { data: order, error: orderError } = await db
-    .from('public_orders')
-    .insert({
-      contact_id: contactId,
-      phone: input.phone,
-      customer_name: input.customerName,
-      delivery_method: input.deliveryMethod,
-      address: input.address ?? null,
-      location_url: input.locationUrl ?? null,
-      note: input.note ?? null,
-      total,
-      status: 'new',
-      discount_code: discountCode,
-      code_discount: codeDiscount,
-    })
-    .select('id, phone, total, status')
-    .single();
-
-  if (orderError) {
-    throw orderError;
-  }
-
-  // 7b. Canje real del código de descuento (ahora que tenemos referenceId).
-  // Si el canje falla (alguien más lo usó en este ms), borramos la orden y abortamos.
-  if (discountCode) {
-    try {
-      await redeemDiscountCode(discountCode, {
-        source: 'checkout',
-        referenceId: order.id,
-        referenceLabel: 'Pedido web',
-        method: null,
-        amount: codeDiscount,
-      });
-    } catch (err) {
-      await db.from('public_orders').delete().eq('id', order.id);
-      throw err;
-    }
-  }
-
-  // 8. Insertar en public_order_items
-  const { error: itemsError } = await db.from('public_order_items').insert(
-    orderItems.map((item) => ({
-      public_order_id: order.id,
-      // TODO(Claude): reemplazar por el SKU real de la variante elegida cuando el frontend soporte selección de variantes (doc 03 variant_mappings). Por ahora usamos el catalogItemId como identificador temporal.
-      sku: item.comboId ? comboSku(item.comboId) : item.catalogItemId,
-      quantity: item.quantity,
-      precio_unit: item.unitPrice,
-    }))
-  );
-
-  // 9. Si el insert falla: borrar el public_order recién creado para no dejarlo huérfano y relanzar el error
-  if (itemsError) {
-    await db.from('public_orders').delete().eq('id', order.id);
-    throw itemsError;
-  }
-
-  // 10. Telemetría de conversión (best-effort, no bloquea ni rompe el pedido):
-  // cierra el embudo vista→pedido. El `sessionId` lo manda el cliente para
-  // enlazar la sesión anónima con el pedido; `ingestEvents` traga cualquier error
-  // (p. ej. si la migración 0005 aún no se aplicó).
-  await ingestEvents([
-    {
-      type: 'order_created',
-      sessionId: input.sessionId,
-      path: '/checkout',
-      payload: { publicOrderId: order.id, total },
-    },
-  ]);
-
-  // 11. Devolver la orden construida + el link de WhatsApp ya formateado.
-  return {
-    ...order,
-    items: orderItems,
-    whatsappUrl: buildWhatsappMessage(
-      input,
-      messageLines,
-      total,
-      discountCode ? { code: discountCode, amount: codeDiscount } : null,
-    ),
+  // Una transacción registra pedido, variantes, nombres/fotos, cupón y respuesta.
+  // Un error revierte TODO; no hay fallback que pierda opciones ni pedidos parciales.
+  const id = randomUUID();
+  const response: CreatedPublicOrder = {
+    id, phone: input.phone, total, status: 'new', items: orderItems,
+    whatsappUrl: buildWhatsappMessage(input, messageLines, total,
+      discountCode ? { code: discountCode, amount: codeDiscount } : null, trackingUrl(id)),
   };
+  const result = await persistOrder(orderStore, key, hash, {
+    header: {
+      id, contact_id: contactId, phone: input.phone, customer_name: input.customerName,
+      delivery_method: input.deliveryMethod, address: input.address ?? null,
+      location_url: input.locationUrl ?? null, note: input.note ?? null,
+      total, discount_code: discountCode, code_discount: codeDiscount,
+    },
+    rows: lines.map(line => ({
+      sku: line.comboId ? comboSku(line.comboId) : line.catalogItemId,
+      quantity: line.quantity, precio_unit: line.unitPrice, variant_name: line.variantName ?? null,
+      product_name: line.name,
+      product_image: line.comboId
+        ? normalizeImages((comboRes.data ?? []).find(row => row.id === line.comboId)?.images)[0] ?? null
+        : details.get(line.catalogItemId as string)?.images[0] ?? null,
+    })),
+    response,
+  });
+  if (!result.replayed) {
+    await ingestEvents([{
+      type: 'order_created', sessionId: input.sessionId, path: '/checkout',
+      payload: { publicOrderId: result.response.id, total: result.response.total },
+    }]);
+  }
+  return result.response;
+}
+
+// ============================================================================
+// Seguimiento del pedido web (sin cuenta)
+// ============================================================================
+//
+// El id del pedido es un UUID aleatorio: quien tiene el link `/pedido/<id>` es
+// quien hizo el pedido (o a quien se lo pasó). Por eso la vista pública NO lleva
+// teléfono, dirección ni ubicación: solo lo que sirve para seguir el pedido.
+
+export interface PublicOrderLine {
+  name: string;
+  /** Combinación elegida; null en pedidos anteriores a la migración 0019. */
+  variantName: string | null;
+  image: string | null;
+  quantity: number;
+  unitPrice: number;
+}
+
+export interface PublicOrderTracking {
+  id: string;
+  status: PublicOrderStatus;
+  deliveryMethod: 'retiro' | 'envio' | null;
+  /** Solo el primer nombre: alcanza para saludar, no identifica a nadie. */
+  firstName: string | null;
+  total: number;
+  codeDiscount: number;
+  createdAt: string;
+  items: PublicOrderLine[];
+}
+
+export interface AdminPublicOrder {
+  id: string;
+  status: PublicOrderStatus;
+  customerName: string | null;
+  phone: string | null;
+  deliveryMethod: 'retiro' | 'envio' | null;
+  address: string | null;
+  locationUrl: string | null;
+  note: string | null;
+  total: number;
+  discountCode: string | null;
+  codeDiscount: number;
+  createdAt: string;
+  items: PublicOrderLine[];
+  /** Venta en que se convirtió (migración 0023). Null si todavía no. */
+  saleId: string | null;
+}
+
+const isKnownStatus = (s: unknown): s is PublicOrderStatus =>
+  PUBLIC_ORDER_STATUSES.includes(s as PublicOrderStatus);
+
+// Un valor viejo o desconocido en la base se lee como "recibido" en vez de romper.
+const toStatus = (s: unknown): PublicOrderStatus => (isKnownStatus(s) ? s : 'new');
+
+type ItemRow = {
+  public_order_id: string;
+  sku: string | null;
+  quantity: number;
+  precio_unit: number | null;
+  variant_name?: string | null;
+  product_name?: string | null;
+  product_image?: string | null;
+};
+
+/**
+ * Resuelve el nombre e imagen de cada línea. `public_order_items.sku` guarda el
+ * id del catalog_item o `combo:<id>` (ver `comboSku`), así que se consultan las
+ * dos tablas en paralelo, una sola vez para todos los pedidos.
+ */
+async function resolveLines(rows: ItemRow[]): Promise<Map<string, PublicOrderLine[]>> {
+  const catalogIds = new Set<string>();
+  const comboIds = new Set<string>();
+  for (const row of rows) {
+    if (!row.sku || row.product_name) continue;
+    if (row.sku.startsWith('combo:')) comboIds.add(row.sku.slice('combo:'.length));
+    else catalogIds.add(row.sku);
+  }
+
+  const [catalogRes, comboRes] = await Promise.all([
+    catalogIds.size
+      ? db.from('catalog_items').select('id, name, images, template:templates(name)').in('id', [...catalogIds])
+      : Promise.resolve({ data: [], error: null } as const),
+    comboIds.size
+      ? db.from('combos').select('id, name, images').in('id', [...comboIds])
+      : Promise.resolve({ data: [], error: null } as const),
+  ]);
+  if (catalogRes.error) throw catalogRes.error;
+  if (comboRes.error) throw comboRes.error;
+
+  const info = new Map<string, { name: string; image: string | null }>();
+  for (const row of catalogRes.data ?? []) {
+    const template = row.template as unknown as { name?: string | null } | { name?: string | null }[] | null;
+    const templateName = Array.isArray(template) ? template[0]?.name : template?.name;
+    info.set(row.id, {
+      name: row.name || templateName || 'Producto',
+      image: normalizeImages(row.images)[0] ?? null,
+    });
+  }
+  for (const row of comboRes.data ?? []) {
+    info.set(comboSku(row.id), { name: row.name || 'Combo', image: normalizeImages(row.images)[0] ?? null });
+  }
+
+  const byOrder = new Map<string, PublicOrderLine[]>();
+  for (const row of rows) {
+    const meta = row.sku ? info.get(row.sku) : undefined;
+    const lines = byOrder.get(row.public_order_id) ?? [];
+    lines.push({
+      // Un producto borrado después del pedido no rompe la vista.
+      name: row.product_name ?? meta?.name ?? 'Producto no disponible',
+      variantName: row.variant_name?.trim() || null,
+      image: row.product_name !== undefined && row.product_name !== null ? row.product_image ?? null : meta?.image ?? null,
+      quantity: row.quantity,
+      unitPrice: Number(row.precio_unit ?? 0),
+    });
+    byOrder.set(row.public_order_id, lines);
+  }
+  return byOrder;
+}
+
+async function linesFor(orderIds: string[]): Promise<Map<string, PublicOrderLine[]>> {
+  if (orderIds.length === 0) return new Map();
+  const read = (columns: string) =>
+    db.from('public_order_items').select(columns).in('public_order_id', orderIds).order('created_at', { ascending: true });
+  let { data, error } = await read('public_order_id, sku, quantity, precio_unit, variant_name, product_name, product_image');
+  if (isMissingColumn(error)) ({ data, error } = await read('public_order_id, sku, quantity, precio_unit, variant_name'));
+  // Sin la migración 0019 la columna no existe: se lee la forma anterior.
+  if (isMissingColumn(error)) ({ data, error } = await read('public_order_id, sku, quantity, precio_unit'));
+  if (error) throw error;
+  return resolveLines((data ?? []) as unknown as ItemRow[]);
+}
+
+/** Vista pública de un pedido por su id completo (el link de seguimiento). */
+export async function getPublicOrderTracking(id: string): Promise<PublicOrderTracking> {
+  const { data: order, error } = await db
+    .from('public_orders')
+    .select('id, status, delivery_method, customer_name, total, code_discount, created_at')
+    .eq('id', id)
+    .maybeSingle();
+  if (error) throw error;
+  if (!order) throw new NotFoundError('No encontramos ese pedido.');
+
+  const lines = await linesFor([order.id]);
+  return {
+    id: order.id,
+    status: toStatus(order.status),
+    deliveryMethod: order.delivery_method,
+    firstName: order.customer_name?.trim().split(/\s+/)[0] || null,
+    total: Number(order.total ?? 0),
+    codeDiscount: Number(order.code_discount ?? 0),
+    createdAt: order.created_at,
+    items: lines.get(order.id) ?? [],
+  };
+}
+
+/**
+ * Las formas en que el mismo número pudo quedar guardado: el checkout guarda el
+ * teléfono tal como lo escribió la persona (`85944758`, `+50585944758`…).
+ */
+function phoneVariants(phone: string): string[] {
+  const digits = phone.replace(/\D/g, '');
+  const local = digits.length === 11 && digits.startsWith('505') ? digits.slice(3) : digits;
+  const variants = new Set([phone, digits, `+${digits}`, local]);
+  if (local.length === 8) {
+    variants.add(`505${local}`);
+    variants.add(`+505${local}`);
+  }
+  return [...variants];
+}
+
+/**
+ * Rastreo sin link: número corto del pedido + teléfono. Devuelve el id completo
+ * para que el front navegue a `/pedido/<id>`. Mismo 404 si el número no existe o
+ * si el teléfono no coincide: no se revela cuál de los dos falló.
+ */
+export async function findPublicOrderByCode(input: TrackPublicOrderInput): Promise<{ id: string }> {
+  const { data, error } = await db
+    .from('public_orders')
+    .select('id')
+    .in('phone', phoneVariants(input.phone))
+    .order('created_at', { ascending: false })
+    .limit(200);
+  if (error) throw error;
+
+  const match = (data ?? []).find((row) => row.id.toLowerCase().startsWith(input.code));
+  if (!match) throw new NotFoundError('No encontramos un pedido con ese número y teléfono.');
+  return { id: match.id };
+}
+
+/** Lista para el panel: pedidos web más recientes primero, con sus líneas. */
+export async function listPublicOrders(limit = 300): Promise<AdminPublicOrder[]> {
+  const BASE =
+    'id, status, customer_name, phone, delivery_method, address, location_url, note, total, discount_code, code_discount, created_at';
+  const run = (columns: string) =>
+    db.from('public_orders').select(columns).order('created_at', { ascending: false }).limit(limit);
+  // `sale_id` llega con la 0023; sin ella se lista igual.
+  let { data, error } = await run(`${BASE}, sale_id`);
+  if (isMissingColumn(error)) ({ data, error } = await run(BASE));
+  if (error) throw error;
+
+  const orders = (data ?? []) as unknown as {
+    id: string;
+    status: string;
+    customer_name: string | null;
+    phone: string | null;
+    delivery_method: 'retiro' | 'envio' | null;
+    address: string | null;
+    location_url: string | null;
+    note: string | null;
+    total: number | null;
+    discount_code: string | null;
+    code_discount: number | null;
+    created_at: string;
+    sale_id?: string | null;
+  }[];
+  const lines = await linesFor(orders.map((o) => o.id));
+  return orders.map((o) => ({
+    id: o.id,
+    status: toStatus(o.status),
+    customerName: o.customer_name,
+    phone: o.phone,
+    deliveryMethod: o.delivery_method,
+    address: o.address,
+    locationUrl: o.location_url,
+    note: o.note,
+    total: Number(o.total ?? 0),
+    discountCode: o.discount_code,
+    codeDiscount: Number(o.code_discount ?? 0),
+    createdAt: o.created_at,
+    items: lines.get(o.id) ?? [],
+    saleId: o.sale_id ?? null,
+  }));
+}
+
+export async function updatePublicOrderStatus(
+  id: string,
+  status: PublicOrderStatus,
+): Promise<{ id: string; status: PublicOrderStatus }> {
+  const { data, error } = await db
+    .from('public_orders')
+    .update({ status })
+    .eq('id', id)
+    .select('id, status')
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) throw new NotFoundError('El pedido no existe.');
+  return { id: data.id, status: toStatus(data.status) };
 }

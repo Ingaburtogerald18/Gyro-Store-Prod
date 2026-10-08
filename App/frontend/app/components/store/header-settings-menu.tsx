@@ -1,68 +1,45 @@
+// Menú del header: pedidos, ayuda, apariencia y acceso del personal.
+//
+// Sobre el DropdownMenu de Radix: flechas, Escape, foco visible, cierre al
+// tocar afuera y RETORNO del foco al botón vienen resueltos (el menú anterior
+// era un div propio sin Escape ni manejo de foco).
+//
+// El botón no es un engranaje: para quien compra, «Menú» con sus opciones reales
+// se entiende mejor que una herramienta técnica.
 import { HugeIcon } from "~/components/ui/icon";
-import { CustomerSupportIcon, DashboardSquare01Icon, Edit02Icon, Logout03Icon, Moon02Icon, Settings02Icon, Sun01Icon, User02Icon } from "@hugeicons/core-free-icons";
-import { useState, useRef, useEffect } from "react";
+import {
+  CustomerSupportIcon,
+  DashboardSquare01Icon,
+  Edit02Icon,
+  Logout03Icon,
+  Menu01Icon,
+  Moon02Icon,
+  PackageIcon,
+  User02Icon,
+} from "@hugeicons/core-free-icons";
 import { Link, useLocation } from "@remix-run/react";
-import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "~/components/ui/dropdown-menu";
 import { useAppDispatch, useAppSelector } from "~/store/hooks";
 import { selectAuthStatus, selectIsAdmin, selectEditMode, selectUser, toggleEditMode } from "~/store/slices/authSlice";
 import { useTheme } from "~/hooks/useTheme";
 import { cn } from "~/lib/utils";
 import { signOut } from "~/lib/supabase.client";
 
-// Fila estándar del menú: alineada con el estilo DropdownMenuItem del preset Rhea
-const ROW =
-  "group flex w-full cursor-default select-none items-center gap-2 rounded-md px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground";
-
-// Contenedor del ícono dentro de una fila del menú (chip cuadrado pequeño).
-const CHIP =
-  "grid h-6 w-6 shrink-0 place-items-center rounded-md";
-
-/** Interruptor accesible (role="switch") para el tema. Unificado: se usa tanto en
- *  la vista de invitado como en la autenticada (antes había dos botones distintos). */
-function ThemeSwitch({ isDark, onToggle }: { isDark: boolean; onToggle: () => void }) {
-  return (
-    // <label> y no <div onClick>: toda la fila activa el switch, pero el único
-    // control interactivo (y el único que recibe teclado) es el <button>.
-    <label className={cn(ROW, "justify-between cursor-pointer")}>
-      <span className="flex items-center gap-2">
-        {isDark ? <HugeIcon icon={Moon02Icon} size={16} strokeWidth={2} className="text-muted-foreground" /> : <HugeIcon icon={Sun01Icon} size={16} strokeWidth={2} className="text-muted-foreground" />}
-        Apariencia
-      </span>
-      <button
-        type="button"
-        role="switch"
-        aria-checked={isDark}
-        aria-label={`Cambiar a tema ${isDark ? "claro" : "oscuro"}`}
-        onClick={onToggle}
-        className={cn(
-          "relative h-6 w-11 shrink-0 rounded-full border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-2",
-          isDark ? "border-primary-2 bg-primary" : "border-border bg-muted",
-        )}
-      >
-        <motion.span
-          aria-hidden
-          animate={{ x: isDark ? 20 : 0 }}
-          transition={{ type: "spring", stiffness: 500, damping: 32 }}
-          className="absolute left-0.5 top-0.5 grid h-5 w-5 place-items-center rounded-full bg-background shadow"
-        >
-          {isDark ? (
-            <HugeIcon icon={Moon02Icon} size={12} strokeWidth={2} className="text-primary-2" />
-          ) : (
-            <HugeIcon icon={Sun01Icon} size={12} strokeWidth={2} className="text-warning" />
-          )}
-        </motion.span>
-      </button>
-    </label>
-  );
-}
+// Filas cómodas (44px) y foco neutro: el amarillo queda para comprar.
+const ITEM = "min-h-11 gap-3 rounded-xl px-3 text-sm focus:bg-muted focus:text-foreground not-data-[variant=destructive]:focus:**:text-foreground";
 
 export function HeaderSettingsMenu() {
-  const [isOpen, setIsOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
   const { theme, toggleTheme } = useTheme();
-  
   const dispatch = useAppDispatch();
   const status = useAppSelector(selectAuthStatus);
   const isAdmin = useAppSelector(selectIsAdmin);
@@ -70,155 +47,104 @@ export function HeaderSettingsMenu() {
   const user = useAppSelector(selectUser);
   const location = useLocation();
 
-  const isHome = location.pathname === "/";
+  const isHome = location.pathname === "/" && !new URLSearchParams(location.search).has("landing-preview");
   const isAuthed = status === "authenticated";
   const isDark = theme === "dark";
   const loginTo = `/login?redirectTo=${encodeURIComponent(location.pathname + location.search)}`;
 
-  // Nombre corto y etiqueta del rol para el encabezado del menú autenticado.
   const firstName = user?.name?.split(" ")[0] || user?.email?.split("@")[0] || "Staff";
   const initial = firstName.charAt(0).toUpperCase();
-  const roleLabel = user?.role ? user.role.toUpperCase() : "Sesión iniciada";
 
   async function handleLogout() {
-    setIsOpen(false);
     await signOut();
     toast.success("Sesión cerrada.");
   }
 
-  // Cierra el menú al hacer clic afuera.
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    }
-    if (isOpen) document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [isOpen]);
-
   return (
-    <div className="relative" ref={menuRef}>
-      {/* Un solo círculo esmeralda; conserva la inicial o el icono de ajustes. */}
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="store-account-button relative grid h-10 w-10 place-items-center rounded-full border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:h-11 sm:w-11"
-        aria-label="Menú de cuenta y configuración"
-        aria-expanded={isOpen}
-        aria-haspopup="menu"
+    <DropdownMenu modal={false}>
+      <DropdownMenuTrigger
+        className="store-account-button relative grid size-11 place-items-center rounded-full border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        aria-label={isAuthed ? `Menú de ${firstName}` : "Menú: pedidos, ayuda y apariencia"}
       >
         {isAuthed ? (
-          <span className="text-sm font-bold">
-            {initial}
-          </span>
+          <span className="text-sm font-bold" aria-hidden>{initial}</span>
         ) : (
-          <HugeIcon icon={Settings02Icon} size={20} strokeWidth={2} />
+          <HugeIcon icon={Menu01Icon} size={20} strokeWidth={2} />
         )}
-      </button>
+      </DropdownMenuTrigger>
 
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 10 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 10 }}
-            transition={{ duration: 0.15, ease: "easeOut" }}
-            role="menu"
-            className="absolute right-0 top-full z-50 mt-2 w-72 max-w-[calc(100vw-1rem)] origin-top-right overflow-hidden rounded-2xl border bg-card shadow-xl backdrop-blur-xl"
-          >
-            <div className="flex flex-col p-2">
-              {/* ── VISTA INVITADO ── */}
-              {!isAuthed && (
-                <>
-                  {/* Antes había "Rastrear mi pedido" y "Ayuda y FAQs" que solo
-                      mostraban "Próximamente": un menú lleno de callejones sin
-                      salida. Queda lo que funciona hoy. */}
-                  <Link
-                    to="/contacto"
-                    onClick={() => setIsOpen(false)}
-                    className={cn(ROW, "text-muted-foreground hover:bg-muted hover:text-foreground")}
-                    role="menuitem"
-                  >
-                    <span className={cn(CHIP, "bg-muted text-muted-foreground group-hover:text-foreground")}>
-                      <HugeIcon icon={CustomerSupportIcon} size={16} strokeWidth={2} />
-                    </span>
-                    Ayuda y contacto
-                  </Link>
-
-                  <ThemeSwitch isDark={isDark} onToggle={toggleTheme} />
-
-                  <div className="my-1 h-px bg-border" />
-
-                  <Link
-                    to={loginTo}
-                    onClick={() => setIsOpen(false)}
-                    className={ROW}
-                    role="menuitem"
-                  >
-                    <HugeIcon icon={User02Icon} size={16} strokeWidth={2} className="text-muted-foreground" />
-                    Acceso del personal
-                  </Link>
-                </>
-              )}
-
-              {/* ── VISTA ADMINISTRADOR / COLABORADOR ── */}
-              {isAuthed && (
-                <>
-                  <div className="mb-2 flex items-center gap-3 rounded-md px-2 py-2">
-                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-muted text-sm font-semibold">
-                      {initial}
-                    </span>
-                    <span className="min-w-0 flex flex-col">
-                      <span className="block truncate text-sm font-medium text-foreground">
-                        {firstName}
-                      </span>
-                      <span className="block truncate text-xs text-muted-foreground">{roleLabel}</span>
-                    </span>
-                  </div>
-                  <div className="-mx-1 my-1 h-px bg-border" />
-
-                  <Link
-                    to="/admin"
-                    onClick={() => setIsOpen(false)}
-                    className={ROW}
-                    role="menuitem"
-                  >
-                    <HugeIcon icon={DashboardSquare01Icon} size={16} strokeWidth={2} className="text-muted-foreground" />
-                    Centro de Administración
-                  </Link>
-
-                  {isAdmin && isHome && (
-                    <button
-                      onClick={() => {
-                        dispatch(toggleEditMode());
-                        setIsOpen(false);
-                      }}
-                      className={ROW}
-                      role="menuitem"
-                    >
-                      <HugeIcon icon={Edit02Icon} size={16} strokeWidth={2} className="text-muted-foreground" />
-                      Modo Edición {editMode && <span className="ml-auto text-xs font-medium text-primary-2">Activo</span>}
-                    </button>
-                  )}
-
-                  <ThemeSwitch isDark={isDark} onToggle={toggleTheme} />
-
-                  <div className="-mx-1 my-1 h-px bg-border" />
-
-                  <button
-                    onClick={handleLogout}
-                    className={cn(ROW, "text-destructive hover:bg-destructive/10 hover:text-destructive")}
-                    role="menuitem"
-                  >
-                    <HugeIcon icon={Logout03Icon} size={16} strokeWidth={2} />
-                    Cerrar Sesión
-                  </button>
-                </>
-              )}
-            </div>
-          </motion.div>
+      <DropdownMenuContent align="end" sideOffset={8} className="w-72 max-w-[calc(100vw-1rem)] rounded-2xl border bg-card p-2 shadow-xl">
+        {isAuthed && (
+          <>
+            <DropdownMenuLabel className="flex items-center gap-3 px-3 py-2">
+              <span className="grid size-9 shrink-0 place-items-center rounded-full bg-muted text-sm font-semibold" aria-hidden>
+                {initial}
+              </span>
+              <span className="flex min-w-0 flex-col">
+                <span className="truncate text-sm font-medium text-foreground">{firstName}</span>
+                <span className="truncate text-xs font-normal text-muted-foreground">{user?.role ?? "Sesión iniciada"}</span>
+              </span>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+          </>
         )}
-      </AnimatePresence>
-    </div>
+
+        <DropdownMenuItem asChild className={ITEM}>
+          <Link to="/mis-pedidos">
+            <HugeIcon icon={PackageIcon} size={18} strokeWidth={2} className="text-muted-foreground" />
+            Mis pedidos
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild className={ITEM}>
+          <Link to="/contacto">
+            <HugeIcon icon={CustomerSupportIcon} size={18} strokeWidth={2} className="text-muted-foreground" />
+            Ayuda y contacto
+          </Link>
+        </DropdownMenuItem>
+
+        {/* Casilla de menú: el estado (activado o no) lo anuncia el lector de
+            pantalla y el ícono coincide siempre con la apariencia aplicada. */}
+        <DropdownMenuCheckboxItem
+          checked={isDark}
+          onCheckedChange={() => toggleTheme()}
+          onSelect={(event) => event.preventDefault()}
+          className={cn(ITEM, "pr-10 pl-3")}
+        >
+          <HugeIcon icon={Moon02Icon} size={18} strokeWidth={2} className="text-muted-foreground" />
+          Tema oscuro
+        </DropdownMenuCheckboxItem>
+
+        <DropdownMenuSeparator />
+
+        {isAuthed ? (
+          <>
+            <DropdownMenuItem asChild className={ITEM}>
+              <Link to="/admin">
+                <HugeIcon icon={DashboardSquare01Icon} size={18} strokeWidth={2} className="text-muted-foreground" />
+                Centro de Administración
+              </Link>
+            </DropdownMenuItem>
+            {isAdmin && isHome && (
+              <DropdownMenuItem className={ITEM} onSelect={() => dispatch(toggleEditMode())}>
+                <HugeIcon icon={Edit02Icon} size={18} strokeWidth={2} className="text-muted-foreground" />
+                Editar portada
+                {editMode && <span className="ml-auto text-xs font-medium text-primary-2">Activo</span>}
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuItem variant="destructive" className={ITEM} onSelect={() => void handleLogout()}>
+              <HugeIcon icon={Logout03Icon} size={18} strokeWidth={2} />
+              Cerrar sesión
+            </DropdownMenuItem>
+          </>
+        ) : (
+          <DropdownMenuItem asChild className={ITEM}>
+            <Link to={loginTo}>
+              <HugeIcon icon={User02Icon} size={18} strokeWidth={2} className="text-muted-foreground" />
+              Acceso del personal
+            </Link>
+          </DropdownMenuItem>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

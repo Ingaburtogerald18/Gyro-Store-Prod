@@ -1,19 +1,24 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
-import type { LandingConfig } from '@shared/schemas';
+import type { CategoryMode, LandingConfig } from '@shared/schemas';
 
 interface BuilderState {
   // Estado borrador de la configuración actual, solo activo durante el Modo Edición.
   draftLandingConfig: LandingConfig | null;
+  activeHeroSlideId: string | null;
 }
 
 const initialState: BuilderState = {
   draftLandingConfig: null,
+  activeHeroSlideId: null,
 };
 
 const builderSlice = createSlice({
   name: 'builder',
   initialState,
   reducers: {
+    selectHeroSlide(state, action: PayloadAction<string | null>) {
+      state.activeHeroSlideId = action.payload;
+    },
     // Inicia una sesión de edición con la configuración actual
     initBuilderSession(state, action: PayloadAction<LandingConfig>) {
       state.draftLandingConfig = action.payload;
@@ -24,6 +29,12 @@ const builderSlice = createSlice({
         state.draftLandingConfig.headerCategories = action.payload;
       }
     },
+    // Modo de cada zona de categorías (automático / elegidas / oculta).
+    setCategoryMode(state, action: PayloadAction<{ zone: 'header' | 'home'; mode: CategoryMode }>) {
+      if (!state.draftLandingConfig) return;
+      if (action.payload.zone === 'header') state.draftLandingConfig.headerCategoriesMode = action.payload.mode;
+      else state.draftLandingConfig.homeCategoriesMode = action.payload.mode;
+    },
     // Actualiza el orden de los carriles (homeCategories)
     updateHomeCategories(state, action: PayloadAction<string[]>) {
       if (state.draftLandingConfig) {
@@ -33,6 +44,7 @@ const builderSlice = createSlice({
     // Descarta los cambios
     clearBuilderSession(state) {
       state.draftLandingConfig = null;
+      state.activeHeroSlideId = null;
     },
     // Actualiza las diapositivas del hero
     updateHeroSlides(state, action: PayloadAction<import('@shared/schemas').HeroSlide[]>) {
@@ -48,6 +60,7 @@ const builderSlice = createSlice({
     },
   },
   selectors: {
+    selectActiveHeroSlideId: (state) => state.activeHeroSlideId,
     selectDraftLandingConfig: (state) => state.draftLandingConfig,
     selectDraftHeaderCategories: (state) => state.draftLandingConfig?.headerCategories || [],
     selectDraftHomeCategories: (state) => state.draftLandingConfig?.homeCategories || [],
@@ -55,15 +68,18 @@ const builderSlice = createSlice({
 });
 
 export const { 
+  selectHeroSlide,
   initBuilderSession, 
   updateHeaderCategories, 
   updateHomeCategories, 
+  setCategoryMode,
   clearBuilderSession,
   updateHeroSlides,
   updateCartContent,
 } = builderSlice.actions;
 
 export const {
+  selectActiveHeroSlideId,
   selectDraftLandingConfig,
   selectDraftHeaderCategories,
   selectDraftHomeCategories,

@@ -1,86 +1,28 @@
 // Selector de opciones de variante (color, conector, etc.). Una fila por eje.
+// Lo usan la ficha y el selector rápido: las reglas viven en `lib/purchase.ts`.
 //
-// Consciente del STOCK REAL: `catalogDetailSchema.variants` trae cada
-// combinación con su stock, así que una opción que no lleva a ninguna
-// combinación disponible se muestra agotada y no se puede elegir. Antes el
-// selector aceptaba cualquier combinación y el "Agregar" fallaba después.
-//
-// Al elegir una opción se REPARAN los otros ejes: si la selección previa deja
-// la nueva combinación sin stock, los demás ejes saltan a un valor que sí exista
-// — así no hay callejones sin salida.
-import type { CatalogAxis, CatalogVariant } from '@shared/schemas';
+// Todas las opciones se pueden elegir — también una agotada o sin stock
+// verificable — para que la persona vea su estado y pueda consultarla por
+// WhatsApp. Nada se cambia solo: si la combinación elegida no se puede comprar,
+// el estado lo explica y «Cambiar selección» limpia los ejes.
+import type { Availability, CatalogAxis, CatalogVariant } from '@shared/schemas';
 import { Button } from '~/components/ui/button';
-import { Label } from '~/components/ui/label';
 import { isLightSwatch, swatchVar } from '~/lib/productColors';
+import {
+  AVAILABILITY_LABEL,
+  optionAvailability,
+  pickableAxes,
+  type VariantSelection,
+} from '~/lib/purchase';
 import { cn } from '~/lib/utils';
 
-export type VariantSelection = Record<string, string>;
-
-/** Nombre legible de la combinación elegida, en el orden de los ejes. */
-export function variantLabel(axes: CatalogAxis[], selection: VariantSelection): string {
-  const parts = axes.map((a) => selection[a.key]).filter(Boolean);
-  return parts.length ? parts.join(' / ') : 'Estándar';
-}
-
-/** Los ejes que de verdad ofrecen algo que elegir. */
-export function pickableAxes(axes: CatalogAxis[]): CatalogAxis[] {
-  return axes.filter((a) => a.options.length > 0);
-}
-
-// `variants[].axisValues` viene alineado posicionalmente con `axes`.
-const valueAt = (variant: CatalogVariant, index: number) => variant.axisValues[index] ?? null;
-
-/**
- * Resuelve la combinación exacta que corresponde a la selección.
- * Devuelve `null` si todavía faltan ejes por elegir o si no existe tal variante.
- */
-export function resolveVariant(
-  axes: CatalogAxis[],
-  variants: CatalogVariant[],
-  selection: VariantSelection,
-): CatalogVariant | null {
-  const pickable = pickableAxes(axes);
-  if (pickable.some((a) => !selection[a.key])) return null;
-  return (
-    variants.find((v) => axes.every((a, i) => !selection[a.key] || valueAt(v, i) === selection[a.key])) ??
-    null
-  );
-}
-
-/**
- * Selección inicial: los ejes que tienen UNA sola opción con stock se eligen
- * solos. Sin datos de variantes no se puede saber, así que no se elige nada.
- */
-export function autoSelection(axes: CatalogAxis[], variants: CatalogVariant[]): VariantSelection {
-  const selection: VariantSelection = {};
-  if (variants.length === 0) return selection;
-  axes.forEach((axis, i) => {
-    if (axis.options.length === 0) return;
-    const available = axis.options.filter((o) => variants.some((v) => valueAt(v, i) === o && v.stock > 0));
-    if (available.length === 1) selection[axis.key] = available[0];
-  });
-  return selection;
-}
-
-/** ¿Existe alguna combinación CON stock que use `value` en el eje `axisIndex`? */
-function isAvailable(
-  axes: CatalogAxis[],
-  variants: CatalogVariant[],
-  selection: VariantSelection,
-  axisIndex: number,
-  value: string,
-): boolean {
-  return variants.some((v) => {
-    if (valueAt(v, axisIndex) !== value || v.stock <= 0) return false;
-    // El resto de los ejes ya elegidos tiene que coincidir; el propio eje se
-    // ignora porque es el que se está evaluando.
-    return axes.every((a, i) => {
-      if (i === axisIndex) return true;
-      const chosen = selection[a.key];
-      return !chosen || valueAt(v, i) === chosen;
-    });
-  });
-}
+export {
+  autoSelection,
+  pickableAxes,
+  resolveVariant,
+  variantLabel,
+  type VariantSelection,
+} from '~/lib/purchase';
 
 export function VariantPicker({
   axes,
@@ -88,96 +30,65 @@ export function VariantPicker({
   selection,
   onChange,
   missingKey,
+  layout = 'stacked',
+  idPrefix = 'variant',
 }: {
   axes: CatalogAxis[];
-  /** Combinaciones con stock. Vacío = sin datos, todas las opciones habilitadas. */
   variants?: CatalogVariant[];
   selection: VariantSelection;
   onChange: (next: VariantSelection) => void;
-  /** Eje que falta elegir al intentar agregar: se marca en rojo. */
+  /** Eje que falta elegir al intentar agregar: se marca y se explica. */
   missingKey?: string;
+  /** Filas con rótulo al lado en la ficha de escritorio; apiladas en móvil. */
+  layout?: 'stacked' | 'rows';
+  /** Prefijo de ids (ficha y selector rápido pueden convivir en la página). */
+  idPrefix?: string;
 }) {
   const pickable = pickableAxes(axes);
   if (pickable.length === 0) return null;
 
   const sorted = [...pickable].sort((a, b) => (a.isColor === b.isColor ? 0 : a.isColor ? -1 : 1));
 
-  // Sin `variants` no se puede saber de stock; deshabilitar todo dejaría el
-  // producto incomprable, así que se degrada a "todo disponible".
-  const stockKnown = variants.length > 0;
-
-  function pick(axis: CatalogAxis, axisIndex: number, option: string) {
-    const next: VariantSelection = { ...selection, [axis.key]: option };
-    if (!stockKnown) {
-      onChange(next);
-      return;
-    }
-    // Reparación: cualquier otro eje que quede sin stock salta a un valor válido.
-    axes.forEach((other, i) => {
-      if (i === axisIndex) return;
-      const chosen = next[other.key];
-      if (!chosen || isAvailable(axes, variants, next, i, chosen)) return;
-      const fallback = other.options.find((o) => isAvailable(axes, variants, next, i, o));
-      if (fallback) next[other.key] = fallback;
-    });
-    onChange(next);
-  }
-
   return (
-    <div className="space-y-4 md:grid md:grid-cols-2 md:gap-6 md:space-y-0">
+    <div className={layout === 'rows' ? 'space-y-4' : 'space-y-4'}>
       {sorted.map((axis) => {
         const axisIndex = axes.indexOf(axis);
         const chosen = selection[axis.key];
+        const labelId = `${idPrefix}-${axisIndex}-label`;
+        const errorId = `${idPrefix}-${axisIndex}-error`;
+        const missing = missingKey === axis.key;
 
         return (
-          <div key={axis.key} className="space-y-2">
-            <Label
-              className={cn(
-                "text-xs font-medium tracking-[0.08em] text-muted-foreground uppercase",
-                missingKey === axis.key && "text-destructive",
-              )}
-            >
+          <div
+            key={axis.key}
+            role="group"
+            aria-labelledby={labelId}
+            aria-describedby={missing ? errorId : undefined}
+            className={cn('space-y-2', layout === 'rows' && 'lg:grid lg:grid-cols-[6.5rem_minmax(0,1fr)] lg:items-start lg:gap-3 lg:space-y-0')}
+          >
+            <p id={labelId} className={cn('text-sm font-medium text-foreground', layout === 'rows' && 'lg:pt-3')}>
               {axis.label || axis.key}
-              {chosen && <span className="ml-2 normal-case text-foreground">{chosen}</span>}
-              {missingKey === axis.key && (
-                <span className="ml-2 normal-case tracking-normal">Elegí una opción</span>
+              {chosen && <span className={cn('ml-2 font-normal text-muted-foreground', layout === 'rows' && 'lg:ml-0 lg:block')}>{chosen}</span>}
+            </p>
+
+            <div className="space-y-1.5">
+              <div className="flex flex-wrap gap-2">
+                {axis.options.map((option) => {
+                  const state = optionAvailability(axes, variants, selection, axisIndex, option);
+                  const active = chosen === option;
+                  const select = () => onChange({ ...selection, [axis.key]: option });
+                  return axis.isColor && swatchVar(option) ? (
+                    <ColorSwatch key={option} option={option} active={active} state={state} onSelect={select} />
+                  ) : (
+                    <OptionChip key={option} option={option} active={active} state={state} onSelect={select} />
+                  );
+                })}
+              </div>
+              {missing && (
+                <p id={errorId} className="text-sm font-medium text-destructive">
+                  Elegí {(axis.label || axis.key).toLowerCase()} para continuar.
+                </p>
               )}
-            </Label>
-
-            <div className="flex flex-wrap gap-2">
-              {axis.options.map((option) => {
-                const enabled = !stockKnown || isAvailable(axes, variants, selection, axisIndex, option);
-                const active = chosen === option;
-
-                return axis.isColor ? (
-                  <ColorSwatch
-                    key={option}
-                    option={option}
-                    active={active}
-                    enabled={enabled}
-                    onSelect={() => pick(axis, axisIndex, option)}
-                  />
-                ) : (
-                  <Button
-                    key={option}
-                    type="button"
-                    // Activa = pill lleno (variant default), como la pestaña activa
-                    // de Tabs (DESIGN.md). Antes era outline con `text-primary-2` sobre
-                    // `bg-primary/10`, que en oscuro no se distinguía de las demás.
-                    variant={active ? 'default' : 'outline'}
-                    aria-pressed={active}
-                    disabled={!enabled && !active}
-                    onClick={() => pick(axis, axisIndex, option)}
-                    className={cn(
-                      'h-11 rounded-pill',
-                      active ? 'font-semibold' : 'text-muted-foreground',
-                      !enabled && !active && 'line-through opacity-40 border-dashed',
-                    )}
-                  >
-                    {option}
-                  </Button>
-                );
-              })}
             </div>
           </div>
         );
@@ -186,74 +97,82 @@ export function VariantPicker({
   );
 }
 
-/** Círculo con el color aproximado + su nombre debajo (el color nunca va solo). */
-function ColorSwatch({
+/** Sufijo accesible de una opción no comprable: el estado nunca va solo en color. */
+function stateSuffix(state: Availability) {
+  return state === 'available' ? '' : ` — ${AVAILABILITY_LABEL[state].toLowerCase()}`;
+}
+
+function OptionChip({
   option,
   active,
-  enabled,
+  state,
   onSelect,
 }: {
   option: string;
   active: boolean;
-  enabled: boolean;
+  state: Availability;
+  onSelect: () => void;
+}) {
+  const unavailable = state !== 'available';
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      aria-pressed={active}
+      aria-label={`${option}${stateSuffix(state)}`}
+      onClick={onSelect}
+      className={cn(
+        'h-11 rounded-xl px-4',
+        active ? 'font-semibold' : 'text-foreground',
+        unavailable && !active && 'border-dashed text-muted-foreground',
+      )}
+    >
+      <span className={cn(state === 'sold_out' && !active && 'line-through decoration-1')}>{option}</span>
+    </Button>
+  );
+}
+
+/** Círculo con el color aproximado + su nombre debajo (el color nunca va solo). */
+function ColorSwatch({
+  option,
+  active,
+  state,
+  onSelect,
+}: {
+  option: string;
+  active: boolean;
+  state: Availability;
   onSelect: () => void;
 }) {
   const swatch = swatchVar(option);
-
-  // Color desconocido: chip de texto en vez de un círculo gris que mentiría
-  // sobre cómo se ve el producto.
-  if (!swatch) {
-    return (
-      <Button
-        type="button"
-        variant={active ? 'default' : 'outline'}
-        size="sm"
-        aria-pressed={active}
-        disabled={!enabled && !active}
-        onClick={onSelect}
-        className={cn(
-          'h-11 rounded-pill',
-          active ? 'font-semibold' : 'text-muted-foreground',
-          !enabled && !active && 'line-through',
-        )}
-      >
-        {option}
-      </Button>
-    );
-  }
-
+  const unavailable = state !== 'available';
   return (
     <button
       type="button"
-      onClick={onSelect}
-      disabled={!enabled && !active}
       aria-pressed={active}
-      title={enabled ? option : `${option} — agotado`}
+      onClick={onSelect}
+      aria-label={`${option}${stateSuffix(state)}`}
       // min-h-11: el círculo mide 40px pero el objetivo táctil llega a 44px.
-      className="group flex min-h-11 flex-col items-center gap-1 disabled:cursor-not-allowed"
+      className="group flex min-h-11 min-w-11 flex-col items-center gap-1 rounded-xl p-0.5 outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       <span
+        aria-hidden
         className={cn(
-          'relative grid size-10 place-items-center rounded-full border transition-all',
+          'relative grid size-10 place-items-center rounded-full border transition-shadow motion-reduce:transition-none',
           active
             ? 'border-transparent ring-2 ring-primary-2 ring-offset-2 ring-offset-background'
-            : 'border-border group-hover:border-primary-2/40',
+            : 'border-border group-hover:border-primary-2/60 dark:border-foreground/35',
           isLightSwatch(option) && !active && 'border-foreground/25',
-          !enabled && !active && 'opacity-40',
+          unavailable && !active && 'opacity-50',
         )}
-        style={{ backgroundColor: swatch }}
+        style={{ backgroundColor: swatch ?? undefined }}
       >
-        {/* Agotado: barra diagonal sobre la muestra — señal de forma, no de color. */}
-        {!enabled && !active && (
-          <span aria-hidden className="absolute h-px w-[150%] -rotate-45 bg-foreground/70" />
+        {/* Agotado: barra diagonal — señal de forma, no de color. */}
+        {state === 'sold_out' && (
+          <span className="absolute h-px w-[150%] -rotate-45 bg-foreground/70" />
         )}
       </span>
-      <span
-        className={cn(
-          'max-w-20 truncate text-xs',
-          active ? 'font-medium text-foreground' : 'text-muted-foreground',
-        )}
-      >
+      <span className={cn('max-w-20 truncate text-xs', active ? 'font-semibold text-foreground' : 'text-muted-foreground')}>
         {option}
       </span>
     </button>

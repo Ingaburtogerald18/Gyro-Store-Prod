@@ -6,6 +6,7 @@
 // Ojo: el ErrorBoundary de root.tsx se renderiza FUERA del <Provider> de Redux,
 // así que este componente no puede usar hooks del store ni RTK Query.
 import { isRouteErrorResponse, Link, useRouteError } from '@remix-run/react';
+import { useEffect } from 'react';
 import { Alert02Icon, Home01Icon, RefreshIcon } from '@hugeicons/core-free-icons';
 
 import { Button } from '~/components/ui/button';
@@ -39,6 +40,11 @@ export function RouteError({
 }) {
   const error = useRouteError();
   const { title, text, canRetry } = describe(error);
+  const developmentError = import.meta.env.DEV && error instanceof Error ? error.message : null;
+
+  useEffect(() => {
+    if (import.meta.env.DEV) console.error('[RouteError]', error);
+  }, [error]);
 
   return (
     <main
@@ -61,6 +67,12 @@ export function RouteError({
       )}
       <h1 className="text-2xl font-bold tracking-tight text-foreground">{title}</h1>
       <p className="text-sm text-balance text-muted-foreground">{text}</p>
+      {developmentError && (
+        <details className="w-full rounded-lg border p-3 text-left text-sm">
+          <summary className="cursor-pointer">Detalle del error (desarrollo)</summary>
+          <pre className="mt-2 whitespace-pre-wrap break-words">{developmentError}</pre>
+        </details>
+      )}
       <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
         <Button asChild>
           <Link to={homeHref}>

@@ -6,6 +6,9 @@ import { useId, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 
 import { cn } from '~/lib/utils';
+import { Button } from '~/components/ui/button';
+import { HugeIcon } from '~/components/ui/icon';
+import { ArrowDown01Icon } from '@hugeicons/core-free-icons';
 
 interface SpecRow {
   label: string;
@@ -78,7 +81,7 @@ export function ProductDetailTabs({
               tabIndex={selected ? 0 : -1}
               onClick={() => setActive(tab.id)}
               className={cn(
-                'relative px-4 py-2.5 text-sm font-medium transition-colors',
+                'relative min-h-11 px-4 py-2.5 text-sm font-medium transition-colors',
                 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-2',
                 selected ? 'text-foreground' : 'text-muted-foreground hover:text-foreground',
               )}
@@ -119,16 +122,41 @@ function Details({ description }: { description: string }) {
 }
 
 function Specs({ specs }: { specs: SpecRow[] }) {
+  const [expanded, setExpanded] = useState(false);
+  const listId = useId();
+  const hasMore = specs.length > 3;
+
   return (
-    // Grilla con hairlines: el gap de 1px sobre el borde dibuja las líneas,
-    // sin bordes por celda.
-    <dl className="font-spec grid grid-cols-1 gap-px overflow-hidden rounded-xl bg-border sm:grid-cols-2">
-      {specs.map((spec) => (
-        <div key={spec.label} className="bg-card px-4 py-3 sm:[&:last-child:nth-child(odd)]:col-span-2">
-          <dt className="text-xs text-muted-foreground lowercase first-letter:uppercase">{spec.label}</dt>
-          <dd className="mt-0.5 text-sm font-medium text-foreground">{spec.value}</dd>
-        </div>
-      ))}
-    </dl>
+    <div>
+      <dl id={listId} className="grid grid-cols-1 gap-x-10 lg:grid-cols-2">
+        {specs.map((spec, index) => {
+          // El texto largo conserva el ancho completo en móvil. Las medidas y
+          // valores cortos caben junto al rótulo sin alargar cada fila.
+          const longText = spec.value.length > 50 || spec.label.length > 28;
+          return (
+            <div key={spec.label} className={cn(
+              'grid min-w-0 grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] gap-x-4 gap-y-1 border-b border-border py-3 sm:gap-5 sm:py-4',
+              hasMore && index >= 3 && !expanded && 'hidden sm:grid',
+            )}>
+              <dt className={cn('text-sm leading-relaxed text-muted-foreground', longText && 'col-span-2 sm:col-span-1')}>{spec.label}</dt>
+              <dd className={cn('min-w-0 text-sm leading-relaxed font-medium break-words text-foreground sm:text-base', longText && 'col-span-2 sm:col-span-1')}>{spec.value}</dd>
+            </div>
+          );
+        })}
+      </dl>
+      {hasMore && (
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={() => setExpanded((value) => !value)}
+          aria-expanded={expanded}
+          aria-controls={listId}
+          className="mt-2 min-h-11 w-full justify-between text-primary-2 sm:hidden"
+        >
+          {expanded ? 'Mostrar menos' : `Ver las ${specs.length} especificaciones`}
+          <HugeIcon icon={ArrowDown01Icon} size={18} aria-hidden className={cn('transition-transform motion-reduce:transition-none', expanded && 'rotate-180')} />
+        </Button>
+      )}
+    </div>
   );
 }

@@ -1,47 +1,35 @@
-// Disponibilidad de la variante elegida, en texto.
+// Disponibilidad de la variante elegida, en texto y SIN cantidades: el cliente
+// ve «Disponible», «Agotado» o «Consultar disponibilidad», nunca «Quedan 3».
 //
 // El punto de color acompaña, no informa: el estado siempre está ESCRITO
-// ("Agotado" / "Últimas 3 unidades"). Diferenciar solo por color deja afuera a
-// quien no lo distingue (DESIGN.md §8).
+// (DESIGN.md §8).
+import type { Availability } from '@shared/schemas';
+import { AVAILABILITY_LABEL } from '~/lib/purchase';
 import { cn } from '~/lib/utils';
 
-export type StockTone = 'out' | 'low' | 'ok';
-
-/** Umbral bajo el cual conviene empujar: "quedan pocas". */
-const LOW_STOCK_THRESHOLD = 5;
-
-export function stockTone(stock: number): StockTone {
-  if (stock <= 0) return 'out';
-  return stock <= LOW_STOCK_THRESHOLD ? 'low' : 'ok';
-}
-
-export function stockLabel(stock: number): string {
-  if (stock <= 0) return 'Agotado';
-  if (stock <= LOW_STOCK_THRESHOLD) {
-    return stock === 1 ? 'Última unidad' : `Últimas ${stock} unidades`;
-  }
-  return `${stock} unidades disponibles`;
-}
-
-const DOT: Record<StockTone, string> = {
-  out: 'bg-destructive',
-  low: 'bg-warning',
-  ok: 'bg-success',
+const DOT: Record<Availability, string> = {
+  available: 'bg-success',
+  sold_out: 'bg-destructive',
+  unknown: 'bg-warning',
 };
 
-const TEXT: Record<StockTone, string> = {
-  out: 'text-destructive',
-  low: 'text-warning',
-  ok: 'text-muted-foreground',
+const TEXT: Record<Availability, string> = {
+  available: 'text-success',
+  sold_out: 'text-destructive',
+  unknown: 'text-foreground',
 };
 
-export function StockIndicator({ stock, className }: { stock: number; className?: string }) {
-  const tone = stockTone(stock);
-
+export function StockIndicator({
+  availability,
+  className,
+}: {
+  availability: Availability;
+  className?: string;
+}) {
   return (
-    <p className={cn('font-spec inline-flex items-center gap-2 text-sm font-medium', TEXT[tone], className)}>
-      <span aria-hidden className={cn('size-1.5 shrink-0 rounded-full', DOT[tone])} />
-      {stockLabel(stock)}
+    <p className={cn('inline-flex items-center gap-2 text-sm font-medium', TEXT[availability], className)}>
+      <span aria-hidden className={cn('size-2 shrink-0 rounded-full', DOT[availability])} />
+      {AVAILABILITY_LABEL[availability]}
     </p>
   );
 }

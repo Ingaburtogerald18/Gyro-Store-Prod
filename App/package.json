@@ -13,7 +13,8 @@
     "spo:status": "tsx scripts/spo-drain.ts --status",
     "spo:drain": "tsx scripts/spo-drain.ts",
     "spo:pdf": "tsx scripts/spo-comprobante.ts",
-    "test": "tsx --test tests/analytics.test.ts tests/pagination.test.ts"
+    "test": "tsx --test tests/analytics.test.ts tests/pagination.test.ts tests/orders.test.ts tests/orderTransaction.test.ts",
+    "checkout:check": "tsx scripts/check-public-checkout.mts"
   },
   "engines": {
     "node": ">=20.0.0"
@@ -39,6 +40,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/multer": "^2.2.0",

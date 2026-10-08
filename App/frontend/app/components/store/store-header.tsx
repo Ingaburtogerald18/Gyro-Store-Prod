@@ -4,26 +4,20 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { Link } from '@remix-run/react';
 import { motion, AnimatePresence, useAnimationControls, useReducedMotion } from 'framer-motion';
-import { toast } from 'sonner';
-import { ArrowDown01Icon, Menu01Icon, ShoppingCart02Icon, Search01Icon, Cancel01Icon } from '@hugeicons/core-free-icons';
+import { GridViewIcon, ShoppingCart02Icon, Search01Icon, Cancel01Icon } from '@hugeicons/core-free-icons';
+import { categoryMode } from '@shared/schemas';
+import { inCategory } from '~/components/store/category-nav';
 import { SearchBar } from '~/components/catalog/search-bar';
 import { CategoriesDrawer } from '~/components/store/categories-drawer';
 import { CategoryNav } from '~/components/store/category-nav';
 import { Button } from '~/components/ui/button';
 import { HugeIcon } from '~/components/ui/icon';
-import { useUpdateLandingConfigMutation } from '~/store/api/storefrontApi';
 import { useStoreCatalog, useStoreConfig, useStoreLanding } from '~/hooks/useStoreConfig';
 import { useAppDispatch, useAppSelector } from '~/store/hooks';
 import { selectCartCount, toggleCart } from '~/store/slices/cartSlice';
-import { CART_EDITOR_SECTIONS, CartContentEditor, type CartEditorSection } from '~/components/cart/cart-content-editor';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '~/components/ui/dropdown-menu';
-import { selectEditMode, toggleEditMode } from '~/store/slices/authSlice';
-import { selectDraftLandingConfig, initBuilderSession, clearBuilderSession } from '~/store/slices/builderSlice';
-import { InlineCategoryNavEditor } from './inline-category-nav-editor';
 import { HeaderSettingsMenu } from './header-settings-menu';
 import { getBrandName } from '~/lib/brand';
 import gyroBag from '~/assets/brand/gyro-bag.png';
-import { cn } from '~/lib/utils';
 
 /** Botón del carrito con contador y "pop" al agregar. Comparte fuente de verdad
  *  con el resto de la app (cartSlice); reemplaza al botón estático. */
@@ -49,7 +43,7 @@ function CartButton() {
       whileTap={reduce ? undefined : { scale: 0.92 }}
       onClick={() => dispatch(toggleCart())}
       aria-label={count > 0 ? `Abrir carrito, ${count} artículo${count === 1 ? "" : "s"}` : "Abrir carrito"}
-      className="store-cart-button relative grid h-10 w-10 place-items-center rounded-full border transition-[background-color,box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:h-11 sm:w-11"
+      className="store-cart-button relative grid size-11 place-items-center rounded-full border transition-[background-color,box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
     >
       <HugeIcon icon={ShoppingCart02Icon} size={20} strokeWidth={2} aria-hidden />
       <AnimatePresence>
@@ -61,7 +55,7 @@ function CartButton() {
             exit={{ scale: 0, opacity: 0 }}
             transition={reduce ? { duration: 0 } : { type: "spring", stiffness: 520, damping: 20 }}
             // ring-background lo separa del header con un halo del color de fondo → "flota".
-            className="font-spec absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-destructive px-1 text-2xs font-bold tabular-nums text-destructive-foreground ring-2 ring-background shadow-lg"
+            className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-destructive px-1 text-2xs font-bold tabular-nums text-destructive-foreground ring-2 ring-background shadow-lg"
           >
             {count > 99 ? '99+' : count}
           </motion.span>
@@ -75,7 +69,6 @@ export function StoreHeader() {
 
   const [categoriesOpen, setCategoriesOpen] = useState(false);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
-  const [cartSection, setCartSection] = useState<CartEditorSection | null>(null);
 
   const config = useStoreConfig();
   const reduceMotion = useReducedMotion();
@@ -87,84 +80,49 @@ export function StoreHeader() {
   const logoImage = config?.images?.logoStatic || (animatedIsVideo ? undefined : animated);
   const products = useStoreCatalog();
   const landing = useStoreLanding();
-  const editMode = useAppSelector(selectEditMode);
-  const draftLanding = useAppSelector(selectDraftLandingConfig);
-  const dispatch = useAppDispatch();
-  const [updateLanding, { isLoading: isSaving }] = useUpdateLandingConfigMutation();
-
-  // Inicializar borrador al entrar al modo edición
-  useEffect(() => {
-    if (editMode && landing && !draftLanding) {
-      dispatch(initBuilderSession(landing));
-    }
-  }, [editMode, landing, draftLanding, dispatch]);
 
   const allCategories = useMemo(
     () => config?.categories ?? [],
     [config?.categories],
   );
 
+  // Modo de la zona (auto / elegidas / oculta), compatible con configuraciones
+  // viejas sin modo. «Automático» = las categorías que tienen productos.
+  const mode = categoryMode(landing?.headerCategoriesMode, landing?.headerCategories);
   const headerNavCategories = useMemo(() => {
-    if (!landing?.headerCategories || landing.headerCategories.length === 0) {
-      return allCategories.slice(0, 7);
+    if (mode === 'hidden') return [];
+    if (mode === 'auto') {
+      const withProducts = allCategories.filter((c) => products.length === 0 || products.some((p) => inCategory(p, c)));
+      return withProducts.slice(0, 7);
     }
-    return landing.headerCategories
+    return (landing?.headerCategories ?? [])
       .map(id => allCategories.find(c => c.id === id))
       .filter((c): c is NonNullable<typeof c> => Boolean(c))
       .slice(0, 7);
-  }, [allCategories, landing?.headerCategories]);
-
-  const handleSave = async () => {
-    if (!draftLanding) return;
-    try {
-      await updateLanding(draftLanding).unwrap();
-      dispatch(toggleEditMode());
-      dispatch(clearBuilderSession());
-      toast.success('Cambios de la tienda guardados.');
-    } catch (err) {
-      // Antes era un catch vacío: el botón volvía a su estado y el admin creía
-      // que se había guardado. El borrador se conserva para reintentar.
-      const message =
-        (err as { data?: { error?: string } })?.data?.error ??
-        'No se pudieron guardar los cambios. Probá de nuevo.';
-      toast.error(message);
-    }
-  };
-
-  const handleCancel = () => {
-    dispatch(toggleEditMode());
-    dispatch(clearBuilderSession());
-  };
+  }, [mode, allCategories, products, landing?.headerCategories]);
+  const showCategories = headerNavCategories.length > 0;
 
   return (
-    <header className={cn(
-      "store-header sticky top-0 z-40 transition-all",
-      editMode ? "border-b border-primary-2/20 border-t-[4px] border-t-primary" : "border-b border-border"
-    )}>
+    <header data-landing-section="navigation" className="store-header sticky top-0 z-40 border-b border-border transition-all">
       <div className="mx-auto flex h-14 max-w-7xl items-center gap-2 px-4 sm:gap-3">
-        {!editMode && (
+        {/* Categorías en panel hasta escritorio ancho: en tablet, la fila de
+            categorías y el buscador se tapaban entre sí. */}
+        {showCategories && (
           <Button
             variant="ghost"
             size="icon"
             onClick={() => setCategoriesOpen(true)}
             aria-label="Ver categorías"
-            className="h-9 w-9 shrink-0 text-primary-2 sm:h-10 sm:w-10 md:hidden"
+            className="size-11 shrink-0 text-primary-2 lg:hidden"
           >
-            <HugeIcon icon={Menu01Icon} size={20} strokeWidth={2} aria-hidden />
+            <HugeIcon icon={GridViewIcon} size={20} strokeWidth={2} aria-hidden />
           </Button>
         )}
 
         <Link
           to="/"
-          className={cn("group flex shrink-0 items-center gap-2 rounded-xl py-1 transition-all duration-300 sm:px-2",
-            !editMode && "hover:bg-primary-2/5 motion-safe:active:scale-95"
-          )}
+          className="group flex shrink-0 items-center gap-2 rounded-xl py-1 transition-colors hover:bg-primary-2/5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
           aria-label={`Ir al inicio de ${config?.brandName || getBrandName()}`}
-          onClick={(e) => {
-            if (editMode) {
-               e.preventDefault();
-            }
-          }}
         >
           {/* Logo: el que se sube en el panel (Recursos de imágenes → logo
               estático o animado). Se muestra a 40px de alto y hasta 140px de
@@ -212,81 +170,24 @@ export function StoreHeader() {
             vivía tras un ícono y solo en la home; en una tienda es la forma más
             rápida de llegar a un producto, así que está a la vista en toda página. */}
         <div className="hidden min-w-0 flex-1 items-center justify-end gap-3 md:flex">
-          <div className="flex min-w-0 flex-1 items-center gap-1">
-            {editMode ? (
-              <InlineCategoryNavEditor allCategories={allCategories} />
-            ) : (
+          {showCategories && (
+            <div className="hidden min-w-0 flex-1 items-center gap-1 lg:flex">
               <CategoryNav categories={headerNavCategories} products={products} />
-            )}
-          </div>
+            </div>
+          )}
 
-          {!editMode && <SearchBar className="w-56 shrink-0 lg:w-80" />}
+          <SearchBar className="w-full max-w-sm shrink lg:w-72 lg:shrink-0 xl:w-80" />
         </div>
         {/* Zona derecha */}
         <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-3">
-          {editMode && (
-            <div className="flex items-center gap-3 bg-primary/10 pl-3 pr-1 py-1 rounded-full border border-primary-2/20">
-              <div className="hidden sm:flex items-center gap-2">
-                <span className="relative flex h-2 w-2">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75"></span>
-                  <span className="relative inline-flex h-2 w-2 rounded-full bg-primary"></span>
-                </span>
-                <span className="text-xs font-bold tracking-wider text-primary-2">MODO EDICIÓN</span>
-              </div>
-              {/* «Editar carrito»: se elige qué parte editar y se abre su editor
-                  con vista previa, sin pasar por el carrito real (que puede
-                  tener productos y confundir qué se está editando). */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 rounded-full px-3 text-xs font-semibold text-primary-2 hover:bg-primary/10"
-                    disabled={isSaving}
-                  >
-                    <HugeIcon icon={ShoppingCart02Icon} size={14} strokeWidth={2} aria-hidden />
-                    Editar carrito
-                    <HugeIcon icon={ArrowDown01Icon} size={12} strokeWidth={2} aria-hidden />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-auto min-w-64">
-                  {(Object.keys(CART_EDITOR_SECTIONS) as CartEditorSection[]).map((key) => (
-                    <DropdownMenuItem key={key} onSelect={() => setCartSection(key)} className="flex-col items-start gap-0.5 py-2">
-                      <span className="text-sm font-medium">{CART_EDITOR_SECTIONS[key].label}</span>
-                      <span className="text-xs text-muted-foreground">{CART_EDITOR_SECTIONS[key].hint}</span>
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={handleCancel}
-                className="h-8 rounded-full px-4 text-xs font-semibold text-primary-2 hover:bg-primary/10"
-                disabled={isSaving}
-              >
-                Descartar
-              </Button>
-              <Button 
-                variant="default" 
-                size="sm" 
-                onClick={handleSave}
-                className="h-8 rounded-full px-4 text-xs font-semibold shadow-sm"
-                disabled={isSaving}
-              >
-                {isSaving ? "Guardando…" : "Guardar cambios"}
-              </Button>
-            </div>
-          )}
-          
-          {!editMode && (
+          {(
             <Button
               variant="ghost"
               size="icon"
               onClick={() => setMobileSearchOpen((o) => !o)}
               aria-label={mobileSearchOpen ? 'Cerrar búsqueda' : 'Buscar productos'}
               aria-expanded={mobileSearchOpen}
-              className="h-9 w-9 text-primary-2 sm:h-10 sm:w-10 md:hidden"
+              className="size-11 text-primary-2 md:hidden"
             >
               <HugeIcon
                 icon={mobileSearchOpen ? Cancel01Icon : Search01Icon}
@@ -296,23 +197,22 @@ export function StoreHeader() {
               />
             </Button>
           )}
-          {!editMode && <CartButton />}
-          {!editMode && <HeaderSettingsMenu />}
+          {<CartButton />}
+          {<HeaderSettingsMenu />}
         </div>
       </div>
 
-      {!editMode && mobileSearchOpen && (
+      {mobileSearchOpen && (
         <div className="px-4 pb-3 md:hidden">
           <SearchBar />
         </div>
       )}
 
-      {editMode && <CartContentEditor section={cartSection} onClose={() => setCartSection(null)} />}
 
       <CategoriesDrawer
         open={categoriesOpen}
         onOpenChange={setCategoriesOpen}
-        categories={allCategories}
+        categories={mode === 'custom' ? headerNavCategories : allCategories}
         products={products}
       />
     </header>

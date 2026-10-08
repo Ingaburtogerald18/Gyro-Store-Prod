@@ -21,6 +21,8 @@ export interface SellableProduct {
   code: string | null;
   /** Todos los códigos con stock: el buscador matchea contra cualquiera. */
   codes: string[];
+  /** De dónde sale `price`: la variante del catálogo, o el lote si no está vinculado. */
+  priceSource?: 'catalog' | 'lot';
 }
 
 // Los campos financieros son OPCIONALES porque el backend los recorta por rol:
@@ -37,8 +39,8 @@ export interface QuoteLine {
   salary?: number;
   utilidadNeta?: number;
   comision: number;
-  /** Fracción (0.40 = 40%). Su tramo se busca por la utilidad neta UNITARIA. */
-  comisionPercent: number;
+  /** Fracción (0.40 = 40%). Su tramo se busca por la utilidad neta UNITARIA. Solo admin. */
+  comisionPercent?: number;
   gananciaTienda?: number;
 
   // La misma cadena por unidad: el desglose muestra las dos columnas.
@@ -51,6 +53,7 @@ export interface QuoteLine {
   wholesale: { discountPercent: number; warning: boolean };
   available: number;
   insufficientStock: boolean;
+  /** Solo admin: al vendedor no le llega (permitiría despejar el costo). */
   belowMinMargin?: boolean;
 }
 
@@ -115,6 +118,8 @@ export interface SaleWithItems extends SaleListItem {
     gananciaTienda?: number;
     /** Reparto del Costo F/U de la línea en los 7 pozos (doc 11 §2). */
     pozos?: Record<string, number>;
+    /** Precio bajo el margen mínimo. Solo admin. */
+    belowMinMargin?: boolean;
 
     // La cadena por unidad: es de donde sale el tramo de comisión.
     utilidadBrutaUnit?: number;
@@ -151,6 +156,8 @@ export interface SaleListItem {
   deliveryFee?: number;
   createdAt: string;
   isManualDate?: boolean;
+  /** Alguna línea quedó bajo el margen mínimo. Solo admin. */
+  belowMinMargin?: boolean;
 }
 
 // ── Pago de comisiones ──
@@ -189,6 +196,19 @@ export interface SellerSummary {
   balance: number;
 }
 
+export interface SaleReturn {
+  id: string;
+  orderId: string;
+  productName: string;
+  quantity: number;
+  destination: 'stock' | 'merma';
+  refundAmount: number;
+  comisionBefore: number | null;
+  comisionAfter: number | null;
+  reason: string;
+  createdAt: string;
+}
+
 /** El comprobante se sube antes a `POST /api/upload`; acá viaja como URL. */
 export interface PayoutProof {
   paymentMethod: 'efectivo' | 'transferencia' | 'tarjeta';
@@ -216,7 +236,8 @@ export const salesApi = baseApi.injectEndpoints({
     }),
     approveSale: build.mutation<{ ok: boolean }, string>({
       query: (id) => ({ url: `sales/${id}/approve`, method: 'POST' }),
-      invalidatesTags: ['Sale'],
+      // Aprobar mueve reservado → vendido en los lotes: Inventario tiene que refrescarse.
+      invalidatesTags: ['Sale', 'Purchase', 'Product'],
       // ── Optimistic update ──
       // Aprobar es un click sobre una fila que el admin está mirando. Esperar
       // el round-trip para que la fila cambie de estado hace que el panel se
@@ -259,6 +280,22 @@ export const salesApi = baseApi.injectEndpoints({
     getSale: build.query<SaleWithItems, string>({
       query: (id) => `sales/${id}`,
       providesTags: ['Sale'],
+    }),
+
+    // ── Devoluciones (admin, migración 0023) ──
+    getSaleReturns: build.query<SaleReturn[], string>({
+      query: (id) => `sales/${id}/returns`,
+      providesTags: ['Sale'],
+    }),
+    returnSaleLine: build.mutation<
+      SaleReturn,
+      {
+        id: string;
+        body: { productName: string; quantity: number; destination: 'stock' | 'merma'; refundAmount?: number; reason: string };
+      }
+    >({
+      query: ({ id, body }) => ({ url: `sales/${id}/returns`, method: 'POST', body }),
+      invalidatesTags: ['Sale', 'Purchase', 'Product', 'CommissionPayment'],
     }),
 
     // ── Comisiones (admin) ──
@@ -319,4 +356,6 @@ export const {
   useSettleSellerBalanceMutation,
   useGetMySalesSummaryQuery,
   useGetMyCommissionPaymentsQuery,
+  useGetSaleReturnsQuery,
+  useReturnSaleLineMutation,
 } = salesApi;

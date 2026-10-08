@@ -1,6 +1,7 @@
 import { db } from '../supabase';
 import { publicCatalogItemSchema, type PublicCatalogItem } from '../../shared/schemas';
 import { parseDbRows } from '../utils/parseDbRows';
+import { withLinkedLots } from './inventory';
 
 // Columnas que el storefront puede ver. Se listan explícitamente en vez de usar
 // `select('*')`: la tabla `catalog_items` tiene columnas de la cadena financiera
@@ -43,7 +44,7 @@ export async function listPublishedCatalog(): Promise<PublicCatalogItem[]> {
   // Validamos el array completo y retornamos el tipo inferido de forma segura.
   // Si la base devuelve algo que no cumple el contrato es un 500, no un 400: el
   // cliente no tiene nada que corregir en su request (ver parseDbRows).
-  return parseDbRows(publicCatalogItemSchema, data, 'catalog_items');
+  return withLinkedLots(parseDbRows(publicCatalogItemSchema, data, 'catalog_items'));
 }
 
 // Un ítem publicado por id, para la ficha de producto. Devuelve null si no
@@ -66,5 +67,22 @@ export async function getPublishedCatalogItem(
     return null;
   }
 
-  return parseDbRows(publicCatalogItemSchema, [data], 'catalog_items')[0] ?? null;
+  const [item] = await withLinkedLots(parseDbRows(publicCatalogItemSchema, [data], 'catalog_items'));
+  return item ?? null;
+}
+
+// Varios ítems publicados por id, con las mismas columnas públicas. Lo usa el
+// pedido para resolver precio y variante con la misma presentación que la ficha.
+export async function listPublishedCatalogByIds(ids: string[]): Promise<PublicCatalogItem[]> {
+  if (ids.length === 0) return [];
+  const { data, error } = await db
+    .from('catalog_items')
+    .select(PUBLIC_CATALOG_COLUMNS)
+    .in('id', ids)
+    .eq('published', true);
+
+  if (error) {
+    throw error;
+  }
+  return withLinkedLots(parseDbRows(publicCatalogItemSchema, data, 'catalog_items'));
 }

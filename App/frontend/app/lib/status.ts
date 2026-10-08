@@ -35,6 +35,26 @@ export const INVOICE_STATUS: Record<string, StatusMeta> = {
 };
 
 /**
+ * `public_orders.status` (pedidos web). 'shipped' es el mismo paso para las dos
+ * entregas; la etiqueta cambia según `delivery_method` (ver `publicOrderStatusLabel`).
+ */
+export const PUBLIC_ORDER_STATUS: Record<string, StatusMeta> = {
+  new: { label: 'Recibido', status: 'info' },
+  preparing: { label: 'En preparación', status: 'pending' },
+  shipped: { label: 'En camino', status: 'pending' },
+  delivered: { label: 'Entregado', status: 'success' },
+  cancelled: { label: 'Cancelado', status: 'error' },
+};
+
+/** Pasos que ve el cliente, en orden. `cancelled` queda fuera: corta la línea. */
+export const PUBLIC_ORDER_STEPS = ['new', 'preparing', 'shipped', 'delivered'] as const;
+
+export function publicOrderStatusLabel(status: string, deliveryMethod: string | null): string {
+  if (status === 'shipped' && deliveryMethod === 'retiro') return 'Listo para retiro';
+  return statusMeta(PUBLIC_ORDER_STATUS, status).label;
+}
+
+/**
  * Resuelve el estado con un fallback honesto: si la base devuelve un valor que
  * el front no conoce (enum ampliado sin actualizar el mapa), se muestra el
  * valor crudo en tono neutro en vez de romper con `undefined.label`.

@@ -9,6 +9,8 @@ import type {
   LandingConfig,
   PublicContactInput,
   PublicOrderInput,
+  PublicOrderStatus,
+  TrackPublicOrderInput,
 } from '@shared/schemas';
 import { baseApi } from './baseApi';
 
@@ -34,6 +36,29 @@ export interface CreatedPublicOrder {
   }>;
   /** Link a WhatsApp con el pedido ya formateado, listo para abrir. */
   whatsappUrl: string;
+}
+
+/** Línea de un pedido ya resuelta por el servidor (nombre e imagen actuales). */
+export interface PublicOrderLine {
+  name: string;
+  /** Combinación elegida; null en pedidos previos a la migración 0019. */
+  variantName: string | null;
+  image: string | null;
+  quantity: number;
+  unitPrice: number;
+}
+
+// GET /api/orders/public/:id — la vista de seguimiento. No trae teléfono ni
+// dirección: el link puede reenviarse.
+export interface PublicOrderTracking {
+  id: string;
+  status: PublicOrderStatus;
+  deliveryMethod: 'retiro' | 'envio' | null;
+  firstName: string | null;
+  total: number;
+  codeDiscount: number;
+  createdAt: string;
+  items: PublicOrderLine[];
 }
 
 export const storefrontApi = baseApi.injectEndpoints({
@@ -66,6 +91,10 @@ export const storefrontApi = baseApi.injectEndpoints({
       transformResponse: (response: { order: CreatedPublicOrder }) => response.order,
       invalidatesTags: ['Orders'],
     }),
+    recoverPublicOrder: build.mutation<CreatedPublicOrder | null, string>({
+      query: (idempotencyKey) => ({ url: 'orders/public/recover', method: 'POST', body: { idempotencyKey } }),
+      transformResponse: (response: { order: CreatedPublicOrder | null }) => response.order,
+    }),
 
     // ── Configuración del landing: slides del hero + orden de categorías.
     // GET es público (lo necesita la home); PUT lo restringe el backend a admin.
@@ -93,6 +122,18 @@ export const storefrontApi = baseApi.injectEndpoints({
     sendContact: build.mutation<{ ok: boolean }, PublicContactInput>({
       query: (body) => ({ url: 'contact', method: 'POST', body }),
     }),
+
+    // ── Seguimiento del pedido sin cuenta. El tag por id hace que, si el panel
+    // cambia el estado en este mismo navegador, la página de seguimiento se refresque.
+    getPublicOrder: build.query<PublicOrderTracking, string>({
+      query: (id) => `orders/public/${id}`,
+      transformResponse: (response: { order: PublicOrderTracking }) => response.order,
+      providesTags: (_res, _err, id) => [{ type: 'Orders' as const, id }],
+    }),
+    // Número corto + teléfono → id completo, para navegar a /pedido/<id>.
+    trackPublicOrder: build.mutation<{ id: string }, TrackPublicOrderInput>({
+      query: (body) => ({ url: 'orders/public/track', method: 'POST', body }),
+    }),
   }),
 });
 
@@ -101,7 +142,10 @@ export const {
   useGetCatalogDetailQuery,
   useGetCombosQuery,
   useCreatePublicOrderMutation,
+  useRecoverPublicOrderMutation,
   useGetLandingConfigQuery,
   useUpdateLandingConfigMutation,
   useSendContactMutation,
+  useGetPublicOrderQuery,
+  useTrackPublicOrderMutation,
 } = storefrontApi;

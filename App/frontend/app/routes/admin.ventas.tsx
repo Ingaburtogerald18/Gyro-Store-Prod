@@ -67,12 +67,15 @@ import { SellerPerformance } from '~/components/admin/sales/SellerPerformance';
 import { SaleDetailDrawer } from '~/components/admin/sales/SaleDetailDrawer';
 import { InvoiceCodeCell } from '~/components/admin/invoices/InvoiceCodeCell';
 import { SellerPayoutSummaryDialog, type PayoutSummaryTarget } from '~/components/admin/sales/SellerPayoutSummaryDialog';
+import { PayCommissionsDialog } from '~/components/admin/sales/PayCommissionsDialog';
+import { CommissionPaymentsDialog } from '~/components/admin/sales/CommissionPaymentsDialog';
 
 export const meta: MetaFunction = () => [{ title: pageTitle('Ventas', { admin: true }) }];
 
 const STATUS_TABS = [
   { value: 'pending_approval', label: 'Pendientes' },
   { value: 'approved', label: 'Aprobadas' },
+  { value: 'paid', label: 'Pagadas' },
   { value: 'rejected', label: 'Rechazadas' },
   { value: 'all', label: 'Todas' },
 ] as const;
@@ -246,6 +249,11 @@ export default function AdminVentas() {
     [filteredSales],
   );
 
+  // Pago de comisiones: `payFor` es el vendedor sugerido al abrir (o '' para
+  // el primero de la lista); null = cerrado.
+  const [payFor, setPayFor] = useState<string | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
+
   const [bulkApproving, setBulkApproving] = useState(false);
   const [payoutSummaryFor, setPayoutSummaryFor] = useState<PayoutSummaryTarget | null>(null);
   async function handleBulkApprove() {
@@ -256,12 +264,24 @@ export default function AdminVentas() {
 
     setBulkApproving(true);
     try {
-      const results = await Promise.allSettled(targetSales.map((s) => approveSale(s.id).unwrap()));
-      const approved = targetSales.filter((_, i) => results[i].status === 'fulfilled');
-      const failed = results.length - approved.length;
+      // En serie, no en paralelo: varias ventas suelen tocar los mismos lotes,
+      // y aprobarlas a la vez las hacía chocar en el stock y fallar al azar.
+      const approved: SaleListItem[] = [];
+      let firstError: unknown = null;
+      for (const s of targetSales) {
+        try {
+          await approveSale(s.id).unwrap();
+          approved.push(s);
+        } catch (err) {
+          firstError ??= err;
+        }
+      }
+      const failed = targetSales.length - approved.length;
 
       if (failed > 0) {
-        toast.error(`${approved.length} aprobada${approved.length === 1 ? '' : 's'}, ${failed} fallaron.`);
+        toast.error(
+          `${approved.length} aprobada${approved.length === 1 ? '' : 's'}, ${failed} fallaron. ${errMsg(firstError, '')}`.trim(),
+        );
       }
       setSelectedIds(new Set());
 
@@ -411,7 +431,20 @@ export default function AdminVentas() {
       header: 'Estado',
       cell: ({ row }) => {
         const meta = statusMeta(SALE_STATUS, row.original.status);
-        return <StatusBadge status={meta.status} label={meta.label} />;
+        return (
+          <span className="inline-flex items-center gap-1.5">
+            <StatusBadge status={meta.status} label={meta.label} />
+            {/* Solo admin recibe la marca (el backend la recorta al vendedor). */}
+            {row.original.belowMinMargin && (
+              <span
+                className="rounded-full border border-warning/30 bg-warning/10 px-2 py-0.5 text-2xs font-medium text-warning"
+                title="Algún producto se vendió por debajo del margen mínimo"
+              >
+                Bajo margen
+              </span>
+            )}
+          </span>
+        );
       },
     });
 
@@ -426,7 +459,9 @@ export default function AdminVentas() {
       ? 'Comisión pendiente'
       : statusFilter === 'approved'
         ? 'Comisión por pagar'
-        : 'Comisión total';
+        : statusFilter === 'paid'
+          ? 'Comisión pagada'
+          : 'Comisión total';
 
   return (
     <div className="space-y-6">
@@ -436,11 +471,23 @@ export default function AdminVentas() {
         description="Listado general y registro de ventas."
         className="mb-0"
         actions={
+          <div className="flex flex-wrap gap-2">
+          {isAdmin && (
+            <>
+              <Button variant="outline" onClick={() => setHistoryOpen(true)} className="h-9 rounded-md">
+                Historial de pagos
+              </Button>
+              <Button variant="outline" onClick={() => setPayFor('')} className="h-9 rounded-md">
+                Pagar comisiones
+              </Button>
+            </>
+          )}
           <Button onClick={() => setIsEditorOpen(true)} className="h-9 gap-2 rounded-md">
             <HugeIcon icon={Add01Icon} size={16} strokeWidth={2} aria-hidden />
             Registrar venta
             <Kbd>N</Kbd>
           </Button>
+          </div>
         }
       />
 
@@ -584,8 +631,10 @@ export default function AdminVentas() {
         isAdmin={isAdmin}
         onApprove={handleApprove}
         onReject={(id) => {
+          // El detalle puede venir de un enlace a una venta que no está en la
+          // pestaña actual: el rechazo solo necesita el id.
           const sale = sales.find((s) => s.id === id);
-          if (sale) setRejectFor([sale]);
+          setRejectFor([sale ?? ({ id } as SaleListItem)]);
         }}
         onEdit={(sale) => {
           // El detalle trae la venta completa (SaleWithItems); se abre el editor
@@ -621,7 +670,25 @@ export default function AdminVentas() {
         </DialogContent>
       </Dialog>
 
-      <SellerPayoutSummaryDialog target={payoutSummaryFor} onClose={() => setPayoutSummaryFor(null)} />
+      <SellerPayoutSummaryDialog
+        target={payoutSummaryFor}
+        onClose={() => setPayoutSummaryFor(null)}
+        onPay={(email) => {
+          setPayoutSummaryFor(null);
+          setPayFor(email);
+        }}
+      />
+
+      {isAdmin && (
+        <>
+          <PayCommissionsDialog
+            open={payFor !== null}
+            initialSellerEmail={payFor || null}
+            onClose={() => setPayFor(null)}
+          />
+          <CommissionPaymentsDialog open={historyOpen} onClose={() => setHistoryOpen(false)} />
+        </>
+      )}
 
     </div>
   );

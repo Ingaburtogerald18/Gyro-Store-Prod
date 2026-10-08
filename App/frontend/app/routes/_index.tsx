@@ -2,13 +2,12 @@
 // no en el cliente: mejora SEO y primer render, y evita el parpadeo de carga.
 // /api/catalog y /api/config son públicos, así que no hace falta token.
 import type { HeadersFunction, LoaderFunctionArgs, MetaFunction } from '@remix-run/node';
+import type { ShouldRevalidateFunction } from '@remix-run/react';
 import { getBrandName } from '~/lib/brand';
-import { useLoaderData, useSearchParams } from '@remix-run/react';
-import { useEffect } from 'react';
+import { useLoaderData } from '@remix-run/react';
 import type { CatalogProduct, LandingConfig } from '@shared/schemas';
-import { useAppDispatch } from '~/store/hooks';
-import { searchSet, categorySet } from '~/store/slices/uiSlice';
 import { ActiveFilters } from '~/components/catalog/active-filters';
+import { CatalogUrlSync } from '~/components/catalog/catalog-url-sync';
 import { FilterBar } from '~/components/catalog/filter-bar';
 import { FilterSheet } from '~/components/catalog/filter-sheet';
 import { Hero } from '~/components/catalog/hero';
@@ -27,25 +26,41 @@ export async function loader({ request }: LoaderFunctionArgs) {
   let products: CatalogProduct[] = [];
   let config: StoreConfig | null = null;
   let landing: LandingConfig | null = null;
+  // Una caída del API no se disfraza de «catálogo vacío»: la grilla muestra un
+  // error con reintento.
+  let catalogError = false;
 
+  const [catalogRes, configRes, landingRes] = await Promise.all([
+    fetch(`${origin}/api/catalog`).catch(() => null),
+    fetch(`${origin}/api/config`).catch(() => null),
+    fetch(`${origin}/api/landing-config`).catch(() => null),
+  ]);
   try {
-    const [catalogRes, configRes, landingRes] = await Promise.all([
-      fetch(`${origin}/api/catalog`),
-      fetch(`${origin}/api/config`),
-      fetch(`${origin}/api/landing-config`),
-    ]);
-    if (catalogRes.ok) {
+    if (catalogRes?.ok) {
       products = ((await catalogRes.json()) as { items?: CatalogProduct[] }).items ?? [];
+    } else {
+      catalogError = true;
     }
-    if (configRes.ok) config = (await configRes.json()) as StoreConfig;
-    if (landingRes.ok) landing = (await landingRes.json()) as LandingConfig;
   } catch {
-    // API caída: se renderiza la home con lo que haya (catálogo vacío) en vez
-    // de tumbar la página entera.
+    catalogError = true;
+  }
+  try {
+    if (configRes?.ok) config = (await configRes.json()) as StoreConfig;
+    if (landingRes?.ok) landing = (await landingRes.json()) as LandingConfig;
+  } catch {
+    // Config y portada son accesorias: la home sale con sus valores por defecto.
   }
 
-  return { origin, products, config, landing };
+  return { origin, products, config, landing, catalogError };
 }
+
+// Los filtros viven en la URL (?q=, ?categoria=, …). Cambiarlos NO vuelve a pedir
+// catálogo, config y portada al servidor: la grilla filtra lo que ya tiene. Sí se
+// revalida al llegar desde otra ruta, después de un envío o al pedir reintento.
+export const shouldRevalidate: ShouldRevalidateFunction = ({ currentUrl, nextUrl, formMethod, defaultShouldRevalidate }) => {
+  if (!formMethod && currentUrl.pathname === nextUrl.pathname && currentUrl.search !== nextUrl.search) return false;
+  return defaultShouldRevalidate;
+};
 
 export const meta: MetaFunction<typeof loader> = ({ data }) => {
   const origin = data?.origin ?? '';
@@ -53,9 +68,10 @@ export const meta: MetaFunction<typeof loader> = ({ data }) => {
   const title = brand;
   const description =
     'Audífonos KZ, adaptadores Bluetooth y accesorios de tecnología en Managua, Nicaragua.';
-  // Sin `og:image` el link compartido por WhatsApp sale sin foto y parece spam.
-  // Se usa el logo configurado desde el panel; si no hay, el del repo.
-  const image = data?.config?.images?.logoStatic || `${origin}/logo.jpg`;
+  // Imagen para compartir: el logo configurado en el panel. Si no hay, no se
+  // declara ninguna (antes apuntaba a /logo.jpg, que no existe). Una imagen
+  // social propia (1200×630) está pendiente: ver el reporte de contenido.
+  const image = data?.config?.images?.logoStatic || '';
 
   return [
     { title },
@@ -64,35 +80,29 @@ export const meta: MetaFunction<typeof loader> = ({ data }) => {
     { property: 'og:site_name', content: brand },
     { property: 'og:title', content: title },
     { property: 'og:description', content: description },
-    { property: 'og:image', content: image },
+    ...(image ? [{ property: 'og:image', content: image }, { name: 'twitter:image', content: image }] : []),
     { property: 'og:url', content: `${origin}/` },
-    { name: 'twitter:card', content: 'summary_large_image' },
-    { name: 'twitter:image', content: image },
+    { name: 'twitter:card', content: image ? 'summary_large_image' : 'summary' },
   ];
 };
 
 export default function Index() {
-  const { products, config, landing } = useLoaderData<typeof loader>();
-  const [searchParams] = useSearchParams();
-  const dispatch = useAppDispatch();
-
-  // Sincroniza la URL con el estado global de Redux al cargar la página
-  // o al usar las flechas del navegador (back/forward).
-  useEffect(() => {
-    const q = searchParams.get('q');
-    const cat = searchParams.get('categoria');
-    if (q !== null) dispatch(searchSet(q));
-    if (cat !== null) dispatch(categorySet(cat));
-  }, [searchParams, dispatch]);
+  const { products, config, landing, catalogError } = useLoaderData<typeof loader>();
+  const categories = config?.categories;
 
   return (
     <StorefrontShell>
+      <CatalogUrlSync categories={categories} />
       <main key="home">
         <Hero initialLanding={landing} />
-        <div id="catalogo" className="mx-auto max-w-7xl scroll-mt-20 px-4 py-8">
-          <FilterBar products={products} categories={config?.categories} />
-          <ActiveFilters categories={config?.categories} />
-          <ProductGrid products={products} categories={config?.categories} />
+        <div data-landing-section="products" id="catalogo" className="mx-auto max-w-7xl scroll-mt-20 px-4 py-6 md:py-8">
+          {!catalogError && products.length > 0 && (
+            <>
+              <FilterBar products={products} categories={categories} />
+              <ActiveFilters categories={categories} />
+            </>
+          )}
+          <ProductGrid products={products} categories={categories} error={catalogError} />
         </div>
       </main>
 

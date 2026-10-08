@@ -97,16 +97,14 @@
   --radius-card: 0.75rem;
   --radius-pill: 9999px;
 
-  /* Tipografía por ÁREA (ver `[data-area]` más abajo): la tienda usa Chivo y el
-     panel de administración, Geist. Los tokens apuntan a variables y no a la
+  /* Tipografía por ÁREA (ver `[data-area]` más abajo): tienda y panel usan Chivo. Los tokens apuntan a variables y no a la
      fuente literal porque `@theme inline` copia el valor en cada utilidad: con
      un literal, `font-heading` quedaría fijo en una sola fuente para las dos
      áreas. Registrar --font-heading acá es lo que genera la clase `font-heading`
      (la usan títulos de Dialog/Sheet/Card de shadcn y el panel). */
   --font-sans: var(--area-font-sans);
   --font-heading: var(--area-font-heading);
-  /* Chivo fija, sin depender del área: montos grandes del PANEL (métricas,
-     totales), que van en Chivo aunque el resto del panel siga en Geist. */
+  /* Chivo fija para montos grandes del panel (métricas y totales). */
   --font-display: "Chivo Variable", ui-sans-serif, system-ui, sans-serif;
   /* Chivo Mono: datos técnicos (specs, stock, contadores, códigos). */
   --font-spec: "Chivo Mono Variable", ui-monospace, monospace;
@@ -154,6 +152,16 @@ html[data-theme='light'] {
 html[data-area='store'] {
   --area-font-sans: "Chivo Variable", ui-sans-serif, system-ui, sans-serif;
   --area-font-heading: "Chivo Variable", ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Vista previa de piezas de la tienda DENTRO del editor (área admin): mismos
+   tokens, fuente y estilos de componente que la tienda real, solo en ese bloque. */
+.store-preview {
+  --area-font-sans: "Chivo Variable", ui-sans-serif, system-ui, sans-serif;
+  --area-font-heading: "Chivo Variable", ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--area-font-sans);
+  background-color: var(--background);
+  color: var(--foreground);
 }
 
 body {
@@ -359,8 +367,8 @@ body {
 
 /* ──────────────────────────────────────────────────────────────
    Paleta de la TIENDA, sacada del logo (bolsa teal, nombre amarillo, contorno
-   tinta, cachetes coral). Solo aplica con data-area="store": el panel de
-   administración conserva los tokens de arriba.
+   tinta, cachetes coral). Tienda y administración comparten superficies;
+   el panel asigna roles propios al amarillo y la esmeralda más abajo.
 
    Reparto de roles:
      · Amarillo (--primary): la acción de compra. Siempre con texto tinta: el
@@ -376,9 +384,11 @@ body {
    coral 6.6:1; el oscuro tiene su propio bloque más abajo.
 
    `.store-palette` aplica la misma paleta a un subárbol fuera de la tienda (el
-   acceso de colaboradores, /login, que es área admin para conservar Geist).
+   acceso de colaboradores, /login).
    ────────────────────────────────────────────────────────────── */
 html[data-area='store'],
+html[data-area='admin'],
+.store-preview,
 .store-palette {
   --ink: #102423;
   --background: #fffcf3;
@@ -417,6 +427,8 @@ html[data-area='store'],
    solo como acento chico (links, opción elegida) y el amarillo es el único color
    con peso. Contrastes: texto 17:1 sobre fondo, gris secundario 8:1, teal 9:1. */
 html[data-area='store'][data-theme='dark'],
+html[data-area='admin'][data-theme='dark'],
+.store-preview[data-theme='dark'],
 html[data-theme='dark'] .store-palette {
   --background: #0e0f10;
   --foreground: #f4f4f2;
@@ -435,7 +447,6 @@ html[data-theme='dark'] .store-palette {
   --accent-foreground: #f4f4f2;
   --border: rgb(255 255 255 / 10%);
   --input: rgb(255 255 255 / 16%);
-  --ring: #ffc20e;
   --brand: #141517;
   --brand-foreground: #f4f4f2;
   --header-nav-foreground: #d5d7d8;
@@ -496,35 +507,58 @@ html[data-area='store'] .store-header .store-cart-button:active {
    botones de WhatsApp en contorno llevan sombra de su propio verde y fondo de
    tarjeta, para que la sombra se lea como un objeto desplazado. */
 html[data-area='store'],
+.store-preview,
 .store-palette {
   --sticker-shadow: var(--ink);
 }
 html[data-area='store'][data-theme='dark'],
+.store-preview[data-theme='dark'],
 html[data-theme='dark'] .store-palette {
   --sticker-shadow: #a8402f;
 }
-:is(html[data-area='store'], .store-palette) [data-slot='button']:is([data-variant='default'], [data-variant='whatsapp'], [data-variant='destructiveSolid']):not([aria-pressed]) {
+:is(html[data-area='store'], .store-palette, .store-preview) [data-slot='button']:is([data-variant='default'], [data-variant='whatsapp'], [data-variant='destructiveSolid']):not([aria-pressed]) {
   border: 2px solid var(--ink);
   box-shadow: 3px 3px 0 var(--sticker-shadow);
   transition-property: transform, box-shadow, background-color;
 }
-html[data-area='store'] [data-slot='button'][data-variant='whatsappOutline'] {
+/* WhatsApp en contorno es una acción SECUNDARIA: borde del canal, sin relieve.
+   El relieve queda para las acciones principales (comprar, continuar). */
+:is(html[data-area='store'], .store-preview) [data-slot='button'][data-variant='whatsappOutline'] {
   background-color: var(--card);
   border: 2px solid var(--whatsapp);
-  box-shadow: 3px 3px 0 var(--whatsapp);
-  transition-property: transform, box-shadow, background-color;
+  transition-property: transform, background-color;
 }
-:is(html[data-area='store'], .store-palette) [data-slot='button']:is([data-variant='default'], [data-variant='whatsapp'], [data-variant='whatsappOutline'], [data-variant='destructiveSolid']):not([aria-pressed]):active:not(:disabled) {
+:is(html[data-area='store'], .store-palette, .store-preview) [data-slot='button']:is([data-variant='default'], [data-variant='whatsapp'], [data-variant='destructiveSolid']):not([aria-pressed]):active:not(:disabled) {
   transform: translate(2px, 2px);
   box-shadow: 1px 1px 0 var(--sticker-shadow);
 }
-html[data-area='store'] [data-slot='button'][data-variant='whatsappOutline']:active:not(:disabled) {
-  box-shadow: 1px 1px 0 var(--whatsapp);
+:is(html[data-area='store'], .store-preview) [data-slot='button'][data-variant='whatsappOutline']:active:not(:disabled) {
+  transform: translateY(1px);
 }
-html[data-area='store'][data-theme='light'] .product-stage {
+@media (prefers-reduced-motion: reduce) {
+  :is(html[data-area='store'], .store-palette, .store-preview) [data-slot='button']:active:not(:disabled) {
+    transform: none;
+  }
+}
+
+/* Radios de la tienda: controles ≈12px, tarjetas ≈16px, paneles 24px. Los
+   botones redondos (rounded-full) conservan su forma. */
+:is(html[data-area='store'], .store-preview) :is([data-slot='button'], [data-slot='input'], [data-slot='textarea'], [data-slot='select-trigger'], [data-slot='input-group']):not([class*='rounded-full']):not([class*='rounded-pill']) {
+  border-radius: 0.75rem;
+}
+
+/* Cerrar de paneles y diálogos: 44px de objetivo táctil (el ícono sigue chico)
+   y neutral — cerrar no es una acción destructiva. */
+:is(html[data-area='store'], .store-preview) :is([data-slot='sheet-content'], [data-slot='dialog-content']) > [data-slot='button'][data-size='icon-sm'][class*='absolute'] {
+  width: 2.75rem;
+  height: 2.75rem;
+  top: 0.625rem;
+  right: 0.625rem;
+}
+:is(html[data-area='store'][data-theme='light'], .store-preview[data-theme='light']) .product-stage {
   position: relative;
 }
-html[data-area='store'][data-theme='light'] .product-stage::after {
+:is(html[data-area='store'][data-theme='light'], .store-preview[data-theme='light']) .product-stage::after {
   content: '';
   position: absolute;
   inset: 0;
@@ -534,32 +568,30 @@ html[data-area='store'][data-theme='light'] .product-stage::after {
   pointer-events: none;
 }
 
-/* Opciones elegidas (variantes, filtros): teal de marca, no amarillo. Si iban
-   en amarillo con sombra se confundían con el botón de compra. */
-html[data-area='store'] [data-slot='button'][aria-pressed='true'] {
-  background-color: var(--brand);
-  color: var(--brand-foreground);
-  border: 2px solid var(--brand-foreground);
+/* Selección (variantes, filtros, categorías): ESMERALDA en los dos temas. El
+   amarillo queda solo para comprar y continuar: si también marcara selección,
+   no se sabría qué es acción y qué es estado. Además del color cambia el peso
+   (font-semibold en el componente) y el borde: no depende solo del color. */
+:is(html[data-area='store'], .store-preview) [data-slot='button'][aria-pressed='true'] {
+  background-color: color-mix(in srgb, var(--primary-2) 12%, var(--card));
+  color: var(--foreground);
+  border: 2px solid var(--primary-2);
 }
-html[data-area='store'][data-theme='dark'] [data-slot='button'][aria-pressed='true'] {
-  /* En oscuro, contorno amarillo: un relleno teal volvía a teñir de verde la
-     pantalla, y uno amarillo se confundiría con el botón de compra. */
-  background-color: rgb(255 194 14 / 10%);
-  color: var(--primary);
-  border-color: var(--primary);
+:is(html[data-area='store'], .store-preview) [data-slot='button'][aria-pressed='true']:hover {
+  background-color: color-mix(in srgb, var(--primary-2) 18%, var(--card));
 }
 
 /* Campos de formulario en claro: blancos con borde, en vez del relleno gris
    de shadcn (bg-input/50), que sobre el crema se veía sucio y apagado. */
-html[data-area='store'][data-theme='light'] :is([data-slot='input'], [data-slot='textarea'], [data-slot='select-trigger'], [data-slot='input-group']) {
+:is(html[data-area='store'][data-theme='light'], .store-preview[data-theme='light']) :is([data-slot='input'], [data-slot='textarea'], [data-slot='select-trigger'], [data-slot='input-group']) {
   background-color: var(--card);
   border-color: var(--input);
 }
-html[data-area='store'][data-theme='light'] :is([data-slot='input'], [data-slot='textarea'], [data-slot='select-trigger']):focus-visible,
-html[data-area='store'][data-theme='light'] [data-slot='input-group']:focus-within {
+:is(html[data-area='store'][data-theme='light'], .store-preview[data-theme='light']) :is([data-slot='input'], [data-slot='textarea'], [data-slot='select-trigger']):focus-visible,
+:is(html[data-area='store'][data-theme='light'], .store-preview[data-theme='light']) [data-slot='input-group']:focus-within {
   border-color: var(--ring);
 }
-html[data-area='store'][data-theme='light'] :is([data-slot='input'], [data-slot='textarea'], [data-slot='select-trigger'])[aria-invalid='true'] {
+:is(html[data-area='store'][data-theme='light'], .store-preview[data-theme='light']) :is([data-slot='input'], [data-slot='textarea'], [data-slot='select-trigger'])[aria-invalid='true'] {
   border-color: var(--destructive);
 }
 
@@ -631,6 +663,120 @@ html[data-area='store'] .catalog-filter-sort-menu [data-slot='select-item']:is([
   color: var(--primary-2);
 }
 
+/* Admin Center comparte las superficies del catálogo. Esmeralda sigue siendo
+   el acento semántico del panel (selección, enlaces y datos); el amarillo se
+   reserva al botón de acción principal, para no volver amarillos los estados
+   de éxito y los textos que ya consumen --primary. Los portales heredan estos
+   tokens desde html igual que el contenido de cada módulo. */
+html[data-area='admin'] {
+  --area-font-sans: "Chivo Variable", ui-sans-serif, system-ui, sans-serif;
+  --area-font-heading: "Chivo Variable", ui-sans-serif, system-ui, sans-serif;
+  --primary: var(--primary-2);
+  --primary-foreground: #ffffff;
+  --admin-action: #ffc20e;
+  --admin-action-foreground: #102423;
+  --admin-action-shadow: #102423;
+  --sidebar: var(--card);
+  --sidebar-foreground: var(--foreground);
+  --sidebar-primary: var(--primary-2);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: color-mix(in srgb, var(--primary-2) 10%, var(--card));
+  --sidebar-accent-foreground: var(--primary-2);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--ring);
+}
+html[data-area='admin'][data-theme='dark'] {
+  --primary: var(--primary-2);
+  --primary-foreground: #102423;
+  --admin-action-shadow: #a8402f;
+  --sidebar-accent: color-mix(in srgb, var(--primary-2) 16%, var(--card));
+}
+html[data-area='admin'] .admin-topbar {
+  box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--primary-2) 65%, transparent);
+}
+html[data-area='admin'] .admin-nav-link {
+  border: 1px solid transparent;
+}
+html[data-area='admin'] .admin-nav-link[data-active='true'] {
+  border-color: color-mix(in srgb, var(--primary-2) 40%, transparent);
+  font-weight: 600;
+}
+html[data-area='admin'] [data-ui-button][data-variant='default']:not([aria-pressed]):not(:where(.store-preview, .store-preview *, .store-palette, .store-palette *)) {
+  background-color: var(--admin-action);
+  color: var(--admin-action-foreground);
+  border: 1.5px solid var(--ink);
+  box-shadow: 2px 2px 0 var(--admin-action-shadow);
+  transition-property: background-color, box-shadow, transform;
+}
+html[data-area='admin'] [data-ui-button][data-variant='default']:not([aria-pressed]):hover:not(:disabled):not(:where(.store-preview, .store-preview *, .store-palette, .store-palette *)) {
+  background-color: color-mix(in srgb, var(--admin-action) 92%, var(--ink));
+}
+html[data-area='admin'] [data-ui-button][data-variant='default']:not([aria-pressed]):active:not(:disabled):not(:where(.store-preview, .store-preview *, .store-palette, .store-palette *)) {
+  transform: translate(1px, 1px);
+  box-shadow: 1px 1px 0 var(--admin-action-shadow);
+}
+html[data-area='admin'] :is([data-ui-button], [data-slot='input'], [data-slot='textarea'], [data-slot='select-trigger'], [data-slot='native-select'], [data-slot='input-group']):not([class*='rounded-full']):not([class*='rounded-pill']):not(:where(.store-preview, .store-preview *, .store-palette, .store-palette *)) {
+  border-radius: 0.75rem;
+}
+html[data-area='admin'] :is([data-slot='input'], [data-slot='textarea'], [data-slot='select-trigger'], [data-slot='native-select'], [data-slot='input-group']):not(:where(.store-preview, .store-preview *, .store-palette, .store-palette *)) {
+  background-color: var(--card);
+  border-color: var(--input);
+}
+html[data-area='admin'] :is([data-slot='input'], [data-slot='textarea'], [data-slot='select-trigger'], [data-slot='native-select'])[aria-invalid='true']:not(:where(.store-preview, .store-preview *, .store-palette, .store-palette *)) {
+  border-color: var(--destructive);
+}
+html[data-area='admin'] :is([data-slot='dialog-content'], [data-slot='sheet-content']) > [data-ui-button][data-size='icon-sm'][class*='absolute']:not(:where(.store-preview, .store-preview *, .store-palette, .store-palette *)) {
+  width: 2.75rem;
+  height: 2.75rem;
+  top: 0.625rem;
+  right: 0.625rem;
+}
+html[data-area='admin'] :is([data-slot='dialog-header'], [data-slot='sheet-header']):not(:where(.store-preview, .store-preview *, .store-palette, .store-palette *)) {
+  padding-right: 2.5rem;
+}
+html[data-area='admin'] [data-slot='dialog-content']:not(:where(.store-preview, .store-preview *, .store-palette, .store-palette *)) {
+  max-height: calc(100dvh - 2rem);
+  overflow-y: auto;
+}
+html[data-area='admin'] [data-slot='tabs-list'][data-variant='default']:not(:where(.store-preview, .store-preview *, .store-palette, .store-palette *)) {
+  max-width: 100%;
+  height: auto;
+  min-height: 2.5rem;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+html[data-area='admin'] [data-slot='tabs-trigger']:not(:where(.store-preview, .store-preview *, .store-palette, .store-palette *)) {
+  min-height: 2rem;
+  padding-inline: 0.75rem;
+}
+@media (min-width: 768px) {
+  html[data-area='admin'] [data-ui-button]:not([data-size^='icon']):not([data-size='xs']):not(:where(.store-preview, .store-preview *, .store-palette, .store-palette *)) {
+    min-height: 2.25rem;
+  }
+  html[data-area='admin'] :is([data-slot='input'], [data-slot='select-trigger'], [data-slot='native-select'], [data-slot='input-group']):not(:where(.store-preview, .store-preview *, .store-palette, .store-palette *)) {
+    min-height: 2.25rem;
+  }
+}
+@media (max-width: 767px) {
+  html[data-area='admin'] :is([data-ui-button], [data-slot='input'], [data-slot='select-trigger'], [data-slot='native-select'], [data-slot='input-group'], [data-slot='tabs-trigger']):not(:where(.store-preview, .store-preview *, .store-palette, .store-palette *)) {
+    min-height: 2.75rem;
+  }
+  html[data-area='admin'] [data-ui-button][data-size^='icon']:not(:where(.store-preview, .store-preview *, .store-palette, .store-palette *)) {
+    min-width: 2.75rem;
+  }
+  html[data-area='admin'] :is([data-slot='dropdown-menu-item'], [data-slot='dropdown-menu-checkbox-item'], [data-slot='select-item']):not(:where(.store-preview, .store-preview *, .store-palette, .store-palette *)) {
+    min-height: 2.75rem;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  html[data-area='admin'] [data-ui-button]:active:not(:disabled):not(:where(.store-preview, .store-preview *, .store-palette, .store-palette *)) {
+    transform: none;
+  }
+  html[data-area='admin'] :is([data-slot='sidebar-gap'], [data-slot='sidebar-container'], [data-slot='sidebar-menu-button']):not(:where(.store-preview, .store-preview *, .store-palette, .store-palette *)) {
+    transition-duration: 0ms;
+  }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -650,4 +796,19 @@ html[data-area='store'] .catalog-filter-sort-menu [data-slot='select-item']:is([
   .editing-mode .group\/editable:hover {
     @apply outline-2 outline-dashed outline-primary ring-4 ring-primary/10 rounded-xl cursor-pointer;
   }
+}
+/* Indicación de selección sobre la vista previa del editor. */
+html[data-landing-preview="edit"] [data-landing-section] {
+  cursor: pointer;
+}
+html[data-landing-preview="edit"] [data-landing-section]:hover {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+
+/* Superficie de trabajo del editor de portada. */
+.landing-studio .studio-canvas {
+  background-color: var(--muted);
+  background-image: radial-gradient(circle, color-mix(in oklab, var(--foreground) 12%, transparent) 1px, transparent 1px);
+  background-size: 20px 20px;
 }
