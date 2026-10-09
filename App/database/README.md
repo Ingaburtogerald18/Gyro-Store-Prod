@@ -1,107 +1,80 @@
 # Base de datos
 
-Esquema de Gyro Store v2 sobre Supabase/Postgres. **Dos archivos, en orden.**
+Esquema de Gyro Store sobre Supabase/Postgres.
 
-## 🟢 Producción: qué correr en el SQL Editor (Supabase nueva)
-
-Para una base **nueva** (el caso de producción), desde el **SQL Editor** del
-dashboard de Supabase, corré **estos dos, en este orden**:
-
-1. **`01_schema.sql`** — todo el esquema.
-2. **`02_seed.sql`** — datos de arranque.
-
-Eso deja la base en su estado final. No hay nada más que correr.
-
-**El orden importa.** El seed inserta en `accounts`, y la sección de Caja del
-esquema le agrega columnas a esa tabla: sembrar antes dejaría filas con la forma
-vieja. No hay runner automático ni tabla de control; el orden lo lleva quien aplica.
-
-> ⚠️ **`01_schema.sql` es solo para bases NUEVAS.** No es idempotente —los
-> `create table` son pelados a propósito— así que sobre una base con datos falla,
-> y si algún statement llegara a pasar, recrearía tablas vacías sobre información
-> real. Una base ya migrada no se vuelve a aplicar.
-
-> ⚠️ Antes de correr `02_seed.sql` en producción, **revisá los valores
-> financieros** (pozos, márgenes, comisión, tasa de cambio): son la configuración
-> real del negocio, no ejemplos.
-
-## Contenido del directorio
+## Qué hay acá
 
 | Archivo | Qué es |
 |---|---|
-| `01_schema.sql` | **Todo el esquema.** Enums, secuencias, tablas con sus índices, el bucket de Storage con sus políticas, RLS deny-all, triggers de `updated_at`, los RPCs de reportería y canje, y la vista `sales_export_view`. |
-| `02_seed.sql` | **Datos de arranque.** Categorías, las 8 plantillas heredadas de v1, cuentas de caja/banco y la configuración financiera. |
+| `01_schema.sql` | **Todo el esquema, en su estado final**, ordenado por módulo (Personal, Catálogo, Clientes, Compras, Ventas, Tienda web, Stock, Descuentos, Finanzas, Sistema, Reportes, Seguridad). Cada tabla está completa en un solo `create table`. |
+| `02_seed.sql` | Datos de arranque: categorías, las 8 plantillas heredadas de v1 y la configuración financiera. |
+| `migrations/0025_ordenar_base.sql` | Lleva la base de producción al mismo estado que `01_schema.sql`. |
+| `historial/` | El esquema anterior y las migraciones 0015–0024, solo como registro. **No se corren.** |
 
-Solo SQL. El seed de desarrollo (productos de prueba y slides del hero) es un
-script y vive con los demás: `scripts/seed-catalog.dev.mts` → `npm run seed:dev`.
+## Base de producción (la que ya tiene datos)
 
-## Historia del esquema
+Correr **solo** `migrations/0025_ordenar_base.sql` en el SQL Editor de Supabase,
+con el OK del dueño. No hace falta correr antes 0019–0024: la 0025 trae lo que
+falte de cada una.
 
-`01_schema.sql` es la **consolidación** de un baseline más once migraciones
-incrementales que se le fueron aplicando y que hoy quedan **plegadas** en un solo
-archivo:
+- Va en una sola transacción: si algo falla, la base queda como estaba.
+- Se puede correr más de una vez sin repetir nada.
+- No cambia precios, costos, cantidades, ventas ni pedidos.
+- Termina con una verificación. Si devuelve una sola fila **"Todo en orden"**,
+  la base quedó igual a `01_schema.sql`. Si no, lista qué falta o qué sobra.
 
-- Los antiguos `0004`–`0011` (`security_invoker` en la vista de export, el embudo
-  de analítica, Caja extendida, `search_path` en las funciones `security
-  definer`, `invoices.seller_uid`, `pending_role_grants`, `spo_outbox` y
-  `catalog_items.spo_link`) se **concatenaron** en el orden en que se ejecutaron,
-  sin reescribir el SQL. Cada bloque conserva su cabecera original explicando qué
-  cambia y por qué; leído de arriba abajo, el archivo cuenta la evolución.
-- `0012`–`0014` se **plegaron dentro del esquema** y sus archivos sueltos se
-  eliminaron por redundantes: en una base nueva su efecto ya está en
-  `01_schema.sql`, y volver a correrlos fallaría (`add column icon` sobre una
-  columna que ya existe, `drop table products` sobre una tabla que nunca se creó).
-  Lo que hacían:
-  - **0012 — baja de tablas muertas.** Se quitaron `products`,
-    `whatsapp_conversations`, `whatsapp_messages`, `logistics_shipments`,
-    `logistics_events` y `feedback`, más los enums `conversation_status`,
-    `message_direction` y `feedback_type`. `products` era **vestigial** (su columna
-    `stock` no la leía ni la escribía nadie; el stock real vive en `purchases`, el
-    ledger FIFO); las otras cinco eran **features que nunca se construyeron**. No
-    confundir con los roles `logistics_admin`/`logistics_customer`, que siguen vivos.
-  - **0013 / 0014 — categorías.** `categories` ganó la columna `icon` (emoji corto
-    para el storefront); `sort_order` se agregó y se volvió a quitar, así que la
-    forma final solo suma `icon`.
+Lo que ordena:
 
-`01_schema.sql` ya nace con todo esto: **32 tablas**, y aplicar `01_schema.sql` +
-`02_seed.sql` deja el estado final. Todas las tablas tienen al menos un acceso
-desde `App/server`, salvo `expenses` (ver abajo).
+1. Completa lo que falte de las migraciones 0016–0024.
+2. Archiva Caja y Bancos (`accounts`, `account_movements`, `cash_closures`) en el
+   esquema `archivo`, con sus datos. Para devolver una tabla:
+   `alter table archivo.accounts set schema public;`
+3. Borra `get_sales_trend` y `get_expenses_by_pozo`, que nadie llama.
+4. Agrega índices para reportes y búsquedas y quita cuatro repetidos.
+5. Cierra la base a la llave pública (ver Seguridad).
 
-### `expenses`: leída pero nunca escrita
+## Base nueva (desde cero)
 
-Se deja a propósito. Nada inserta en ella —los gastos reales se registran como
-egresos en `account_movements`, en el módulo de Caja— pero el RPC
-`get_expenses_by_pozo` sí la lee, y ese informe llega hasta la pantalla de
-reportes (`useGetExpensesByPozoQuery`). O sea que el corte "gasto por pozo"
-muestra ceros y los seguirá mostrando.
+1. `01_schema.sql`
+2. `02_seed.sql`
 
-Borrarla rompería el informe, así que es una feature a medio construir, no
-código muerto. Cerrarla es una decisión de producto: o se le da un camino de
-escritura, o se recablea el RPC sobre `account_movements` y ahí sí se da de baja
-la tabla.
+`01_schema.sql` no es idempotente a propósito: sobre una base con datos falla de
+entrada en vez de mezclar estados. Nunca correrlo sobre producción.
 
-## Cambios futuros (cuando producción ya esté viva)
+`02_seed.sql` sí se puede re-correr: no duplica categorías ni plantillas y no pisa
+la configuración que ya se ajustó desde el panel.
 
-`01_schema.sql` es el baseline y **no se edita ni se re-aplica** una vez que la
-base tiene datos. Todo cambio posterior va en un **archivo incremental nuevo**,
-numérico y correlativo, que se corre a mano en el SQL Editor sobre la base viva:
+## Cambios futuros
 
-```
-App/database/
-├── 01_schema.sql
-├── 02_seed.sql
-└── migrations/
-    └── 0015_lo_que_sea.sql   ← nuevos cambios acá, uno por archivo
-```
+1. Un archivo nuevo en `migrations/` con el número siguiente (`0026_…`), que se
+   pueda correr dos veces sin romper (`if not exists`, `create or replace`).
+2. El mismo cambio en `01_schema.sql`, en su módulo, para que una base nueva
+   nazca igual.
+3. Si la migración crea una tabla o función, cerrarla como en la sección 13 de
+   `01_schema.sql` (RLS y permisos solo para `service_role`).
 
-La carpeta `migrations/` contiene los incrementales posteriores al baseline.
-Cada cambio nuevo va allí con su número correlativo. Lo que ya se ejecutó contra
-una base real no se reescribe; el baseline queda como registro del punto de partida.
+Lo que ya se corrió contra producción no se reescribe.
 
-Los archivos 0015 y 0017 que también estaban en la raíz se consolidaron en esta
-carpeta. La migración 0018 se trasladó sin modificar su contenido y conserva su
-requisito de aprobación: reorganizar archivos no significa aplicar SQL.
-No vuelvas a ejecutar migraciones ya aplicadas.
+## Seguridad
+
+- **Tablas:** RLS activo y sin políticas en todas. Solo el servidor, con la
+  `service_role`, lee y escribe.
+- **Funciones:** solo `service_role` las puede llamar. La llave pública (`anon`)
+  viaja en el navegador para el login del personal. Las funciones de reportes son
+  `security definer` (saltean RLS), así que sin este cierre cualquiera con esa
+  llave podía pedir el libro de ventas con costos y clientes.
+- **Storage:** la app sube las fotos a R2. El bucket viejo `public-assets` queda
+  solo de lectura, para que sigan funcionando las fotos que ya están ahí.
+
+## Dos correlativos legales
+
+Salen de secuencias de Postgres y **ninguno se reinicia ni se reusa**:
+
+- `invoices.invoice_code` → `GS-PR-1`, `GS-PR-2`, …
+- `discount_codes.code` → `GS-DC-1`, `GS-DC-2`, …
+
+Un número descartado queda quemado. Por eso anular una factura la deja en estado
+`void` en vez de borrarla.
 
 ## Seed de desarrollo
 
@@ -109,38 +82,5 @@ No vuelvas a ejecutar migraciones ya aplicadas.
 cd App && npm run seed:dev -- --confirm
 ```
 
-Inserta productos de prueba y los slides del hero para ver el storefront con
-contenido. UUIDs fijos + upsert, así que es re-ejecutable sin duplicar.
-
-Pide `--confirm` a propósito: publica productos con `published: true`, o sea que
-lo que siembre **aparece en la tienda**. El script imprime a qué proyecto de
-Supabase va a escribir antes de hacerlo, y se niega a correr con
-`NODE_ENV=production`.
-
-Sus imágenes quedaron vacías a propósito: hay que subir los assets a Storage y
-poner ahí la URL pública.
-
-## Seguridad (RLS)
-
-**Todas las tablas de `public` están en deny-all**, sin políticas. Nadie accede
-directo desde el cliente; solo el backend con la `service_role` lee y escribe.
-
-El esquema lo aplica en un bucle sobre `pg_tables`, así que una tabla nueva que
-se olvide de activarlo queda protegida igual en una instalación limpia. Las
-tablas que se agregaron después del baseline original lo activan a mano (ese
-bucle solo cubrió lo que existía en su momento).
-
-La única excepción son las políticas sobre `storage.objects`: el bucket
-`public-assets` sirve las fotos del catálogo público, así que su lectura es
-abierta y la escritura queda restringida a usuarios autenticados.
-
-## Dos correlativos legales
-
-Ambos salen de secuencias de Postgres y **ninguno se reinicia ni se reusa**:
-
-- `invoices.invoice_code` → `GS-PR-1`, `GS-PR-2`, … (columna generada sobre `invoice_number`)
-- `discount_codes.code` → `GS-DC-1`, `GS-DC-2`, …
-
-Un número descartado queda quemado. Es lo correcto para algo que ya pudo haberse
-impreso o repartido, y es la razón por la que anular una factura la deja en
-estado `void` en vez de borrarla.
+Inserta productos de prueba y los slides del hero. Publica productos, así que lo
+que siembre **aparece en la tienda**; se niega a correr con `NODE_ENV=production`.

@@ -1,6 +1,6 @@
 /*
  * Sistema de diseño Gyro Store — preset shadcn "b2DeDk3s1"
- * (style Rhea · base Mist · theme Emerald · charts Emerald · Geist).
+ * (style Rhea · paleta Gyro compartida · Chivo).
  *
  * Migración nativa: los tokens los define el preset en `:root` / `[data-theme="dark"]`
  * (más abajo). Este archivo agrega lo único que el preset no trae:
@@ -17,9 +17,9 @@
 /* Utilidades del preset (variantes data-open/data-closed, no-scrollbar, scroll-fade,
    shimmer). Los componentes las usan; sin este import quedan sin estilo. */
 @import "shadcn/tailwind.css";
-@import "@fontsource-variable/geist";
 @import "@fontsource-variable/chivo";
 @import "@fontsource-variable/chivo-mono";
+@import "./styles/admin.css";
 
 /* La variante `dark:` sigue a nuestro data-theme, no al prefers-color-scheme del
    sistema: el tema lo controla useTheme (doc 05 §7). */
@@ -108,6 +108,7 @@
   --font-display: "Chivo Variable", ui-sans-serif, system-ui, sans-serif;
   /* Chivo Mono: datos técnicos (specs, stock, contadores, códigos). */
   --font-spec: "Chivo Mono Variable", ui-monospace, monospace;
+  --font-mono: "Chivo Mono Variable", ui-monospace, monospace;
 
   /* Paso por debajo de text-xs para badges, eyebrows y metadatos densos.
      Reemplaza ~120 `text-[10px]`/`text-[11px]` sueltos: 11px es el piso de
@@ -139,17 +140,9 @@ html[data-theme='light'] {
   color-scheme: light;
 }
 
-/* Área de la app, la fija root.tsx en <html> según la ruta. Va en <html> y no
-   en el layout de cada área porque los Dialog/Sheet de shadcn se renderizan en
-   un portal colgado de <body>, fuera del árbol del layout: con la variable en
-   <html>, el título de un diálogo del panel sigue en Geist y el del carrito,
-   en Chivo. Geist es el default (sin atributo = panel). */
+/* Una misma familia para catálogo, panel y portales (Dialog/Sheet).
+   Los códigos usan Chivo Mono mediante font-spec o font-mono. */
 :root {
-  --area-font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
-  --area-font-heading: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
-}
-
-html[data-area='store'] {
   --area-font-sans: "Chivo Variable", ui-sans-serif, system-ui, sans-serif;
   --area-font-heading: "Chivo Variable", ui-sans-serif, system-ui, sans-serif;
 }
@@ -397,7 +390,9 @@ html[data-area='admin'],
   --card-foreground: var(--ink);
   --popover: #ffffff;
   --popover-foreground: var(--ink);
-  --primary: #ffc20e;
+  --action: #ffc20e;
+  --action-foreground: var(--ink);
+  --primary: var(--action);
   --primary-foreground: var(--ink);
   --primary-2: #0e7c68;
   --secondary: #e4f5f0;
@@ -436,7 +431,8 @@ html[data-theme='dark'] .store-palette {
   --card-foreground: #f4f4f2;
   --popover: #18191b;
   --popover-foreground: #f4f4f2;
-  --primary: #ffc20e;
+  --action-foreground: #111111;
+  --primary: var(--action);
   --primary-foreground: #111111;
   --primary-2: #3dc5a9;
   --secondary: #222326;
@@ -507,49 +503,59 @@ html[data-area='store'] .store-header .store-cart-button:active {
    botones de WhatsApp en contorno llevan sombra de su propio verde y fondo de
    tarjeta, para que la sombra se lea como un objeto desplazado. */
 html[data-area='store'],
+html[data-area='admin'],
 .store-preview,
 .store-palette {
   --sticker-shadow: var(--ink);
 }
 html[data-area='store'][data-theme='dark'],
+html[data-area='admin'][data-theme='dark'],
 .store-preview[data-theme='dark'],
 html[data-theme='dark'] .store-palette {
   --sticker-shadow: #a8402f;
 }
-:is(html[data-area='store'], .store-palette, .store-preview) [data-slot='button']:is([data-variant='default'], [data-variant='whatsapp'], [data-variant='destructiveSolid']):not([aria-pressed]) {
+/* Las acciones usan los mismos tokens en catálogo y panel. */
+:is(html[data-area='store'], html[data-area='admin'], .store-palette, .store-preview) [data-slot='button'][data-variant='default']:not([aria-pressed]) {
+  background-color: var(--action);
+  color: var(--action-foreground);
+}
+:is(html[data-area='store'], html[data-area='admin'], .store-palette, .store-preview) [data-slot='button'][data-variant='default']:not([aria-pressed]):hover:not(:disabled) {
+  background-color: color-mix(in oklab, var(--action) 80%, transparent);
+}
+:is(html[data-area='store'], html[data-area='admin'], .store-palette, .store-preview) [data-slot='button']:is([data-variant='default'], [data-variant='whatsapp'], [data-variant='destructiveSolid']):not([aria-pressed]) {
   border: 2px solid var(--ink);
   box-shadow: 3px 3px 0 var(--sticker-shadow);
   transition-property: transform, box-shadow, background-color;
 }
 /* WhatsApp en contorno es una acción SECUNDARIA: borde del canal, sin relieve.
    El relieve queda para las acciones principales (comprar, continuar). */
-:is(html[data-area='store'], .store-preview) [data-slot='button'][data-variant='whatsappOutline'] {
+:is(html[data-area='store'], html[data-area='admin'], .store-preview) [data-slot='button'][data-variant='whatsappOutline'] {
   background-color: var(--card);
   border: 2px solid var(--whatsapp);
   transition-property: transform, background-color;
 }
-:is(html[data-area='store'], .store-palette, .store-preview) [data-slot='button']:is([data-variant='default'], [data-variant='whatsapp'], [data-variant='destructiveSolid']):not([aria-pressed]):active:not(:disabled) {
+:is(html[data-area='store'], html[data-area='admin'], .store-palette, .store-preview) [data-slot='button']:is([data-variant='default'], [data-variant='whatsapp'], [data-variant='destructiveSolid']):not([aria-pressed]):active:not(:disabled) {
   transform: translate(2px, 2px);
   box-shadow: 1px 1px 0 var(--sticker-shadow);
 }
-:is(html[data-area='store'], .store-preview) [data-slot='button'][data-variant='whatsappOutline']:active:not(:disabled) {
+:is(html[data-area='store'], html[data-area='admin'], .store-preview) [data-slot='button'][data-variant='whatsappOutline']:active:not(:disabled) {
   transform: translateY(1px);
 }
 @media (prefers-reduced-motion: reduce) {
-  :is(html[data-area='store'], .store-palette, .store-preview) [data-slot='button']:active:not(:disabled) {
+  :is(html[data-area='store'], html[data-area='admin'], .store-palette, .store-preview) [data-slot='button']:active:not(:disabled) {
     transform: none;
   }
 }
 
-/* Radios de la tienda: controles ≈12px, tarjetas ≈16px, paneles 24px. Los
+/* Radios compartidos: controles ≈12px, tarjetas ≈16px, paneles 24px. Los
    botones redondos (rounded-full) conservan su forma. */
-:is(html[data-area='store'], .store-preview) :is([data-slot='button'], [data-slot='input'], [data-slot='textarea'], [data-slot='select-trigger'], [data-slot='input-group']):not([class*='rounded-full']):not([class*='rounded-pill']) {
+:is(html[data-area='store'], html[data-area='admin'], .store-preview) :is([data-slot='button'], [data-slot='input'], [data-slot='textarea'], [data-slot='select-trigger'], [data-slot='native-select'], [data-slot='input-group']):not([class*='rounded-full']):not([class*='rounded-pill']) {
   border-radius: 0.75rem;
 }
 
 /* Cerrar de paneles y diálogos: 44px de objetivo táctil (el ícono sigue chico)
-   y neutral — cerrar no es una acción destructiva. */
-:is(html[data-area='store'], .store-preview) :is([data-slot='sheet-content'], [data-slot='dialog-content']) > [data-slot='button'][data-size='icon-sm'][class*='absolute'] {
+   y variante cancel roja, según la convención de cierre del proyecto. */
+:is(html[data-area='store'], html[data-area='admin'], .store-preview) :is([data-slot='sheet-content'], [data-slot='dialog-content']) > [data-slot='button'][data-size='icon-sm'][class*='absolute'] {
   width: 2.75rem;
   height: 2.75rem;
   top: 0.625rem;
@@ -572,26 +578,26 @@ html[data-theme='dark'] .store-palette {
    amarillo queda solo para comprar y continuar: si también marcara selección,
    no se sabría qué es acción y qué es estado. Además del color cambia el peso
    (font-semibold en el componente) y el borde: no depende solo del color. */
-:is(html[data-area='store'], .store-preview) [data-slot='button'][aria-pressed='true'] {
+:is(html[data-area='store'], html[data-area='admin'], .store-preview) [data-slot='button'][aria-pressed='true'] {
   background-color: color-mix(in srgb, var(--primary-2) 12%, var(--card));
   color: var(--foreground);
   border: 2px solid var(--primary-2);
 }
-:is(html[data-area='store'], .store-preview) [data-slot='button'][aria-pressed='true']:hover {
+:is(html[data-area='store'], html[data-area='admin'], .store-preview) [data-slot='button'][aria-pressed='true']:hover {
   background-color: color-mix(in srgb, var(--primary-2) 18%, var(--card));
 }
 
 /* Campos de formulario en claro: blancos con borde, en vez del relleno gris
    de shadcn (bg-input/50), que sobre el crema se veía sucio y apagado. */
-:is(html[data-area='store'][data-theme='light'], .store-preview[data-theme='light']) :is([data-slot='input'], [data-slot='textarea'], [data-slot='select-trigger'], [data-slot='input-group']) {
+:is(html[data-area='store'][data-theme='light'], html[data-area='admin'][data-theme='light'], .store-preview[data-theme='light']) :is([data-slot='input'], [data-slot='textarea'], [data-slot='select-trigger'], [data-slot='input-group']) {
   background-color: var(--card);
   border-color: var(--input);
 }
-:is(html[data-area='store'][data-theme='light'], .store-preview[data-theme='light']) :is([data-slot='input'], [data-slot='textarea'], [data-slot='select-trigger']):focus-visible,
-:is(html[data-area='store'][data-theme='light'], .store-preview[data-theme='light']) [data-slot='input-group']:focus-within {
+:is(html[data-area='store'][data-theme='light'], html[data-area='admin'][data-theme='light'], .store-preview[data-theme='light']) :is([data-slot='input'], [data-slot='textarea'], [data-slot='select-trigger']):focus-visible,
+:is(html[data-area='store'][data-theme='light'], html[data-area='admin'][data-theme='light'], .store-preview[data-theme='light']) [data-slot='input-group']:focus-within {
   border-color: var(--ring);
 }
-:is(html[data-area='store'][data-theme='light'], .store-preview[data-theme='light']) :is([data-slot='input'], [data-slot='textarea'], [data-slot='select-trigger'])[aria-invalid='true'] {
+:is(html[data-area='store'][data-theme='light'], html[data-area='admin'][data-theme='light'], .store-preview[data-theme='light']) :is([data-slot='input'], [data-slot='textarea'], [data-slot='select-trigger'])[aria-invalid='true'] {
   border-color: var(--destructive);
 }
 
@@ -669,13 +675,8 @@ html[data-area='store'] .catalog-filter-sort-menu [data-slot='select-item']:is([
    de éxito y los textos que ya consumen --primary. Los portales heredan estos
    tokens desde html igual que el contenido de cada módulo. */
 html[data-area='admin'] {
-  --area-font-sans: "Chivo Variable", ui-sans-serif, system-ui, sans-serif;
-  --area-font-heading: "Chivo Variable", ui-sans-serif, system-ui, sans-serif;
   --primary: var(--primary-2);
   --primary-foreground: #ffffff;
-  --admin-action: #ffc20e;
-  --admin-action-foreground: #102423;
-  --admin-action-shadow: #102423;
   --sidebar: var(--card);
   --sidebar-foreground: var(--foreground);
   --sidebar-primary: var(--primary-2);
@@ -688,7 +689,6 @@ html[data-area='admin'] {
 html[data-area='admin'][data-theme='dark'] {
   --primary: var(--primary-2);
   --primary-foreground: #102423;
-  --admin-action-shadow: #a8402f;
   --sidebar-accent: color-mix(in srgb, var(--primary-2) 16%, var(--card));
 }
 html[data-area='admin'] .admin-topbar {
@@ -700,36 +700,6 @@ html[data-area='admin'] .admin-nav-link {
 html[data-area='admin'] .admin-nav-link[data-active='true'] {
   border-color: color-mix(in srgb, var(--primary-2) 40%, transparent);
   font-weight: 600;
-}
-html[data-area='admin'] [data-ui-button][data-variant='default']:not([aria-pressed]):not(:where(.store-preview, .store-preview *, .store-palette, .store-palette *)) {
-  background-color: var(--admin-action);
-  color: var(--admin-action-foreground);
-  border: 1.5px solid var(--ink);
-  box-shadow: 2px 2px 0 var(--admin-action-shadow);
-  transition-property: background-color, box-shadow, transform;
-}
-html[data-area='admin'] [data-ui-button][data-variant='default']:not([aria-pressed]):hover:not(:disabled):not(:where(.store-preview, .store-preview *, .store-palette, .store-palette *)) {
-  background-color: color-mix(in srgb, var(--admin-action) 92%, var(--ink));
-}
-html[data-area='admin'] [data-ui-button][data-variant='default']:not([aria-pressed]):active:not(:disabled):not(:where(.store-preview, .store-preview *, .store-palette, .store-palette *)) {
-  transform: translate(1px, 1px);
-  box-shadow: 1px 1px 0 var(--admin-action-shadow);
-}
-html[data-area='admin'] :is([data-ui-button], [data-slot='input'], [data-slot='textarea'], [data-slot='select-trigger'], [data-slot='native-select'], [data-slot='input-group']):not([class*='rounded-full']):not([class*='rounded-pill']):not(:where(.store-preview, .store-preview *, .store-palette, .store-palette *)) {
-  border-radius: 0.75rem;
-}
-html[data-area='admin'] :is([data-slot='input'], [data-slot='textarea'], [data-slot='select-trigger'], [data-slot='native-select'], [data-slot='input-group']):not(:where(.store-preview, .store-preview *, .store-palette, .store-palette *)) {
-  background-color: var(--card);
-  border-color: var(--input);
-}
-html[data-area='admin'] :is([data-slot='input'], [data-slot='textarea'], [data-slot='select-trigger'], [data-slot='native-select'])[aria-invalid='true']:not(:where(.store-preview, .store-preview *, .store-palette, .store-palette *)) {
-  border-color: var(--destructive);
-}
-html[data-area='admin'] :is([data-slot='dialog-content'], [data-slot='sheet-content']) > [data-ui-button][data-size='icon-sm'][class*='absolute']:not(:where(.store-preview, .store-preview *, .store-palette, .store-palette *)) {
-  width: 2.75rem;
-  height: 2.75rem;
-  top: 0.625rem;
-  right: 0.625rem;
 }
 html[data-area='admin'] :is([data-slot='dialog-header'], [data-slot='sheet-header']):not(:where(.store-preview, .store-preview *, .store-palette, .store-palette *)) {
   padding-right: 2.5rem;
@@ -749,22 +719,15 @@ html[data-area='admin'] [data-slot='tabs-trigger']:not(:where(.store-preview, .s
   min-height: 2rem;
   padding-inline: 0.75rem;
 }
-@media (min-width: 768px) {
-  html[data-area='admin'] [data-ui-button]:not([data-size^='icon']):not([data-size='xs']):not(:where(.store-preview, .store-preview *, .store-palette, .store-palette *)) {
-    min-height: 2.25rem;
-  }
-  html[data-area='admin'] :is([data-slot='input'], [data-slot='select-trigger'], [data-slot='native-select'], [data-slot='input-group']):not(:where(.store-preview, .store-preview *, .store-palette, .store-palette *)) {
-    min-height: 2.25rem;
-  }
-}
-@media (max-width: 767px) {
-  html[data-area='admin'] :is([data-ui-button], [data-slot='input'], [data-slot='select-trigger'], [data-slot='native-select'], [data-slot='input-group'], [data-slot='tabs-trigger']):not(:where(.store-preview, .store-preview *, .store-palette, .store-palette *)) {
+/* Same touch targets in both areas; compact desktop sizes come from Button. */
+@media (max-width: 767px), (pointer: coarse) {
+  :is(html[data-area='store'], html[data-area='admin'], .store-preview) :is([data-slot='button'], [data-slot='input'], [data-slot='select-trigger'], [data-slot='native-select'], [data-slot='input-group'], [data-slot='tabs-trigger']) {
     min-height: 2.75rem;
   }
-  html[data-area='admin'] [data-ui-button][data-size^='icon']:not(:where(.store-preview, .store-preview *, .store-palette, .store-palette *)) {
+  :is(html[data-area='store'], html[data-area='admin'], .store-preview) [data-slot='button'][data-size^='icon'] {
     min-width: 2.75rem;
   }
-  html[data-area='admin'] :is([data-slot='dropdown-menu-item'], [data-slot='dropdown-menu-checkbox-item'], [data-slot='select-item']):not(:where(.store-preview, .store-preview *, .store-palette, .store-palette *)) {
+  :is(html[data-area='store'], html[data-area='admin'], .store-preview) :is([data-slot='dropdown-menu-item'], [data-slot='dropdown-menu-checkbox-item'], [data-slot='select-item']) {
     min-height: 2.75rem;
   }
 }

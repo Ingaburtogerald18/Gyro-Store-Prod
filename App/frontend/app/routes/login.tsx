@@ -79,7 +79,7 @@ export default function Login() {
 
   return (
     // `.store-palette` trae la paleta de la tienda (crema, amarillo, tinta) sin
-    // salir del área admin, que es la que fija Geist como tipografía.
+    // cambiar el área de la ruta; la tipografía Chivo ya es compartida.
     // Pantalla partida, sin tarjeta: la imagen sobre el teal de marca (en oscuro,
     // gris carbón: el color lo pone la imagen) y el formulario sobre el fondo.
     <main className="store-palette grid min-h-screen w-full bg-background font-sans text-foreground lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">

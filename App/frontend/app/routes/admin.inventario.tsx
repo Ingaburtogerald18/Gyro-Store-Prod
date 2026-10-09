@@ -17,6 +17,7 @@ import type { MetaFunction } from "@remix-run/node";
 
 import { PurchaseMetrics, StockMetrics } from "~/components/admin/inventory/InventoryMetrics";
 import { PurchaseForm } from "~/components/admin/inventory/PurchaseForm";
+import { PurchaseOrderForm } from "~/components/admin/inventory/PurchaseOrderForm";
 import { PurchasesTable, type PurchaseStatusFilter } from "~/components/admin/inventory/PurchasesTable";
 import { CurrentInventoryTable } from "~/components/admin/inventory/CurrentInventoryTable";
 import { PurchaseCommandPalette } from "~/components/admin/inventory/PurchaseCommandPalette";
@@ -34,7 +35,7 @@ import { Button } from "~/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "~/components/ui/dialog";
 import { HugeIcon } from "~/components/ui/icon";
 import { pageTitle } from "~/lib/brand";
-import { useGetPurchasesQuery } from "~/store/api/inventoryV1Api";
+import { useGetPurchaseOrdersQuery, useGetPurchasesQuery } from "~/store/api/inventoryV1Api";
 
 export const meta: MetaFunction = () => {
   return [{ title: pageTitle("Inventario", { admin: true }) }];
@@ -48,6 +49,7 @@ const PURCHASE_STATUS: { value: PurchaseStatusFilter; label: string }[] = [
   { value: "received", label: "En bodega" },
   { value: "transit", label: "En tránsito" },
   { value: "late", label: "Demorados" },
+  { value: "incomplete", label: "Datos por completar" },
 ];
 
 const STOCK_STATUS: { value: StockFilter; label: string }[] = [
@@ -76,6 +78,10 @@ export default function AdminInventario() {
   const monthOptions = useMemo(buildMonthOptions, []);
 
   const { data: purchases = [] } = useGetPurchasesQuery();
+  // Con la migración 0024 se registran órdenes de Alibaba; sin ella, compras
+  // sueltas como antes.
+  const { data: ordersData } = useGetPurchaseOrdersQuery();
+  const ordersEnabled = ordersData?.available === true;
 
   const view: View = searchParams.get("tab") === "inventory" ? "inventory" : "purchases";
   // `?type=migrated` de un enlace viejo cae a "current": ese módulo ya no existe.
@@ -170,11 +176,15 @@ export default function AdminInventario() {
       </Workspace>
 
       <Dialog open={purchaseFormOpen} onOpenChange={setPurchaseFormOpen}>
-        <DialogContent className="max-h-[90vh] w-full overflow-y-auto sm:max-w-3xl">
+        <DialogContent className="max-h-[90vh] w-full overflow-y-auto sm:max-w-4xl">
           <DialogHeader>
-            <DialogTitle>Registrar compra en China</DialogTitle>
+            <DialogTitle>{ordersEnabled ? "Registrar compra de Alibaba" : "Registrar compra en China"}</DialogTitle>
           </DialogHeader>
-          <PurchaseForm onDone={() => setPurchaseFormOpen(false)} />
+          {ordersEnabled ? (
+            <PurchaseOrderForm onDone={() => setPurchaseFormOpen(false)} />
+          ) : (
+            <PurchaseForm onDone={() => setPurchaseFormOpen(false)} />
+          )}
         </DialogContent>
       </Dialog>
 

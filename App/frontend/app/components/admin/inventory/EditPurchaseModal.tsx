@@ -5,7 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "~/components/ui/dialog";
 import { Button } from "~/components/ui/button";
-import { Field, FieldError, FieldLabel } from "~/components/ui/field";
+import { Field, FieldDescription, FieldError, FieldLabel } from "~/components/ui/field";
 import { purchaseFormSchema, type PurchaseFormInput, type PurchaseFormValues } from "~/lib/validators";
 import { useUpdatePurchaseMutation, type Purchase } from "~/store/api/inventoryV1Api";
 import { useGetAdminCatalogQuery, useGetCategoriesQuery } from "~/store/api/catalogAdminApi";
@@ -23,6 +23,8 @@ export function EditPurchaseModal({ purchase, onClose }: { purchase: Purchase | 
   // Vínculo con el catálogo. Cambiarlo hace que la tienda vea (o deje de ver)
   // este lote en esa variante.
   const [link, setLink] = useState<CatalogLinkValue | null>(null);
+  // Línea de una orden de Alibaba: número y fecha son de la orden.
+  const inOrder = Boolean(purchase?.orderId);
 
   // Valor guardado que ya no está en la lista (compra vieja, o categoría
   // borrada en Catálogo). Se agrega como opción propia para no perderlo.
@@ -104,14 +106,24 @@ export function EditPurchaseModal({ purchase, onClose }: { purchase: Purchase | 
                 id="edit-purchase-date"
                 value={field.value}
                 onChange={field.onChange}
+                disabled={inOrder}
               />
             )}
           />
             <FieldError errors={[errors.purchaseDate]} />
           </Field>
           <Field data-invalid={!!errors.lot}>
-            <FieldLabel htmlFor="edit-purchase-lot" required>Lote</FieldLabel>
-            <Input id="edit-purchase-lot" aria-required {...register("lot")} aria-invalid={!!errors.lot} />
+            <FieldLabel htmlFor="edit-purchase-lot" required>{inOrder ? "Orden" : "Lote"}</FieldLabel>
+            {/* readOnly y no disabled: un campo disabled llega vacío al validar. */}
+            <Input
+              id="edit-purchase-lot"
+              aria-required
+              readOnly={inOrder}
+              className={inOrder ? "bg-muted text-muted-foreground" : undefined}
+              {...register("lot")}
+              aria-invalid={!!errors.lot}
+            />
+            {inOrder && <FieldDescription>El número y la fecha se cambian desde la orden.</FieldDescription>}
             <FieldError errors={[errors.lot]} />
           </Field>
 
@@ -202,7 +214,7 @@ export function EditPurchaseModal({ purchase, onClose }: { purchase: Purchase | 
         </div>
 
         <div className="flex justify-end gap-2 border-t pt-4">
-          <Button variant="ghost" size="sm" onClick={onClose} type="button">Cancelar</Button>
+          <Button variant="cancel" size="sm" onClick={onClose} type="button">Cancelar</Button>
           <Button type="submit" size="sm" disabled={isLoading}>
         {isLoading && <Spinner className="mr-2" />}
         Guardar cambios

@@ -161,7 +161,7 @@ export function SaleReturnsSection({ sale }: { sale: SaleWithItems }) {
               {isLoading && <Spinner className="mr-2" />}
               Registrar devolución
             </Button>
-            <Button size="sm" variant="ghost" onClick={() => setOpen(false)} disabled={isLoading}>
+            <Button size="sm" variant="cancel" onClick={() => setOpen(false)} disabled={isLoading}>
               Cancelar
             </Button>
           </div>

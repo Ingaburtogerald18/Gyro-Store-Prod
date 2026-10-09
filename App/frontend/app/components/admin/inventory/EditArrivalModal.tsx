@@ -150,7 +150,7 @@ export function EditArrivalModal({
 
 
         <div className="flex justify-end gap-2 border-t pt-4">
-          <Button variant="ghost" size="sm" onClick={onClose} type="button">
+          <Button variant="cancel" size="sm" onClick={onClose} type="button">
             Cancelar
           </Button>
           <Button type="submit" size="sm" disabled={isLoading}>

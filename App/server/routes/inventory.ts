@@ -15,6 +15,13 @@ import {
   newPurchaseInputSchema,
   updatePurchaseInputSchema,
   arrivalInputSchema,
+  newPurchaseOrderInputSchema,
+  updatePurchaseOrderInputSchema,
+  addPurchaseOrderLinesInputSchema,
+  receivePurchaseOrderInputSchema,
+  simulatePurchaseOrderReceiptInputSchema,
+  supplierInputSchema,
+  purchaseInvoiceInputSchema,
 } from '../../shared/schemas';
 import {
   getPurchases,
@@ -31,6 +38,21 @@ import {
   adjustStock,
   listStockMovements,
 } from '../services/inventory';
+import {
+  addPurchaseOrderLines,
+  createPurchaseOrder,
+  createSupplier,
+  deletePurchaseOrder,
+  getPackagePhoto,
+  getPurchaseOrder,
+  listPurchaseOrders,
+  listSuppliers,
+  receivePurchaseOrder,
+  simulatePurchaseOrderReceipt,
+  updatePurchaseInvoice,
+  updatePurchaseOrder,
+  updateSupplier,
+} from '../services/purchaseOrders';
 
 const router = Router();
 
@@ -164,6 +186,158 @@ router.get(
     const purchaseId =
       typeof req.query.purchaseId === 'string' ? parseUuidParam(req.query.purchaseId, 'Compra no encontrada.') : undefined;
     res.json(await listStockMovements(purchaseId));
+  }),
+);
+
+// ── órdenes de compra (Alibaba, migración 0024) ──
+
+router.get(
+  '/orders',
+  asyncHandler(async (_req, res) => {
+    res.json(await listPurchaseOrders());
+  }),
+);
+
+router.post(
+  '/orders',
+  asyncHandler(async (req, res) => {
+    const data = newPurchaseOrderInputSchema.parse(req.body);
+    res.status(201).json(await createPurchaseOrder(data, req.user!.uid));
+  }),
+);
+
+router.get(
+  '/orders/:id',
+  asyncHandler(async (req, res) => {
+    const id = parseUuidParam(req.params.id, 'Orden no encontrada.');
+    const order = await getPurchaseOrder(id);
+    if (!order) {
+      res.status(404).json({ error: 'Orden no encontrada.' });
+      return;
+    }
+    res.json(order);
+  }),
+);
+
+router.put(
+  '/orders/:id',
+  asyncHandler(async (req, res) => {
+    const id = parseUuidParam(req.params.id, 'Orden no encontrada.');
+    const data = updatePurchaseOrderInputSchema.parse(req.body);
+    const order = await updatePurchaseOrder(id, data, req.user!.uid);
+    if (!order) {
+      res.status(404).json({ error: 'Orden no encontrada.' });
+      return;
+    }
+    res.json(order);
+  }),
+);
+
+router.delete(
+  '/orders/:id',
+  asyncHandler(async (req, res) => {
+    const id = parseUuidParam(req.params.id, 'Orden no encontrada.');
+    const ok = await deletePurchaseOrder(id, req.user!.uid);
+    if (!ok) {
+      res.status(404).json({ error: 'Orden no encontrada.' });
+      return;
+    }
+    res.json({ ok: true });
+  }),
+);
+
+router.post(
+  '/orders/:id/lines',
+  asyncHandler(async (req, res) => {
+    const id = parseUuidParam(req.params.id, 'Orden no encontrada.');
+    const data = addPurchaseOrderLinesInputSchema.parse(req.body);
+    const order = await addPurchaseOrderLines(id, data, req.user!.uid);
+    if (!order) {
+      res.status(404).json({ error: 'Orden no encontrada.' });
+      return;
+    }
+    res.status(201).json(order);
+  }),
+);
+
+router.post(
+  '/orders/:id/simulate-receipt',
+  asyncHandler(async (req, res) => {
+    const id = parseUuidParam(req.params.id, 'Orden no encontrada.');
+    const data = simulatePurchaseOrderReceiptInputSchema.parse(req.body);
+    res.json(await simulatePurchaseOrderReceipt(id, data));
+  }),
+);
+
+router.post(
+  '/orders/:id/receive',
+  asyncHandler(async (req, res) => {
+    const id = parseUuidParam(req.params.id, 'Orden no encontrada.');
+    const data = receivePurchaseOrderInputSchema.parse(req.body);
+    res.json(await receivePurchaseOrder(id, data, req.user!.uid));
+  }),
+);
+
+router.get(
+  '/orders/:id/photos/:index',
+  asyncHandler(async (req, res) => {
+    const id = parseUuidParam(req.params.id, 'Orden no encontrada.');
+    const index = z.coerce.number().int().min(0).max(50).parse(req.params.index);
+    const photo = await getPackagePhoto(id, index);
+    if (!photo) {
+      res.status(404).json({ error: 'Foto no encontrada.' });
+      return;
+    }
+    res.set('Content-Type', photo.contentType);
+    res.set('Content-Disposition', `attachment; filename="${photo.filename}"`);
+    res.send(photo.body);
+  }),
+);
+
+// ── proveedores ──
+
+router.get(
+  '/suppliers',
+  asyncHandler(async (_req, res) => {
+    res.json(await listSuppliers());
+  }),
+);
+
+router.post(
+  '/suppliers',
+  asyncHandler(async (req, res) => {
+    const data = supplierInputSchema.parse(req.body);
+    res.status(201).json(await createSupplier(data));
+  }),
+);
+
+router.put(
+  '/suppliers/:id',
+  asyncHandler(async (req, res) => {
+    const id = parseUuidParam(req.params.id, 'Proveedor no encontrado.');
+    const data = supplierInputSchema.parse(req.body);
+    const supplier = await updateSupplier(id, data);
+    if (!supplier) {
+      res.status(404).json({ error: 'Proveedor no encontrado.' });
+      return;
+    }
+    res.json(supplier);
+  }),
+);
+
+// ── facturas ── (se crean al guardar una orden; acá solo se corrigen)
+
+router.put(
+  '/invoices/:id',
+  asyncHandler(async (req, res) => {
+    const id = parseUuidParam(req.params.id, 'Factura no encontrada.');
+    const data = purchaseInvoiceInputSchema.parse(req.body);
+    const ok = await updatePurchaseInvoice(id, data, req.user!.uid);
+    if (!ok) {
+      res.status(404).json({ error: 'Factura no encontrada.' });
+      return;
+    }
+    res.json({ ok: true });
   }),
 );
 

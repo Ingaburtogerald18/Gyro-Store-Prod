@@ -92,7 +92,7 @@ export function StaffDetailDialog({
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="cancel" onClick={onClose}>
             Cerrar
           </Button>
         </DialogFooter>

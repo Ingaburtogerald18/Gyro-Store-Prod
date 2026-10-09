@@ -579,7 +579,7 @@ export function LandingEditor() {
           </DialogHeader>
           {bannerForm && <BannerEditor key={bannerForm.id} slide={bannerForm} onChange={(next) => { setBannerForm(next); setBannerErrors({}); }} onBusy={setUploading} errors={bannerErrors} />}
           <DialogFooter className="sticky bottom-0 border-t bg-popover pt-4">
-            <Button variant="outline" disabled={uploading} onClick={requestCloseBanner}>Cancelar</Button>
+            <Button variant="cancel" disabled={uploading} onClick={requestCloseBanner}>Cancelar</Button>
             <Button disabled={uploading} onClick={applyBanner}>Aplicar al borrador</Button>
           </DialogFooter>
         </DialogContent>

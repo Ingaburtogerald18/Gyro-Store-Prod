@@ -200,7 +200,7 @@ export function Contact360Dialog({ contactId, onClose }: { contactId: string | n
                         <Button size="icon" variant="ghost" aria-label="Completar" onClick={() => setFuStatus(f.id, 'completed')}>
                           <HugeIcon icon={CheckmarkCircle02Icon} size={16} strokeWidth={2} className="text-primary" />
                         </Button>
-                        <Button size="icon" variant="ghost" aria-label="Cancelar" onClick={() => setFuStatus(f.id, 'cancelled')}>
+                        <Button size="icon" variant="destructive" aria-label="Cancelar" onClick={() => setFuStatus(f.id, 'cancelled')}>
                           <HugeIcon icon={Cancel01Icon} size={16} strokeWidth={2} className="text-destructive" />
                         </Button>
                       </span>

@@ -30,7 +30,7 @@ import tailwindHref from './tailwind.css?url';
 import gyroBag from '~/assets/brand/gyro-bag.png';
 import chivoWoff2 from '@fontsource-variable/chivo/files/chivo-latin-wght-normal.woff2?url';
 
-// Sin Google Fonts: Chivo (tienda), Chivo Mono (datos técnicos) y Geist (panel)
+// Sin Google Fonts: Chivo (catálogo y panel) y Chivo Mono (códigos)
 // se sirven localmente vía @fontsource-variable, importadas desde tailwind.css.
 // Se precarga el woff2 latino de Chivo: es la fuente del primer paint de la
 // tienda y, sin preload, el titular del hero salta de fuente al cargar.
@@ -44,8 +44,8 @@ export const links: LinksFunction = () => [
   { rel: 'icon', type: 'image/png', href: gyroBag },
 ];
 
-/** Área de la app según la ruta: define la tipografía (ver `[data-area]` en
- *  tailwind.css). El panel y el acceso del personal usan Geist; el resto, Chivo. */
+/** Área de la app según la ruta: permite estilos de layout específicos.
+ *  La tipografía Chivo y los controles se comparten entre catálogo y panel. */
 function areaFor(pathname: string): 'admin' | 'store' {
   return /^\/(admin|login|auth)(\/|$)/.test(pathname) ? 'admin' : 'store';
 }

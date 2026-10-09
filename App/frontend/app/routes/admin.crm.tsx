@@ -314,7 +314,7 @@ function CreateContactDialog({
             </Field>
           </div>
           <DialogFooter className="mt-4">
-            <Button type="button" variant="ghost" onClick={onClose}>Cancelar</Button>
+            <Button type="button" variant="cancel" onClick={onClose}>Cancelar</Button>
             <Button type="submit" disabled={isLoading}>
               {isLoading && <Spinner className="mr-2" />}
               Crear contacto

@@ -130,7 +130,7 @@ export function BannerEditor({ slide, onChange, onBusy, errors = {} }: {
               <Progress value={upload.percent ?? null} aria-label="Progreso de la carga" />
               <div className="flex items-center justify-between gap-3">
                 <p className="text-sm">{upload.percent === null ? 'Enviando archivo…' : `Enviando ${upload.percent}%`}</p>
-                <Button type="button" variant="outline" size="sm" className="h-10" onClick={cancelUpload}>Cancelar carga</Button>
+                <Button type="button" variant="cancel" size="sm" className="h-10" onClick={cancelUpload}>Cancelar carga</Button>
               </div>
             </>
           )}
@@ -139,7 +139,7 @@ export function BannerEditor({ slide, onChange, onBusy, errors = {} }: {
               <Progress value={null} aria-label="Procesando el archivo" />
               <div className="flex items-center justify-between gap-3">
                 <p className="text-sm">Procesando archivo…</p>
-                <Button type="button" variant="outline" size="sm" className="h-10" onClick={cancelUpload}>Cancelar carga</Button>
+                <Button type="button" variant="cancel" size="sm" className="h-10" onClick={cancelUpload}>Cancelar carga</Button>
               </div>
             </>
           )}

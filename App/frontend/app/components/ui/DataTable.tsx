@@ -1,11 +1,14 @@
 import { HugeIcon } from "~/components/ui/icon";
-import { ArrowDown02Icon, ArrowLeft01Icon, ArrowRight01Icon, ArrowUp02Icon, Download04Icon, InboxIcon, LayoutTable01Icon, MenuSquareIcon, Search01Icon, Tick01Icon, UnfoldMoreIcon } from "@hugeicons/core-free-icons";
+import { ArrowDown02Icon, ArrowLeft01Icon, ArrowRight01Icon, ArrowUp02Icon, Download04Icon, InboxIcon, LayoutTable01Icon, MenuSquareIcon, Search01Icon, UnfoldMoreIcon } from "@hugeicons/core-free-icons";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "~/components/ui/dropdown-menu";
+import { useLocalPreference } from '~/hooks/useLocalPreference';
+import { DENSITY_KEY, isDensity, isVisibility, type TableDensity } from '~/lib/ui-preferences';
+import { TableViewMenu } from './TableViewMenu';
 import { Skeleton } from "~/components/ui/skeleton";
 // Tabla de datos genérica sobre TanStack Table v8: ordenable, con búsqueda
 // global y paginación. Se reutiliza en todos los portales del admin.
@@ -96,20 +99,11 @@ interface DataTableProps<T> {
   exportFilename?: string;
 }
 
-type Density = "compact" | "normal";
-
-const DENSITY_KEY = "gyro.table.density";
-
-/** Lee la preferencia guardada. SSR-safe: en el server siempre "normal". */
-function readDensity(): Density {
-  if (typeof window === "undefined") return "normal";
-  return window.localStorage.getItem(DENSITY_KEY) === "compact" ? "compact" : "normal";
-}
-
 function readColumnVisibility(tableId?: string): Record<string, boolean> {
   if (typeof window === "undefined" || !tableId) return {};
   try {
-    return JSON.parse(window.localStorage.getItem(`gyro.table.${tableId}.columns`) ?? "{}");
+    const value: unknown = JSON.parse(window.localStorage.getItem(`gyro.table.${tableId}.columns`) ?? "{}");
+    return isVisibility(value) ? value : {};
   } catch {
     return {};
   }
@@ -142,7 +136,7 @@ export function DataTable<T>({
 }: DataTableProps<T>) {
   const [sorting, setSorting] = useState<SortingState>(initialSorting);
   const [internalGlobalFilter, setInternalGlobalFilter] = useState("");
-  const [density, setDensityState] = useState<Density>("normal");
+  const [density, setDensity] = useLocalPreference<TableDensity>(DENSITY_KEY, "normal", isDensity);
   const [columnVisibility, setColumnVisibility] = useState<Record<string, boolean>>({});
   const searchRef = useRef<HTMLInputElement>(null);
 
@@ -150,25 +144,16 @@ export function DataTable<T>({
   // servidor no tiene `localStorage`, y devolver algo distinto en el primer
   // render del cliente rompe la hidratación.
   useEffect(() => {
-    setDensityState(readDensity());
     const defaults = Object.fromEntries((defaultHiddenColumns ?? []).map((id) => [id, false]));
-    setColumnVisibility({ ...defaults, ...readColumnVisibility(tableId) });
+    setColumnVisibility({ ...defaults, ...readColumnVisibility(tableId), actions: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- defaults de entrada: solo al montar.
   }, [tableId]);
 
-  const setDensity = (next: Density) => {
-    setDensityState(next);
-    try {
-      window.localStorage.setItem(DENSITY_KEY, next);
-    } catch {
-      // Storage bloqueado: la densidad aplica igual, solo no persiste.
-    }
-  };
-
   const globalFilter = globalFilterValue !== undefined ? globalFilterValue : internalGlobalFilter;
   const setGlobalFilter = onGlobalFilterChange || setInternalGlobalFilter;
+  const canChangeSearch = globalFilterValue === undefined || !!onGlobalFilterChange;
 
-  // `/` y ⌘F enfocan el buscador; Esc lo limpia. Se ignora si el foco ya está
+  // `/` enfoca el buscador visible; Esc lo limpia. Se ignora si el foco ya está
   // en un campo de texto: nadie quiere que escribir "/" en un input abra otra
   // cosa.
   useEffect(() => {
@@ -180,7 +165,8 @@ export function DataTable<T>({
         el instanceof HTMLTextAreaElement ||
         (el as HTMLElement | null)?.isContentEditable;
 
-      if (!typing && (e.key === "/" || ((e.metaKey || e.ctrlKey) && e.key === "f"))) {
+      if (!e.defaultPrevented && !typing && e.key === "/" && !e.ctrlKey && !e.metaKey && !e.altKey &&
+          !document.querySelector('[role="dialog"]') && searchRef.current?.getClientRects().length) {
         e.preventDefault();
         searchRef.current?.focus();
       }
@@ -264,10 +250,10 @@ export function DataTable<T>({
   }
 
   return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-2">
+    <div className="data-table space-y-3">
+      <div className="data-table-toolbar flex flex-wrap items-center gap-3">
         {!hideSearch && (
-          <div className="flex h-11 min-w-0 basis-full flex-1 items-center gap-2 rounded-xl border border-border bg-card px-3 transition-colors focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/30 sm:max-w-xs sm:basis-auto sm:flex-none md:h-9">
+          <div className="flex h-11 min-w-0 basis-full flex-1 items-center gap-2 rounded-xl border border-border bg-card px-3 transition-colors focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/30 sm:max-w-xs sm:basis-auto sm:flex-none md:h-10">
             <HugeIcon icon={Search01Icon} size={16} strokeWidth={2} className="text-muted-foreground" />
             <input
               ref={searchRef}
@@ -291,14 +277,30 @@ export function DataTable<T>({
             : `${filteredRows.length} de ${data.length}`}
         </span>
 
-        <div className="ml-auto flex items-center gap-1">
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          {tableId && (
+            <TableViewMenu tableId={tableId} current={{ search: canChangeSearch ? globalFilter : undefined, sorting, columns: columnVisibility }} onApply={(view) => {
+              const ids = new Set(table.getAllLeafColumns().map((column) => column.id));
+              if (canChangeSearch && view.search !== undefined) setGlobalFilter(view.search);
+              setSorting(view.sorting.filter((sort) => ids.has(sort.id)));
+              const visible = Object.fromEntries(table.getAllLeafColumns().map((column) => [column.id,
+                column.id === 'actions' || !column.getCanHide() || view.columns[column.id] !== false,
+              ]));
+              if (!Object.values(visible).some(Boolean)) {
+                const first = table.getAllLeafColumns()[0];
+                if (first) visible[first.id] = true;
+              }
+              table.setColumnVisibility(visible);
+              table.setPageIndex(0);
+            }} />
+          )}
           <button
             type="button"
             onClick={() => setDensity(compact ? "normal" : "compact")}
             title={compact ? "Filas normales" : "Filas compactas"}
             aria-label={compact ? "Cambiar a filas normales" : "Cambiar a filas compactas"}
             aria-pressed={compact}
-            className="grid size-11 place-items-center rounded-xl text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:size-9"
+            className="grid size-11 place-items-center rounded-xl text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:size-10"
           >
             <HugeIcon icon={MenuSquareIcon} size={16} strokeWidth={2} />
           </button>
@@ -309,7 +311,7 @@ export function DataTable<T>({
                 type="button"
                 title="Columnas"
                 aria-label="Elegir columnas visibles"
-                className="grid size-11 place-items-center rounded-xl text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:size-9"
+                className="grid size-11 place-items-center rounded-xl text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:size-10"
               >
                 <HugeIcon icon={LayoutTable01Icon} size={16} strokeWidth={2} />
               </button>
@@ -324,6 +326,7 @@ export function DataTable<T>({
                     <DropdownMenuCheckboxItem
                       key={c.id}
                       checked={c.getIsVisible()}
+                      disabled={c.getIsVisible() && table.getVisibleLeafColumns().length === 1}
                       onCheckedChange={(v) => c.toggleVisibility(!!v)}
                       onSelect={(e) => e.preventDefault()}
                     >
@@ -340,7 +343,7 @@ export function DataTable<T>({
               onClick={exportCsv}
               title="Exportar CSV"
               aria-label="Exportar a CSV lo que se ve en la tabla"
-              className="grid size-11 place-items-center rounded-xl text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:size-9"
+              className="grid size-11 place-items-center rounded-xl text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:size-10"
             >
               <HugeIcon icon={Download04Icon} size={16} strokeWidth={2} />
             </button>
@@ -348,6 +351,17 @@ export function DataTable<T>({
         </div>
       </div>
 
+      {(hasFilter || sorting.length > 0) && (
+        <div className="flex flex-wrap items-center gap-2 text-xs" aria-label="Búsqueda y orden activos">
+          {hasFilter && (canChangeSearch
+            ? <button type="button" onClick={() => { setGlobalFilter(""); table.setPageIndex(0); }} className="max-w-full truncate rounded-full border bg-muted px-3 py-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label={`Quitar búsqueda: ${globalFilter}`}>Búsqueda: {globalFilter} <span aria-hidden>×</span></button>
+            : <span className="max-w-full truncate rounded-full border bg-muted px-3 py-2">Búsqueda del módulo: {globalFilter}</span>)}
+          {sorting.map((sort) => {
+            const header = table.getColumn(sort.id)?.columnDef.header;
+            return <button key={sort.id} type="button" onClick={() => setSorting(sorting.filter((entry) => entry.id !== sort.id))} className="rounded-full border bg-muted px-3 py-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label={`Quitar orden de ${typeof header === 'string' ? header : sort.id}`}>{typeof header === 'string' ? header : sort.id}: {sort.desc ? 'descendente' : 'ascendente'} <span aria-hidden>×</span></button>;
+          })}
+        </div>
+      )}
       {isLoading ? (
         <div className="space-y-4 pt-4">
           {Array.from({ length: 6 }).map((_, i) => (
@@ -371,22 +385,13 @@ export function DataTable<T>({
                 {selectable && (
                   <th className="w-10 px-3 py-2.5">
                     {onSelectAll && (
-                      // <button role="checkbox"> y no <div onClick>: así llega el
-                      // teclado (Tab + Espacio) y el lector anuncia el estado.
-                      <button
-                        type="button"
-                        role="checkbox"
-                        aria-checked={allSelected}
-                        aria-label="Seleccionar todas las filas"
-                        onClick={() => onSelectAll(!allSelected)}
-                        className={`flex h-[18px] w-[18px] cursor-pointer items-center justify-center rounded border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-                          allSelected
-                            ? "border-primary-2 bg-primary-2 text-primary-foreground"
-                            : "border bg-card hover:bg-muted"
-                        }`}
-                      >
-                        {allSelected && <HugeIcon icon={Tick01Icon} size={14} strokeWidth={2} aria-hidden />}
-                      </button>
+                      <label className="grid min-h-9 min-w-9 cursor-pointer place-items-center">
+                        <input type="checkbox" checked={!!allSelected}
+                          ref={(input) => { if (input) input.indeterminate = !allSelected && !!selectedRowIds?.size; }}
+                          aria-label="Seleccionar todas las filas"
+                          onChange={(event) => onSelectAll(event.target.checked)}
+                          className="size-4 rounded accent-primary focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring" />
+                      </label>
                     )}
                   </th>
                 )}
@@ -400,7 +405,7 @@ export function DataTable<T>({
                       className={cn(
                         // Un solo estilo de encabezado, en frase: las MAYÚSCULAS
                         // en negrita competían con los datos.
-                        "whitespace-nowrap px-3 py-2.5 text-xs font-medium text-muted-foreground",
+                        "whitespace-nowrap px-4 py-3 text-xs font-medium text-muted-foreground",
                         align === "right" && "text-right",
                         align === "center" && "text-center",
                         header.column.columnDef.meta?.className
@@ -408,8 +413,9 @@ export function DataTable<T>({
                     >
                       {header.isPlaceholder ? null : header.column.getCanSort() ? (
                         <button
+                          type="button"
                           className={cn(
-                            "group/sort flex w-full items-center gap-1 cursor-pointer select-none hover:text-foreground",
+                            "group/sort flex min-h-8 w-full items-center gap-2 rounded cursor-pointer select-none hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                             align === "right" && "justify-end",
                             align === "center" && "justify-center",
                           )}
@@ -461,7 +467,7 @@ export function DataTable<T>({
                           : emptyText}
                       </EmptyTitle>
                     </EmptyHeader>
-                    {hasFilter && (
+                    {hasFilter && (canChangeSearch || onClearFilters) && (
                       <button
                         type="button"
                         onClick={() => {
@@ -483,7 +489,7 @@ export function DataTable<T>({
                 const rowId = (row.original as any).id;
                 const isSelected =
                   (selectedRowIds && selectedRowIds.has(rowId)) ||
-                  (selectedRowId && rowId === selectedRowId);
+                  (selectedRowId != null && rowId === selectedRowId);
                 // `border-border/50`, no `border/50`: `border` a secas fija el
                 // ancho en los cuatro lados con `currentColor`, así que cada
                 // fila venía con una caja completa en vez de una línea arriba.
@@ -500,48 +506,37 @@ export function DataTable<T>({
                 return (
                   <tr
                     key={row.id}
-                    onClick={() => onRowClick?.(row.original)}
+                    onClick={(event) => {
+                      if ((event.target as HTMLElement).closest('button, a, input, label, select, [role="button"]')) return;
+                      onRowClick?.(row.original);
+                    }}
                     className={rowClass}
                   >
                     {selectable && (
-                      <td
-                        className={cn("w-10 px-3 py-2.5", onToggleRow && "cursor-pointer")}
-                        onClick={
-                          onToggleRow
-                            ? (e) => {
-                                // Sin esto, el click en la casilla también
-                                // dispara `onRowClick` de la fila (abriría el
-                                // detalle Y alternaría la selección a la vez).
-                                e.stopPropagation();
-                                onToggleRow(row.original);
-                              }
-                            : undefined
-                        }
-                      >
-                        <div
-                          className={`flex h-[18px] w-[18px] items-center justify-center rounded border transition-colors ${
-                            isSelected
-                              ? "border-primary-2 bg-primary-2 text-primary-foreground"
-                              : "border bg-card"
-                          }`}
-                        >
-                          {isSelected && <HugeIcon icon={Tick01Icon} size={14} strokeWidth={2} />}
-                        </div>
+                      <td className="w-12 px-2 py-1">
+                        <label className="grid min-h-9 min-w-9 place-items-center">
+                          <input type="checkbox" checked={!!isSelected} disabled={!onToggleRow && !onRowClick}
+                            aria-label={`Seleccionar fila ${row.index + 1}`}
+                            onChange={() => (onToggleRow ?? onRowClick)?.(row.original)}
+                            className="size-4 rounded accent-primary focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring" />
+                        </label>
                       </td>
                     )}
-                    {row.getVisibleCells().map((cell) => {
+                    {row.getVisibleCells().map((cell, cellIndex) => {
                       const align = cell.column.columnDef.meta?.align;
                       return (
                         <td
                           key={cell.id}
                           className={cn(
-                            "whitespace-nowrap px-3",
-                            compact ? "py-1.5" : "py-2.5",
+                            "px-4",
+                            cell.column.id === "actions" ? "w-px whitespace-nowrap" : "min-w-24 whitespace-normal break-words",
+                            compact ? "py-2" : "py-3",
                             align === "right" && "text-right tabular-nums",
                             align === "center" && "text-center",
                             cell.column.columnDef.meta?.className
                           )}
                         >
+                          {cellIndex === 0 && onRowClick && <button type="button" onClick={(event) => { event.stopPropagation(); onRowClick(row.original); }} className="sr-only focus:not-sr-only focus:mb-1 focus:rounded focus:px-2 focus:py-1 focus:ring-2 focus:ring-ring">Abrir fila {row.index + 1}</button>}
                           {flexRender(cell.column.columnDef.cell, cell.getContext())}
                         </td>
                       );
@@ -566,7 +561,7 @@ export function DataTable<T>({
                       <td
                         key={header.id}
                         className={cn(
-                          "whitespace-nowrap px-3 py-2.5",
+                          "whitespace-nowrap px-4 py-3",
                           align === "right" && "text-right tabular-nums",
                           align === "center" && "text-center",
                           header.column.columnDef.meta?.className
@@ -592,7 +587,7 @@ export function DataTable<T>({
           table.getRowModel().rows.map((row) => {
             const rowId = (row.original as any).id;
             const isSelected =
-              (selectedRowIds && selectedRowIds.has(rowId)) || (selectedRowId && rowId === selectedRowId);
+              (selectedRowIds && selectedRowIds.has(rowId)) || (selectedRowId != null && rowId === selectedRowId);
             return (
               // Tarjeta clickeable: también se abre con Enter/Espacio. Se ignoran
               // las teclas que vienen de controles internos (botones del card).

@@ -163,7 +163,7 @@ export function UserCard({
                 </DropdownMenuContent>
               </DropdownMenu>
               <Button
-                variant="outline"
+                variant="destructive"
                 size="sm"
                 onClick={onDelete}
                 className="flex-1 gap-1.5 border-destructive/40 text-destructive hover:bg-destructive/10"

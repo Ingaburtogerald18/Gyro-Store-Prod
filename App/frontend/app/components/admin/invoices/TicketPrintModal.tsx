@@ -125,7 +125,7 @@ export function TicketPrintModal({
 
             {/* Acciones */}
             <div className="flex flex-wrap justify-end gap-2 border-t pt-4">
-              <Button variant="ghost" size="sm" onClick={onClose}>
+              <Button variant="cancel" size="sm" onClick={onClose}>
                 Cerrar
               </Button>
               <Button

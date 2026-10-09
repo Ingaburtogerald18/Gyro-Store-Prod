@@ -1,17 +1,23 @@
-// Registro de compras (China), agrupado por LOTE.
-//
-// ── Por qué agrupado ──
-// Las compras llegan por lote: todas las filas de LT1 comparten fecha, estado y
-// tiempo de tránsito. En la tabla plana esos tres datos se repetían en cada
-// fila (13 columnas) y el "92d Tardó" en rojo aparecía 36 veces sobre
-// mercadería que ya estaba en bodega. Acá el lote es una fila de encabezado con
-// su fecha, su tránsito (neutro si ya llegó) y su total; las filas solo dicen
-// lo que cambia entre productos.
+// Registro de compras (China), agrupado por ORDEN DE ALIBABA (migración 0024).
+// Sin la migración, o para compras sueltas sin orden, se agrupa por lote como
+// antes. Cada grupo conserva su resumen al cerrar los productos. El total
+// completo de la orden se distingue del subtotal de productos filtrados.
 //
 // El filtrado (búsqueda, estado) lo decide la pantalla; esta tabla recibe los
 // valores ya elegidos para que la barra de herramientas sea una sola.
-import { Delete02Icon, Edit02Icon, ShippingTruck01Icon, Store01Icon } from "@hugeicons/core-free-icons";
-import { Fragment, useMemo, useState } from "react";
+import {
+  Add01Icon,
+  Delete02Icon,
+  Download01Icon,
+  Edit02Icon,
+  Image01Icon,
+  Invoice01Icon,
+  PackageReceiveIcon,
+  Share01Icon,
+  ShippingTruck01Icon,
+  Store01Icon,
+} from "@hugeicons/core-free-icons";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { HugeIcon } from "~/components/ui/icon";
@@ -25,22 +31,35 @@ import { useCategoryLabel } from "~/hooks/useCategoryLabel";
 import { formatLongDate, formatUsd, splitProductName } from "~/lib/formatters";
 import { getTransitInfo, formatShortDate, type TransitInfo } from "~/lib/transit";
 import { cn } from "~/lib/utils";
-import { useDeletePurchaseMutation, useGetPurchasesQuery, type Purchase } from "~/store/api/inventoryV1Api";
+import {
+  useDeletePurchaseMutation,
+  useDeletePurchaseOrderMutation,
+  useGetPurchaseOrdersQuery,
+  useGetPurchasesQuery,
+  type Purchase,
+  type PurchaseOrder,
+} from "~/store/api/inventoryV1Api";
+import { canSharePhotoFiles, downloadOrderPhotos, shareOrderPhotos } from "~/lib/purchaseOrderPhotos";
 import { ArrivalModal } from "./ArrivalModal";
 import { EditPurchaseModal } from "./EditPurchaseModal";
 import { EditArrivalModal } from "./EditArrivalModal";
+import { AddOrderLinesDialog, EditPurchaseOrderDialog, MISSING_LABELS } from "./PurchaseOrderDialogs";
+import { OrderAccordion } from "./OrderAccordion";
+import { ReceiveOrderDialog } from "./ReceiveOrderDialog";
 
-export type PurchaseStatusFilter = "all" | "transit" | "received" | "late";
+export type PurchaseStatusFilter = "all" | "transit" | "received" | "late" | "incomplete";
 
 // ── Estado: UNA píldora por fila ──
 // Verde = en bodega, azul = en camino, ámbar = en camino más de lo normal
 // (banda "bad" de lib/transit). El rojo no se usa: ninguna compra es un error.
-type Tone = "ok" | "transit" | "late";
+type Tone = "ok" | "transit" | "late" | "partial";
 
 const TONE_BADGE: Record<Tone, { status: BadgeStatus; label: string }> = {
   ok: { status: "success", label: "En bodega" },
   transit: { status: "info", label: "En tránsito" },
   late: { status: "pending", label: "Demorado" },
+  // Orden que llegó por partes: algo en bodega, algo todavía en camino.
+  partial: { status: "info", label: "Llegó en parte" },
 };
 
 function toneOf(p: Purchase, info: TransitInfo = getTransitInfo(p)): Tone {
@@ -66,15 +85,17 @@ function transitText(info: TransitInfo): string | null {
 interface Lot {
   key: string;
   lot: string;
+  /** La orden de Alibaba del grupo (null = compras sueltas agrupadas por lote). */
+  order: PurchaseOrder | null;
   date: string;
   items: Purchase[];
   total: number;
   units: number;
+  lineCount: number;
   tone: Tone;
   transit: string | null;
 }
 
-const COLS = 8;
 
 export function PurchasesTable({
   period = "all",
@@ -89,67 +110,120 @@ export function PurchasesTable({
   onViewStock?: () => void;
 }) {
   const { data: purchases = [], isLoading } = useGetPurchasesQuery(period);
+  // Todas las líneas (sin filtro de mes): "Recibir" necesita la orden completa.
+  const { data: allPurchases = [] } = useGetPurchasesQuery();
+  const { data: ordersData } = useGetPurchaseOrdersQuery();
   const [del, { isLoading: deleting }] = useDeletePurchaseMutation();
+  const [delOrder] = useDeletePurchaseOrderMutation();
   const categoryLabel = useCategoryLabel();
 
+  const ordersById = useMemo(
+    () => new Map((ordersData?.orders ?? []).map((o) => [o.id, o])),
+    [ordersData],
+  );
+  const orderOf = (p: Purchase) => (p.orderId ? ordersById.get(p.orderId) ?? null : null);
+
+  const [receiveFor, setReceiveFor] = useState<PurchaseOrder | null>(null);
+  const [editOrderFor, setEditOrderFor] = useState<PurchaseOrder | null>(null);
+  const [addLinesFor, setAddLinesFor] = useState<PurchaseOrder | null>(null);
+  const [photosBusy, setPhotosBusy] = useState<string | null>(null);
   const [arrivalFor, setArrivalFor] = useState<Purchase | null>(null);
   const [editFor, setEditFor] = useState<Purchase | null>(null);
   const [editArrivalFor, setEditArrivalFor] = useState<Purchase | null>(null);
   const [deleteFor, setDeleteFor] = useState<Purchase | null>(null);
 
-  // "KZ Audífonos" → "Audífonos": el prefijo de marca es ruido en una columna
-  // donde todo es KZ. Solo afecta lo que se ve.
-  const categoryText = (id: string | null) => {
-    const label = categoryLabel(id ?? "");
-    return label && label !== "—" ? label.replace(/^KZ\s+/, "") : "";
-  };
-
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return purchases.filter((p) => {
-      if (status !== "all") {
+      if (status === "incomplete") {
+        if (!orderOf(p)?.missing.length) return false;
+      } else if (status !== "all") {
         const tone = toneOf(p);
         if (status === "received" && tone !== "ok") return false;
         if (status === "transit" && tone === "ok") return false;
         if (status === "late" && tone !== "late") return false;
       }
       if (!q) return true;
-      return [p.code, p.productName, p.lot, categoryLabel(p.category ?? "")]
+      return [p.code, p.productName, p.lot, categoryLabel(p.category ?? ""), orderOf(p)?.orderNumber, orderOf(p)?.supplier?.name]
         .filter(Boolean)
         .some((v) => String(v).toLowerCase().includes(q));
     });
-  }, [purchases, search, status, categoryLabel]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [purchases, search, status, categoryLabel, ordersById]);
 
   // Lotes del más reciente al más viejo; dentro del lote, por código (GS-IN-2
   // antes que GS-IN-10).
   const lots = useMemo<Lot[]>(() => {
     const map = new Map<string, Purchase[]>();
-    for (const p of filtered) {
-      const key = `${p.lot || "—"}|${p.purchaseDate}`;
+    const matchingIds = new Set(filtered.map((p) => p.id));
+    for (const p of purchases) {
+      const order = orderOf(p);
+      const key = order ? `order:${order.id}` : `${p.lot || "—"}|${p.purchaseDate}`;
       map.set(key, [...(map.get(key) ?? []), p]);
     }
     return [...map.entries()]
-      .map(([key, items]) => {
+      .map(([key, fullItems]) => {
+        const items = fullItems.filter((p) => matchingIds.has(p.id));
+        if (items.length === 0) return null;
         items.sort((a, b) => String(a.code || "").localeCompare(String(b.code || ""), undefined, { numeric: true }));
-        const tones = items.map((p) => toneOf(p));
-        // El lote toma el estado "peor": uno demorado lo marca demorado.
-        const tone: Tone = tones.includes("late") ? "late" : tones.includes("transit") ? "transit" : "ok";
+        const order = orderOf(items[0]);
+        const tones = fullItems.map((p) => toneOf(p));
+        // El grupo toma el estado "peor": uno demorado lo marca demorado. Una
+        // orden con algo en bodega y algo en camino "llegó en parte".
+        const tone: Tone = tones.includes("late")
+          ? "late"
+          : order?.status === "partial"
+            ? "partial"
+            : tones.includes("transit")
+              ? "transit"
+              : "ok";
         return {
           key,
-          lot: items[0].lot || "Sin lote",
-          date: items[0].purchaseDate,
+          lot: order?.orderNumber ?? (items[0].lot || "Sin lote"),
+          order,
+          date: order?.purchaseDate ?? items[0].purchaseDate,
           items,
-          total: items.reduce((s, p) => s + (p.total ?? 0), 0),
-          units: items.reduce((s, p) => s + (p.quantity ?? 0), 0),
+          total: order?.linesTotalUsd ?? fullItems.reduce((s, p) => s + (p.total ?? 0), 0),
+          units: order?.units ?? fullItems.reduce((s, p) => s + (p.quantity ?? 0), 0),
+          lineCount: order?.lineCount ?? fullItems.length,
           tone,
-          transit: transitText(getTransitInfo(items[0])),
+          transit: transitText(getTransitInfo(fullItems.find((p) => p.status === 'china') ?? fullItems[0])),
         };
       })
+      .filter((lot): lot is Lot => lot !== null)
       .sort((a, b) => (b.date ?? "").localeCompare(a.date ?? "") || a.lot.localeCompare(b.lot, undefined, { numeric: true }));
-  }, [filtered]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [purchases, filtered, ordersById]);
 
   const totalUnits = filtered.reduce((s, p) => s + (p.quantity ?? 0), 0);
   const totalUsd = filtered.reduce((s, p) => s + (p.total ?? 0), 0);
+
+  async function handlePhotos(order: PurchaseOrder, mode: "download" | "share") {
+    setPhotosBusy(order.id);
+    try {
+      if (mode === "share") {
+        const result = await shareOrderPhotos(order.id, order.orderNumber, order.packagePhotos.length);
+        if (result === "downloaded") toast.success("Fotos descargadas.");
+      } else {
+        await downloadOrderPhotos(order.id, order.orderNumber, order.packagePhotos.length);
+        toast.success("Fotos descargadas.");
+      }
+    } catch (err) {
+      // Cerrar el menú de compartir sin elegir nada no es un error.
+      if ((err as Error)?.name !== "AbortError") toast.error((err as Error)?.message || "No se pudieron bajar las fotos.");
+    } finally {
+      setPhotosBusy(null);
+    }
+  }
+
+  async function handleDeleteOrder(order: PurchaseOrder) {
+    try {
+      await delOrder(order.id).unwrap();
+      toast.success(`Orden ${order.orderNumber} eliminada.`);
+    } catch (err: unknown) {
+      toast.error((err as { data?: { error?: string } })?.data?.error || "No se pudo eliminar la orden.");
+    }
+  }
 
   async function handleDelete() {
     if (!deleteFor) return;
@@ -172,138 +246,166 @@ export function PurchasesTable({
     );
   }
 
-  const th = "whitespace-nowrap px-4 py-2.5 text-left text-xs font-medium text-muted-foreground";
-  const td = "px-4 py-2.5 align-middle";
+  const th = "whitespace-nowrap px-4 py-3 text-left text-xs font-semibold text-foreground";
+  const td = "px-4 py-3.5 align-middle";
 
   return (
     <>
-      <table className="w-full min-w-[880px] border-collapse text-sm tabular-nums">
-        {/* Encabezado fijo bajo el header del panel (h-14). Funciona porque
-            el contenedor usa overflow-clip, que no crea un contexto de scroll. */}
-        <thead className="sticky top-14 z-10 bg-card">
-          <tr className="border-b border-border">
-            <th className={th}>Código</th>
-            <th className={th}>Producto</th>
-            <th className={th}>Categoría</th>
-            <th className={cn(th, "text-right")}>Cant.</th>
-            <th className={cn(th, "text-right")}>Costo unit.</th>
-            <th className={cn(th, "text-right")}>Total</th>
-            <th className={th}>Estado</th>
-            <th className={cn(th, "w-px")}>
-              <span className="sr-only">Acciones</span>
-            </th>
-          </tr>
-        </thead>
-
-        <tbody>
-          {lots.length === 0 && (
-            <tr>
-              <td colSpan={COLS} className="px-4 py-16 text-center text-sm text-muted-foreground">
-                {purchases.length === 0
-                  ? "Aún no hay compras registradas."
-                  : "Ninguna compra coincide con la búsqueda o el filtro."}
-              </td>
-            </tr>
-          )}
-
-          {lots.map((lot) => (
-            <Fragment key={lot.key}>
-              <tr className="border-b border-border bg-muted/40">
-                <td colSpan={COLS} className="px-4 py-2.5">
-                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-                    <span className="text-sm font-semibold text-foreground">Lote {lot.lot}</span>
-                    <span className="text-xs text-muted-foreground">
-                      Pedido {formatLongDate(lot.date)}
-                      {lot.transit && ` · ${lot.transit}`}
-                      {` · ${lot.items.length} ${lot.items.length === 1 ? "producto" : "productos"}`}
-                    </span>
+      {lots.length === 0 ? (
+        <div className="px-4 py-16 text-center text-sm text-muted-foreground">
+          {purchases.length === 0 ? 'Aún no hay compras registradas.' : 'Ninguna compra coincide con la búsqueda o el filtro.'}
+        </div>
+      ) : (
+        <>
+          <OrderAccordion
+            key={JSON.stringify([period, status, search.trim().toLowerCase()])}
+            searching={!!search.trim()}
+            panels={lots.map((lot) => ({
+              id: lot.key,
+              label: `${lot.order ? 'Orden' : 'Lote'} ${lot.lot}`,
+              summary: (
+                <>
+                  <span className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                    <span className="break-all text-base font-semibold text-foreground">{lot.order ? 'Orden' : 'Lote'} <span className="font-spec">{lot.lot}</span></span>
                     <StatusPill tone={lot.tone} />
-                    <span className="ml-auto font-display text-sm font-bold text-foreground">
-                      {formatUsd(lot.total)}
+                    {lot.order?.numberProvisional && <span className="text-xs text-warning">Número provisional</span>}
+                  </span>
+                  <span className="mt-2 flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+                    <span className="space-y-1 text-sm">
+                      <span className="block font-medium text-foreground">{lot.order?.supplier?.name || (lot.order ? 'Proveedor por completar' : 'Compra por lote')}</span>
+                      <span className="block text-xs text-muted-foreground">{formatLongDate(lot.date)} · {lot.lineCount} {lot.lineCount === 1 ? 'producto' : 'productos'} · {lot.units.toLocaleString('es-NI')} unidades{lot.transit && ` · ${lot.transit}`}</span>
+                      {lot.items.length < lot.lineCount && <span className="block text-xs font-medium text-foreground">{lot.items.length} de {lot.lineCount} productos coinciden con los filtros</span>}
                     </span>
-                  </div>
-                </td>
-              </tr>
+                    <span className="shrink-0 sm:text-right">
+                      <span className="block text-xs text-muted-foreground">Total {lot.order ? 'de la orden' : 'del lote'} · USD</span>
+                      <span className="text-lg font-semibold tabular-nums text-foreground">{formatUsd(lot.total)}</span>
+                    </span>
+                  </span>
+                </>
+              ),
+              toolbar: lot.order ? <OrderHeader
+                order={lot.order}
+                photosBusy={photosBusy === lot.order.id}
+                onReceive={() => setReceiveFor(lot.order)}
+                onEdit={() => setEditOrderFor(lot.order)}
+                onAddLines={() => setAddLinesFor(lot.order)}
+                onPhotos={(mode) => handlePhotos(lot.order!, mode)}
+                onDelete={() => handleDeleteOrder(lot.order!)}
+              /> : null,
+              details: (
+                // Keyboard focus lets narrow-screen users scroll the table with arrow keys.
+                // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
+                <div className="overflow-x-auto" tabIndex={0} role="region" aria-label={`Productos de ${lot.lot}; desplazamiento horizontal disponible`}>
+                  <table className="purchase-order-table w-full min-w-[680px] table-fixed border-collapse text-sm tabular-nums">
+                    <caption className="sr-only">Productos de {lot.order ? 'la orden' : 'lote'} {lot.lot}. Importes en dólares estadounidenses.</caption>
+                    <colgroup>
+                      <col />
+                      <col className="w-[156px]" />
+                      <col className="w-[132px]" />
+                      <col className="w-[132px]" />
+                      <col className="w-[84px]" />
+                    </colgroup>
+                    <thead className="purchase-column-head border-y border-border">
+                      <tr>
+                        <th scope="col" className={th}>Código / producto</th>
+                        <th scope="col" className={cn(th, 'text-right')}>Costo unit. USD</th>
+                        <th scope="col" className={cn(th, 'text-right')}>Total USD</th>
+                        <th scope="col" className={th}>Estado</th>
+                        <th scope="col" className={cn(th, 'w-px')}>Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {lot.items.map((p) => {
+                        const { model, variant } = splitProductName(p.productName);
+                        const tone = toneOf(p);
+                        return (
+                          <tr key={p.id} className="purchase-product-row border-b border-border transition-colors">
+                            {/* Código arriba, nombre y la variante debajo. */}
+                            <td className={cn(td, "min-w-0")}>
+                              <div className="flex flex-col gap-0.5 break-words">
+                                <span className="font-spec text-xs text-muted-foreground">{p.code || 'Sin código'}</span>
+                                <span className="font-medium text-foreground">{model}</span>
+                                {variant && <span className="text-xs text-muted-foreground">{variant}</span>}
+                              </div>
+                            </td>
+                            <td className={cn(td, "text-right")}>
+                              <div className="flex flex-col items-end" title={`Base ${formatUsd(p.costUnit, 4)} + impuesto ${formatUsd(p.taxUnit, 4)}`}>
+                                <span className="text-foreground">{formatUsd(p.priceUnit)}</span>
+                                <span className="text-2xs text-muted-foreground">
+                                  {formatUsd(p.costUnit)} + {formatUsd(p.taxUnit)} imp.
+                                </span>
+                              </div>
+                            </td>
+                            {/* Las unidades van bajo el total: es el total de esas unidades. */}
+                            <td className={cn(td, "text-right")}>
+                              <div className="flex flex-col items-end">
+                                <span className="font-display font-bold text-foreground">{formatUsd(p.total)}</span>
+                                <span className="text-2xs text-muted-foreground">
+                                  {p.quantity.toLocaleString('es-NI')} {p.quantity === 1 ? 'unidad' : 'unidades'}
+                                </span>
+                                {p.quantityOrdered != null && p.quantityOrdered !== p.quantity && (
+                                  <span className="text-2xs text-warning">de {p.quantityOrdered} pedidas</span>
+                                )}
+                              </div>
+                            </td>
+                            <td className={td}>
+                              <StatusPill tone={tone} />
+                            </td>
+                            <td className={cn(td, "text-right")}>
+                              <RowActionsMenu
+                                label={`Acciones de ${p.code || p.productName}`}
+                                className="inline-flex size-9 items-center justify-center border border-border bg-card text-foreground"
+                                actions={
+                                  p.status === "china"
+                                    ? [
+                                        // Una línea de una orden se recibe con su orden (envío total repartido).
+                                        !p.orderId && { group: "Movimiento", label: "Reportar ingreso", icon: <HugeIcon icon={ShippingTruck01Icon} size={16} strokeWidth={2} />, onClick: () => setArrivalFor(p) },
+                                        { group: "Gestión", label: "Editar", icon: <HugeIcon icon={Edit02Icon} size={16} strokeWidth={2} />, onClick: () => setEditFor(p) },
+                                        { label: "Eliminar", icon: <HugeIcon icon={Delete02Icon} size={16} strokeWidth={2} />, danger: true, separatorBefore: true, onClick: () => setDeleteFor(p) },
+                                      ]
+                                    : [
+                                        onViewStock && { label: "Ver en stock actual", icon: <HugeIcon icon={Store01Icon} size={16} strokeWidth={2} />, onClick: onViewStock },
+                                        { label: "Editar llegada y precio", icon: <HugeIcon icon={Edit02Icon} size={16} strokeWidth={2} />, onClick: () => setEditArrivalFor(p) },
+                                        { label: "Editar datos de compra", icon: <HugeIcon icon={Edit02Icon} size={16} strokeWidth={2} />, onClick: () => setEditFor(p) },
+                                        { label: "Eliminar", icon: <HugeIcon icon={Delete02Icon} size={16} strokeWidth={2} />, danger: true, separatorBefore: true, onClick: () => setDeleteFor(p) },
+                                      ]
+                                }
+                              />
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                    <tfoot className="purchase-column-head border-t border-border">
+                      <tr>
+                        <th scope="row" className="px-4 py-3 text-left text-xs font-medium">
+                          Subtotal mostrado · {lot.items.length} productos · {lot.items.reduce((sum, item) => sum + (item.quantity ?? 0), 0).toLocaleString('es-NI')} unidades
+                        </th>
+                        <td />
+                        <td className="px-4 py-3 text-right font-bold">{formatUsd(lot.items.reduce((sum, item) => sum + (item.total ?? 0), 0))}</td>
+                        <td colSpan={2} />
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              ),
+            }))}
+          />
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border bg-muted/50 px-5 py-4 text-sm">
+            <span className="text-muted-foreground">Resumen filtrado · {filtered.length} productos · {totalUnits.toLocaleString('es-NI')} unidades</span>
+            <span className="font-display text-base font-bold text-foreground">Total mostrado: {formatUsd(totalUsd)} USD</span>
+          </div>
+        </>
+      )}
 
-              {lot.items.map((p) => {
-                const { model, variant } = splitProductName(p.productName);
-                const tone = toneOf(p);
-                const category = categoryText(p.category);
-                return (
-                  <tr key={p.id} className="border-b border-border transition-colors hover:bg-muted/30">
-                    <td className={cn(td, "whitespace-nowrap font-spec text-xs text-muted-foreground")}>
-                      {p.code || "—"}
-                    </td>
-                    <td className={cn(td, "min-w-0")}>
-                      <div className="flex flex-col">
-                        <span className="font-medium text-foreground">{model}</span>
-                        {variant && <span className="text-xs text-muted-foreground">{variant}</span>}
-                      </div>
-                    </td>
-                    <td className={td}>
-                      {category ? (
-                        <span className="whitespace-nowrap rounded-md border border-border px-2 py-0.5 text-xs text-muted-foreground">
-                          {category}
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </td>
-                    <td className={cn(td, "text-right text-foreground")}>{p.quantity}</td>
-                    <td className={cn(td, "text-right")}>
-                      <div className="flex flex-col items-end" title={`Base ${formatUsd(p.costUnit, 4)} + impuesto ${formatUsd(p.taxUnit, 4)}`}>
-                        <span className="text-foreground">{formatUsd(p.priceUnit)}</span>
-                        <span className="text-2xs text-muted-foreground">
-                          {formatUsd(p.costUnit)} + {formatUsd(p.taxUnit)} imp.
-                        </span>
-                      </div>
-                    </td>
-                    <td className={cn(td, "text-right font-display font-bold text-foreground")}>{formatUsd(p.total)}</td>
-                    <td className={td}>
-                      <StatusPill tone={tone} />
-                    </td>
-                    <td className={cn(td, "text-right")}>
-                      <RowActionsMenu
-                        actions={
-                          p.status === "china"
-                            ? [
-                                { group: "Movimiento", label: "Reportar ingreso", icon: <HugeIcon icon={ShippingTruck01Icon} size={16} strokeWidth={2} />, onClick: () => setArrivalFor(p) },
-                                { group: "Gestión", label: "Editar", icon: <HugeIcon icon={Edit02Icon} size={16} strokeWidth={2} />, onClick: () => setEditFor(p) },
-                                { label: "Eliminar", icon: <HugeIcon icon={Delete02Icon} size={16} strokeWidth={2} />, danger: true, separatorBefore: true, onClick: () => setDeleteFor(p) },
-                              ]
-                            : [
-                                onViewStock && { label: "Ver en stock actual", icon: <HugeIcon icon={Store01Icon} size={16} strokeWidth={2} />, onClick: onViewStock },
-                                { label: "Editar llegada y precio", icon: <HugeIcon icon={Edit02Icon} size={16} strokeWidth={2} />, onClick: () => setEditArrivalFor(p) },
-                                { label: "Editar datos de compra", icon: <HugeIcon icon={Edit02Icon} size={16} strokeWidth={2} />, onClick: () => setEditFor(p) },
-                                { label: "Eliminar", icon: <HugeIcon icon={Delete02Icon} size={16} strokeWidth={2} />, danger: true, separatorBefore: true, onClick: () => setDeleteFor(p) },
-                              ]
-                        }
-                      />
-                    </td>
-                  </tr>
-                );
-              })}
-            </Fragment>
-          ))}
-        </tbody>
-
-        {/* Totales fijos al pie: lo que antes era la barra de resumen de arriba. */}
-        {filtered.length > 0 && (
-          <tfoot className="sticky bottom-0 z-10 bg-card">
-            <tr className="border-t border-border shadow-[0_-1px_0_var(--color-border)]">
-              <td colSpan={3} className="px-4 py-3 text-xs text-muted-foreground">
-                {filtered.length} {filtered.length === 1 ? "compra" : "compras"} · {lots.length}{" "}
-                {lots.length === 1 ? "lote" : "lotes"}
-              </td>
-              <td className="px-4 py-3 text-right font-semibold text-foreground">{totalUnits.toLocaleString("en-US")}</td>
-              <td />
-              <td className="px-4 py-3 text-right font-display text-base font-bold text-foreground">{formatUsd(totalUsd)}</td>
-              <td colSpan={2} />
-            </tr>
-          </tfoot>
-        )}
-      </table>
-
+      <ReceiveOrderDialog
+        order={receiveFor}
+        orders={ordersData?.orders ?? []}
+        purchases={allPurchases}
+        onClose={() => setReceiveFor(null)}
+      />
+      <EditPurchaseOrderDialog order={editOrderFor} onClose={() => setEditOrderFor(null)} />
+      <AddOrderLinesDialog order={addLinesFor} onClose={() => setAddLinesFor(null)} />
       <ArrivalModal purchase={arrivalFor} onClose={() => setArrivalFor(null)} />
       <EditPurchaseModal purchase={editFor} onClose={() => setEditFor(null)} />
       <EditArrivalModal purchase={editArrivalFor} onClose={() => setEditArrivalFor(null)} />
@@ -317,7 +419,7 @@ export function PurchasesTable({
             puede deshacer.
           </p>
           <div className="mt-5 flex justify-end gap-2">
-            <Button variant="ghost" onClick={() => setDeleteFor(null)}>
+            <Button variant="cancel" onClick={() => setDeleteFor(null)}>
               Cancelar
             </Button>
             <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
@@ -328,5 +430,98 @@ export function PurchasesTable({
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+// Encabezado de una orden de Alibaba en la tabla: número, proveedor, estado,
+// lo que le falta y sus acciones (recibir, completar datos, fotos).
+function OrderHeader({
+  order,
+  photosBusy,
+  onReceive,
+  onEdit,
+  onAddLines,
+  onPhotos,
+  onDelete,
+}: {
+  order: PurchaseOrder;
+  photosBusy: boolean;
+  onReceive: () => void;
+  onEdit: () => void;
+  onAddLines: () => void;
+  onPhotos: (mode: "download" | "share") => void;
+  onDelete: () => void;
+}) {
+  const hasPending = order.status === "transit" || order.status === "partial";
+  const photos = order.packagePhotos.length;
+  const missing = order.missing.map((m) => MISSING_LABELS[m]).join(", ");
+
+  return (
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
+      {order.missing.length > 0 && (
+        <button
+          type="button"
+          onClick={onEdit}
+          title={`Falta: ${missing}`}
+          className="min-h-9 rounded-lg border border-warning/40 bg-warning/10 px-3 py-1 text-xs font-semibold text-warning hover:bg-warning/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          Datos por completar
+        </button>
+      )}
+      {order.invoice?.mismatch && (
+        <span
+          className="rounded-full border border-warning/40 px-2 py-0.5 text-2xs font-semibold text-warning"
+          title={`Factura ${formatUsd(order.invoice.totalUsd ?? 0)} · productos de sus órdenes ${formatUsd(order.invoice.linesTotalUsd)}`}
+        >
+          {/* Se carga de a un producto: que falte es normal mientras se carga. */}
+          {(order.invoice.totalUsd ?? 0) > order.invoice.linesTotalUsd
+            ? `Faltan ${formatUsd((order.invoice.totalUsd ?? 0) - order.invoice.linesTotalUsd)} de la factura`
+            : "Suma más que la factura"}
+        </span>
+      )}
+      {order.invoice?.fileUrl && (
+        <a
+          href={order.invoice.fileUrl}
+          target="_blank"
+          rel="noreferrer"
+          title={
+            order.invoice.orders.length > 1
+              ? `Compartida con ${order.invoice.orders.filter((o) => o.id !== order.id).map((o) => o.orderNumber).join(", ")}`
+              : undefined
+          }
+          className="inline-flex items-center gap-1 text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+        >
+          <HugeIcon icon={Invoice01Icon} size={14} strokeWidth={2} aria-hidden />
+          {order.invoice.orders.length > 1 ? `Factura (${order.invoice.orders.length} órdenes)` : "Factura"}
+        </a>
+      )}
+      {photos > 0 && (
+        <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+          <HugeIcon icon={Image01Icon} size={14} strokeWidth={2} aria-hidden />
+          {photos} {photos === 1 ? "foto" : "fotos"}
+          {photosBusy && <Spinner className="size-3" />}
+        </span>
+      )}
+      <span className="ml-auto flex items-center gap-3">
+        {hasPending && (
+          <Button size="sm" variant="outline" className="h-10 gap-1.5 rounded-md text-sm" onClick={onReceive}>
+            <HugeIcon icon={PackageReceiveIcon} size={14} strokeWidth={2} aria-hidden />
+            Recibir
+          </Button>
+        )}
+        <RowActionsMenu
+          label={`Acciones de la orden ${order.orderNumber}`}
+          className="inline-flex size-10 items-center justify-center border border-border bg-card text-foreground"
+          actions={[
+            hasPending && { group: "Orden", label: "Recibir en Nicaragua", icon: <HugeIcon icon={PackageReceiveIcon} size={16} strokeWidth={2} />, onClick: onReceive },
+            { group: "Orden", label: order.missing.length ? "Completar datos" : "Editar orden", icon: <HugeIcon icon={Edit02Icon} size={16} strokeWidth={2} />, onClick: onEdit },
+            { group: "Orden", label: "Agregar productos", icon: <HugeIcon icon={Add01Icon} size={16} strokeWidth={2} />, onClick: onAddLines },
+            photos > 0 && { group: "Fotos del empaque", label: "Descargar fotos", icon: <HugeIcon icon={Download01Icon} size={16} strokeWidth={2} />, onClick: () => onPhotos("download") },
+            photos > 0 && canSharePhotoFiles() && { group: "Fotos del empaque", label: "Compartir fotos", icon: <HugeIcon icon={Share01Icon} size={16} strokeWidth={2} />, onClick: () => onPhotos("share") },
+            order.lineCount === 0 && { label: "Eliminar orden", icon: <HugeIcon icon={Delete02Icon} size={16} strokeWidth={2} />, danger: true, separatorBefore: true, onClick: onDelete },
+          ]}
+        />
+      </span>
+    </div>
   );
 }

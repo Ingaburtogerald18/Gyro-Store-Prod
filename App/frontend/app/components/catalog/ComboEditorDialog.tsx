@@ -263,7 +263,7 @@ export function ComboEditorDialog({
           </div>
 
           <footer className="flex shrink-0 items-center justify-end gap-2 border-t px-6 py-4">
-            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
+            <Button type="button" variant="cancel" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
             <Button type="submit" disabled={isSaving}>

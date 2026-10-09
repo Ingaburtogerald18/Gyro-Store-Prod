@@ -309,7 +309,7 @@ export function CurrentInventoryTable({
           </div>
         </div>
         <div className="mt-6 flex justify-end gap-2">
-          <Button variant="ghost" onClick={() => setRevertFor(null)}>
+          <Button variant="cancel" onClick={() => setRevertFor(null)}>
             Cancelar
           </Button>
           <Button variant="destructive" onClick={handleRevert} disabled={reverting}>

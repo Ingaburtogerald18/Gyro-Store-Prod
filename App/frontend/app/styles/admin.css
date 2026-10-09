@@ -1,0 +1,72 @@
+/* Admin layout and table spacing. Shared control appearance lives in tailwind.css. */
+html[data-area='admin'] .admin-topbar [data-size='icon'] { width: 2.75rem; height: 2.75rem; }
+html[data-area='admin'] :is([data-slot='dropdown-menu-item'], [data-slot='dropdown-menu-checkbox-item'], [data-slot='dropdown-menu-radio-item']) {
+  min-height: 2.5rem;
+  border-radius: 0.5rem;
+}
+html[data-area='admin'] [data-slot='sidebar-menu-button'][data-active='true'] {
+  box-shadow: inset 3px 0 0 var(--sidebar-primary);
+}
+html[data-area='admin'] .data-table td:has(> :is(button, a, div) [data-ui-button]),
+html[data-area='admin'] .data-table td:has(> [data-ui-button]) { white-space: nowrap; }
+html[data-area='admin'] .data-table td [data-ui-button] { flex-shrink: 0; }
+html[data-area='admin'] .data-table td [data-ui-button] + [data-ui-button] { margin-inline-start: 0.25rem; }
+
+/* Purchase orders keep their summary visible while products are collapsed. */
+html[data-area='admin'] .purchase-order {
+  border-color: var(--border);
+}
+html[data-area='admin'] .purchase-order-trigger {
+  /* The yellow action surface needs dark text in both themes. These local
+     tokens also cover the status, date, chevron and provisional-number label. */
+  --foreground: var(--action-foreground);
+  --muted-foreground: color-mix(in srgb, var(--action-foreground) 85%, var(--action));
+  --primary-2: var(--action-foreground);
+  --warning: var(--action-foreground);
+  --info: var(--action-foreground);
+  --ring: var(--action-foreground);
+  background: var(--action);
+  color: var(--action-foreground);
+  cursor: pointer;
+  transition: background-color 150ms ease;
+}
+html[data-area='admin'] .purchase-order-trigger:hover {
+  background: color-mix(in srgb, var(--action) 96%, var(--ink));
+}
+html[data-area='admin'] .purchase-order-toolbar { background: var(--card); }
+html[data-area='admin'] .purchase-column-head {
+  background: var(--muted);
+  color: var(--foreground);
+}
+html[data-area='admin'] .purchase-product-row:nth-child(even) {
+  background: color-mix(in oklab, var(--muted) 25%, var(--card));
+}
+html[data-area='admin'] .purchase-product-row:hover,
+html[data-area='admin'] .purchase-product-row:focus-within {
+  background: color-mix(in oklab, var(--muted) 65%, var(--card));
+}
+html[data-area='admin'] .purchase-orders [data-badge] {
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
+  font-weight: 500;
+}
+html[data-area='admin'] .purchase-order [role='region']:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: -2px;
+}
+
+@media (pointer: coarse) {
+  html[data-area='admin'] :is([data-slot='sidebar-menu-button'], .data-table-toolbar button) { min-height: 2.75rem; }
+  html[data-area='admin'] .data-table label { min-height: 2.75rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-area='admin'] *, html[data-area='admin'] *::before, html[data-area='admin'] *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

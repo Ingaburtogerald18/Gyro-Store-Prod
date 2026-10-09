@@ -6,7 +6,7 @@ import { cn } from "~/lib/utils";
 export type BadgeStatus = "success" | "pending" | "error" | "info" | "neutral" | "whatsapp";
 
 const VARIANTS: Record<BadgeStatus, string> = {
-  success: "border-primary/20 bg-primary/10 text-primary-2",
+  success: "border-primary-2/20 bg-primary-2/10 text-primary-2",
   pending: "border-warning/20 bg-warning/10 text-warning",
   error: "border-destructive/20 bg-destructive/10 text-destructive",
   info: "border-info/20 bg-info/10 text-info",

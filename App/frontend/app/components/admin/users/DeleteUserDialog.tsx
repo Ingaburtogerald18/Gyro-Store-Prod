@@ -49,7 +49,7 @@ export function DeleteUserDialog({
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="cancel" onClick={onClose}>
             Cancelar
           </Button>
           <Button variant="destructive" onClick={handleConfirm}>

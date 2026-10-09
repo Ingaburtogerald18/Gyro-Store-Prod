@@ -43,10 +43,9 @@ const requiredPositiveNumber = (msg = "Requerido") =>
 // Registro de compra (China).
 export const purchaseFormSchema = z.object({
   purchaseDate: z.string().min(1, "Fecha requerida"),
-  lot: z
-    .string()
-    .min(1, "Lote requerido")
-    .regex(/^LT\d+$/i, "Formato incorrecto (ej. LT1, LT4)"),
+  // Lote viejo (LT1) o número de orden de Alibaba: desde la migración 0024 la
+  // línea de una orden lleva el número de su orden acá.
+  lot: z.string().trim().min(1, "Lote requerido").max(60),
   productName: z.string().min(2, "Nombre requerido"),
   // El backend la exige al registrar la compra (newPurchaseInputSchema), así
   // que el formulario tiene que pedirla: sin esto el POST vuelve 400.

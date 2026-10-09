@@ -302,7 +302,7 @@ export function CartContentEditor({
           </div>
 
           <DialogFooter className="shrink-0 border-t px-6 py-4">
-            <Button variant="outline" onClick={requestClose} className="h-10 px-5">
+            <Button variant="cancel" onClick={requestClose} className="h-10 px-5">
               Cancelar
             </Button>
             <Button onClick={apply} className="h-10 px-5">

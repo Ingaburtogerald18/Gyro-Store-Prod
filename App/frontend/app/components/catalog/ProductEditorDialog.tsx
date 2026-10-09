@@ -723,7 +723,7 @@ export function ProductEditorDialog({
           </div>
 
           <footer className="flex shrink-0 items-center justify-end gap-2 border-t px-6 py-4">
-            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
+            <Button type="button" variant="cancel" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
             {/* `onClick` directo y NO `type="submit"`: el envío nativo del form

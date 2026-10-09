@@ -439,7 +439,7 @@ export default function AdminCatalogo() {
               </div>
             </div>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setIsCategoryDialogOpen(false)}>
+              <Button type="button" variant="cancel" onClick={() => setIsCategoryDialogOpen(false)}>
                 Cancelar
               </Button>
               <Button type="submit">

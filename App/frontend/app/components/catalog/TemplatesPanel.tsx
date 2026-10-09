@@ -475,7 +475,7 @@ function TemplateEditorDialog({
           </div>
 
           <DialogFooter className="border-t pt-4">
-            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
+            <Button type="button" variant="cancel" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
             <Button type="submit" disabled={creating || updating}>

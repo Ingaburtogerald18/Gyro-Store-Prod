@@ -74,11 +74,11 @@ export function NotificationsBell() {
   // El admin necesita las que esperan su aprobación; el vendedor, el desenlace
   // de las suyas. El backend ya recorta por rol, así que el vendedor recibe
   // solo lo propio aunque no se le mande filtro.
-  const { data: pending = [] } = useGetSalesQuery(
+  const { data: pending = [], isLoading: pendingLoading, isError: pendingError } = useGetSalesQuery(
     { status: 'pending_approval' },
     { skip: !isAdmin, pollingInterval: 60_000 },
   );
-  const { data: mySales = [] } = useGetSalesQuery(undefined, { skip: isAdmin });
+  const { data: mySales = [], isLoading: salesLoading, isError: salesError } = useGetSalesQuery(undefined, { skip: isAdmin });
 
   const [open, setOpen] = useState(false);
   const [seen, setSeen] = useState<Set<string>>(new Set());
@@ -155,6 +155,8 @@ export function NotificationsBell() {
     navigate(`/admin/ventas${query}`);
   }
 
+  const isLoading = isAdmin ? pendingLoading : salesLoading;
+  const isError = isAdmin ? pendingError : salesError;
   const isEmpty = sellerGroups.length === 0 && myGroups.length === 0;
 
   return (
@@ -180,7 +182,7 @@ export function NotificationsBell() {
 
       <PopoverContent align="end" className="w-[22rem] max-w-[calc(100vw-1.5rem)] gap-0 p-0">
         <div className="flex items-center justify-between border-b px-4 py-3">
-          <span className="text-sm font-semibold text-foreground">Notificaciones</span>
+          <span className="text-sm font-semibold text-foreground">Avisos de ventas</span>
           {badge > 0 && (
             <Badge variant="secondary" className="tabular-nums">
               {badge}
@@ -189,13 +191,17 @@ export function NotificationsBell() {
         </div>
 
         <div className="max-h-[70vh] overflow-y-auto p-1.5">
-          {isEmpty ? (
+          {isLoading ? (
+            <p role="status" className="px-4 py-8 text-center text-sm text-muted-foreground">Cargando avisos de ventas…</p>
+          ) : isError ? (
+            <div role="status" className="space-y-3 px-4 py-6 text-center text-sm"><p>No pudimos actualizar los avisos.</p><Button variant="outline" onClick={() => { setOpen(false); navigate('/admin/ventas'); }}>Revisar ventas</Button></div>
+          ) : isEmpty ? (
             <div className="flex flex-col items-center gap-2 px-4 py-10 text-center">
               <span className="grid size-11 place-items-center rounded-full bg-primary/10 text-primary">
                 <HugeIcon icon={CheckmarkCircle02Icon} size={22} strokeWidth={2} aria-hidden />
               </span>
-              <p className="text-sm font-medium text-foreground">Todo al día</p>
-              <p className="text-xs text-muted-foreground">No hay nada que requiera tu atención.</p>
+              <p className="text-sm font-medium text-foreground">Sin avisos de ventas</p>
+              <p className="text-xs text-muted-foreground">{isAdmin ? 'No hay ventas pendientes de aprobación.' : 'Todavía no hay novedades sobre tus ventas.'}</p>
             </div>
           ) : (
             <>

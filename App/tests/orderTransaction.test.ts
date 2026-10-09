@@ -5,33 +5,17 @@ import { randomUUID } from 'node:crypto';
 import { test } from 'node:test';
 import { PGlite } from '@electric-sql/pglite';
 
-test('migración y registro atómico de pedidos en PostgreSQL', async t => {
+test('esquema, migración y registro atómico de pedidos en PostgreSQL', async t => {
   const pg = new PGlite();
   try {
     const schema = await readFile(new URL('../database/01_schema.sql', import.meta.url), 'utf8');
-    const migration = await readFile(new URL('../database/migrations/0021_atomic_public_order_checkout.sql', import.meta.url), 'utf8');
-    const table = (name: string) => {
-      const start = schema.indexOf('create table ' + name + ' (');
-      assert.ok(start >= 0);
-      const statement = schema.slice(start).match(/^[\s\S]*?^\);/m);
-      assert.ok(statement);
-      return statement[0];
-    };
-    const redeemStart = schema.indexOf('create or replace function redeem_discount_code(');
-    const redeem = schema.slice(redeemStart, schema.indexOf('$$;', redeemStart) + 3);
+    const migration = await readFile(new URL('../database/migrations/0025_ordenar_base.sql', import.meta.url), 'utf8');
+    // Lo mínimo de Supabase que el esquema da por hecho: roles y auth.users.
     await pg.exec(`
       create role anon; create role authenticated; create role service_role bypassrls;
-      create type payment_method as enum ('efectivo','transferencia','tarjeta');
-      create type discount_type as enum ('percent','fixed');
-      create type redemption_source as enum ('checkout','invoice','sale');
-      create sequence discount_code_seq;
-      create table contacts(id uuid primary key);
+      create schema auth; create table auth.users(id uuid primary key);
     `);
-    await pg.exec(table('public_orders'));
-    await pg.exec(table('public_order_items').replace(/^.*(?:variant_name|product_name|product_image).*$/gm, ''));
-    await pg.exec(table('discount_codes'));
-    await pg.exec(table('discount_code_redemptions'));
-    await pg.exec(redeem);
+    await pg.exec(schema);
     await pg.exec(migration);
     await pg.exec(migration); // reaplicarla no altera filas ni falla
     const count = async (tableName: string) => Number((await pg.query<{ n: number }>('select count(*) as n from ' + tableName)).rows[0]!.n);
@@ -104,12 +88,13 @@ test('migración y registro atómico de pedidos en PostgreSQL', async t => {
       assert.equal(await count('public_orders'), before);
     });
     await t.test('las funciones y el registro privado no son accesibles desde el cliente', async () => {
-      const privileges = (await pg.query<{ can_read: boolean; can_register: boolean; can_recover: boolean }>(`
+      const privileges = (await pg.query<{ can_read: boolean; can_register: boolean; can_recover: boolean; can_report: boolean }>(`
         select has_table_privilege('anon','public_order_attempts','SELECT') as can_read,
           has_function_privilege('authenticated','register_public_order_attempt(uuid,text,jsonb,jsonb,jsonb)','EXECUTE') as can_register,
-          has_function_privilege('anon','recover_public_order_attempt(uuid)','EXECUTE') as can_recover
+          has_function_privilege('anon','recover_public_order_attempt(uuid)','EXECUTE') as can_recover,
+          has_function_privilege('anon','get_sales_ledger(timestamptz,timestamptz,uuid)','EXECUTE') as can_report
       `)).rows[0]!;
-      assert.deepEqual(privileges, { can_read: false, can_register: false, can_recover: false });
+      assert.deepEqual(privileges, { can_read: false, can_register: false, can_recover: false, can_report: false });
     });
   } finally { await pg.close(); }
 });

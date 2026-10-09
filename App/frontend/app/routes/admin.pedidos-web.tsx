@@ -264,7 +264,7 @@ function ConvertToSale({ order }: { order: AdminPublicOrder }) {
           {isLoading && <Spinner className="mr-2" />}
           Confirmar
         </Button>
-        <Button size="sm" variant="ghost" onClick={() => setConfirming(false)} disabled={isLoading}>
+        <Button size="sm" variant="cancel" onClick={() => setConfirming(false)} disabled={isLoading}>
           Cancelar
         </Button>
       </div>

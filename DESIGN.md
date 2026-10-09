@@ -1,7 +1,7 @@
 # DESIGN.md — Gyro Store · Sistema de diseño **shadcn / style Rhea**
 
 > El proyecto adopta el preset oficial de shadcn `b2DeDk3s1` en storefront y back-office:
-> **style Rhea (base `radix`) · base color Mist · theme Emerald · charts Green · Chivo (tienda) + Geist (panel)**.
+> **style Rhea (base `radix`) · base color Mist · theme Emerald · charts Green · Chivo (catálogo y panel)**.
 > La configuración vive en `components.json` (`"style": "radix-rhea"`, `"baseColor": "mist"`,
 > `"iconLibrary": "hugeicons"`).
 > Este documento describe el sistema **vivo en el código**; si el código y este archivo
@@ -12,21 +12,20 @@
 ## Actualización visual del Admin Center — octubre de 2026
 
 El panel comparte la identidad del catálogo: Chivo, fondo crema y tarjetas
-blancas en claro; fondo negro neutro y tarjetas gris carbón en oscuro. Estos
-overrides viven en `tailwind.css`, bajo `html[data-area='admin']`, y también
+blancas en claro; fondo negro neutro y tarjetas gris carbón en oscuro. La
+paleta y los controles usan reglas compartidas en `tailwind.css`, que también
 alcanzan los diálogos y menús que se montan en portales.
 
 - Amarillo `#ffc20e`: botones de acción principal, con texto tinta y relieve
-  discreto de 2px. No se usa para textos informativos sobre fondo claro.
+  de 3px, compartido con el catálogo. No se usa para textos informativos sobre fondo claro.
 - Esmeralda: selección, enlaces, foco y navegación. El token `--primary` del
   panel conserva este rol para no cambiar el significado de los estados y
-  gráficos existentes; los botones principales usan `--admin-action`.
-- Rojo: errores y acciones destructivas. Cerrar y Cancelar siguen neutrales.
+  gráficos existentes; los botones principales usan `--action` y las mismas reglas que el catálogo.
+- Rojo: errores, acciones destructivas y la variante `cancel` para Cerrar y Cancelar, por pedido del usuario.
 - Controles de 44px en móvil; controles normales de al menos 36px en escritorio.
 - Menú lateral visible en escritorio y controlado por botón; sin expansión
   automática por hover. En móvil tiene botón de abrir, cerrar y cierre al navegar.
-- La vista previa `.store-preview` conserva los estilos del catálogo; los
-  overrides de controles del panel la excluyen.
+- La vista previa `.store-preview` usa estas mismas reglas de fuente, paleta y controles.
 
 No se modifican fórmulas, permisos, validaciones ni el flujo de negocio de los
 módulos. La densidad y composición de cada módulo se revisarán por separado.
@@ -115,8 +114,8 @@ sigue a `data-theme`, no al `prefers-color-scheme` del sistema (lo controla `use
 | `--destructive` | Error y acciones destructivas |
 | `--destructive-foreground` | Texto sobre rojo lleno: blanco en claro, tinta en oscuro |
 
-Cerrar y Cancelar son **neutrales** (`outline` / `ghost`), también en el editor de
-portada: el rojo queda para errores, eliminar y descartes que pierden trabajo.
+Cerrar y Cancelar usan la variante compartida **`cancel`**, con texto y borde rojos.
+Eliminar conserva su variante destructiva y su confirmación.
 La variante `destructive` conserva su fondo tenue. La subida del editor muestra
 porcentaje real solo durante el envío; mientras el servidor procesa y almacena,
 `Progress value={null}` muestra una animación indeterminada, sin porcentaje, y
@@ -181,13 +180,13 @@ la ruta:
 En el **panel**, los montos grandes (métricas y totales) mantienen la clase
 `font-display`; tanto los datos como el cuerpo y los títulos usan Chivo.
 
-Además, **Chivo Mono** (`--font-spec`, clase `font-spec`) queda reservada a **códigos**
+Además, **Chivo Mono** (`--font-spec` y `--font-mono`, clases `font-spec` y `font-mono`) queda reservada a **códigos**
 (número de pedido, contador de la galería). Las specs de la tarjeta y de la ficha, la
 disponibilidad y los badges van en Chivo normal, con su etiqueta ("Impedancia: 24 Ω").
 La tienda **nunca muestra cantidades de inventario**: solo «Disponible», «Agotado» o
 «Consultar disponibilidad».
 
-Las tres se sirven localmente con `@fontsource-variable` (sin Google Fonts). El woff2 latino de
+Las dos familias se sirven localmente con `@fontsource-variable` (sin Google Fonts). El woff2 latino de
 Chivo se precarga en `links()` de `root.tsx` para que el titular del hero no salte de fuente.
 Los subsets no latinos no se descargan: cada `@font-face` declara su `unicode-range`.
 
@@ -196,10 +195,14 @@ shadcn se renderizan en un portal colgado de `<body>`, fuera del árbol del layo
 variable en `<html>`, el título del carrito y el de un diálogo del panel salen
 en Chivo, sin tocar las primitivas.
 
-**Por qué los tokens apuntan a variables.** `@theme inline` copia el valor del token dentro de
-cada utilidad. Con un literal (`--font-heading: "Geist Variable"…`), `font-heading` quedaría
-fijo en una sola fuente para las dos áreas. Por eso `--font-sans` y `--font-heading` valen
-`var(--area-font-*)`, y `[data-area='store']` redefine esas variables.
+**Fuente única.** `--area-font-sans` y `--area-font-heading` se definen una vez en
+`:root` como Chivo. Los títulos, el cuerpo, los importes y los controles heredan
+esa familia en ambas áreas, incluidos los portales. Los códigos usan Chivo Mono.
+
+**Controles compartidos.** `Button` define los tamaños de ambas áreas: normal
+40px, pequeño 36px, grande 44px. Los objetivos táctiles son de al menos 44px.
+Las reglas comunes de `tailwind.css` definen radio de 12px, borde de 2px y sombra
+de 3px en acciones principales. El panel no redefine su color ni relieve.
 
 **Jerarquía en el storefront** (siempre con la escala de Tailwind, nunca `text-[Npx]`):
 
@@ -593,6 +596,12 @@ Todos se ignoran mientras el foco está en un campo de texto. Un atajo sin entra
 en la hoja de `?` no existe para el usuario.
 
 ### 11.10 Tokens
+
+**Cancelar y cerrar:** los botones que abandonan un formulario y las “X” de
+diálogos o paneles usan `Button variant="cancel"`: texto y borde rojos, fondo
+rojo suave y foco visible, en ambos temas. Usar el token `destructive`, sin
+colores sueltos. Las acciones que eliminan o anulan datos conservan la variante
+`destructive`; “Seguir editando” mantiene su estilo secundario.
 
 Cero colores crudos de Tailwind, cero hex, cero `rgba()` en componentes. Si hace
 falta un color que no existe, primero se agrega el token en `:root` y

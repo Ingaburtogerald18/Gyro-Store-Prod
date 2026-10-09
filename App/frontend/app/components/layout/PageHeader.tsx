@@ -36,14 +36,14 @@ export function PageHeader({
   className?: string;
 }) {
   return (
-    <header className={cn('mb-6', className)}>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+    <header className={cn('admin-page-header mb-6', className)}>
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-end sm:justify-between">
         <div className="min-w-0">
           {/* Migas "Grupo / Sección" en tono de texto, no un rótulo en
               mayúsculas: ubica sin competir con el título. */}
           {eyebrow && (
             <p className="text-xs text-muted-foreground">
-              {eyebrow} <span aria-hidden>/</span> {title}
+              {eyebrow}
             </p>
           )}
           <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
@@ -57,7 +57,7 @@ export function PageHeader({
             <p className="mt-1 text-pretty text-sm text-muted-foreground">{description}</p>
           )}
         </div>
-        {actions && <div className="flex max-w-full shrink-0 flex-wrap items-center gap-2">{actions}</div>}
+        {actions && <div className="admin-page-actions flex max-w-full flex-wrap items-center gap-2 lg:justify-end">{actions}</div>}
       </div>
 
       {/* Los filtros van en su propia fila, separados por un borde. Apilados a

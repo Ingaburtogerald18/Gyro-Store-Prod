@@ -373,7 +373,7 @@ export function ExpenseFormDialog({
           </div>
 
           <DialogFooter className="gap-2 sm:gap-0">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isLoading}>
+            <Button type="button" variant="cancel" onClick={() => onOpenChange(false)} disabled={isLoading}>
               Cancelar
             </Button>
             <Button type="submit" disabled={isLoading} className="bg-primary-2 text-primary-2-foreground hover:bg-primary-2/90">

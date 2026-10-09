@@ -169,7 +169,7 @@ function PaymentDialog({ plan, onClose }: { plan: InstallmentPlan | null; onClos
             </div>
           )}
           <div className="mt-4 flex justify-end gap-2">
-            <Button type="button" variant="ghost" onClick={onClose}>
+            <Button type="button" variant="cancel" onClick={onClose}>
               Cancelar
             </Button>
             <Button type="submit" disabled={isLoading}>
@@ -244,7 +244,7 @@ function PlanCard({ plan, onPay }: { plan: InstallmentPlan; onPay: () => void })
             </Button>
           )}
           {plan.payments.length === 0 && (
-            <Button size="sm" variant="ghost" onClick={handleCancel} disabled={cancelling} className="text-destructive">
+            <Button size="sm" variant="destructive" onClick={handleCancel} disabled={cancelling} className="text-destructive">
               {cancelling && <Spinner className="mr-2" />}
               Cancelar plan
             </Button>
@@ -345,7 +345,7 @@ function CreatePlanDialog({ sale, onClose }: { sale: SaleListItem | null; onClos
             </div>
           )}
           <div className="mt-4 flex justify-end gap-2">
-            <Button type="button" variant="ghost" onClick={onClose}>
+            <Button type="button" variant="cancel" onClick={onClose}>
               Cancelar
             </Button>
             <Button type="submit" disabled={isLoading}>

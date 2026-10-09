@@ -659,7 +659,7 @@ export default function AdminVentas() {
             <Input value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} placeholder="¿Por qué se rechaza?" />
           </div>
           <div className="mt-4 flex justify-end gap-2">
-            <Button variant="ghost" onClick={() => setRejectFor(null)}>
+            <Button variant="cancel" onClick={() => setRejectFor(null)}>
               Cancelar
             </Button>
             <Button variant="destructive" onClick={handleReject} disabled={rejecting}>

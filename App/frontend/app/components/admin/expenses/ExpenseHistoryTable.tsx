@@ -354,7 +354,7 @@ export function ExpenseHistoryTable({
           </DialogHeader>
           <DialogFooter className="gap-2 sm:gap-0">
             <Button
-              variant="outline"
+              variant="cancel"
               onClick={() => setExpenseToDelete(null)}
               disabled={isDeleting}
             >
