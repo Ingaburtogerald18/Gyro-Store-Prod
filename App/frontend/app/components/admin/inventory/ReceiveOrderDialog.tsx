@@ -176,8 +176,8 @@ export function ReceiveOrderDialog({
     if (exchangeRate.trim() !== "" && !(rateValue > 0 && rateValue <= 1000)) found.exchangeRate = "Revisá la tasa.";
     if (selectedLines.length === 0) found.lines = "Marcá al menos un producto que llegó.";
     else if (!validQuantities) found.lines = "Lo recibido tiene que ser un número mayor a 0.";
-    else if (selectedLines.some((l) => rowOf(l.purchase).salePrice.trim() !== "" && !(toNumber(rowOf(l.purchase).salePrice) >= 0))) {
-      found.lines = "Revisá los precios de venta.";
+    else if (selectedLines.some((l) => !(toNumber(rowOf(l.purchase).salePrice) > 0))) {
+      found.lines = "Escribí el precio de venta de cada producto que llegó: es el que muestra la tienda.";
     }
     setErrors(found);
     if (Object.keys(found).length) return;
@@ -190,14 +190,11 @@ export function ReceiveOrderDialog({
           extraOrderIds,
           shippingTotalUsd: shippingValue,
           exchangeRate: rateValue > 0 ? rateValue : undefined,
-          lines: selectedLines.map((l) => {
-            const price = toNumber(rowOf(l.purchase).salePrice);
-            return {
-              purchaseId: l.purchase.id,
-              receivedQuantity: l.received,
-              ...(Number.isFinite(price) ? { salePrice: price } : {}),
-            };
-          }),
+          lines: selectedLines.map((l) => ({
+            purchaseId: l.purchase.id,
+            receivedQuantity: l.received,
+            salePrice: toNumber(rowOf(l.purchase).salePrice),
+          })),
         },
       }).unwrap();
       const left = pending.length - result.received;
@@ -400,6 +397,8 @@ export function ReceiveOrderDialog({
                             value={row.salePrice}
                             onChange={(e) => setRow(p, { salePrice: e.target.value, priceTouched: true })}
                             aria-label={`Precio de venta de ${p.productName}`}
+                            aria-required
+                            aria-invalid={row.selected && !(toNumber(row.salePrice) > 0) && !!errors.lines}
                           />
                           {row.selected && line && (
                             <span className="mt-1 block text-2xs text-muted-foreground">

@@ -15,6 +15,7 @@ import type {
   UpdatePurchaseInput,
   ArrivalInput,
 } from '../../shared/schemas';
+import type { LotInfo } from './catalogPresenter';
 
 // ============================================================================
 // ── Tipos (contrato con inventoryV1Api.ts) ──
@@ -505,7 +506,7 @@ export async function reportArrival(id: string, input: ArrivalInput): Promise<bo
       costo_real_cs: costing.costoRealCs,
       costo_f_u: costing.costoFU,
       coste_final: costing.costeFinal,
-      suggested_price: input.suggestedPrice ?? costing.precioSugerido,
+      suggested_price: input.suggestedPrice,
     })
     .eq('id', id);
 
@@ -1147,6 +1148,43 @@ export async function getAvailableByCodes(codes: string[]): Promise<Map<string, 
     available.set(row.code, (available.get(row.code) ?? 0) + free);
   }
   return available;
+}
+
+/**
+ * Lotes de bodega por código para la tienda: unidades libres, si siguen en
+ * camino, su precio de venta y su lugar en el FIFO (el mismo orden de Ventas).
+ */
+export async function getLotsByCodes(codes: string[]): Promise<Map<string, LotInfo>> {
+  const lots = new Map<string, LotInfo>();
+  const unique = [...new Set(codes.filter(Boolean))];
+  if (unique.length === 0) return lots;
+
+  const { data, error } = await db
+    .from('purchases')
+    .select('code, status, quantity, quantity_sold, quantity_reserved, suggested_price, purchase_date, created_at')
+    .in('code', unique);
+  if (error) throw error;
+
+  for (const row of (data ?? []) as unknown as {
+    code: string;
+    status: PurchaseStatus;
+    quantity: number;
+    quantity_sold: number;
+    quantity_reserved: number;
+    suggested_price: number | string | null;
+    purchase_date: string;
+    created_at: string;
+  }[]) {
+    const received = row.status === 'received';
+    const price = row.suggested_price == null ? null : Number(row.suggested_price);
+    lots.set(row.code, {
+      available: received ? Math.max(0, row.quantity - row.quantity_sold - row.quantity_reserved) : 0,
+      inTransit: !received,
+      salePrice: price && price > 0 ? price : null,
+      fifoKey: `${row.purchase_date}|${row.created_at}`,
+    });
+  }
+  return lots;
 }
 
 // ============================================================================

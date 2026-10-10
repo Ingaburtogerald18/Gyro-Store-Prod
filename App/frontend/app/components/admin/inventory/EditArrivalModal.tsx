@@ -141,7 +141,7 @@ export function EditArrivalModal({
         )}
 
         <Field data-invalid={!!errors.suggestedPrice}>
-          <FieldLabel htmlFor="edit-arrival-price">Precio de venta (C$)</FieldLabel>
+          <FieldLabel htmlFor="edit-arrival-price" required>Precio de venta (C$)</FieldLabel>
           <Input id="edit-arrival-price" type="number" step="1" min={0} placeholder="Precio al que se vende" {...register("suggestedPrice")} aria-invalid={!!errors.suggestedPrice} />
           <FieldDescription>Es el precio que verá el vendedor al cotizar. Puedes cambiarlo cuando quieras.</FieldDescription>
           <FieldError errors={[errors.suggestedPrice]} />

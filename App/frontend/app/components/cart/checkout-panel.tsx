@@ -76,6 +76,7 @@ const ISSUE_TEXT: Record<OrderIssue['reason'], string> = {
   variant_required: 'Falta elegir sus opciones.',
   invalid_variant: 'La opción guardada ya no existe. Elegí otra.',
   sold_out: 'Se agotó esta opción.',
+  coming_soon: 'Viene en camino: todavía no se puede pedir.',
   unknown_stock: 'No tenemos confirmada su disponibilidad.',
   insufficient: 'No hay tantas unidades disponibles.',
   price_changed: 'Cambió el precio.',
