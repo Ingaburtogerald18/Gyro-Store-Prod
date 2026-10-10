@@ -4,12 +4,12 @@
 // mismo color, en todas las pantallas y entre sesiones, sin columna nueva en la
 // base ni un selector de color que el admin tenga que mantener.
 //
-// Sale de los 7 tonos `--tone-*` de tailwind.css.
+// Sale de los 6 tonos `--tone-*` de tailwind.css.
 //
 // El color NUNCA va solo: siempre acompaña al nombre. Diferenciar únicamente
 // por color deja afuera a quien no lo distingue.
 
-export const TONES = ['indigo', 'sky', 'amber', 'emerald', 'rose', 'purple', 'red'] as const;
+export const TONES = ['indigo', 'sky', 'amber', 'rose', 'purple', 'red'] as const;
 
 export type Tone = (typeof TONES)[number];
 
@@ -19,14 +19,13 @@ const DOT_CLASS: Record<Tone, string> = {
   indigo: 'bg-tone-indigo',
   sky: 'bg-tone-sky',
   amber: 'bg-tone-amber',
-  emerald: 'bg-tone-emerald',
   rose: 'bg-tone-rose',
   purple: 'bg-tone-purple',
   red: 'bg-tone-red',
 };
 
 // Hash determinista (djb2 recortado). No necesita ser criptográfico: solo
-// repartir ids parejo entre los 7 tonos y dar siempre el mismo resultado.
+// repartir ids parejo entre los 6 tonos y dar siempre el mismo resultado.
 function hash(value: string): number {
   let acc = 5381;
   for (let i = 0; i < value.length; i++) acc = (acc * 33 + value.charCodeAt(i)) >>> 0;

@@ -85,7 +85,7 @@ export function SpotlightCard({
 // para lo mismo.
 
 // ── StatCard unificado (mantiene su nombre y Props para retrocompatibilidad) ──
-export type StatCardColor = "neutral" | "indigo" | "sky" | "amber" | "emerald" | "rose" | "purple" | "red";
+export type StatCardColor = "neutral" | "indigo" | "sky" | "amber" | "rose" | "purple" | "red";
 
 const BASE_STAT = "bg-muted/30 border border-border hover:border-border/80";
 const COLOR_MAP: Record<StatCardColor, { card: string; icon: string; label: string; value: string }> = {
@@ -93,7 +93,6 @@ const COLOR_MAP: Record<StatCardColor, { card: string; icon: string; label: stri
   indigo: { card: `${BASE_STAT} hover:border-tone-indigo/30`, icon: "stat-card-icon text-tone-indigo", label: "text-muted-foreground/90", value: "text-tone-indigo" },
   sky: { card: `${BASE_STAT} hover:border-tone-sky/30`, icon: "stat-card-icon text-tone-sky", label: "text-muted-foreground/90", value: "text-tone-sky" },
   amber: { card: `${BASE_STAT} hover:border-tone-amber/30`, icon: "stat-card-icon text-tone-amber", label: "text-muted-foreground/90", value: "text-tone-amber" },
-  emerald: { card: `${BASE_STAT} hover:border-primary/30`, icon: "stat-card-icon text-tone-emerald", label: "text-muted-foreground/90", value: "text-tone-emerald" },
   rose: { card: `${BASE_STAT} hover:border-tone-rose/30`, icon: "stat-card-icon text-tone-rose", label: "text-muted-foreground/90", value: "text-tone-rose" },
   purple: { card: `${BASE_STAT} hover:border-tone-purple/30`, icon: "stat-card-icon text-tone-purple", label: "text-muted-foreground/90", value: "text-tone-purple" },
   red: { card: `${BASE_STAT} hover:border-tone-red/30`, icon: "stat-card-icon text-tone-red", label: "text-muted-foreground/90", value: "text-tone-red" },

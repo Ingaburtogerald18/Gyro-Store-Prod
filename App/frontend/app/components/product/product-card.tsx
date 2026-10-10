@@ -187,7 +187,7 @@ export function ProductCard({
       )}
       <div className="mt-1 flex flex-wrap items-baseline gap-x-2">
         {product.priceFrom && <span className="text-xs font-medium text-muted-foreground">Desde</span>}
-        <span className="font-heading text-lg font-extrabold tracking-tight text-foreground tabular-nums">
+        <span className="font-heading text-lg font-extrabold tracking-tight text-primary-2 tabular-nums">
           {formatCordobas(product.price, currency)}
         </span>
         {onSale && (

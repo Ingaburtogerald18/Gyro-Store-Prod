@@ -59,6 +59,8 @@
   --color-promo-foreground: var(--promo-foreground);
   --color-ink: var(--ink);
   --color-rose: var(--rose);
+  --color-selection: var(--selection);
+  --color-selection-foreground: var(--selection-foreground);
   --color-action: var(--action);
   --color-action-foreground: var(--action-foreground);
   --color-logo: var(--logo);
@@ -73,7 +75,6 @@
   --color-tone-indigo: var(--tone-indigo);
   --color-tone-sky: var(--tone-sky);
   --color-tone-amber: var(--tone-amber);
-  --color-tone-emerald: var(--tone-emerald);
   --color-tone-rose: var(--tone-rose);
   --color-tone-purple: var(--tone-purple);
   --color-tone-red: var(--tone-red);
@@ -205,6 +206,8 @@ html[data-area='admin'],
   --muted: var(--rose);
   --muted-foreground: #6e5a57;
   --selection: var(--rose);
+  --selection-foreground: var(--primary-2);
+  --action-outline: var(--ink);
   --secondary: var(--muted);
   --secondary-foreground: var(--ink);
   --accent: var(--muted);
@@ -247,7 +250,7 @@ html[data-area='admin'],
   --sidebar-primary: var(--primary-2);
   --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: var(--selection);
-  --sidebar-accent-foreground: var(--primary-2);
+  --sidebar-accent-foreground: var(--selection-foreground);
   --sidebar-border: var(--border);
   --sidebar-ring: var(--ring);
 
@@ -255,7 +258,6 @@ html[data-area='admin'],
   --tone-indigo: oklch(0.51 0.19 275);
   --tone-sky: oklch(0.56 0.14 233);
   --tone-amber: oklch(0.68 0.16 62);
-  --tone-emerald: oklch(0.55 0.13 163);
   --tone-rose: oklch(0.59 0.2 15);
   --tone-purple: oklch(0.55 0.22 300);
   --tone-red: oklch(0.58 0.22 27);
@@ -303,7 +305,9 @@ html[data-theme='dark'] .store-palette {
   --primary-foreground: #111111;
   /* El bordó no se lee sobre negro (2.1:1): en oscuro lo elegido es rosa. */
   --primary-2: #e8a09a;
-  --selection: color-mix(in srgb, var(--primary-2) 16%, var(--card));
+  --selection: #26272a;
+  --selection-foreground: var(--foreground);
+  --action-outline: #111111;
   --muted: #222326;
   --muted-foreground: #a8a29e;
   --promo: #3a2a2b;
@@ -341,7 +345,6 @@ html[data-theme='dark'] .store-palette {
   --tone-indigo: oklch(0.7 0.16 275);
   --tone-sky: oklch(0.75 0.13 233);
   --tone-amber: oklch(0.82 0.15 75);
-  --tone-emerald: oklch(0.75 0.15 163);
   --tone-rose: oklch(0.72 0.17 15);
   --tone-purple: oklch(0.72 0.18 300);
   --tone-red: oklch(0.7 0.19 27);
@@ -400,7 +403,7 @@ html[data-area='store'] .store-header .store-cart-button:active {
   background-color: color-mix(in oklab, var(--action) 80%, transparent);
 }
 :is(html[data-area='store'], html[data-area='admin'], .store-palette, .store-preview) [data-slot='button']:is([data-variant='default'], [data-variant='whatsapp'], [data-variant='destructiveSolid']):not([aria-pressed]) {
-  border: 2px solid var(--ink);
+  border: 2px solid var(--action-outline);
   box-shadow: 3px 3px 0 var(--sticker-shadow);
   transition-property: transform, box-shadow, background-color;
 }
@@ -455,7 +458,7 @@ html[data-area='store'] .store-header .store-cart-button:active {
    principal, y el peso y el borde evitan depender solo del color. */
 :is(html[data-area='store'], html[data-area='admin'], .store-preview) [data-slot='button'][aria-pressed='true'] {
   background-color: var(--selection);
-  color: var(--foreground);
+  color: var(--selection-foreground);
   border: 2px solid var(--primary-2);
   font-weight: 600;
 }
@@ -496,10 +499,10 @@ html[data-area='admin'] .admin-topbar {
   box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--primary-2) 65%, transparent);
 }
 html[data-area='admin'] .admin-nav-link {
-  border: 1px solid transparent;
+  border: 2px solid transparent;
 }
 html[data-area='admin'] .admin-nav-link[data-active='true'] {
-  border-color: color-mix(in srgb, var(--primary-2) 40%, transparent);
+  border-color: var(--primary-2);
   font-weight: 600;
 }
 html[data-area='admin'] :is([data-slot='dialog-header'], [data-slot='sheet-header']):not(:where(.store-preview, .store-preview *, .store-palette, .store-palette *)) {

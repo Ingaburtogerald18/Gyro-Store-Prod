@@ -39,8 +39,8 @@ interface Step {
 }
 
 const BAR: Record<Kind, string> = {
-  total: 'bg-tone-emerald',
-  subtotal: 'bg-tone-emerald',
+  total: 'bg-primary-2',
+  subtotal: 'bg-primary-2',
   cost: 'bg-tone-sky',
   taken: 'bg-tone-rose',
 };

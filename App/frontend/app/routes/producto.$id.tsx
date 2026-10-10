@@ -265,7 +265,7 @@ export default function ProductDetail() {
               </p>
             )}
             <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-              <span className="font-heading text-3xl font-extrabold tracking-tight text-foreground tabular-nums">
+              <span className="font-heading text-3xl font-extrabold tracking-tight text-primary-2 tabular-nums">
                 {showFrom && <span className="mr-1.5 text-base font-semibold text-muted-foreground">Desde</span>}
                 {formatCordobas(price, currency)}
               </span>

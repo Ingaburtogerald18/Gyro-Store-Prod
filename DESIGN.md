@@ -12,17 +12,17 @@ Los colores viven en `app/tailwind.css`, en el bloque de la paleta de marca. En 
 
 | Color | Nombre | Claro | Oscuro | Uso |
 | --- | --- | --- | --- | --- |
-| Tinta | `--ink`, `--foreground` | `#2a1d1d` | `#f4f4f2` | Texto. Contorno del botón principal |
+| Tinta | `--ink`, `--foreground` | `#2a1d1d` | `#f4f4f2` | Texto. Contorno del botón principal (`--action-outline`: `#111111` en oscuro) |
 | Crema | `--background` | `#fffcf3` | `#0e0f10` | Fondo de página |
 | Blanco | `--card`, `--popover` | `#ffffff` | `#18191b` | Tarjetas, menús, ventanas |
-| Rosa | `--rose`, `--muted`, `--selection` | `#f4ded9` | `#222326` (`--selection`: rosa oscuro al 16 %) | Fondo de lo elegido, encabezado de tablas, ofertas, círculo detrás de las fotos |
+| Rosa | `--rose`, `--muted`, `--selection` | `#f4ded9` | `#222326` (`--selection`: `#26272a`) | Fondo de lo elegido, encabezado de tablas, ofertas, círculo detrás de las fotos |
 | Texto secundario | `--muted-foreground` | `#6e5a57` | `#a8a29e` | Etiquetas, ayudas, fechas |
 | Amarillo | `--action` | `#ffc20e` | `#ffc20e` | Acción principal. Texto tinta (`#111111` en oscuro) |
 | Bordó | `--bordo`, `--primary-2` | `#812c2c` | `#e8a09a` (rosa oscuro) | Selección, navegación, links, foco, precios, línea del header |
 | Sombra del botón | `--sticker-shadow`, `--header-cart-shadow` | `#812c2c` | `#812c2c` | Sombra dura del botón principal y del carrito |
 | Teal del logo | `--logo`, `--success` | `#3dc5a9` | `#3dc5a9` | Logo, mascota y el punto de «Recibido», «Pagado», «Disponible» |
 | Header | `--header-background` | `#fffcf3` | `#141517` | Fondo del header |
-| Ofertas | `--promo` | rosa, texto bordó | `#3a2a2b`, texto rosa | Ofertas |
+| Ofertas | `--promo` | rosa, texto bordó | `#3a2a2b`, texto rosa | Ofertas, con borde bordó de 1.5 px |
 | Borde | `--border` | tinta 16 % | blanco 10 % | Tarjetas y separadores |
 | Borde de campo | `--input` | tinta 48 % | blanco 34 % | Campos, selects, botones con borde |
 | Relieve de tablas | `--table-edge`, `--table-groove`, `--table-shine`, `--table-shade`, `--table-lift` | tinta 26 %, tinta 20 %, blanco 95 %, tinta 5.5 % | blanco 20 %, negro 75 %, blanco 7 %, negro 22 % | Contorno, línea grabada, sombreado de fila y sombra de las tablas |
@@ -116,10 +116,10 @@ Nunca:
 
 ## 5. Selección, chips y barra de herramientas
 
-- Opción elegida (variante, filtro, vista): borde bordó de 2 px, fondo rosa, texto en semibold. Se marca con `aria-pressed`.
+- Opción elegida (variante, filtro, vista, menú lateral): borde bordó de 2 px, fondo rosa y texto bordó en semibold. En oscuro, fondo `#26272a` y texto normal. Se marca con `aria-pressed`.
 - Elegir vista: botones con borde marcados así. No pestañas ni grupos de botones distintos.
-- Chips, solo cuatro tipos: estado (punto y texto), filtro activo (fondo rosa y ×), contador (amarillo) y categoría (suave).
-- Barra de herramientas: tarjeta blanca con borde bordó al 30 % y línea bordó de 2 px arriba. Adentro: buscador, filtros, conteo y la acción principal a la derecha.
+- Chips, solo cuatro tipos: estado (punto y texto), filtro activo (como la opción elegida, con ×), contador (amarillo) y categoría (suave).
+- Barra de herramientas: tarjeta blanca con borde normal (`--border`), sin línea de color. Adentro: buscador, filtros, conteo y la acción principal a la derecha.
 
 ## 6. Tablas
 
@@ -128,7 +128,7 @@ Nunca:
 - Contenedor blanco, borde de 1 px (`--table-edge`), 16 px de esquina y sombra `shadow-table`, que la levanta del fondo.
 - Dentro de una tarjeta, la tabla va con `embedded` (sin borde ni sombra) y la tarjeta pone el contorno; la orden de compra abierta lleva borde bordó al 80 % y `shadow-table`.
 - Encabezado con fondo rosa, `text-xs font-semibold` en tinta, sin mayúsculas. Proyecta una sombra corta sobre la primera fila. Las columnas ordenables muestran la flecha.
-- Filas de 52 px (40 px en modo compacto), `text-sm`, con relieve: cada fila se oscurece apenas hacia abajo y la línea entre filas va grabada (raya `--table-groove` con el brillo `--table-shine` debajo). Al pasar el mouse, bordó al 7 %.
+- Filas de 52 px (40 px en modo compacto), `text-sm`, con relieve: cada fila se oscurece apenas hacia abajo y la línea entre filas va grabada (raya `--table-groove` con el brillo `--table-shine` debajo). Al pasar el mouse, rosa al 55 % (blanco al 4 % en oscuro).
 - Columnas en este orden: código, descripción, números, estado, acciones.
 - Código con `CodeCell`: mono de 14 px, peso medio, en tinta. Producto: nombre en semibold y la variante debajo en `text-sm` gris.
 - Un dato de apoyo debajo de un número (impuesto, unidades) va en `text-xs` gris.
@@ -269,4 +269,5 @@ Lo que este documento pide y el código todavía no tiene. Cada línea se borra 
 | 2026-10-10 | Ofertas en rosa con texto bordó; línea del header en bordó; encabezado de tablas en rosa |
 | 2026-10-10 | Tablas con relieve: contorno marcado, línea grabada entre filas, sombra bajo el encabezado y tabla levantada del fondo. Código, variante y estado a 14 px; código y encabezado en tinta |
 | 2026-10-10 | Orden de compra: «Recibir» y el menú ⋮ se juntan en un solo botón amarillo «Acciones» |
+| 2026-10-10 | Lo elegido con texto bordó (en oscuro, fondo `#26272a`); barra de herramientas con borde normal; fila de tabla en rosa al pasar el mouse; contorno del botón amarillo `#111111` en oscuro; ofertas con borde bordó; precios en bordó; gráficos de Reportería en bordó, sin verde |
 | 2026-10-10 | Rediseño aprobado del editor de portada: estructura, tienda e inspector fijo, edición directa del borrador, deshacer/rehacer, composiciones preparadas y publicación confirmada. Excepción a los formularios de banner en ventana; el carrito sigue en ventana |

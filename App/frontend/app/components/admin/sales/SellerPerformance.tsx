@@ -82,7 +82,7 @@ export function SellerPerformance() {
                 label="Vendido"
                 countTo={kpis.total_vendido}
                 format={formatMoney}
-                color="emerald"
+                color="neutral"
                 delay={0.05}
               />
               <StatCard
