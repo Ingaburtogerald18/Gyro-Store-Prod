@@ -824,7 +824,7 @@ export const publicOrderItemInputSchema = z
   });
 
 // Los campos que llena la PERSONA, sin los ítems. Se exporta aparte para que el
-// formulario del checkout derive de acá (DESIGN.md §6b: derivar, no reescribir)
+// formulario del checkout derive de acá
 // en vez de mantener una copia de las mismas reglas.
 export const publicOrderFieldsSchema = z.object({
   phone: z

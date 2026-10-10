@@ -303,11 +303,7 @@ export default function AdminVentas() {
     }
   }
 
-  // `useCallback` para poder incluirlo en las dependencias del `useMemo` de
-  // columnas. Antes se silenciaba la regla con un `eslint-disable`: la función
-  // se recreaba en cada render, así que incluirla habría reconstruido todas las
-  // columnas siempre. Silenciar la regla no arreglaba nada — solo escondía que
-  // las columnas capturaban una versión vieja de la función.
+  // `useCallback` para poder incluirlo en las dependencias del `useMemo` de columnas.
   const handleApprove = useCallback(
     async (id: string) => {
       try {
@@ -464,7 +460,7 @@ export default function AdminVentas() {
           : 'Comisión total';
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-5">
       <PageHeader
         eyebrow="Operación"
         title="Ventas"
@@ -474,15 +470,15 @@ export default function AdminVentas() {
           <div className="flex flex-wrap gap-2">
           {isAdmin && (
             <>
-              <Button variant="outline" onClick={() => setHistoryOpen(true)} className="h-9 rounded-md">
+              <Button variant="outline" onClick={() => setHistoryOpen(true)} className="h-9 rounded-xl">
                 Historial de pagos
               </Button>
-              <Button variant="outline" onClick={() => setPayFor('')} className="h-9 rounded-md">
+              <Button variant="outline" onClick={() => setPayFor('')} className="h-9 rounded-xl">
                 Pagar comisiones
               </Button>
             </>
           )}
-          <Button onClick={() => setIsEditorOpen(true)} className="h-9 gap-2 rounded-md">
+          <Button onClick={() => setIsEditorOpen(true)} className="h-9 gap-2 rounded-xl">
             <HugeIcon icon={Add01Icon} size={16} strokeWidth={2} aria-hidden />
             Registrar venta
             <Kbd>N</Kbd>
@@ -567,11 +563,11 @@ export default function AdminVentas() {
           )}
         </MetricStrip>
 
-        <div className="space-y-3 p-4">
+        <div className="space-y-3">
         {/* Barra de acciones masivas: solo aparece con algo seleccionado
             (que a su vez solo es posible en Pendientes, para admin). */}
         {canBulkSelect && selectedIds.size > 0 && (
-          <div className="flex items-center justify-between rounded-card border border-primary-2/30 bg-primary-2/5 px-4 py-2.5">
+          <div className="flex items-center justify-between rounded-2xl border border-primary-2/30 bg-primary-2/5 px-4 py-2.5">
             <span className="text-sm font-medium text-foreground">
               {selectedIds.size} venta{selectedIds.size === 1 ? '' : 's'} seleccionada{selectedIds.size === 1 ? '' : 's'}
             </span>

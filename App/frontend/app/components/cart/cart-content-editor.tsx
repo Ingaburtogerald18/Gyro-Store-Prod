@@ -78,7 +78,7 @@ function ImagePicker({
           aria-pressed={!selected}
           onClick={() => onChange('')}
           className={cn(
-            'grid size-16 place-items-center rounded-lg border text-2xs leading-tight text-muted-foreground',
+            'grid size-16 place-items-center rounded-xl border text-2xs leading-tight text-muted-foreground',
             !selected && 'border-primary-2 ring-2 ring-primary-2/30',
           )}
         >
@@ -93,7 +93,7 @@ function ImagePicker({
             aria-label={CART_IMAGE_LABELS[key]}
             onClick={() => onChange(key)}
             className={cn(
-              'size-16 overflow-hidden rounded-lg border bg-muted p-1',
+              'size-16 overflow-hidden rounded-xl border bg-muted p-1',
               selected === key && 'border-primary-2 ring-2 ring-primary-2/30',
             )}
           >
@@ -285,10 +285,10 @@ export function CartContentEditor({
             <aside className="md:sticky md:top-0 md:self-start" aria-label="Vista previa">
               <div className="mb-2 flex items-center justify-between">
                 <p className="text-xs font-medium text-muted-foreground">Vista previa</p>
-                <div role="group" aria-label="Tema de la vista previa" className="flex rounded-md border p-0.5 text-xs">
+                <div role="group" aria-label="Tema de la vista previa" className="flex rounded-xl border p-0.5 text-xs">
                   {(['light', 'dark'] as const).map((theme) => (
                     <button key={theme} type="button" aria-pressed={previewTheme === theme} onClick={() => setPreviewTheme(theme)}
-                      className={cn('rounded px-2 py-1', previewTheme === theme ? 'bg-muted font-semibold' : 'text-muted-foreground')}>
+                      className={cn('rounded-xl px-2 py-1', previewTheme === theme ? 'bg-muted font-semibold' : 'text-muted-foreground')}>
                       {theme === 'light' ? 'Claro' : 'Oscuro'}
                     </button>
                   ))}
@@ -302,10 +302,10 @@ export function CartContentEditor({
           </div>
 
           <DialogFooter className="shrink-0 border-t px-6 py-4">
-            <Button variant="cancel" onClick={requestClose} className="h-10 px-5">
+            <Button variant="cancel" onClick={requestClose}>
               Cancelar
             </Button>
-            <Button onClick={apply} className="h-10 px-5">
+            <Button onClick={apply}>
               Aplicar al borrador
             </Button>
           </DialogFooter>

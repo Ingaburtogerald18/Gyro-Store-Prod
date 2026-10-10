@@ -330,7 +330,7 @@ export function LandingEditor() {
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <div role="group" aria-label="Ancho de la vista previa" className="hidden items-center rounded-lg border p-1 md:flex">
+          <div role="group" aria-label="Ancho de la vista previa" className="hidden items-center rounded-xl border p-1 md:flex">
             {VIEWPORTS.map(item => (
               <button
                 key={item.id}
@@ -338,20 +338,20 @@ export function LandingEditor() {
                 aria-pressed={viewport === item.id}
                 title={`${item.group} · ${item.width}px`}
                 onClick={() => setViewport(item.id)}
-                className={cn('rounded-md px-2.5 py-1.5 text-xs tabular-nums focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none', viewport === item.id ? 'bg-muted font-semibold' : 'text-muted-foreground')}
+                className={cn('rounded-xl px-2.5 py-1.5 text-xs tabular-nums focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none', viewport === item.id ? 'bg-muted font-semibold' : 'text-muted-foreground')}
               >
                 <span className="sr-only">{item.group} </span>{item.label}
               </button>
             ))}
           </div>
-          <div role="group" aria-label="Tema de la vista previa" className="hidden items-center rounded-lg border p-1 sm:flex">
+          <div role="group" aria-label="Tema de la vista previa" className="hidden items-center rounded-xl border p-1 sm:flex">
             {(['light', 'dark'] as const).map(theme => (
               <button
                 key={theme}
                 type="button"
                 aria-pressed={previewTheme === theme}
                 onClick={() => setPreviewTheme(theme)}
-                className={cn('rounded-md px-2.5 py-1.5 text-xs focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none', previewTheme === theme ? 'bg-muted font-semibold' : 'text-muted-foreground')}
+                className={cn('rounded-xl px-2.5 py-1.5 text-xs focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none', previewTheme === theme ? 'bg-muted font-semibold' : 'text-muted-foreground')}
               >
                 {theme === 'light' ? 'Claro' : 'Oscuro'}
               </button>
@@ -388,7 +388,7 @@ export function LandingEditor() {
                     aria-pressed={section === item.id}
                     disabled={busy}
                     onClick={() => setSection(item.id)}
-                    className={cn('relative rounded-lg px-3 py-2.5 text-sm transition-colors motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring', section === item.id ? 'bg-card font-semibold text-foreground shadow-sm' : 'text-muted-foreground hover:bg-card/70 hover:text-foreground')}
+                    className={cn('relative rounded-xl px-3 py-2.5 text-sm transition-colors motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring', section === item.id ? 'bg-card font-semibold text-foreground' : 'text-muted-foreground hover:bg-card/70 hover:text-foreground')}
                   >
                     {item.label}
                     {((item.id === 'banners' && publishErrors && Object.keys(publishErrors.slides).length > 0) ||
@@ -446,7 +446,7 @@ export function LandingEditor() {
                             type="button"
                             aria-pressed={slide?.id === item.id}
                             onClick={() => setSelectedId(item.id)}
-                            className={cn('w-32 shrink-0 overflow-hidden rounded-xl border bg-background text-left transition-shadow hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none', slide?.id === item.id && 'border-primary ring-2 ring-primary/40', hasErrors && 'border-destructive')}
+                            className={cn('w-32 shrink-0 overflow-hidden rounded-xl border bg-background text-left transition-colors hover:border-primary-2 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none', slide?.id === item.id && 'border-primary ring-2 ring-primary/40', hasErrors && 'border-destructive')}
                           >
                             {item.mediaUrl && item.mediaType === 'image' ? <img src={item.mediaUrl} alt="" className="h-20 w-full object-cover" /> : <div className="grid h-20 place-items-center bg-muted text-xs">Banner {index + 1}</div>}
                             <span className="block truncate p-2 text-xs">{item.title || 'Sin título'}</span>
@@ -507,7 +507,7 @@ export function LandingEditor() {
                 title="Vista previa de la portada"
                 src="/?landing-preview=1"
                 style={{ width: logical.width, height: frameHeight, transform: `scale(${scale})`, transformOrigin: 'top left' }}
-                className="border-x bg-background shadow-sm"
+                className="border-x bg-background"
               />
             </div>
           </div>
@@ -614,7 +614,7 @@ function CategoryModeField({
             type="button"
             aria-pressed={mode === item}
             onClick={() => onChange(item)}
-            className={cn('rounded-lg px-2 py-2 text-xs focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none', mode === item ? 'bg-card font-semibold shadow-sm' : 'text-muted-foreground hover:text-foreground')}
+            className={cn('rounded-xl px-2 py-2 text-xs focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none', mode === item ? 'bg-card font-semibold' : 'text-muted-foreground hover:text-foreground')}
           >
             {MODE_LABEL[item]}
           </button>

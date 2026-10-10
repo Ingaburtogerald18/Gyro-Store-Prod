@@ -33,15 +33,6 @@ import { useGetMeQuery, useGetConfigQuery } from '~/store/api/sessionApi';
 import { BrandLoader } from '~/components/ui/module-loader';
 import { getBrandName } from '~/lib/brand';
 
-// ── La foto de perfil ya NO viene de Microsoft ──
-// Acá vivía `syncEntraPhoto`: en cada login mandaba el `provider_token` al
-// backend, que descargaba la foto de Microsoft Graph y la copiaba a R2. Falló
-// más veces de las que funcionó (cuentas sin foto en el tenant, permisos de
-// Graph, `provider_token` ausente salvo en el SIGNED_IN inmediato) y el error
-// era silencioso a propósito, así que la gente quedaba sin avatar sin saber por
-// qué. Ahora cada persona sube la suya en /admin/mi-perfil y el admin puede
-// cambiar la de cualquiera desde Personal. Ver server/routes/me.ts.
-
 function AdminSidebar({ isAdmin, role, pathname }: { isAdmin: boolean; role: string | null; pathname: string }) {
   const { data: config } = useGetConfigQuery();
   const { isMobile, setOpenMobile } = useSidebar();
@@ -158,16 +149,8 @@ export default function AdminLayout() {
   // la persona edita en «Mi perfil», y con Entra ese metadata viene vacío.
   const profilePhoto = useAppSelector(selectUserPhoto);
 
-  // ── Sin overlay entre módulos ──
-  // Acá vivía un `ModuleLoader` que tapaba el contenido en CADA cambio de ruta,
-  // con un mínimo anti-parpadeo de 450 ms y un tope de 6 s. El mínimo se pagaba
-  // siempre: con el backend respondiendo en 80 ms, la navegación igual costaba
-  // medio segundo de pantalla tapada. Un mínimo artificial no arregla el
-  // parpadeo, solo lo convierte en lentitud constante.
-  //
-  // Lo reemplaza la barra fina de `GlobalProgress` (que aparece recién a los
-  // 150 ms, así que en las cargas rápidas no se ve nada) más los skeletons de
-  // cada bloque, que ocupan la forma final del contenido. Ver Docs/16.
+  // Sin overlay entre módulos: la carga la muestran `GlobalProgress` y los
+  // esqueletos de cada bloque.
   const reduceMotion = useReducedMotion();
 
   useEffect(() => {
@@ -219,7 +202,7 @@ export default function AdminLayout() {
     return (
       <div className="grid min-h-svh place-items-center bg-background text-sm text-muted-foreground">
         <div className="flex flex-col items-center gap-4 text-center max-w-sm px-4">
-          <div className="flex size-16 shrink-0 items-center justify-center rounded-lg bg-destructive/10 text-destructive shadow-sm">
+          <div className="flex size-16 shrink-0 items-center justify-center rounded-xl bg-destructive/10 text-destructive">
             <HugeIcon icon={Settings02Icon} size={36} strokeWidth={2} />
           </div>
           <div className="space-y-1">

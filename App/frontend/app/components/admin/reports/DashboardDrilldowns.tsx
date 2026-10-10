@@ -286,21 +286,21 @@ export function DashboardDrilldowns({
       >
         <div className="space-y-6 py-2">
           <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
-            <div className="rounded-md border border-border/60 bg-muted/20 p-3">
+            <div className="rounded-2xl border border-border/60 bg-muted/20 p-3">
               <span className="text-2xs font-medium text-muted-foreground">Ganancia tienda</span>
               <p className="nums mt-1 text-base font-semibold text-foreground sm:text-lg">{formatMoney(gananciaTienda)}</p>
               <span className="text-2xs text-muted-foreground">
                 {totalCount} {totalCount === 1 ? 'venta' : 'ventas'}
               </span>
             </div>
-            <div className="rounded-md border border-warning/20 bg-warning/5 p-3">
+            <div className="rounded-2xl border border-warning/20 bg-warning/5 p-3">
               <span className="text-2xs font-medium text-warning">Gastos pagados con ganancia</span>
               <p className="nums mt-1 text-base font-semibold text-warning sm:text-lg">−{formatMoney(gastosDeGanancia)}</p>
               <span className="text-2xs text-muted-foreground">
                 {gastosDeGanancia === 0 ? 'Los pozos cubrieron todo' : 'Lo que los pozos no alcanzaron'}
               </span>
             </div>
-            <div className={cn('rounded-md border p-3', gananciaReal >= 0 ? 'border-success/30 bg-success/5' : 'border-destructive/30 bg-destructive/5')}>
+            <div className={cn('rounded-2xl border p-3', gananciaReal >= 0 ? 'border-success/30 bg-success/5' : 'border-destructive/30 bg-destructive/5')}>
               <span className={cn('text-2xs font-medium', gananciaReal >= 0 ? 'text-success' : 'text-destructive')}>Ganancia real</span>
               <p className={cn('nums mt-1 text-base font-semibold sm:text-lg', gananciaReal >= 0 ? 'text-success' : 'text-destructive')}>
                 {formatMoney(gananciaReal)}
@@ -310,7 +310,7 @@ export function DashboardDrilldowns({
           </div>
 
           {pozosQueTomaron.length > 0 && (
-            <div className="space-y-1.5 rounded-md border border-border/70 bg-card/60 p-3.5 text-xs">
+            <div className="space-y-1.5 rounded-2xl border border-border/70 bg-card/60 p-3.5 text-xs">
               <p className="font-semibold text-foreground">Pozos que tomaron de la ganancia</p>
               {pozosQueTomaron.map((p) => (
                 <div key={p.pozo} className="flex items-center justify-between text-muted-foreground">

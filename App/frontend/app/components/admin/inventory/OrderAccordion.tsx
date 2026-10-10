@@ -29,7 +29,7 @@ export function OrderAccordion({
   const headingId = useId();
   const openCount = panels.filter((panel) => orderIsExpanded(state, panel.id)).length;
   return (
-    <section aria-labelledby={headingId} className="inventory-orders space-y-3">
+    <section aria-labelledby={headingId} className="space-y-3">
       <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-1">
         <h2 id={headingId} className="font-heading text-xl font-bold tracking-tight text-foreground md:text-2xl">
           {title} <span className="text-sm font-normal text-muted-foreground tabular-nums">({panels.length})</span>
@@ -57,7 +57,7 @@ export function OrderAccordion({
 function OrderDisclosure({ panel, open, toggle }: { panel: OrderPanel; open: boolean; toggle: () => void }) {
   const id = useId();
   return (
-    <section className="inventory-order overflow-clip rounded-2xl border bg-card" data-expanded={open} aria-label={panel.label}>
+    <section className="overflow-clip rounded-2xl border border-border bg-card transition-colors duration-150 data-[expanded=true]:border-primary-2/45" data-expanded={open} aria-label={panel.label}>
       <h3>
         <button
           type="button"
@@ -65,17 +65,17 @@ function OrderDisclosure({ panel, open, toggle }: { panel: OrderPanel; open: boo
           aria-expanded={open}
           aria-controls={`${id}-details`}
           onClick={toggle}
-          className="inventory-order-trigger flex w-full items-start gap-3 p-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:gap-4 sm:p-5"
+          className="flex w-full cursor-pointer transition-colors duration-150 hover:bg-primary-2/5 items-start gap-3 p-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:gap-4 sm:p-5"
         >
-          <span className="inventory-order-chevron grid size-9 shrink-0 place-items-center rounded-xl border">
+          <span className="grid size-9 shrink-0 place-items-center rounded-xl border border-primary-2/40 bg-primary-2/10 text-primary-2">
             <HugeIcon icon={ArrowDown01Icon} size={18} strokeWidth={2} className={`transition-transform duration-150 motion-reduce:transition-none ${open ? 'rotate-180' : ''}`} />
           </span>
           <span className="min-w-0 flex-1">{panel.summary}</span>
           <span className="sr-only">{open ? 'Ocultar productos' : 'Ver productos'}</span>
         </button>
       </h3>
-      {panel.toolbar && <div className="inventory-order-toolbar border-t px-4 py-3 sm:px-5">{panel.toolbar}</div>}
-      <div id={`${id}-details`} role="region" aria-labelledby={`${id}-trigger`} hidden={!open} className="border-t">
+      {panel.toolbar && <div className="border-t border-border px-4 py-3 sm:px-5">{panel.toolbar}</div>}
+      <div id={`${id}-details`} role="region" aria-labelledby={`${id}-trigger`} hidden={!open} className="border-t border-border focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring">
         {open && panel.details}
       </div>
     </section>

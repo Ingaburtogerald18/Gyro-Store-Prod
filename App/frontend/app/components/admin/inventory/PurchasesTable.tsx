@@ -22,6 +22,8 @@ import { toast } from "sonner";
 
 import { HugeIcon } from "~/components/ui/icon";
 import { Button } from "~/components/ui/button";
+import { Chip, chipVariants } from "~/components/ui/chip";
+import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "~/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "~/components/ui/dialog";
 import { RowActionsMenu } from "~/components/ui/RowActionsMenu";
 import { Skeleton } from "~/components/ui/skeleton";
@@ -239,7 +241,7 @@ export function PurchasesTable({
   if (isLoading) {
     return (
       <div className="space-y-3">
-        <Skeleton className="h-8 w-56 rounded-lg" />
+        <Skeleton className="h-8 w-56 rounded-xl" />
         {Array.from({ length: 3 }).map((_, i) => (
           <Skeleton key={i} className="h-28 w-full rounded-2xl" />
         ))}
@@ -247,8 +249,6 @@ export function PurchasesTable({
     );
   }
 
-  const th = "whitespace-nowrap px-4 py-2.5 text-left text-xs font-medium text-muted-foreground";
-  const td = "px-4 py-3.5 align-middle";
 
   return (
     <>
@@ -278,7 +278,7 @@ export function PurchasesTable({
                       </span>
                       <StatusPill tone={lot.tone} />
                       {lot.order?.numberProvisional && (
-                        <span className="inventory-warning-chip rounded-lg border px-2 py-0.5 text-2xs font-semibold">Número provisional</span>
+                        <Chip variant="status" tone="warning">Número provisional</Chip>
                       )}
                     </span>
                     <span className="block text-sm font-semibold text-foreground">{lot.order?.supplier?.name || (lot.order ? 'Proveedor por completar' : 'Compra por lote')}</span>
@@ -301,10 +301,11 @@ export function PurchasesTable({
                 onDelete={() => handleDeleteOrder(lot.order!)}
               /> : null,
               details: (
-                // Keyboard focus lets narrow-screen users scroll the table with arrow keys.
-                // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
-                <div className="overflow-x-auto" tabIndex={0} role="region" aria-label={`Productos de ${lot.lot}; desplazamiento horizontal disponible`}>
-                  <table className="inventory-order-table w-full min-w-[780px] table-fixed border-collapse text-sm tabular-nums">
+                <Table
+                  aria-label={`Productos de ${lot.lot}`}
+                  containerClassName="rounded-none border-0"
+                  className="min-w-[780px] table-fixed tabular-nums"
+                >
                     <caption className="sr-only">Productos de {lot.order ? 'la orden' : 'lote'} {lot.lot}. Importes en dólares estadounidenses.</caption>
                     <colgroup>
                       <col className="w-[120px]" />
@@ -314,40 +315,38 @@ export function PurchasesTable({
                       <col className="w-[132px]" />
                       <col className="w-[84px]" />
                     </colgroup>
-                    <thead className="inventory-table-head border-b">
+                    <TableHeader>
                       <tr>
-                        <th scope="col" className={th}>Código</th>
-                        <th scope="col" className={th}>Producto</th>
-                        <th scope="col" className={cn(th, 'text-right')}>Costo unit. USD</th>
-                        <th scope="col" className={cn(th, 'text-right')}>Total USD</th>
-                        <th scope="col" className={th}>Estado</th>
-                        <th scope="col" className={cn(th, 'text-right')}>Acciones</th>
+                        <TableHead scope="col">Código</TableHead>
+                        <TableHead scope="col">Producto</TableHead>
+                        <TableHead scope="col" className="text-right">Costo unit. USD</TableHead>
+                        <TableHead scope="col" className="text-right">Total USD</TableHead>
+                        <TableHead scope="col">Estado</TableHead>
+                        <TableHead scope="col" className="text-right">Acciones</TableHead>
                       </tr>
-                    </thead>
-                    <tbody>
+                    </TableHeader>
+                    <TableBody>
                       {lot.items.map((p) => {
                         const { model, variant } = splitProductName(p.productName);
                         const tone = toneOf(p);
                         return (
-                          <tr key={p.id} className="inventory-product-row border-b transition-colors">
-                            <td className={cn(td, "whitespace-nowrap font-spec text-xs text-muted-foreground")}>{p.code || 'Sin código'}</td>
-                            {/* Nombre y, debajo, la variante. */}
-                            <td className={cn(td, "min-w-0")}>
+                          <TableRow key={p.id}>
+                            <TableCell className="whitespace-nowrap font-mono text-xs text-muted-foreground">{p.code || 'Sin código'}</TableCell>
+                            <TableCell className="min-w-0">
                               <div className="flex flex-col gap-0.5 break-words">
                                 <span className="font-semibold text-foreground">{model}</span>
                                 {variant && <span className="text-xs text-muted-foreground">{variant}</span>}
                               </div>
-                            </td>
-                            <td className={cn(td, "text-right")}>
+                            </TableCell>
+                            <TableCell className="text-right">
                               <div className="flex flex-col items-end" title={`Base ${formatUsd(p.costUnit, 4)} + impuesto ${formatUsd(p.taxUnit, 4)}`}>
                                 <span className="font-medium text-foreground">{formatUsd(p.priceUnit)}</span>
                                 <span className="text-2xs text-muted-foreground">
                                   {formatUsd(p.costUnit)} + {formatUsd(p.taxUnit)} imp.
                                 </span>
                               </div>
-                            </td>
-                            {/* Las unidades van bajo el total: es el total de esas unidades. */}
-                            <td className={cn(td, "text-right")}>
+                            </TableCell>
+                            <TableCell className="text-right">
                               <div className="flex flex-col items-end">
                                 <span className="font-heading font-extrabold text-foreground">{formatUsd(p.total)}</span>
                                 <span className="text-2xs text-muted-foreground">
@@ -357,14 +356,14 @@ export function PurchasesTable({
                                   <span className="text-2xs text-warning">de {p.quantityOrdered} pedidas</span>
                                 )}
                               </div>
-                            </td>
-                            <td className={td}>
+                            </TableCell>
+                            <TableCell>
                               <StatusPill tone={tone} />
-                            </td>
-                            <td className={cn(td, "text-right")}>
+                            </TableCell>
+                            <TableCell className="text-right">
                               <RowActionsMenu
                                 label={`Acciones de ${p.code || p.productName}`}
-                                className="inline-flex size-9 items-center justify-center rounded-xl border border-border bg-card text-foreground"
+                                className="inline-flex size-9 items-center justify-center rounded-xl border border-input bg-card text-foreground hover:border-primary-2"
                                 actions={
                                   p.status === "china"
                                     ? [
@@ -381,23 +380,22 @@ export function PurchasesTable({
                                       ]
                                 }
                               />
-                            </td>
-                          </tr>
+                            </TableCell>
+                          </TableRow>
                         );
                       })}
-                    </tbody>
-                    <tfoot className="inventory-table-foot">
+                    </TableBody>
+                    <TableFooter className="static">
                       <tr>
-                        <th scope="row" colSpan={2} className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">
+                        <th scope="row" colSpan={2} className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">
                           Subtotal mostrado · {lot.items.length} productos · {lot.items.reduce((sum, item) => sum + (item.quantity ?? 0), 0).toLocaleString('es-NI')} unidades
                         </th>
                         <td />
                         <td className="px-4 py-3 text-right font-heading font-extrabold text-foreground">{formatUsd(lot.items.reduce((sum, item) => sum + (item.total ?? 0), 0))}</td>
                         <td colSpan={2} />
                       </tr>
-                    </tfoot>
-                  </table>
-                </div>
+                    </TableFooter>
+                </Table>
               ),
             }))}
           />
@@ -477,21 +475,23 @@ function OrderHeader({
           type="button"
           onClick={onEdit}
           title={`Falta: ${missing}`}
-          className="inventory-warning-chip min-h-9 rounded-xl border px-3 py-1 text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="min-h-9 rounded-xl px-1 underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          Datos por completar
+          <Chip variant="status" tone="warning">Datos por completar</Chip>
         </button>
       )}
       {order.invoice?.mismatch && (
-        <span
-          className="inventory-warning-chip inline-flex min-h-9 items-center rounded-xl border px-3 text-xs font-semibold"
+        <Chip
+          variant="status"
+          tone="warning"
+          className="min-h-9"
           title={`Factura ${formatUsd(order.invoice.totalUsd ?? 0)} · productos de sus órdenes ${formatUsd(order.invoice.linesTotalUsd)}`}
         >
           {/* Se carga de a un producto: que falte es normal mientras se carga. */}
           {(order.invoice.totalUsd ?? 0) > order.invoice.linesTotalUsd
             ? `Faltan ${formatUsd((order.invoice.totalUsd ?? 0) - order.invoice.linesTotalUsd)} de la factura`
             : "Suma más que la factura"}
-        </span>
+        </Chip>
       )}
       {order.invoice?.fileUrl && (
         <a
@@ -503,7 +503,7 @@ function OrderHeader({
               ? `Compartida con ${order.invoice.orders.filter((o) => o.id !== order.id).map((o) => o.orderNumber).join(", ")}`
               : undefined
           }
-          className="inventory-chip inline-flex min-h-9 items-center gap-1.5 rounded-xl border px-3 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className={cn(chipVariants({ variant: "category" }), "min-h-9 px-3 hover:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring")}
         >
           <HugeIcon icon={Invoice01Icon} size={14} strokeWidth={2} aria-hidden className="text-primary-2" />
           {order.invoice.orders.length > 1 ? `Factura (${order.invoice.orders.length} órdenes)` : "Factura"}
@@ -518,15 +518,14 @@ function OrderHeader({
       )}
       <span className="ml-auto flex items-center gap-3">
         {hasPending && (
-          // Recibir es LA acción de una orden en camino: amarillo, como Agregar en la tienda.
-          <Button className="h-10 gap-1.5 px-4 text-sm" onClick={onReceive}>
+          <Button className="gap-1.5" onClick={onReceive}>
             <HugeIcon icon={PackageReceiveIcon} size={16} strokeWidth={2} aria-hidden />
             Recibir
           </Button>
         )}
         <RowActionsMenu
           label={`Acciones de la orden ${order.orderNumber}`}
-          className="inline-flex size-10 items-center justify-center rounded-xl border border-border bg-card text-foreground"
+          className="inline-flex size-11 items-center justify-center rounded-xl border border-input bg-card text-foreground hover:border-primary-2"
           actions={[
             hasPending && { group: "Orden", label: "Recibir en Nicaragua", icon: <HugeIcon icon={PackageReceiveIcon} size={16} strokeWidth={2} />, onClick: onReceive },
             { group: "Orden", label: order.missing.length ? "Completar datos" : "Editar orden", icon: <HugeIcon icon={Edit02Icon} size={16} strokeWidth={2} />, onClick: onEdit },

@@ -358,7 +358,7 @@ export function FinanzasConfig() {
         </Section>
 
         <div className="sticky bottom-4 mt-8 flex justify-end">
-          <Button type="submit" disabled={isSubmitting} className="shadow-lg">
+          <Button type="submit" disabled={isSubmitting}>
             {isSubmitting && <Spinner className="mr-2" />}
             Guardar Configuración Financiera
           </Button>

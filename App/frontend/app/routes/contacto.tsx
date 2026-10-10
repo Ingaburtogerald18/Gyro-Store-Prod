@@ -1,9 +1,5 @@
-// Formulario de contacto público (doc 09 ítem 48). Reciclado de v1
-// (routes/contacto.tsx: mismo layout de dos columnas, react-hook-form +
-// zodResolver), adaptado al schema y al mutation de v2 — v1 mandaba un
-// correo; v2 captura el lead directo en el CRM (POST /api/contact →
-// services/crm.ts), así que ahora el teléfono es obligatorio (es la llave de
-// `contacts.phone`) en vez de opcional.
+// Formulario de contacto público: guarda el lead directo en el CRM
+// (POST /api/contact), por eso el teléfono es obligatorio.
 import { HugeIcon } from "~/components/ui/icon";
 import { Location01Icon } from "@hugeicons/core-free-icons";
 import type { LoaderFunctionArgs, MetaFunction } from '@remix-run/node';
@@ -146,7 +142,7 @@ export default function Contacto() {
           </form>
 
           <div className="space-y-4">
-            <div className="rounded-md border bg-card p-5 shadow-xs">
+            <div className="rounded-2xl border bg-card p-5 shadow-xs">
               <h2 className="font-heading text-lg font-bold text-foreground">Visitanos</h2>
               {/* La dirección sale de la config editable en el panel, no de un
                   literal: estaba hardcodeada como "Managua, Nicaragua" mientras
@@ -163,7 +159,7 @@ export default function Contacto() {
             </div>
 
             {/* No renderiza nada si el admin no cargó ninguna cuenta. */}
-            <PaymentAccounts className="rounded-md border bg-card p-5 shadow-xs" />
+            <PaymentAccounts className="rounded-2xl border bg-card p-5 shadow-xs" />
           </div>
         </div>
       </main>

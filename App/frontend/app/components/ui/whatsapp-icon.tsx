@@ -1,7 +1,5 @@
-// Logo de WhatsApp, único para toda la tienda. Antes había dos copias del SVG
-// (hero y tarjeta) y la ficha usaba una burbuja genérica: el mismo canal se
-// veía distinto según la pantalla. Tamaño por defecto 16px; se ajusta con
-// className (h-/w-) o con width/height.
+// Logo de WhatsApp, único para toda la tienda. Mide 16 px por defecto; se
+// ajusta con className (h-/w-) o con width/height.
 import type { SVGProps } from 'react';
 
 export function WhatsappIcon(props: SVGProps<SVGSVGElement>) {

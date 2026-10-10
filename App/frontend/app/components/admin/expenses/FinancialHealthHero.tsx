@@ -45,7 +45,7 @@ export function FinancialHealthHero({
   const percentUsed = presupuesto > 0 ? Math.min(100, (gastado / presupuesto) * 100) : gastado > 0 ? 100 : 0;
 
   return (
-    <div className="relative overflow-hidden rounded-card border border-border bg-card p-6 shadow-sm">
+    <div className="relative overflow-hidden rounded-2xl border border-border bg-card p-6">
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <span className="flex h-6 items-center gap-1.5 rounded-full bg-primary-2/10 px-2.5 text-2xs font-medium text-primary-2">
           <HugeIcon icon={Coins01Icon} size={14} strokeWidth={2} aria-hidden />
@@ -120,7 +120,7 @@ export function FinancialHealthHero({
         </div>
 
         {/* Ganancia real */}
-        <div className="rounded-card border border-border/70 bg-card/60 p-4 lg:w-[240px]">
+        <div className="rounded-2xl border border-border/70 bg-card/60 p-4 lg:w-[240px]">
           <div className="flex items-center justify-between text-xs text-muted-foreground">
             <span>Ganancia real</span>
             <HugeIcon icon={Coins02Icon} size={14} strokeWidth={2} className="text-muted-foreground" aria-hidden />
@@ -141,7 +141,7 @@ export function FinancialHealthHero({
       </div>
 
       {data && data.deGanancia.comunes > 0 && (
-        <div className="mt-4 rounded-md border border-destructive/20 bg-destructive/10 p-3 text-xs text-destructive">
+        <div className="mt-4 rounded-2xl border border-destructive/20 bg-destructive/10 p-3 text-xs text-destructive">
           <div className="flex items-start gap-2">
             <HugeIcon icon={Alert02Icon} size={15} strokeWidth={2} className="mt-0.5 shrink-0" aria-hidden />
             <p>

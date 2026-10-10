@@ -173,7 +173,7 @@ la apertura.
 
 ## 9. UI del admin — retirado y pendiente (Fase 1 de optimización)
 
-Ver `Docs/16-Auditoria-UI-Admin.md` para el diagnóstico completo.
+Las reglas de diseño vigentes están en `DESIGN.md`.
 
 ### Retirado
 

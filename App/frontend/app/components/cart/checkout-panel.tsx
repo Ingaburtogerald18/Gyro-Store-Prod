@@ -1,13 +1,5 @@
-// Checkout: segundo paso DENTRO del mismo panel del carrito (antes era un
-// diálogo encima del carrito: dos modales compitiendo por el foco).
-//
-// Toma los datos de contacto y entrega, registra el pedido en el servidor (que
-// recalcula precios, valida variantes y disponibilidad y arma el mensaje) y
-// recién entonces abre WhatsApp. Si el servidor detecta cambios (precio, stock,
-// variante), el pedido NO se crea y se muestran por línea para revisarlos: nada
-// se corrige ni se borra en silencio.
-//
-// La validación usa el MISMO schema Zod que el backend (shared/schemas.ts).
+// Checkout dentro del panel del carrito. El servidor recalcula y valida antes de
+// abrir WhatsApp; si algo cambió, el pedido no se crea y se muestra por línea.
 import { HugeIcon } from "~/components/ui/icon";
 import {
   ArrowLeft02Icon,
@@ -59,7 +51,7 @@ import { checkoutCleared, checkoutExtrasChanged, checkoutFieldsChanged, EMPTY_CH
 import { clearCheckoutAttempt, matchesAttemptItems, newCheckoutAttemptKey, saveCheckoutAttempt } from '~/lib/checkoutAttempt';
 import { toast } from 'sonner';
 
-// El formulario DERIVA del contrato (DESIGN.md §6b): mismos campos y mismos
+// El formulario DERIVA del contrato: mismos campos y mismos
 // mensajes que validaría el backend, menos los que no llena la persona.
 const checkoutFormSchema = publicOrderFieldsSchema
   .omit({ discountCode: true })
@@ -629,7 +621,7 @@ function Disclosure({
       disabled={disabled}
       aria-expanded={open}
       aria-controls={controls}
-      className="flex min-h-11 items-center gap-2 text-sm font-medium text-primary-2 underline-offset-4 hover:underline focus-visible:rounded-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:no-underline disabled:opacity-100"
+      className="flex min-h-11 items-center gap-2 text-sm font-medium text-primary-2 underline-offset-4 hover:underline focus-visible:rounded-xl focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:no-underline disabled:opacity-100"
     >
       <span aria-hidden className={cn('inline-block transition-transform motion-reduce:transition-none', open && 'rotate-90')}>›</span>
       {label}

@@ -35,7 +35,7 @@ interface UiState {
 }
 
 const initialState: UiState = {
-  theme: DEFAULT_THEME, // Editorial Dark por defecto (doc 05 §7)
+  theme: DEFAULT_THEME,
   mobileNavOpen: false,
   search: '',
   activeCategory: null,

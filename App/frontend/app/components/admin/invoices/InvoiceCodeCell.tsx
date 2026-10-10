@@ -38,7 +38,7 @@ export function InvoiceCodeCell({ code, bold }: { code: string; bold?: boolean }
         onClick={handleCopy}
         title="Copiar número de factura"
         aria-label={`Copiar ${code}`}
-        className="rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+        className="rounded-sm p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
       >
         <HugeIcon
           icon={copied ? Tick01Icon : Copy01Icon}

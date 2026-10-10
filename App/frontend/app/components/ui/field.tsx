@@ -98,11 +98,8 @@ function FieldContent({ className, ...props }: React.ComponentProps<"div">) {
   )
 }
 
-// `required` es el único agregado nuestro a la familia Field del registry: el
-// encargo pide que el campo exprese label, control, ayuda, error Y estado
-// requerido, y esto último no venía. Marca visual (glifo, no solo color — §8) y
-// gancho de estilo `data-required`; lo accesible lo aporta el control con
-// `required`/`aria-required`, no el label.
+// `required` es el único agregado nuestro a Field: marca visual (glifo, no solo
+// color) y gancho `data-required`; lo accesible lo pone el control.
 function FieldLabel({
   className,
   required,

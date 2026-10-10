@@ -166,7 +166,7 @@ export function TemplatesPanel({ categories }: { categories: Category[] }) {
                           {axis.label}:
                         </span>
                         {axis.options.slice(0, 4).map((option) => (
-                          <Badge key={option} variant="secondary" className="text-2xs">
+                          <Badge key={option} variant="category" className="text-2xs">
                             {option}
                           </Badge>
                         ))}

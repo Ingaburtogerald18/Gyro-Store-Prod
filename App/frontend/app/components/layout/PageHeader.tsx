@@ -1,15 +1,5 @@
-// Encabezado ÚNICO de las rutas admin. Ninguna ruta define el suyo.
-//
-// ── Por qué existe siendo obligatorio ──
-// Ocho de las diez rutas copiaban literalmente
-// `text-3xl font-extrabold tracking-tight text-foreground`. Cada retoque de
-// tipografía había que hacerlo ocho veces, y `admin.usuarios` ya se había
-// desincronizado (agregó `font-heading`, las otras no).
-//
-// ── Por qué el título bajó de peso ──
-// `text-3xl font-extrabold` (30 px, 800) se lee como plantilla, no como
-// producto: el título gritaba más fuerte que los datos. El peso de la pantalla
-// lo tiene que dar la métrica, no el rótulo del módulo. Acá va 24 px / 700, con la fuente de la marca.
+// Encabezado único de las rutas admin: título de 24 px / 700 y la acción
+// principal. El peso de la pantalla lo da el contenido, no el título.
 import type { ReactNode } from 'react';
 
 import { cn } from '~/lib/utils';
@@ -36,7 +26,7 @@ export function PageHeader({
   className?: string;
 }) {
   return (
-    <header className={cn('admin-page-header mb-6', className)}>
+    <header className={cn('admin-page-header', className)}>
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end sm:justify-between">
         <div className="min-w-0">
           {/* Migas "Grupo / Sección" en tono de texto, no un rótulo en

@@ -1,5 +1,4 @@
-// Menú de acciones de fila ("⋯"): un botón discreto que abre un dropdown con acciones
-// etiquetadas. Reemplaza los clusters de iconos / columnas "Acciones" en las tablas.
+// Menú de acciones de fila ("⋯"): un botón discreto que abre las acciones etiquetadas.
 import { HugeIcon } from "~/components/ui/icon";
 import { Button } from "~/components/ui/button";
 import { MoreVerticalIcon } from "@hugeicons/core-free-icons";

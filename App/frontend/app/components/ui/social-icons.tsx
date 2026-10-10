@@ -1,5 +1,4 @@
-// Logos de redes sociales, compartidos por el pie de página y el hero (slide con
-// acción «Mostrar redes sociales»). Antes vivían copiados dentro del pie.
+// Logos de redes sociales, compartidos por el pie de página y el hero.
 import { useId } from 'react';
 import tiktokCircle from '~/assets/social/tiktok-circle.png';
 

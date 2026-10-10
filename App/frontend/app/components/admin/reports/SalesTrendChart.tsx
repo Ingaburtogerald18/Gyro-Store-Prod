@@ -85,7 +85,7 @@ export function SalesTrendChart({
             No hay ventas en este periodo.
           </p>
         }
-        loadingFallback={<div className="h-64 animate-pulse rounded-card bg-muted" />}
+        loadingFallback={<div className="h-64 animate-pulse rounded-2xl bg-muted" />}
       >
         <ChartContainer config={trendChartConfig} className="aspect-auto h-64 w-full">
           <ComposedChart data={points} margin={{ left: 4, right: 8, top: 8 }}>

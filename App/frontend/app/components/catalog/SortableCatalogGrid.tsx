@@ -92,14 +92,14 @@ function SortableCard({ item, readOnly, onEdit, onDelete }: SortableCardProps) {
     <Card
       ref={setNodeRef}
       style={style}
-      className={`flex flex-col h-full relative group/catalog-card ${isDragging ? 'shadow-2xl ring-2 ring-ring z-50' : 'hover:ring-foreground/10 transition-shadow'}`}
+      className={`flex flex-col h-full relative group/catalog-card ${isDragging ? 'shadow-2xl ring-2 ring-ring z-50' : 'hover:ring-foreground/10 transition-colors'}`}
     >
       {!readOnly && (
         <div className="absolute left-2 top-2 z-10 flex gap-1">
           <button
             {...attributes}
             {...listeners}
-            className="cursor-grab rounded-lg bg-black/60 p-1.5 text-white active:cursor-grabbing hover:bg-black/80 transition-colors"
+            className="cursor-grab rounded-xl bg-black/60 p-1.5 text-white active:cursor-grabbing hover:bg-black/80 transition-colors"
             aria-label="Reordenar"
           >
             <HugeIcon icon={DragDropVerticalIcon} size={16} strokeWidth={2} />
@@ -111,14 +111,14 @@ function SortableCard({ item, readOnly, onEdit, onDelete }: SortableCardProps) {
         <div className="absolute right-2 top-2 z-10 flex gap-1">
           <button
             onClick={(e) => { e.stopPropagation(); onEdit(); }}
-            className="rounded-lg bg-black/60 p-1.5 text-white hover:text-primary hover:bg-black/80 transition-colors"
+            className="rounded-xl bg-black/60 p-1.5 text-white hover:text-primary hover:bg-black/80 transition-colors"
             aria-label="Editar"
           >
             <HugeIcon icon={Edit02Icon} size={16} strokeWidth={2} />
           </button>
           <button
             onClick={(e) => { e.stopPropagation(); onDelete(); }}
-            className="rounded-lg bg-black/60 p-1.5 text-white hover:text-destructive hover:bg-black/80 transition-colors"
+            className="rounded-xl bg-black/60 p-1.5 text-white hover:text-destructive hover:bg-black/80 transition-colors"
             aria-label="Eliminar"
           >
             <HugeIcon icon={Delete02Icon} size={16} strokeWidth={2} />
@@ -148,7 +148,7 @@ function SortableCard({ item, readOnly, onEdit, onDelete }: SortableCardProps) {
               target="_blank"
               rel="noopener noreferrer"
               onClick={(e) => e.stopPropagation()}
-              className="mt-3 inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+              className="mt-3 inline-flex items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
             >
               <HugeIcon icon={Image01Icon} size={14} strokeWidth={2} />
               Fotos y videos

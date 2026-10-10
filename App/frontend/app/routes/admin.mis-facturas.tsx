@@ -4,17 +4,15 @@
 // después ir a Ventas a registrar la venta con ese código (ver
 // server/routes/invoices.ts → /mine, /lookup, /:id/ticket).
 import { HugeIcon } from '~/components/ui/icon';
-import { File01Icon, Invoice01Icon, Time02Icon, ViewIcon } from '@hugeicons/core-free-icons';
+import { File01Icon, Time02Icon, ViewIcon } from '@hugeicons/core-free-icons';
 import { useMemo, useState } from 'react';
 import type { MetaFunction } from '@remix-run/node';
 import { type ColumnDef } from '@tanstack/react-table';
 import { pageTitle } from '~/lib/brand';
 
 import { PageHeader } from '~/components/layout/PageHeader';
-import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
 import { DataTable } from '~/components/ui/DataTable';
 import { QueryState } from '~/components/ui/QueryState';
-import { BrandLoader } from '~/components/ui/module-loader';
 import { RowActionsMenu } from '~/components/ui/RowActionsMenu';
 import { formatCordobas } from '~/lib/formatters';
 import { useGetMyInvoicesQuery, type Invoice } from '~/store/api/invoicesApi';
@@ -118,58 +116,48 @@ export default function AdminMisFacturas() {
   );
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-5">
       <PageHeader
         eyebrow="Operación"
-        title="Mis Facturas"
+        title="Mis facturas"
+        className="mb-0"
         description="Las facturas que Caja emitió a tu nombre. Copiá el número y registrá la venta en Ventas."
       />
 
-      <Card className="bg-card border shadow-sm">
-        <CardHeader>
-          <CardTitle className="text-lg text-foreground flex items-center gap-2">
-            <HugeIcon icon={Invoice01Icon} size={20} className="text-warning" />
-            Pendientes de registrar
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
+      <section aria-labelledby="mis-facturas-pendientes" className="space-y-3">
+        <h2 id="mis-facturas-pendientes" className="text-lg font-semibold">Pendientes de registrar</h2>
           <QueryState
             loading={loadingUnlinked}
             error={unlinkedError}
             empty={unlinkedInvoices.length === 0}
-            loadingFallback={<BrandLoader text="Cargando facturas..." />}
+            shape="table"
             emptyFallback={
-              <div className="rounded-lg border border-dashed bg-muted/50 py-10 text-center">
-                <HugeIcon icon={File01Icon} size={36} strokeWidth={2} className="mx-auto mb-3 text-muted-foreground opacity-50" aria-hidden />
+              <div className="rounded-2xl border border-border bg-card py-10 text-center">
+                <HugeIcon icon={File01Icon} size={24} strokeWidth={2} className="mx-auto mb-3 text-muted-foreground" aria-hidden />
                 <p className="font-medium text-foreground">No tenés facturas pendientes de registrar.</p>
               </div>
             }
           >
             <DataTable tableId="mis-facturas-pendientes" columns={unlinkedColumns} data={unlinkedInvoices} hideSearch emptyText="No hay facturas pendientes." />
           </QueryState>
-        </CardContent>
-      </Card>
+      </section>
 
-      <Card className="bg-card border shadow-sm">
-        <CardHeader>
-          <CardTitle className="text-lg text-foreground">Ya registradas</CardTitle>
-        </CardHeader>
-        <CardContent>
+      <section aria-labelledby="mis-facturas-registradas" className="space-y-3">
+        <h2 id="mis-facturas-registradas" className="text-lg font-semibold">Ya registradas</h2>
           <QueryState
             loading={loadingLinked}
             error={linkedError}
             empty={linkedInvoices.length === 0}
-            loadingFallback={<BrandLoader text="Cargando facturas..." />}
+            shape="table"
             emptyFallback={
-              <p className="rounded-lg border border-dashed bg-muted/50 py-8 text-center text-sm text-muted-foreground">
+              <p className="rounded-2xl border border-border bg-card py-8 text-center text-sm text-muted-foreground">
                 Todavía no registraste ninguna venta con estas facturas.
               </p>
             }
           >
             <DataTable tableId="mis-facturas-vinculadas" columns={linkedColumns} data={linkedInvoices} hideSearch emptyText="No hay facturas vinculadas." />
           </QueryState>
-        </CardContent>
-      </Card>
+      </section>
 
       <TicketPrintModal invoiceId={printInvoiceId} onClose={() => setPrintInvoiceId(null)} />
     </div>

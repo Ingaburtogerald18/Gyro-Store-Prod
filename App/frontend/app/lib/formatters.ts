@@ -50,15 +50,7 @@ export const EXCHANGE_RATE = 36.6241;
 
 /**
  * Fecha corta para listados y fichas: `08 ago` o `08 ago 2026`.
- *
- * Vivía duplicada como `fmtDate` en `routes/admin.crm.tsx` y en
- * `components/admin/crm/Contact360Dialog.tsx`, y las dos copias habían DIVERGIDO:
- * una incluía el año y la otra no, con el mismo nombre y en el mismo módulo. En
- * la agenda del CRM eso hacía que una fecha de 2025 y una de 2026 se vieran
- * idénticas. Ahora el año es un parámetro explícito.
- *
- * Devuelve `—` para nulos y fechas inválidas: en una tabla, un guion se lee como
- * "no hay dato" y un `Invalid Date` se lee como que algo se rompió.
+ * Devuelve `—` para nulos e inválidas: un guion se lee como "no hay dato".
  */
 export function formatShortDate(
   iso: string | null | undefined,
@@ -75,11 +67,8 @@ export function formatShortDate(
 }
 
 /**
- * Fecha canónica del panel: "28 abr 2026". Antes convivían tres formatos
- * (2026-04-28, 18/9/2026 y "20 sept 2026") según la pantalla.
- *
- * Un 'yyyy-MM-dd' suelto se lee como fecha LOCAL: `new Date('2026-04-28')` es
- * UTC y en Nicaragua (UTC−6) se muestra como el 27. Con hora, se respeta.
+ * Fecha canónica del panel: "28 abr 2026". Un 'yyyy-MM-dd' suelto se lee como
+ * fecha local: `new Date('2026-04-28')` es UTC y en Nicaragua daría el 27.
  */
 export function formatLongDate(value: string | null | undefined): string {
   if (!value) return '—';

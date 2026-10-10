@@ -11,6 +11,7 @@ import { Fragment, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "~/components/ui/button";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "~/components/ui/table";
 import { DatePicker } from "~/components/ui/date-picker";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "~/components/ui/dialog";
 import { Field, FieldDescription, FieldError, FieldLabel } from "~/components/ui/field";
@@ -272,7 +273,7 @@ export function ReceiveOrderDialog({
         </div>
 
         {(candidates.length > 0 || multiple) && (
-          <div className="space-y-2 rounded-card border border-border bg-muted/30 p-3">
+          <div className="space-y-2 rounded-2xl border border-border bg-muted/30 p-3">
             <p className="text-sm font-medium text-foreground">Órdenes en este envío</p>
             <div className="flex flex-wrap gap-2">
               {shipment.map((o) => (
@@ -315,35 +316,34 @@ export function ReceiveOrderDialog({
           </div>
         )}
 
-        <div className="overflow-x-auto rounded-card border border-border">
-          <table className="w-full min-w-[720px] border-collapse text-sm tabular-nums">
-            <thead>
-              <tr className="border-b border-border bg-muted/40 text-left text-xs text-muted-foreground">
-                <th className="w-px px-3 py-2">
+        <Table className="min-w-[720px] tabular-nums">
+            <TableHeader>
+              <tr>
+                <TableHead className="px-3 w-px">
                   <span className="sr-only">Llegó</span>
-                </th>
-                <th className="px-3 py-2 font-medium">Producto</th>
-                <th className="px-3 py-2 text-right font-medium">Pedido</th>
-                <th className="px-3 py-2 font-medium">Recibido</th>
-                <th className="px-3 py-2 text-right font-medium">Costo final</th>
-                <th className="px-3 py-2 font-medium">Precio de venta (C$)</th>
+                </TableHead>
+                <TableHead className="px-3">Producto</TableHead>
+                <TableHead className="px-3 text-right">Pedido</TableHead>
+                <TableHead className="px-3">Recibido</TableHead>
+                <TableHead className="px-3 text-right">Costo final</TableHead>
+                <TableHead className="px-3">Precio de venta (C$)</TableHead>
               </tr>
-            </thead>
-            <tbody>
+            </TableHeader>
+            <TableBody>
               {pending.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-3 py-8 text-center text-muted-foreground">
+                  <TableCell colSpan={6} className="h-auto py-8 text-center text-muted-foreground">
                     Todos los productos de esta orden ya están en bodega.
-                  </td>
+                  </TableCell>
                 </tr>
               )}
               {groups.map(({ order: o, lines }) => (
                 <Fragment key={o.id}>
                   {multiple && (
-                    <tr className="border-b border-border bg-muted/20">
-                      <td colSpan={6} className="px-3 py-1.5 text-xs font-medium text-muted-foreground">
+                    <tr className="border-b border-border bg-muted">
+                      <TableCell colSpan={6} className="h-auto py-1.5 text-xs font-medium text-muted-foreground">
                         {orderLabel(o)} · {lines.length} en tránsito
-                      </td>
+                      </TableCell>
                     </tr>
                   )}
                   {lines.map((p) => {
@@ -353,17 +353,17 @@ export function ReceiveOrderDialog({
                     const short = Number.isInteger(received) && received < p.quantity ? p.quantity - received : 0;
                     const line = previewById.get(p.id);
                     return (
-                      <tr key={p.id} className="border-b border-border last:border-0">
-                        <td className="px-3 py-2">
+                      <TableRow key={p.id}>
+                        <TableCell className="px-3">
                           <input
                             type="checkbox"
-                            className="size-4 accent-primary"
+                            className="size-4 rounded-sm accent-primary"
                             checked={row.selected}
                             onChange={(e) => setRow(p, { selected: e.target.checked })}
                             aria-label={`Llegó ${p.productName}`}
                           />
-                        </td>
-                        <td className="px-3 py-2">
+                        </TableCell>
+                        <TableCell className="px-3">
                           <div className="flex flex-col">
                             <span className="font-medium text-foreground">{model}</span>
                             <span className="text-xs text-muted-foreground">
@@ -371,13 +371,13 @@ export function ReceiveOrderDialog({
                               <span className="font-spec">{p.code}</span>
                             </span>
                           </div>
-                        </td>
-                        <td className="px-3 py-2 text-right">{p.quantity}</td>
-                        <td className="px-3 py-2">
+                        </TableCell>
+                        <TableCell className="px-3 text-right">{p.quantity}</TableCell>
+                        <TableCell className="px-3">
                           <Input
                             type="number"
                             min={1}
-                            className="h-8 w-24"
+                            className="h-9 w-24"
                             disabled={!row.selected}
                             value={row.received}
                             onChange={(e) => setRow(p, { received: e.target.value })}
@@ -386,16 +386,16 @@ export function ReceiveOrderDialog({
                           {row.selected && short > 0 && (
                             <span className="mt-1 block text-2xs font-medium text-warning">Faltan {short}</span>
                           )}
-                        </td>
-                        <td className="px-3 py-2 text-right">
+                        </TableCell>
+                        <TableCell className="px-3 text-right">
                           {row.selected && line ? formatCordobas(line.costeFinal, "C$", 2) : "—"}
-                        </td>
-                        <td className="px-3 py-2">
+                        </TableCell>
+                        <TableCell className="px-3">
                           <Input
                             type="number"
                             step="0.01"
                             min={0}
-                            className="h-8 w-28 font-semibold"
+                            className="h-9 w-28 font-semibold"
                             disabled={!row.selected}
                             value={row.salePrice}
                             onChange={(e) => setRow(p, { salePrice: e.target.value, priceTouched: true })}
@@ -406,15 +406,14 @@ export function ReceiveOrderDialog({
                               Sugerido {formatCordobas(line.precioSugerido, "C$", 2)}
                             </span>
                           )}
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     );
                   })}
                 </Fragment>
               ))}
-            </tbody>
-          </table>
-        </div>
+            </TableBody>
+        </Table>
         {errors.lines && <FieldError errors={[{ message: errors.lines }]} />}
 
         <div className="flex justify-end gap-2 border-t pt-4">

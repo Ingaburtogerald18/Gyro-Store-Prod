@@ -30,7 +30,7 @@ const CURRENCY_LABELS: Record<(typeof STORE_CURRENCIES)[number], string> = {
 // nativo a propósito (no el `Select` de Radix): dentro de un `useFieldArray`,
 // `register` funciona directo y evita un `Controller` por fila.
 const SELECT_CLASS =
-  "flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50";
+  "flex h-10 w-full items-center justify-between rounded-xl border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50";
 
 export function GeneralConfig() {
   const { form, loading, loadError, submit, retry } = useConfigSection<BusinessInfo>({
@@ -226,7 +226,7 @@ export function GeneralConfig() {
       </Section>
 
       <div className="flex justify-end">
-        <Button type="submit" disabled={isSubmitting} className="shadow-sm">
+        <Button type="submit" disabled={isSubmitting} className="">
           {isSubmitting ? (
             <Spinner className="mr-2" />
           ) : (

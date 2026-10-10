@@ -1,25 +1,22 @@
-// Piezas de la "superficie de trabajo" del panel. Nacieron en el rediseño de
-// Inventario y se reutilizan en cada sección, para que todas hablen igual:
+// Piezas comunes de cada módulo del panel: bloques sueltos sobre el crema.
 //
-//   <PageHeader>                 título en una fila + acción principal
-//   <Workspace>                  UNA tarjeta que contiene todo lo de abajo
-//     <WorkspaceToolbar>         una sola fila: vista, búsqueda, filtros
-//     <MetricStrip>              hasta 4 números, divisores verticales
+//   <PageHeader>          título + acción principal con su atajo
+//   <Workspace>           columna de bloques
+//     <WorkspaceToolbar>  vista, búsqueda, filtros
+//     <MetricStrip>       hasta 4 números
 //     tabla / contenido
-//
-// Radios: 12 px en controles, 16 px en la superficie de trabajo y
-// píldora solo en estados (StatusBadge). Montos grandes en
-// Chivo (`font-display`), en el color del texto: el color es para señales.
 import { useEffect, useRef, type ReactNode } from "react";
 import { Search01Icon } from "@hugeicons/core-free-icons";
 
+import { Button } from "~/components/ui/button";
 import { HugeIcon } from "~/components/ui/icon";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/ui/select";
 import { Skeleton } from "~/components/ui/skeleton";
+import { Toolbar } from "~/components/ui/toolbar";
 import { cn } from "~/lib/utils";
 
 /** Alto y borde comunes de los controles de la barra. */
-export const TOOLBAR_CONTROL = "h-11 rounded-xl border border-border bg-card text-sm md:h-9";
+export const TOOLBAR_CONTROL = "h-11 rounded-xl border border-input bg-card text-sm transition-colors hover:border-primary-2";
 
 /** ¿El foco está en un campo de texto? Los atajos de una letra no aplican ahí. */
 export function isTypingTarget() {
@@ -56,32 +53,21 @@ export function useShortcut(key: string, action: () => void, enabled = true) {
 /** Tecla de atajo dentro de un botón ("Registrar compra  N"). */
 export function Kbd({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <kbd className={cn("rounded border border-current/40 px-1 font-spec text-2xs opacity-80", className)}>
+    <kbd className={cn("rounded-sm border border-current/40 px-1 font-spec text-2xs opacity-80", className)}>
       {children}
     </kbd>
   );
 }
 
-/**
- * La tarjeta de trabajo. `overflow-clip` y no `overflow-hidden`: recorta las
- * esquinas sin crear un contexto de scroll, así una tabla adentro puede tener
- * encabezado y pie sticky.
- */
 export function Workspace({ children, className }: { children: ReactNode; className?: string }) {
-  return (
-    <section className={cn("overflow-clip rounded-2xl border border-border bg-card", className)}>{children}</section>
-  );
+  return <section className={cn("flex flex-col gap-5", className)}>{children}</section>;
 }
 
 export function WorkspaceToolbar({ children, className }: { children: ReactNode; className?: string }) {
-  return (
-    <div className={cn("flex flex-wrap items-center gap-2.5 border-b border-border bg-muted/40 px-4 py-3", className)}>
-      {children}
-    </div>
-  );
+  return <Toolbar className={className}>{children}</Toolbar>;
 }
 
-/** Selector de vista ("Compras | Stock actual"). Reemplaza las pestañas píldora. */
+/** Elegir vista ("Compras | Stock actual"): botones con borde, el elegido marcado. */
 export function SegmentedControl<T extends string>({
   value,
   onChange,
@@ -94,20 +80,11 @@ export function SegmentedControl<T extends string>({
   label: string;
 }) {
   return (
-    <div role="group" aria-label={label} className={cn("inline-flex max-w-full flex-wrap gap-1 rounded-xl border border-border bg-card p-1", options.length > 2 && "grid w-full grid-cols-2 sm:inline-flex sm:w-auto")}>
+    <div role="group" aria-label={label} className="flex max-w-full flex-wrap gap-2">
       {options.map((o) => (
-        <button
-          key={o.value}
-          type="button"
-          aria-pressed={value === o.value}
-          onClick={() => onChange(o.value)}
-          className={cn(
-            "min-h-11 rounded-lg px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:min-h-8",
-            value === o.value ? "bg-primary/10 text-primary-2" : "text-muted-foreground hover:text-foreground",
-          )}
-        >
+        <Button key={o.value} type="button" variant="outline" aria-pressed={value === o.value} onClick={() => onChange(o.value)}>
           {o.label}
-        </button>
+        </Button>
       ))}
     </div>
   );
@@ -163,7 +140,7 @@ export function ToolbarSearch({
         placeholder={placeholder}
         className="min-w-0 flex-1 bg-transparent text-base text-foreground outline-none placeholder:text-muted-foreground md:text-sm"
       />
-      <kbd className="hidden rounded border border-border px-1.5 font-spec text-2xs text-muted-foreground md:inline">/</kbd>
+      <kbd className="hidden rounded-sm border border-border px-1.5 font-spec text-2xs text-muted-foreground md:inline">/</kbd>
     </label>
   );
 }
@@ -186,7 +163,7 @@ export function ToolbarSelect<T extends string>({
         <span className="text-muted-foreground">{label}</span>
         <SelectValue />
       </SelectTrigger>
-      <SelectContent className="rounded-md">
+      <SelectContent className="rounded-xl">
         {options.map((o) => (
           <SelectItem key={o.value} value={o.value} className="rounded-sm">
             {o.label}
@@ -202,7 +179,7 @@ export function Metric({ label, value, sub }: { label: string; value: ReactNode;
   return (
     <div className="flex min-w-0 flex-col gap-1 px-5 py-4">
       <span className="text-xs text-muted-foreground">{label}</span>
-      <span className="font-display text-2xl leading-tight font-bold tracking-tight text-foreground tabular-nums">
+      <span className="font-heading text-2xl leading-tight font-extrabold tracking-tight text-foreground tabular-nums">
         {value}
       </span>
       {sub && <span className="truncate text-xs text-muted-foreground tabular-nums">{sub}</span>}
@@ -210,26 +187,15 @@ export function Metric({ label, value, sub }: { label: string; value: ReactNode;
   );
 }
 
-/**
- * Franja de métricas: una superficie, divisores verticales. `bordered` agrega
- * el borde de tarjeta cuando la franja va SUELTA (fuera de un Workspace).
- */
-export function MetricStrip({
-  children,
-  columns = 4,
-  bordered = false,
-}: {
-  children: ReactNode;
-  columns?: 2 | 3 | 4;
-  bordered?: boolean;
-}) {
+/** Franja de métricas: una tarjeta con divisores verticales. */
+export function MetricStrip({ children, columns = 4 }: { children: ReactNode; columns?: 2 | 3 | 4 }) {
   return (
     <div
       className={cn(
-        "grid grid-cols-2 [&>*]:border-border [&>*:nth-child(odd)]:border-r",
+        "grid grid-cols-2 [&>*]:border-border [&>*:nth-child(odd)]:border-r [&>*:nth-child(n+3)]:border-t lg:[&>*:nth-child(n+3)]:border-t-0",
         columns === 4 && "lg:grid-cols-4 lg:[&>*:not(:last-child)]:border-r lg:[&>*:last-child]:border-r-0",
         columns === 3 && "lg:grid-cols-3 lg:[&>*:not(:last-child)]:border-r lg:[&>*:last-child]:border-r-0",
-        bordered ? "rounded-card border border-border bg-card" : "border-b border-border",
+        "overflow-clip rounded-2xl border border-border bg-card",
       )}
     >
       {children}
@@ -237,14 +203,14 @@ export function MetricStrip({
   );
 }
 
-export function MetricStripSkeleton({ count = 4, bordered = false }: { count?: 2 | 3 | 4; bordered?: boolean }) {
+export function MetricStripSkeleton({ count = 4 }: { count?: 2 | 3 | 4 }) {
   return (
-    <MetricStrip columns={count} bordered={bordered}>
+    <MetricStrip columns={count}>
       {Array.from({ length: count }).map((_, i) => (
         <div key={i} className="flex flex-col gap-2 px-5 py-4">
-          <Skeleton className="h-3 w-24 rounded-md" />
-          <Skeleton className="h-7 w-28 rounded-md" />
-          <Skeleton className="h-3 w-20 rounded-md" />
+          <Skeleton className="h-3 w-24 rounded-sm" />
+          <Skeleton className="h-7 w-28 rounded-xl" />
+          <Skeleton className="h-3 w-20 rounded-sm" />
         </div>
       ))}
     </MetricStrip>

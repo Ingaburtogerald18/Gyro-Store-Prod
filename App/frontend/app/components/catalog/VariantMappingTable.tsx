@@ -202,7 +202,7 @@ function VariantRow({
             aria-hidden
           />
           {parts.map((part) => (
-            <Badge key={part} variant="secondary" className="text-2xs font-medium">
+            <Badge key={part} variant="category" className="text-2xs font-medium">
               {part}
             </Badge>
           ))}
@@ -346,7 +346,7 @@ function LotPicker({
                   <span className="min-w-0 flex-1 text-xs leading-relaxed">
                     <span className="font-bold text-primary">[{lot.code}]</span> {lot.productName}
                   </span>
-                  <Badge variant="secondary" className="shrink-0 text-2xs font-bold">
+                  <Badge variant="category" className="shrink-0 text-2xs font-bold">
                     {lot.available} uds
                   </Badge>
                 </CommandItem>

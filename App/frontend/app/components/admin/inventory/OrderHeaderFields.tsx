@@ -371,7 +371,7 @@ function SupplierField({
       </Field>
 
       {isNew && (
-        <div className="grid gap-3 rounded-md border border-border bg-muted/30 p-3 sm:grid-cols-3">
+        <div className="grid gap-3 rounded-2xl border border-border bg-muted/30 p-3 sm:grid-cols-3">
           <Field>
             <FieldLabel htmlFor="supplier-name" required>
               Nombre
@@ -461,7 +461,7 @@ function InvoiceSection({
       {chosen && <ChosenInvoice invoice={chosen} gap={invoiceGapText(chosen.totalUsd, chosen.linesTotalUsd + extra)} />}
 
       {choice === NEW_INVOICE && (
-        <div className="rounded-md border border-border bg-muted/30 p-3">
+        <div className="rounded-2xl border border-border bg-muted/30 p-3">
           <InvoiceDraftFields
             idPrefix="new-invoice"
             draft={draft}
@@ -493,7 +493,7 @@ function InvoiceSection({
 function ChosenInvoice({ invoice, gap }: { invoice: PurchaseInvoice; gap: { text: string; over: boolean } | null }) {
   const [editing, setEditing] = useState(false);
   return (
-    <div className="space-y-2 rounded-md border border-border bg-muted/30 p-3 text-sm">
+    <div className="space-y-2 rounded-2xl border border-border bg-muted/30 p-3 text-sm">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         {invoice.fileUrl ? (
           <a href={invoice.fileUrl} target="_blank" rel="noreferrer" className="font-medium underline underline-offset-2">

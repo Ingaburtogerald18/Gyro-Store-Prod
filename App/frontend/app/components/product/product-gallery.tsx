@@ -1,10 +1,5 @@
-// Galería de la ficha: foto grande + miniaturas.
-//
-// Dos formas de mirar:
-//   · Móvil: SWIPE horizontal entre fotos, con puntos de paginación.
-//   · Ambos: clic/Enter abre el lightbox sobre <Dialog>, con anterior y
-//     siguiente. Antes la foto se agrandaba 1.8× apenas pasaba el mouse y no
-//     se podía ver el producto entero con el cursor encima.
+// Galería de la ficha: foto grande y miniaturas. En móvil se pasa con swipe; en
+// todos lados, clic o Enter abre el lightbox con anterior y siguiente.
 import { useEffect, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { HugeIcon } from '~/components/ui/icon';
@@ -30,9 +25,8 @@ export function ProductGallery({
   const [zoomed, setZoomed] = useState(false);
   const reduce = useReducedMotion();
   const stageRef = useRef<HTMLButtonElement>(null);
-  // La primera foto se pinta visible desde el HTML del servidor: el fundido
-  // solo acompaña los CAMBIOS de foto. Antes arrancaba en opacity 0 y quedaba
-  // invisible hasta hidratar.
+  // La primera foto se pinta visible desde el servidor; el fundido solo acompaña
+  // los cambios de foto.
   const [changed, setChanged] = useState(false);
 
   // Si cambia el juego de fotos (otra variante de color), volver a la primera:
@@ -86,7 +80,7 @@ export function ProductGallery({
           />
 
           {soldOut && (
-            <Badge variant="secondary" className="absolute top-3 left-3">
+            <Badge variant="category" className="absolute top-3 left-3">
               Agotado
             </Badge>
           )}
@@ -94,7 +88,7 @@ export function ProductGallery({
           {/* Pista de ampliar, siempre visible: es la única forma de ver la foto grande. */}
           <span
             aria-hidden
-            className="absolute right-3 bottom-3 grid h-9 w-9 place-items-center rounded-full bg-background/70 text-foreground backdrop-blur-sm"
+            className="absolute right-3 bottom-3 grid h-9 w-9 place-items-center rounded-full bg-background text-foreground"
           >
             <HugeIcon icon={ZoomInAreaIcon} size={18} strokeWidth={2} />
           </span>
@@ -141,7 +135,7 @@ export function ProductGallery({
               aria-label={`Ver imagen ${i + 1} de ${name}`}
               aria-current={i === active}
               className={cn(
-                'h-16 w-16 shrink-0 overflow-hidden rounded-lg border transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
+                'h-16 w-16 shrink-0 overflow-hidden rounded-xl border transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
                 i === active ? 'border-primary-2' : 'border-border hover:border-foreground/25',
               )}
             >
@@ -170,7 +164,7 @@ export function ProductGallery({
                     type="button"
                     onClick={() => step(-1)}
                     aria-label="Foto anterior"
-                    className="absolute top-1/2 left-2 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full bg-background/80 text-foreground backdrop-blur-sm transition-colors hover:bg-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                    className="absolute top-1/2 left-2 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full bg-background text-foreground transition-colors hover:bg-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                   >
                     <HugeIcon icon={ArrowLeft01Icon} size={20} strokeWidth={2} aria-hidden />
                   </button>
@@ -178,7 +172,7 @@ export function ProductGallery({
                     type="button"
                     onClick={() => step(1)}
                     aria-label="Foto siguiente"
-                    className="absolute top-1/2 right-2 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full bg-background/80 text-foreground backdrop-blur-sm transition-colors hover:bg-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                    className="absolute top-1/2 right-2 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full bg-background text-foreground transition-colors hover:bg-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                   >
                     <HugeIcon icon={ArrowRight01Icon} size={20} strokeWidth={2} aria-hidden />
                   </button>

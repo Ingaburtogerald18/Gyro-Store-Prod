@@ -1,35 +1,19 @@
-/*
- * Sistema de diseño Gyro Store — preset shadcn "b2DeDk3s1"
- * (style Rhea · paleta Gyro compartida · Chivo).
- *
- * Migración nativa: los tokens los define el preset en `:root` / `[data-theme="dark"]`
- * (más abajo). Este archivo agrega lo único que el preset no trae:
- *   1. El bloque `@theme inline` que registra `--color-*` → `var(--*)` (sin esto
- *      Tailwind no genera `bg-background`, `border-border`, etc.).
- *   2. Tokens semánticos que shadcn no incluye pero la app necesita: whatsapp
- *      (verde del canal), promo, success / warning / info, y los radios card / pill.
- *
- * Regla: cero colores crudos de Tailwind en componentes; todo sale de estos tokens.
- */
+/* Estilos globales de Gyro Store. Las reglas están en DESIGN.md; los colores, en
+   el bloque de la paleta de marca más abajo. */
 @import "tailwindcss";
 /* Animaciones enter/exit (animate-in / animate-out) de las primitivas shadcn. */
 @import "tw-animate-css";
-/* Utilidades del preset (variantes data-open/data-closed, no-scrollbar, scroll-fade,
-   shimmer). Los componentes las usan; sin este import quedan sin estilo. */
+/* Utilidades de shadcn (data-open/data-closed, no-scrollbar, scroll-fade, shimmer). */
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/chivo";
 @import "@fontsource-variable/chivo-mono";
 @import "./styles/admin.css";
 
 /* La variante `dark:` sigue a nuestro data-theme, no al prefers-color-scheme del
-   sistema: el tema lo controla useTheme (doc 05 §7). */
+   sistema: el tema lo controla useTheme. */
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
-/* ──────────────────────────────────────────────────────────────
-   Registro de tokens: mapea los `--*` del preset a los `--color-*` que Tailwind
-   usa para generar utilidades. Es el bloque estándar de shadcn v4 + los extras
-   propios de Gyro al final.
-   ────────────────────────────────────────────────────────────── */
+/* Registra cada `--*` como `--color-*` para que Tailwind genere sus utilidades. */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -73,15 +57,16 @@
   --color-whatsapp-hover: var(--whatsapp-hover);
   --color-promo: var(--promo);
   --color-promo-foreground: var(--promo-foreground);
-  --color-brand: var(--brand);
-  --color-brand-foreground: var(--brand-foreground);
+  --color-ink: var(--ink);
+  --color-action: var(--action);
+  --color-action-foreground: var(--action-foreground);
+  --color-logo: var(--logo);
+  --color-header-background: var(--header-background);
   --color-success: var(--success);
   --color-warning: var(--warning);
   --color-info: var(--info);
 
-  /* Acentos de las StatCard. No se mapean a --chart-*: en este preset los
-     charts son toda la escala Green, y las tarjetas necesitan tonos distintos
-     entre sí para distinguirse de un vistazo. */
+  /* Acentos de las StatCard. */
   --color-tone-indigo: var(--tone-indigo);
   --color-tone-sky: var(--tone-sky);
   --color-tone-amber: var(--tone-amber);
@@ -97,11 +82,7 @@
   --radius-card: 0.75rem;
   --radius-pill: 9999px;
 
-  /* Tipografía por ÁREA (ver `[data-area]` más abajo): tienda y panel usan Chivo. Los tokens apuntan a variables y no a la
-     fuente literal porque `@theme inline` copia el valor en cada utilidad: con
-     un literal, `font-heading` quedaría fijo en una sola fuente para las dos
-     áreas. Registrar --font-heading acá es lo que genera la clase `font-heading`
-     (la usan títulos de Dialog/Sheet/Card de shadcn y el panel). */
+  /* Apuntan a variables porque `@theme inline` copia el valor en cada utilidad. */
   --font-sans: var(--area-font-sans);
   --font-heading: var(--area-font-heading);
   /* Chivo fija para montos grandes del panel (métricas y totales). */
@@ -110,9 +91,7 @@
   --font-spec: "Chivo Mono Variable", ui-monospace, monospace;
   --font-mono: "Chivo Mono Variable", ui-monospace, monospace;
 
-  /* Paso por debajo de text-xs para badges, eyebrows y metadatos densos.
-     Reemplaza ~120 `text-[10px]`/`text-[11px]` sueltos: 11px es el piso de
-     lectura del sistema — nada de texto de interfaz por debajo de esto. */
+  /* 11 px: el tamaño mínimo de texto de la interfaz. */
   --text-2xs: 0.6875rem;
   --text-2xs--line-height: 1rem;
 }
@@ -128,10 +107,8 @@
   transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* `color-scheme` tiene que SEGUIR a `data-theme`, no quedar fijo en dark.
-   Fijo, el navegador pintaba scrollbars, `<select>` nativos y el autofill en
-   oscuro incluso con el tema claro activo — controles negros sobre una interfaz
-   blanca. */
+/* `color-scheme` sigue a `data-theme` para que scrollbars, selects nativos y
+   autofill usen el mismo tema que la interfaz. */
 html[data-theme='dark'] {
   color-scheme: dark;
 }
@@ -198,186 +175,9 @@ body {
 .login-enter-item { animation: login-enter-rise 0.5s cubic-bezier(0.16, 1, 0.3, 1) backwards; }
 
 /* ──────────────────────────────────────────────────────────────
-   Tokens del preset b2DeDk3s1. Light en :root, dark en [data-theme="dark"].
-   Los 4 extras (whatsapp/success/warning/info) se agregan a ambos.
-   ────────────────────────────────────────────────────────────── */
-:root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.148 0.004 228.8);
-  --card: oklch(0.94 0.008 166);
-  --card-foreground: oklch(0.148 0.004 228.8);
-  --popover: oklch(0.94 0.008 166);
-  --popover-foreground: oklch(0.148 0.004 228.8);
-  --primary: oklch(0.508 0.118 165.612);
-  --primary-foreground: oklch(0.979 0.021 166.113);
-  --secondary: oklch(0.967 0.001 286.375);
-  --secondary-foreground: oklch(0.21 0.006 285.885);
-  --muted: oklch(0.90 0.010 166);
-  /* Texto secundario: L 0.56 → 0.50. Con 0.56 daba 4.6:1 sobre blanco y 3.9:1
-     sobre --card (descripciones, metadatos y textos de confianza). Con 0.50:
-     ~6:1 sobre blanco y ~5:1 sobre --card. */
-  --muted-foreground: oklch(0.50 0.021 213.5);
-  --accent: oklch(0.90 0.010 166);
-  --accent-foreground: oklch(0.218 0.008 223.9);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(1 0 0);
-  --border: oklch(0.85 0.010 166);
-  --input: oklch(0.85 0.010 166);
-  --ring: oklch(0.723 0.014 214.4);
-  /* ── Escala de gráficos (CLARO) ──
-     Un solo hue (el primary, ~152) variando lightness, más un neutro para
-     "otros". Dos correcciones sobre lo que había:
-
-     1. Saltos PAREJOS de 0.13 en L. Antes iban de 0.148 a 0.079, así que los
-        dos segmentos más oscuros del donut se confundían entre sí.
-     2. Rango propio por tema. Los cinco valores eran IDÉNTICOS en claro y
-        oscuro, con L de 0.871 a 0.448: sobre fondo blanco el más claro casi no
-        se veía, y sobre fondo oscuro el más oscuro tampoco. Acá el rango baja
-        (0.74 → 0.35) para contrastar contra el blanco. */
-  --chart-1: oklch(0.74 0.14 152);
-  --chart-2: oklch(0.61 0.16 152);
-  --chart-3: oklch(0.48 0.14 152);
-  --chart-4: oklch(0.35 0.10 152);
-  --chart-5: oklch(0.62 0.02 150);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.987 0.002 197.1);
-  --sidebar-foreground: oklch(0.148 0.004 228.8);
-  --sidebar-primary: oklch(0.596 0.145 163.225);
-  --sidebar-primary-foreground: oklch(0.979 0.021 166.113);
-  --sidebar-accent: oklch(0.963 0.002 197.1);
-  --sidebar-accent-foreground: oklch(0.218 0.008 223.9);
-  --sidebar-border: oklch(0.925 0.005 214.3);
-  --sidebar-ring: oklch(0.723 0.014 214.4);
-  /* Extras Gyro. */
-  /* Acento secundario: esmeralda más profunda para textos y hovers sobre fondo
-     claro. La usan nombre de producto en hover, precios y eyebrows (41 sitios),
-     que hasta ahora quedaban sin color porque el token no existía. */
-  --primary-2: oklch(0.432 0.095 166.913);
-  --whatsapp: oklch(0.516 0.145 149);
-  --whatsapp-foreground: oklch(1 0 0);
-  --whatsapp-hover: oklch(0.46 0.13 149);
-  --promo: oklch(0.585 0.233 292.5);
-  --promo-foreground: oklch(1 0 0);
-  --brand: var(--card);
-  --brand-foreground: var(--foreground);
-  /* Estados semánticos en tema CLARO. Van más oscuros que su par del tema
-     oscuro a propósito: como también se usan de color de TEXTO, tienen que
-     pasar 4.5:1 contra --background (blanco). Los valores anteriores
-     (0.72/0.63/0.6 de L) daban 2.54:1, 3.28:1 y 3.91:1 — todos por debajo del
-     piso de DESIGN.md §9. Medidos: 5.65:1, 5.19:1 y 5.46:1. */
-  --success: oklch(0.52 0.13 150);
-  --warning: oklch(0.52 0.11 70);
-  --info: oklch(0.52 0.13 245);
-  /* Acentos de StatCard (claro). */
-  --tone-indigo: oklch(0.51 0.19 275);
-  --tone-sky: oklch(0.56 0.14 233);
-  --tone-amber: oklch(0.68 0.16 62);
-  --tone-emerald: oklch(0.55 0.13 163);
-  --tone-rose: oklch(0.59 0.2 15);
-  --tone-purple: oklch(0.55 0.22 300);
-  --tone-red: oklch(0.58 0.22 27);
-
-  /* ── Muestras de color de PRODUCTO ──
-     Representan el color físico del artículo (un audífono negro es negro en los
-     dos temas), así que NO se redefinen en [data-theme="dark"]: son los únicos
-     tokens deliberadamente invariantes del sistema.
-     Se consumen vía `var(--swatch-*)` desde lib/productColors.ts, nunca como hex
-     suelto en un componente (DESIGN.md §11.10). El nombre del color siempre va
-     escrito al lado del círculo: el color no es la única señal (§8). */
-  --swatch-black: oklch(0.22 0.005 250);
-  --swatch-white: oklch(0.97 0 0);
-  --swatch-gray: oklch(0.65 0.01 250);
-  --swatch-silver: oklch(0.83 0.005 250);
-  --swatch-blue: oklch(0.58 0.19 258);
-  --swatch-cyan: oklch(0.75 0.13 195);
-  --swatch-green: oklch(0.62 0.17 148);
-  --swatch-red: oklch(0.58 0.22 27);
-  --swatch-pink: oklch(0.68 0.2 350);
-  --swatch-purple: oklch(0.58 0.22 300);
-  --swatch-yellow: oklch(0.82 0.16 92);
-  --swatch-orange: oklch(0.7 0.18 48);
-  --swatch-gold: oklch(0.74 0.13 85);
-  --swatch-brown: oklch(0.45 0.08 55);
-}
-
-[data-theme="dark"] {
-  --background: oklch(0.148 0.004 228.8);
-  --foreground: oklch(0.987 0.002 197.1);
-  --card: oklch(0.218 0.008 223.9);
-  --card-foreground: oklch(0.987 0.002 197.1);
-  --popover: oklch(0.218 0.008 223.9);
-  --popover-foreground: oklch(0.987 0.002 197.1);
-  --primary: oklch(0.432 0.095 166.913);
-  --primary-foreground: oklch(0.979 0.021 166.113);
-  --secondary: oklch(0.274 0.006 286.033);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.275 0.011 216.9);
-  --muted-foreground: oklch(0.723 0.014 214.4);
-  --accent: oklch(0.275 0.011 216.9);
-  --accent-foreground: oklch(0.987 0.002 197.1);
-  --destructive: oklch(0.704 0.191 22.216);
-  --destructive-foreground: oklch(0.148 0.004 228.8);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.56 0.021 213.5);
-  /* Escala de gráficos (OSCURO). Mismo hue y mismos saltos de 0.13, pero el
-     rango sube (0.88 → 0.49) para contrastar contra el fondo oscuro. */
-  --chart-1: oklch(0.88 0.13 152);
-  --chart-2: oklch(0.75 0.17 152);
-  --chart-3: oklch(0.62 0.16 152);
-  --chart-4: oklch(0.49 0.12 152);
-  --chart-5: oklch(0.60 0.02 150);
-  --sidebar: oklch(0.218 0.008 223.9);
-  --sidebar-foreground: oklch(0.987 0.002 197.1);
-  --sidebar-primary: oklch(0.696 0.17 162.48);
-  --sidebar-primary-foreground: oklch(0.262 0.051 172.552);
-  --sidebar-accent: oklch(0.275 0.011 216.9);
-  --sidebar-accent-foreground: oklch(0.987 0.002 197.1);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.56 0.021 213.5);
-  /* Extras Gyro (tono para fondo oscuro). */
-  /* Sobre oscuro el acento secundario va al revés: más claro que --primary,
-     para que resalte como highlight (mismo rol que el teal del V1). */
-  --primary-2: oklch(0.696 0.17 162.48);
-  --whatsapp: oklch(0.76 0.2 149);
-  --whatsapp-foreground: oklch(0.18 0.02 149);
-  --whatsapp-hover: oklch(0.82 0.17 149);
-  --promo: oklch(0.585 0.233 292.5);
-  --promo-foreground: oklch(1 0 0);
-  /* En oscuro van claros: 9–10:1 contra --background y contra --card. */
-  --success: oklch(0.72 0.16 150);
-  --warning: oklch(0.8 0.16 78);
-  --info: oklch(0.7 0.15 245);
-  /* Acentos de StatCard (oscuro): más claros para contrastar con el fondo. */
-  --tone-indigo: oklch(0.7 0.16 275);
-  --tone-sky: oklch(0.75 0.13 233);
-  --tone-amber: oklch(0.82 0.15 75);
-  --tone-emerald: oklch(0.75 0.15 163);
-  --tone-rose: oklch(0.72 0.17 15);
-  --tone-purple: oklch(0.72 0.18 300);
-  --tone-red: oklch(0.7 0.19 27);
-}
-
-/* ──────────────────────────────────────────────────────────────
-   Paleta de la TIENDA, sacada del logo (bolsa teal, nombre amarillo, contorno
-   tinta, cachetes coral). Tienda y administración comparten superficies;
-   el panel asigna roles propios al amarillo y la esmeralda más abajo.
-
-   Reparto de roles:
-     · Amarillo (--primary): la acción de compra. Siempre con texto tinta: el
-       blanco sobre amarillo no se lee.
-     · Teal (--brand / --primary-2): superficies de marca (header) y textos de
-       acento (links, precios destacados, eyebrows). Para TEXTO sobre claro se
-       usa el teal profundo; el teal del logo solo como fondo.
-     · Tinta: texto y, en claro, el contorno grueso de botones y fotos, como el
-       trazo de la mascota.
-     · Coral: descuentos y ofertas (antes violeta).
-   Contrastes medidos (WCAG): tinta sobre crema 15:1, tinta sobre amarillo
-   11:1, teal profundo sobre crema 5.0:1, tinta sobre teal 8.4:1, tinta sobre
-   coral 6.6:1; el oscuro tiene su propio bloque más abajo.
-
-   `.store-palette` aplica la misma paleta a un subárbol fuera de la tienda (el
-   acceso de colaboradores, /login).
+   Paleta de marca: la tabla de colores de DESIGN.md. Tienda, panel, /login
+   (.store-palette) y la vista previa del editor (.store-preview) la comparten.
+   Todo color de la app sale de acá.
    ────────────────────────────────────────────────────────────── */
 html[data-area='store'],
 html[data-area='admin'],
@@ -395,32 +195,83 @@ html[data-area='admin'],
   --primary: var(--action);
   --primary-foreground: var(--ink);
   --primary-2: #0e7c68;
-  --secondary: #e4f5f0;
-  --secondary-foreground: var(--ink);
   --muted: #eef4f1;
   --muted-foreground: #4b605d;
-  --accent: #e4f5f0;
+  --secondary: var(--muted);
+  --secondary-foreground: var(--ink);
+  --accent: var(--muted);
   --accent-foreground: var(--ink);
   --border: rgb(16 36 35 / 16%);
-  --input: rgb(16 36 35 / 28%);
-  --ring: #0e7c68;
-  --brand: #3dc5a9;
-  --brand-foreground: var(--ink);
+  --input: rgb(16 36 35 / 48%);
+  --ring: var(--primary-2);
+  --logo: #3dc5a9;
+  --header-background: var(--background);
   --promo: #f07a6a;
   --promo-foreground: var(--ink);
+  --destructive: #e7000b;
+  --destructive-foreground: #ffffff;
+  --success: var(--primary-2);
+  --warning: #915c08;
+  --info: #036eae;
+  --whatsapp: #027d34;
+  --whatsapp-foreground: #ffffff;
+  --whatsapp-hover: #026a2c;
+  --sticker-shadow: var(--ink);
+  --radius: 0.625rem;
+
+  /* Gráficos: esmeralda, amarillo, coral, teal, tinta. */
+  --chart-1: #0e7c68;
+  --chart-2: #ffc20e;
+  --chart-3: #f07a6a;
+  --chart-4: #3dc5a9;
+  --chart-5: #102423;
+
+  --sidebar: var(--card);
+  --sidebar-foreground: var(--foreground);
+  --sidebar-primary: var(--primary-2);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: color-mix(in srgb, var(--primary-2) 10%, var(--card));
+  --sidebar-accent-foreground: var(--primary-2);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--ring);
+
+  /* Acentos de StatCard. */
+  --tone-indigo: oklch(0.51 0.19 275);
+  --tone-sky: oklch(0.56 0.14 233);
+  --tone-amber: oklch(0.68 0.16 62);
+  --tone-emerald: oklch(0.55 0.13 163);
+  --tone-rose: oklch(0.59 0.2 15);
+  --tone-purple: oklch(0.55 0.22 300);
+  --tone-red: oklch(0.58 0.22 27);
+
   /* Navbar: esmeralda para navegar, amarillo para el carrito y rojo en sombra. */
   --header-nav-foreground: var(--primary-2);
-  --header-selected-background: #e4f5f0;
-  --header-control-background: #e4f5f0;
+  --header-selected-background: var(--muted);
+  --header-control-background: var(--muted);
   --header-search-background: var(--card);
   --header-search-border: rgb(16 36 35 / 28%);
-  --header-divider: #3dc5a9;
+  --header-divider: var(--logo);
   --header-cart-shadow: #a8402f;
+
+  /* Color físico del producto: igual en los dos temas, por eso no se redefine
+     en oscuro. Lo resuelve lib/productColors.ts. */
+  --swatch-black: oklch(0.22 0.005 250);
+  --swatch-white: oklch(0.97 0 0);
+  --swatch-gray: oklch(0.65 0.01 250);
+  --swatch-silver: oklch(0.83 0.005 250);
+  --swatch-blue: oklch(0.58 0.19 258);
+  --swatch-cyan: oklch(0.75 0.13 195);
+  --swatch-green: oklch(0.62 0.17 148);
+  --swatch-red: oklch(0.58 0.22 27);
+  --swatch-pink: oklch(0.68 0.2 350);
+  --swatch-purple: oklch(0.58 0.22 300);
+  --swatch-yellow: oklch(0.82 0.16 92);
+  --swatch-orange: oklch(0.7 0.18 48);
+  --swatch-gold: oklch(0.74 0.13 85);
+  --swatch-brown: oklch(0.45 0.08 55);
 }
 
-/* Oscuro de la tienda: negro neutro de verdad, sin tinte verde. El teal queda
-   solo como acento chico (links, opción elegida) y el amarillo es el único color
-   con peso. Contrastes: texto 17:1 sobre fondo, gris secundario 8:1, teal 9:1. */
+/* Oscuro: negro neutro, sin tinte verde. El amarillo es el único color con peso. */
 html[data-area='store'][data-theme='dark'],
 html[data-area='admin'][data-theme='dark'],
 .store-preview[data-theme='dark'],
@@ -435,36 +286,56 @@ html[data-theme='dark'] .store-palette {
   --primary: var(--action);
   --primary-foreground: #111111;
   --primary-2: #3dc5a9;
-  --secondary: #222326;
-  --secondary-foreground: #f4f4f2;
   --muted: #222326;
   --muted-foreground: #a8aaad;
-  --accent: #222326;
+  --secondary-foreground: #f4f4f2;
   --accent-foreground: #f4f4f2;
   --border: rgb(255 255 255 / 10%);
-  --input: rgb(255 255 255 / 16%);
-  --brand: #141517;
-  --brand-foreground: #f4f4f2;
+  --input: rgb(255 255 255 / 34%);
+  --header-background: #141517;
+  --destructive: #f04438;
+  --destructive-foreground: #111111;
+  --warning: #d99a2b;
+  --info: #3ba6f5;
+  --whatsapp: #2ed264;
+  --whatsapp-foreground: #0e0f10;
+  --whatsapp-hover: #5ade86;
+  --sticker-shadow: #a8402f;
+
+  /* Mismo orden que en claro, en tonos que se leen sobre #18191b. */
+  --chart-1: #22a487;
+  --chart-2: #ffc20e;
+  --chart-3: #f07a6a;
+  --chart-4: #8fe3d1;
+  --chart-5: #f4f4f2;
+
+  --sidebar-primary-foreground: #102423;
+  --sidebar-accent: color-mix(in srgb, var(--primary-2) 16%, var(--card));
+
+  --tone-indigo: oklch(0.7 0.16 275);
+  --tone-sky: oklch(0.75 0.13 233);
+  --tone-amber: oklch(0.82 0.15 75);
+  --tone-emerald: oklch(0.75 0.15 163);
+  --tone-rose: oklch(0.72 0.17 15);
+  --tone-purple: oklch(0.72 0.18 300);
+  --tone-red: oklch(0.7 0.19 27);
+
   --header-nav-foreground: #d5d7d8;
-  --header-selected-background: color-mix(in srgb, var(--primary-2) 16%, var(--brand));
-  --header-control-background: var(--brand);
+  --header-selected-background: color-mix(in srgb, var(--primary-2) 16%, var(--header-background));
+  --header-control-background: var(--header-background);
   --header-search-background: #24262b;
   --header-search-border: rgb(255 255 255 / 24%);
   --header-divider: color-mix(in srgb, var(--primary-2) 75%, transparent);
 }
 
 /* Altura constante de 57px en ambos temas: la ficha se ancla debajo del header.
-   La línea esmeralda es interna, para no alterar esa medida. */
+   La línea es interna, para no alterar esa medida. */
 html[data-area='store'] .store-header {
   --ring: var(--primary-2);
-  background-color: var(--background);
+  background-color: var(--header-background);
   color: var(--foreground);
   border-bottom-color: transparent;
   box-shadow: inset 0 -2px 0 var(--header-divider);
-}
-html[data-area='store'][data-theme='dark'] .store-header {
-  background-color: var(--brand);
-  color: var(--brand-foreground);
 }
 html[data-area='store'] .store-header .store-category-link {
   color: var(--header-nav-foreground);
@@ -496,25 +367,8 @@ html[data-area='store'] .store-header .store-cart-button:active {
   box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), 1px 1px 0 var(--header-cart-shadow);
 }
 
-/* Estilo "dibujo": contorno y sombra dura, como el trazo de la mascota. Va en
-   el botón de compra (amarillo) y en los de WhatsApp, en los dos temas.
-   La sombra usa --sticker-shadow: tinta en claro y el bordó de la sombra del
-   nombre del logo en oscuro (la tinta no se vería contra el fondo negro). Los
-   botones de WhatsApp en contorno llevan sombra de su propio verde y fondo de
-   tarjeta, para que la sombra se lea como un objeto desplazado. */
-html[data-area='store'],
-html[data-area='admin'],
-.store-preview,
-.store-palette {
-  --sticker-shadow: var(--ink);
-}
-html[data-area='store'][data-theme='dark'],
-html[data-area='admin'][data-theme='dark'],
-.store-preview[data-theme='dark'],
-html[data-theme='dark'] .store-palette {
-  --sticker-shadow: #a8402f;
-}
-/* Las acciones usan los mismos tokens en catálogo y panel. */
+/* Botón principal: contorno tinta y sombra dura, como el trazo de la mascota.
+   En oscuro la sombra es bordó porque la tinta no se ve sobre negro. */
 :is(html[data-area='store'], html[data-area='admin'], .store-palette, .store-preview) [data-slot='button'][data-variant='default']:not([aria-pressed]) {
   background-color: var(--action);
   color: var(--action-foreground);
@@ -547,12 +401,6 @@ html[data-theme='dark'] .store-palette {
   }
 }
 
-/* Radios compartidos: controles ≈12px, tarjetas ≈16px, paneles 24px. Los
-   botones redondos (rounded-full) conservan su forma. */
-:is(html[data-area='store'], html[data-area='admin'], .store-preview) :is([data-slot='button'], [data-slot='input'], [data-slot='textarea'], [data-slot='select-trigger'], [data-slot='native-select'], [data-slot='input-group']):not([class*='rounded-full']):not([class*='rounded-pill']) {
-  border-radius: 0.75rem;
-}
-
 /* Cerrar de paneles y diálogos: 44px de objetivo táctil (el ícono sigue chico)
    y variante cancel roja, según la convención de cierre del proyecto. */
 :is(html[data-area='store'], html[data-area='admin'], .store-preview) :is([data-slot='sheet-content'], [data-slot='dialog-content']) > [data-slot='button'][data-size='icon-sm'][class*='absolute'] {
@@ -582,23 +430,10 @@ html[data-theme='dark'] .store-palette {
   background-color: color-mix(in srgb, var(--primary-2) 12%, var(--card));
   color: var(--foreground);
   border: 2px solid var(--primary-2);
+  font-weight: 600;
 }
 :is(html[data-area='store'], html[data-area='admin'], .store-preview) [data-slot='button'][aria-pressed='true']:hover {
   background-color: color-mix(in srgb, var(--primary-2) 18%, var(--card));
-}
-
-/* Campos de formulario en claro: blancos con borde, en vez del relleno gris
-   de shadcn (bg-input/50), que sobre el crema se veía sucio y apagado. */
-:is(html[data-area='store'][data-theme='light'], html[data-area='admin'][data-theme='light'], .store-preview[data-theme='light']) :is([data-slot='input'], [data-slot='textarea'], [data-slot='select-trigger'], [data-slot='input-group']) {
-  background-color: var(--card);
-  border-color: var(--input);
-}
-:is(html[data-area='store'][data-theme='light'], html[data-area='admin'][data-theme='light'], .store-preview[data-theme='light']) :is([data-slot='input'], [data-slot='textarea'], [data-slot='select-trigger']):focus-visible,
-:is(html[data-area='store'][data-theme='light'], html[data-area='admin'][data-theme='light'], .store-preview[data-theme='light']) [data-slot='input-group']:focus-within {
-  border-color: var(--ring);
-}
-:is(html[data-area='store'][data-theme='light'], html[data-area='admin'][data-theme='light'], .store-preview[data-theme='light']) :is([data-slot='input'], [data-slot='textarea'], [data-slot='select-trigger'])[aria-invalid='true'] {
-  border-color: var(--destructive);
 }
 
 /* El buscador del navbar mantiene el contraste propio del header en cada tema. */
@@ -610,86 +445,14 @@ html[data-area='store'] .store-header .store-header-search [data-slot='input-gro
   border-color: var(--primary-2);
 }
 
-/* Herramientas del catálogo: esmeralda para seleccionar, amarillo para el
-   conteo. El portal del selector comparte el tema sin afectar el back-office. */
-html[data-area='store'] :is(.catalog-filter-bar, .catalog-active-filters, .catalog-filter-sort-menu) {
-  --ring: var(--primary-2);
-  --catalog-selection-strength: 8%;
-}
-html[data-area='store'][data-theme='dark'] :is(.catalog-filter-bar, .catalog-filter-sort-menu) {
-  --catalog-selection-strength: 14%;
-}
-html[data-area='store'] .catalog-filter-bar {
-  border-color: color-mix(in srgb, var(--primary-2) 30%, transparent);
-  box-shadow: inset 0 2px 0 color-mix(in srgb, var(--primary-2) 65%, transparent);
-}
-html[data-area='store'] .catalog-filter-bar .catalog-filter-control {
-  min-height: 2.75rem;
-  height: 2.75rem;
-  border: 1px solid var(--input);
-  border-radius: 0.75rem;
-  background-color: var(--card);
-  color: var(--foreground);
-}
-html[data-area='store'][data-theme='dark'] .catalog-filter-bar .catalog-filter-control {
-  background-color: var(--background);
-}
-html[data-area='store'] .catalog-filter-bar .catalog-filter-control:is(:hover, :focus-visible, [data-state='open']) {
-  border-color: var(--primary-2);
-}
-html[data-area='store'] .catalog-filter-bar [data-slot='select-value'] {
-  display: block;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-html[data-area='store'] .catalog-filter-bar .catalog-filter-toggle[aria-pressed='true'] {
-  background-color: color-mix(in srgb, var(--primary-2) var(--catalog-selection-strength), var(--card));
-  border-color: var(--primary-2);
-  color: var(--primary-2);
-}
-html[data-area='store'] .catalog-active-filters .catalog-filter-chip {
-  border-color: color-mix(in srgb, var(--primary-2) 45%, transparent);
-  background-color: color-mix(in srgb, var(--primary-2) 10%, var(--card));
-  color: var(--foreground);
-}
-html[data-area='store'] .catalog-active-filters .catalog-filter-chip:hover {
-  border-color: var(--primary-2);
-  background-color: color-mix(in srgb, var(--primary-2) 18%, var(--card));
-}
-html[data-area='store'] .catalog-filter-sort-menu {
-  border: 1px solid color-mix(in srgb, var(--primary-2) 35%, transparent);
-}
-html[data-area='store'] .catalog-filter-sort-menu [data-slot='select-item']:is([data-highlighted], [data-state='checked']) {
-  background-color: color-mix(in srgb, var(--primary-2) var(--catalog-selection-strength), var(--popover));
-  color: var(--primary-2);
-}
-html[data-area='store'] .catalog-filter-sort-menu [data-slot='select-item']:is([data-highlighted], [data-state='checked']) svg {
-  color: var(--primary-2);
-}
-
-/* Admin Center comparte las superficies del catálogo. Esmeralda sigue siendo
-   el acento semántico del panel (selección, enlaces y datos); el amarillo se
-   reserva al botón de acción principal, para no volver amarillos los estados
-   de éxito y los textos que ya consumen --primary. Los portales heredan estos
-   tokens desde html igual que el contenido de cada módulo. */
+/* En el panel, --primary es esmeralda: el amarillo queda solo para el botón
+   principal, que lo toma de --action. */
 html[data-area='admin'] {
   --primary: var(--primary-2);
   --primary-foreground: #ffffff;
-  --sidebar: var(--card);
-  --sidebar-foreground: var(--foreground);
-  --sidebar-primary: var(--primary-2);
-  --sidebar-primary-foreground: var(--primary-foreground);
-  --sidebar-accent: color-mix(in srgb, var(--primary-2) 10%, var(--card));
-  --sidebar-accent-foreground: var(--primary-2);
-  --sidebar-border: var(--border);
-  --sidebar-ring: var(--ring);
 }
 html[data-area='admin'][data-theme='dark'] {
-  --primary: var(--primary-2);
   --primary-foreground: #102423;
-  --sidebar-accent: color-mix(in srgb, var(--primary-2) 16%, var(--card));
 }
 html[data-area='admin'] .admin-topbar {
   box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--primary-2) 65%, transparent);

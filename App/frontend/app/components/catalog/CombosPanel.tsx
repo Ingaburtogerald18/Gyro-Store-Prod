@@ -91,7 +91,7 @@ export function CombosPanel() {
         loadingFallback={
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {[1, 2, 3].map((i) => (
-              <Skeleton key={i} className="h-56 rounded-card" />
+              <Skeleton key={i} className="h-56 rounded-2xl" />
             ))}
           </div>
         }
@@ -117,14 +117,14 @@ export function CombosPanel() {
               <div className="absolute right-2 top-2 z-10 flex gap-1">
                 <button
                   onClick={() => openEdit(combo)}
-                  className="rounded-lg bg-black/60 p-1.5 text-white hover:text-primary hover:bg-black/80 transition-colors"
+                  className="rounded-xl bg-black/60 p-1.5 text-white hover:text-primary hover:bg-black/80 transition-colors"
                   aria-label="Editar"
                 >
                   <HugeIcon icon={Edit02Icon} size={16} strokeWidth={2} />
                 </button>
                 <button
                   onClick={() => handleDelete(combo.id)}
-                  className="rounded-lg bg-black/60 p-1.5 text-white hover:text-destructive hover:bg-black/80 transition-colors"
+                  className="rounded-xl bg-black/60 p-1.5 text-white hover:text-destructive hover:bg-black/80 transition-colors"
                   aria-label="Eliminar"
                 >
                   <HugeIcon icon={Delete02Icon} size={16} strokeWidth={2} />

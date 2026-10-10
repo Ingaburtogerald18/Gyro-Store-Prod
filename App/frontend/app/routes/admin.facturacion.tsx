@@ -51,8 +51,7 @@ export default function AdminFacturacion() {
 
   const [isCreating, setIsCreating] = useState(false);
 
-  // Una sola tabla a la vista, elegida con el selector de la barra. Antes eran
-  // tres tarjetas apiladas y la de vinculadas (la más consultada) quedaba abajo.
+  // Una sola tabla a la vista, elegida con el selector de la barra.
   type View = 'unlinked' | 'linked' | 'void';
   const [view, setView] = useState<View>('unlinked');
   const [search, setSearch] = useState('');
@@ -314,14 +313,14 @@ export default function AdminFacturacion() {
   );
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-5">
       <PageHeader
         eyebrow="Tienda"
         title="Facturación"
         description="Emití el ticket y vinculalo cuando se registre la venta."
         className="mb-0"
         actions={
-          <Button onClick={() => setIsCreating(true)} className="h-9 gap-2 rounded-md">
+          <Button onClick={() => setIsCreating(true)} className="h-9 gap-2 rounded-xl">
             <HugeIcon icon={PlusSignIcon} size={16} strokeWidth={2} aria-hidden />
             Nueva factura
             <Kbd>N</Kbd>
@@ -362,7 +361,7 @@ export default function AdminFacturacion() {
           />
         </MetricStrip>
 
-        <div className="p-4">
+        <div>
           {view === 'unlinked' && (
             <QueryState loading={loadingUnlinked} error={unlinkedError} shape="table">
               <DataTable

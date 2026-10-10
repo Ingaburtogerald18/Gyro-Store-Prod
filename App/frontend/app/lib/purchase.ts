@@ -1,8 +1,5 @@
 // Reglas de compra de una variante, compartidas por la ficha y el selector
-// rápido. Antes cada uno tenía su versión y divergían (el selector dejaba
-// agregar cuando fallaba la carga de variantes).
-//
-// Puras y sin React: se prueban en tests/purchase.test.ts.
+// rápido. Puras y sin React: se prueban en tests/purchase.test.ts.
 import type { Availability, CatalogAxis, CatalogVariant } from '@shared/schemas';
 
 export type VariantSelection = Record<string, string>;

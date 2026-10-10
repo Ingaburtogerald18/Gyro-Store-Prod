@@ -113,7 +113,7 @@ export function MonthSelector({
   return (
     <div
       className={cn(
-        'inline-flex items-center gap-1 rounded-xl border border-border/80 bg-card/90 p-1 shadow-xs backdrop-blur-xs',
+        'inline-flex items-center gap-1 rounded-xl border border-border/80 bg-card p-1 shadow-xs',
         className,
       )}
     >
@@ -123,7 +123,7 @@ export function MonthSelector({
         size="icon"
         onClick={handlePrevMonth}
         title="Mes anterior"
-        className="size-8 rounded-lg text-muted-foreground hover:text-foreground"
+        className="size-8 rounded-xl text-muted-foreground hover:text-foreground"
       >
         <HugeIcon icon={ArrowLeft01Icon} size={15} strokeWidth={2.2} />
       </Button>
@@ -139,7 +139,7 @@ export function MonthSelector({
         <PopoverTrigger asChild>
           <button
             type="button"
-            className="flex h-8 items-center gap-2 rounded-lg px-3 text-sm font-medium text-foreground transition-colors hover:bg-muted/70 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            className="flex h-8 items-center gap-2 rounded-xl px-3 text-sm font-medium text-foreground transition-colors hover:bg-muted/70 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           >
             <HugeIcon
               icon={Calendar03Icon}
@@ -173,7 +173,7 @@ export function MonthSelector({
               variant="ghost"
               size="icon"
               onClick={() => setViewYear((y) => y - 1)}
-              className="size-7 rounded-md text-muted-foreground hover:text-foreground"
+              className="size-7 rounded-xl text-muted-foreground hover:text-foreground"
               title="Año anterior"
             >
               <HugeIcon icon={ArrowLeft01Icon} size={14} strokeWidth={2} />
@@ -186,7 +186,7 @@ export function MonthSelector({
               size="icon"
               onClick={() => setViewYear((y) => y + 1)}
               disabled={isNextYearDisabled}
-              className="size-7 rounded-md text-muted-foreground hover:text-foreground disabled:opacity-30"
+              className="size-7 rounded-xl text-muted-foreground hover:text-foreground disabled:opacity-30"
               title="Año siguiente"
             >
               <HugeIcon icon={ArrowRight01Icon} size={14} strokeWidth={2} />
@@ -208,7 +208,7 @@ export function MonthSelector({
                   disabled={isFuture}
                   onClick={() => handleSelectMonth(idx)}
                   className={cn(
-                    'relative flex h-9 items-center justify-center rounded-lg text-xs font-medium transition-all',
+                    'relative flex h-9 items-center justify-center rounded-xl text-xs font-medium transition-all',
                     isSelected
                       ? 'bg-primary font-semibold text-primary-foreground shadow-xs'
                       : 'text-foreground/80 hover:bg-muted/80 hover:text-foreground',
@@ -231,7 +231,7 @@ export function MonthSelector({
               <button
                 type="button"
                 onClick={handleGoToCurrentMonth}
-                className="w-full rounded-md py-1 text-center text-xs font-medium text-primary hover:bg-primary/10 transition-colors"
+                className="w-full rounded-xl py-1 text-center text-xs font-medium text-primary hover:bg-primary/10 transition-colors"
               >
                 Ir al mes actual ({MONTH_SHORT[currentMonth]} {currentYear})
               </button>
@@ -247,7 +247,7 @@ export function MonthSelector({
         onClick={handleNextMonth}
         disabled={!canGoNext}
         title={canGoNext ? 'Mes siguiente' : 'No se puede seleccionar un mes futuro'}
-        className="size-8 rounded-lg text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:pointer-events-none"
+        className="size-8 rounded-xl text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:pointer-events-none"
       >
         <HugeIcon icon={ArrowRight01Icon} size={15} strokeWidth={2.2} />
       </Button>

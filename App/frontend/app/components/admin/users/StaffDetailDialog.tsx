@@ -83,7 +83,7 @@ export function StaffDetailDialog({
               </div>
             </div>
 
-            <div className="rounded-card border border-border px-3">
+            <div className="rounded-2xl border border-border px-3">
               <DataRow label="Teléfono" value={user.phone} />
               <DataRow label="Correo personal" value={user.personal_email} />
               <DataRow label="Correo corporativo" value={user.email} />

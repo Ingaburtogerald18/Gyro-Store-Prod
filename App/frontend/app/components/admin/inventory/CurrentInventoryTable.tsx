@@ -122,7 +122,7 @@ export function CurrentInventoryTable({
             <button
               type="button"
               onClick={() => navigate(`/admin/catalogo?sku=${rowData.code}`)}
-              className="inline-flex items-center gap-1 whitespace-nowrap rounded-md text-xs text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="inline-flex items-center gap-1 whitespace-nowrap rounded-xl text-xs text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <HugeIcon icon={CheckmarkCircle01Icon} size={13} strokeWidth={2} className="text-success" aria-hidden />
               Vinculado
@@ -134,7 +134,7 @@ export function CurrentInventoryTable({
                 navigate('/admin/catalogo');
                 toast.info('Desde acá podés vincular artículos del inventario con productos del catálogo público.');
               }}
-              className="inline-flex items-center gap-1 whitespace-nowrap rounded-md text-xs font-medium text-warning hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="inline-flex items-center gap-1 whitespace-nowrap rounded-xl text-xs font-medium text-warning hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <HugeIcon icon={Alert02Icon} size={13} strokeWidth={2} aria-hidden />
               Sin vincular
@@ -145,15 +145,13 @@ export function CurrentInventoryTable({
       {
         accessorKey: "category",
         header: "Categoría",
-        // Mismo `useCategoryLabel` que la tabla de Compras. Antes cada una
-        // resolvía por su cuenta contra `config`, así que acá seguían saliendo
-        // los uuids crudos de las categorías de Catálogo.
+        // Mismo `useCategoryLabel` que Compras: muestra el nombre, no el uuid.
         cell: (c) => {
           const val = c.getValue() as string;
           const label = val ? categoryLabel(val).replace(/^KZ\s+/, "") : "";
           if (!label || label === "—") return <span className="text-muted-foreground">—</span>;
           return (
-            <span className="whitespace-nowrap rounded-lg border border-border px-2 py-0.5 text-xs text-muted-foreground">
+            <span className="whitespace-nowrap rounded-xl border border-border px-2 py-0.5 text-xs text-muted-foreground">
               {label}
             </span>
           );
@@ -195,9 +193,7 @@ export function CurrentInventoryTable({
         cell: (c) => <MoneyCell value={c.getValue() as number} />
       },
       {
-        // Antes esta columna se llamaba "Costo con fijos" pero mostraba SOLO
-        // la parte fija (costo_f_u). La ganancia se calcula contra el costo
-        // final, así que es el que tiene que verse.
+        // La ganancia se calcula contra el costo final, así que es el que se ve.
         accessorKey: "costeFinalCordobas",
         header: "Costo final",
         meta: { align: "right" },
@@ -271,7 +267,7 @@ export function CurrentInventoryTable({
     return (
       <div className="space-y-2">
         {Array.from({ length: 6 }).map((_, i) => (
-          <Skeleton key={i} className="h-10 w-full rounded-md" />
+          <Skeleton key={i} className="h-10 w-full rounded-xl" />
         ))}
       </div>
     );
@@ -287,10 +283,9 @@ export function CurrentInventoryTable({
         globalFilterValue={search}
         emptyText={mode === "outOfStock" ? "No hay productos agotados." : "No hay productos recibidos en bodega todavía."}
         initialSorting={[{ id: "code", desc: false }]}
-        // 12 columnas no entran en una laptop: "Comprado" y "Costo C$" se
-        // ocultan de entrada (se muestran desde el botón de columnas).
+        // Las columnas secundarias se activan desde «Columnas» para caber en 1280 px.
         tableId="inventario-stock"
-        defaultHiddenColumns={["quantityOriginal", "costRealCordobas"]}
+        defaultHiddenColumns={["category", "quantityOriginal", "quantityReserved", "costRealCordobas"]}
       />
 
       <Dialog open={!!revertFor} onOpenChange={() => setRevertFor(null)}>
@@ -304,7 +299,7 @@ export function CurrentInventoryTable({
             <strong className="text-foreground font-semibold">{revertFor?.productName}</strong> (Lote:{" "}
             <span className="font-spec font-semibold text-foreground">{revertFor?.lot}</span>)?
           </p>
-          <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-3.5 text-xs text-destructive leading-normal">
+          <div className="rounded-2xl border border-destructive/20 bg-destructive/5 p-3.5 text-xs text-destructive leading-normal">
             <strong className="mb-1 block font-semibold text-destructive">Esto cambia el inventario</strong>
             Se restarán <strong className="text-destructive font-bold">{revertFor?.available} unidades</strong> del stock actual en bodega. El lote completo volverá al estado original de <strong className="text-destructive font-semibold">"En tránsito"</strong> en el Registro de Compras.
           </div>

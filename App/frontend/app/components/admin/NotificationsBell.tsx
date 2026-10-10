@@ -184,7 +184,7 @@ export function NotificationsBell() {
         <div className="flex items-center justify-between border-b px-4 py-3">
           <span className="text-sm font-semibold text-foreground">Avisos de ventas</span>
           {badge > 0 && (
-            <Badge variant="secondary" className="tabular-nums">
+            <Badge variant="category" className="tabular-nums">
               {badge}
             </Badge>
           )}
@@ -293,7 +293,7 @@ function NotifRow({
         <span className="flex items-center gap-1.5">
           <span className="truncate text-sm font-medium text-foreground">{title}</span>
           {/* Lo no visto se marca con un punto Y con el badge del contador: el
-              color solo no alcanza para distinguirlo (DESIGN.md §8). */}
+              color solo no alcanza para distinguirlo. */}
           {unseen && <span className="size-1.5 shrink-0 rounded-full bg-primary" aria-label="Sin ver" />}
         </span>
         <span className="block truncate text-xs text-muted-foreground">{subtitle}</span>

@@ -85,7 +85,7 @@ export default function Login() {
     <main className="store-palette grid min-h-screen w-full bg-background font-sans text-foreground lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
       <section
         aria-label={brand}
-        className="flex items-center justify-center border-b-2 border-[var(--ink)] bg-brand px-6 py-8 lg:border-b-0 lg:border-r-2 lg:p-12 dark:border-border dark:bg-card lg:dark:border-r"
+        className="flex items-center justify-center border-b-2 border-ink bg-logo px-6 py-8 lg:border-b-0 lg:border-r-2 lg:p-12 dark:border-border dark:bg-card lg:dark:border-r"
       >
         {loginImage ? (
           <img
@@ -94,7 +94,7 @@ export default function Login() {
             className="max-h-36 w-full max-w-[520px] object-contain lg:max-h-[420px]"
           />
         ) : (
-          <span className="text-3xl font-extrabold tracking-tight text-brand-foreground lg:text-5xl">
+          <span className="text-3xl font-extrabold tracking-tight text-foreground lg:text-5xl">
             {brand}
           </span>
         )}
@@ -147,8 +147,8 @@ function getGreeting(): string {
 function OutlookIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
-      <rect x="2" y="5" width="20" height="14" rx="2.5" fill="#0078D4" />
-      <path d="M3.2 7.2 12 13l8.8-5.8" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+      <rect /* design-check: logo */ x="2" y="5" width="20" height="14" rx="2.5" fill="#0078D4" />
+      <path /* design-check: logo */ d="M3.2 7.2 12 13l8.8-5.8" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }

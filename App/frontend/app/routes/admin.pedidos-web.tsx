@@ -104,7 +104,7 @@ export default function AdminPedidosWeb() {
   });
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-5">
       <PageHeader
         eyebrow="Operación"
         title="Pedidos web"
@@ -135,11 +135,11 @@ export default function AdminPedidosWeb() {
           <Metric label="Vendido (entregados)" value={formatCordobas(counts.deliveredTotal)} />
         </MetricStrip>
 
-        <div>
+        <div className="overflow-clip rounded-2xl border border-border bg-card">
           {isLoading ? (
             <div className="space-y-2 p-4">
               {Array.from({ length: 4 }).map((_, i) => (
-                <Skeleton key={i} className="h-16 w-full rounded-md" />
+                <Skeleton key={i} className="h-16 w-full rounded-xl" />
               ))}
             </div>
           ) : rows.length === 0 ? (
@@ -190,7 +190,6 @@ export default function AdminPedidosWeb() {
                         <StatusBadge
                           status={meta.status}
                           label={publicOrderStatusLabel(o.status, o.deliveryMethod)}
-                          pulse={o.status === 'new'}
                           className="hidden md:inline-flex"
                         />
                         <Select value={o.status} onValueChange={(v) => changeStatus(o, v as PublicOrderStatus)}>
@@ -233,7 +232,7 @@ function ConvertToSale({ order }: { order: AdminPublicOrder }) {
     return (
       <Link
         to={`/admin/ventas?status=all&sale=${order.saleId}`}
-        className="inline-flex h-9 items-center justify-center rounded-md border px-3 text-sm text-foreground transition-colors hover:bg-muted"
+        className="inline-flex h-9 items-center justify-center rounded-xl border px-3 text-sm text-foreground transition-colors hover:bg-muted"
       >
         Ver la venta
       </Link>
@@ -254,7 +253,7 @@ function ConvertToSale({ order }: { order: AdminPublicOrder }) {
   }
 
   return confirming ? (
-    <div className="space-y-2 rounded-md border p-3">
+    <div className="space-y-2 rounded-2xl border p-3">
       <p className="text-xs text-muted-foreground">
         Se crea una venta pendiente a tu nombre, con estos productos y el stock que el pedido ya tenía apartado. Podés
         cambiar el vendedor editándola en Ventas.
@@ -280,13 +279,13 @@ function OrderDetail({ order, onCopyTracking }: { order: AdminPublicOrder; onCop
   const greeting = `Hola ${order.customerName?.split(' ')[0] ?? ''}, te escribimos de la tienda por tu pedido ${shortId(order.id)}.`;
   return (
     <div className="grid gap-6 px-4 pb-5 pl-11 md:grid-cols-[1fr_280px]">
-      <ul className="divide-y rounded-lg border bg-card">
+      <ul className="divide-y rounded-xl border bg-card">
         {order.items.map((item, i) => (
           <li key={i} className="flex items-center gap-3 p-3">
             {item.image ? (
-              <img src={item.image} alt="" className="size-10 shrink-0 rounded-md object-cover" />
+              <img src={item.image} alt="" className="size-10 shrink-0 rounded-xl object-cover" />
             ) : (
-              <span className="size-10 shrink-0 rounded-md bg-muted" aria-hidden />
+              <span className="size-10 shrink-0 rounded-xl bg-muted" aria-hidden />
             )}
             <span className="min-w-0 flex-1 truncate text-sm text-foreground">
               {item.name}
@@ -330,7 +329,7 @@ function OrderDetail({ order, onCopyTracking }: { order: AdminPublicOrder; onCop
             )}
           </div>
         </div>
-        {order.note && <p className="rounded-md bg-muted/50 p-2 text-muted-foreground">“{order.note}”</p>}
+        {order.note && <p className="rounded-xl bg-muted/50 p-2 text-muted-foreground">“{order.note}”</p>}
 
         <div className="flex flex-col gap-2 pt-1">
           {order.phone && (
@@ -338,7 +337,7 @@ function OrderDetail({ order, onCopyTracking }: { order: AdminPublicOrder; onCop
               href={buildWhatsappUrl(waPhone(order.phone), greeting)}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex h-9 items-center justify-center gap-2 rounded-md border border-whatsapp/30 bg-whatsapp/10 px-3 text-sm font-medium text-whatsapp transition-colors hover:bg-whatsapp/15"
+              className="inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-whatsapp/30 bg-whatsapp/10 px-3 text-sm font-medium text-whatsapp transition-colors hover:bg-whatsapp/15"
             >
               <WhatsappIcon className="h-4 w-4" />
               Escribir a {order.phone}
@@ -347,7 +346,7 @@ function OrderDetail({ order, onCopyTracking }: { order: AdminPublicOrder; onCop
           <button
             type="button"
             onClick={onCopyTracking}
-            className="inline-flex h-9 items-center justify-center gap-2 rounded-md border px-3 text-sm text-foreground transition-colors hover:bg-muted"
+            className="inline-flex h-9 items-center justify-center gap-2 rounded-xl border px-3 text-sm text-foreground transition-colors hover:bg-muted"
           >
             <HugeIcon icon={Copy01Icon} size={14} aria-hidden />
             Copiar link de seguimiento

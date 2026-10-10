@@ -1,5 +1,5 @@
 import { HugeIcon } from "~/components/ui/icon";
-import { Add01Icon, DashboardSquare01Icon, Delete02Icon, Edit02Icon, Package01Icon, Search01Icon, SquareIcon, Tag01Icon } from "@hugeicons/core-free-icons";
+import { Add01Icon, Delete02Icon, Edit02Icon, Search01Icon, Tag01Icon } from "@hugeicons/core-free-icons";
 import { lazy, Suspense, useMemo, useState } from 'react';
 import type { MetaFunction } from '@remix-run/node';
 import { pageTitle } from '~/lib/brand';
@@ -22,7 +22,8 @@ import { Button } from '~/components/ui/button';
 import { Input } from '~/components/ui/input';
 import { Label } from '~/components/ui/label';
 import { PageHeader } from '~/components/layout/PageHeader';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs';
+import { Tabs, TabsContent } from '~/components/ui/tabs';
+import { SegmentedControl } from '~/components/admin/workspace';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '~/components/ui/dialog';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import { QueryState } from '~/components/ui/QueryState';
@@ -99,8 +100,6 @@ export default function AdminCatalogo() {
       }
       setIsDialogOpen(false);
     } catch (error: any) {
-      // Antes esto reportaba éxito ("Acción simulada") aunque el guardado
-      // fallara, así que el admin creía haber guardado y no era cierto.
       toast.error(error?.data?.error || 'No se pudo guardar el producto.');
     }
   };
@@ -199,25 +198,28 @@ export default function AdminCatalogo() {
   const isFiltered = search.trim().length > 0;
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-5">
       <PageHeader
         eyebrow="Tienda"
         title="Gestión de Catálogo"
         description={
           isAdmin
-            ? 'Arrastra productos para reordenar, edítalos, o administra las plantillas.'
+            ? 'Arrastrá productos para reordenarlos, editalos o administrá las plantillas.'
             : 'Consultá los productos del catálogo y abrí sus fotos y videos.'
         }
         filters={
           isAdmin ? (
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full sm:w-auto">
-              <TabsList>
-                <TabsTrigger value="catalog"><HugeIcon icon={Package01Icon} size={16} strokeWidth={2} className="mr-2" /> Artículos</TabsTrigger>
-                <TabsTrigger value="categories"><HugeIcon icon={Tag01Icon} size={16} strokeWidth={2} className="mr-2" /> Categorías</TabsTrigger>
-                <TabsTrigger value="templates"><HugeIcon icon={DashboardSquare01Icon} size={16} strokeWidth={2} className="mr-2" /> Templates</TabsTrigger>
-                <TabsTrigger value="combos"><HugeIcon icon={SquareIcon} size={16} strokeWidth={2} className="mr-2" /> Combos</TabsTrigger>
-              </TabsList>
-            </Tabs>
+            <SegmentedControl
+              label="Vista del catálogo"
+              value={activeTab}
+              onChange={setActiveTab}
+              options={[
+                { value: "catalog", label: "Artículos" },
+                { value: "categories", label: "Categorías" },
+                { value: "templates", label: "Plantillas" },
+                { value: "combos", label: "Combos" },
+              ]}
+            />
           ) : undefined
         }
       />
@@ -323,7 +325,7 @@ export default function AdminCatalogo() {
                   <p className="text-muted-foreground text-center py-4">No hay categorías registradas.</p>
                 ) : (
                   categories.map(c => (
-                    <div key={c.id} className="flex items-center justify-between p-4 bg-card/50 border rounded-lg">
+                    <div key={c.id} className="flex items-center justify-between p-4 bg-card/50 border rounded-2xl">
                       <div className="flex items-center gap-3">
                         {/* Acá es donde se aprende el color: la lista de
                             categorías es el único lugar que las muestra todas
@@ -423,7 +425,7 @@ export default function AdminCatalogo() {
                   placeholder="ej-accesorios-gaming"
                   required
                 />
-                <p className="text-[0.8rem] text-muted-foreground">
+                <p className="text-xs text-muted-foreground">
                   El identificador único en la URL. Solo letras, números y guiones.
                 </p>
               </div>

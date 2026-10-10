@@ -65,7 +65,7 @@ function ProgressBar({ paid, total }: { paid: number; total: number }) {
   );
 }
 
-// ── Formularios (react-hook-form + zod, DESIGN.md §6b) ──
+// ── Formularios (react-hook-form + zod) ──
 // La validación de cada campo va en su FieldError; el toast queda para el
 // resultado. Mismas reglas que registerInstallmentPaymentInputSchema y
 // createInstallmentPlanInputSchema del backend.
@@ -121,7 +121,7 @@ function PaymentDialog({ plan, onClose }: { plan: InstallmentPlan | null; onClos
           </DialogHeader>
           {plan && (
             <div className="mt-4 space-y-4">
-              <div className="space-y-1 rounded-card border border-border bg-muted p-3 text-sm">
+              <div className="space-y-1 rounded-2xl border border-border bg-muted p-3 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Total</span>
                   <span className="font-semibold">{formatCordobas(plan.total)}</span>
@@ -199,7 +199,7 @@ function PlanCard({ plan, onPay }: { plan: InstallmentPlan; onPay: () => void })
   const pct = pctPaid(plan.amountPaid, plan.total);
 
   return (
-    <div className="overflow-hidden rounded-card border border-border bg-card">
+    <div className="overflow-hidden rounded-2xl border border-border bg-card">
       <div className="space-y-3 p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -321,7 +321,7 @@ function CreatePlanDialog({ sale, onClose }: { sale: SaleListItem | null; onClos
           </DialogHeader>
           {sale && (
             <div className="mt-4 space-y-4">
-              <div className="rounded-card border border-border bg-muted p-3 text-sm">
+              <div className="rounded-2xl border border-border bg-muted p-3 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Cliente</span>
                   <span className="font-medium text-foreground">{sale.phone ?? '—'}</span>
@@ -382,14 +382,14 @@ export default function AdminCuotas() {
   useShortcut('n', () => setPickerOpen(true));
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-5">
       <PageHeader
         eyebrow="Operación"
         title="Cuotas"
         description="Ventas a plazos: seguimiento de pagos hasta saldar el total."
         className="mb-0"
         actions={
-          <Button onClick={() => setPickerOpen(true)} className="h-9 gap-2 rounded-md">
+          <Button onClick={() => setPickerOpen(true)} className="h-9 gap-2 rounded-xl">
             <HugeIcon icon={Add01Icon} size={16} strokeWidth={2} aria-hidden />
             Nuevo plan
             <Kbd>N</Kbd>
@@ -418,14 +418,14 @@ export default function AdminCuotas() {
           <Metric label="Cobrado" value={formatCordobas(paidTotal)} sub="Pagos registrados" />
         </MetricStrip>
 
-        <div className="p-4">
+        <div>
           <QueryState
             loading={isLoading}
             error={isError}
             empty={plans.length === 0}
             shape="card"
             emptyFallback={
-              <div className="flex flex-col items-center justify-center gap-3 rounded-card border border-dashed border-border py-16 text-center">
+              <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border py-16 text-center">
                 <HugeIcon icon={CreditCardIcon} size={32} strokeWidth={2} className="text-muted-foreground opacity-50" aria-hidden />
                 <p className="text-sm text-muted-foreground">No hay planes de cuotas en esta vista.</p>
               </div>
@@ -459,7 +459,7 @@ export default function AdminCuotas() {
                     setCreateFor(sale);
                     setPickerOpen(false);
                   }}
-                  className="flex w-full items-center justify-between rounded-lg border px-3 py-2 text-left text-sm hover:bg-muted"
+                  className="flex w-full items-center justify-between rounded-xl border px-3 py-2 text-left text-sm hover:bg-muted"
                 >
                   <span>{sale.phone ?? sale.sellerEmail}</span>
                   <span className="font-semibold">{formatCordobas(sale.total)}</span>

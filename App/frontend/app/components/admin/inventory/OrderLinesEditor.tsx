@@ -166,7 +166,7 @@ function OrderLineRow({
   const err = (message?: string) => [message ? { message } : undefined];
 
   return (
-    <div className="space-y-3 rounded-card border border-border bg-card p-4">
+    <div className="space-y-3 rounded-2xl border border-border bg-card p-4">
       <div className="flex items-center justify-between">
         <span className="text-xs font-medium text-muted-foreground">Producto {index + 1}</span>
         {canRemove && (

@@ -114,7 +114,7 @@ export default function AdminMiPerfil() {
   const role = ROLE_PRIORITY.find(r => profile?.roles?.includes(r));
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-5">
       <PageHeader
         eyebrow="Mi cuenta"
         title="Mi perfil"
@@ -130,11 +130,9 @@ export default function AdminMiPerfil() {
         shape="card"
       >
         {profile && (
-          // Dos columnas: quién sos (foto, correo, rol) a la izquierda y lo que
-          // se edita a la derecha. Antes era una sola tarjeta angosta que dejaba
-          // dos tercios de la pantalla vacíos.
+          // Dos columnas: quién sos a la izquierda y lo que se edita a la derecha.
           <div className="grid max-w-5xl items-start gap-6 lg:grid-cols-[300px_minmax(0,1fr)]">
-            <Card className="rounded-card shadow-none">
+            <Card className="rounded-2xl shadow-none">
               <CardContent className="grid gap-5 p-5">
                 <AvatarPicker
                   src={profile.avatar_url}
@@ -164,7 +162,7 @@ export default function AdminMiPerfil() {
               </CardContent>
             </Card>
 
-          <Card className="rounded-card shadow-none">
+          <Card className="rounded-2xl shadow-none">
             <CardHeader className="border-b border-border pb-4">
               <CardTitle className="text-base">Mis datos</CardTitle>
               <CardDescription>
@@ -216,7 +214,7 @@ export default function AdminMiPerfil() {
             </CardContent>
 
             <CardFooter className="justify-end border-t border-border pt-4">
-              <Button className="h-9 rounded-md" onClick={onSubmit} disabled={isSaving}>
+              <Button className="h-9 rounded-xl" onClick={onSubmit} disabled={isSaving}>
                 <HugeIcon
                   icon={RefreshIcon}
                   size={16}

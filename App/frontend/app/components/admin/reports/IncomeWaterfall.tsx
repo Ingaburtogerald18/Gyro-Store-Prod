@@ -1,13 +1,8 @@
-// Cascada "de lo vendido a la ganancia real" (reemplaza el donut de ingresos).
+// Cascada de lo vendido a la ganancia real: cada descuento cuelga desde donde
+// terminó el paso anterior; los subtotales arrancan en 0.
 //
-// Una fila por paso, con una barra flotante sobre la misma escala que el
-// total vendido: los descuentos cuelgan desde donde terminó el paso anterior,
-// así se lee de un vistazo cuánto se lleva cada cosa y qué queda. Los
-// subtotales (ganancia bruta, ganancia real) arrancan en 0.
-//
-// Colores con significado (DESIGN.md §2.4): emerald = ingresos y ganancias,
-// sky = costos esperados, rose = lo que la ganancia tuvo que pagar o un
-// resultado negativo.
+// Colores: esmeralda = ingresos y ganancias, celeste = costos esperados,
+// rosa = lo que la ganancia tuvo que pagar o un resultado negativo.
 import { motion, useReducedMotion } from 'framer-motion';
 import { HugeIcon } from '~/components/ui/icon';
 import { ChartBarLineIcon } from '@hugeicons/core-free-icons';
@@ -160,7 +155,7 @@ export function IncomeWaterfall({
                 </span>
               </div>
 
-              <div className="relative h-6 rounded-md bg-muted/50">
+              <div className="relative h-6 rounded-xl bg-muted/50">
                 {min < 0 && <span aria-hidden className="absolute inset-y-0 w-px bg-border" style={{ left: `${zero}%` }} />}
                 <motion.div
                   aria-hidden

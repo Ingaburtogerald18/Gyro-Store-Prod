@@ -48,7 +48,7 @@ export function SellerPerformance() {
       </div>
 
       {!periodReady ? (
-        <div className="rounded-card border border-dashed py-10 text-center">
+        <div className="rounded-2xl border border-dashed py-10 text-center">
           <p className="text-sm text-muted-foreground">
             Elegí la fecha de inicio y la de fin para ver tu desempeño.
           </p>
@@ -60,9 +60,9 @@ export function SellerPerformance() {
         empty={!kpis}
         loadingFallback={
           <div className="grid gap-4 md:grid-cols-3">
-            <div className="h-32 animate-pulse rounded-card bg-muted" />
-            <div className="h-32 animate-pulse rounded-card bg-muted" />
-            <div className="h-32 animate-pulse rounded-card bg-muted" />
+            <div className="h-32 animate-pulse rounded-2xl bg-muted" />
+            <div className="h-32 animate-pulse rounded-2xl bg-muted" />
+            <div className="h-32 animate-pulse rounded-2xl bg-muted" />
           </div>
         }
       >

@@ -15,7 +15,7 @@ export function Section({
   className?: string;
 }) {
   return (
-    <Card className={`flex flex-col bg-card border shadow-sm overflow-hidden ${className || ''}`}>
+    <Card className={`flex flex-col bg-card border overflow-hidden ${className || ''}`}>
       <div className="p-6 pb-4">
         <h2 className="text-lg font-semibold text-foreground tracking-tight">{title}</h2>
         {description && <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{description}</p>}

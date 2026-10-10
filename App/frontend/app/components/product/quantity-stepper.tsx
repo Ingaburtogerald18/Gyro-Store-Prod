@@ -1,8 +1,5 @@
-// Selector de cantidad de la ficha. Antes la ficha agregaba siempre 1 unidad y
-// el cliente tenía que ajustar en el carrito.
-//
-// El campo es un <input type="number"> real y no solo dos botones: escribir "12"
-// es más rápido que tocar doce veces, y en móvil abre el teclado numérico.
+// Selector de cantidad de la ficha. Es un <input type="number"> real: escribir
+// "12" es más rápido que tocar doce veces y en móvil abre el teclado numérico.
 import { HugeIcon } from '~/components/ui/icon';
 import { Add01Icon, MinusSignIcon } from '@hugeicons/core-free-icons';
 
@@ -54,7 +51,7 @@ export function QuantityStepper({
           onChange={(e) => onChange(clamp(Number(e.target.value)))}
           aria-label="Cantidad"
           // Input crudo a propósito: es un control de infraestructura dentro de
-          // un contenedor ya estilizado, no un campo de formulario suelto (§8).
+          // un contenedor ya estilizado, no un campo de formulario suelto.
           // Se le quitan las flechas nativas porque los botones ya cumplen esa
           // función y a 40px de ancho estorban.
           className="h-11 w-12 bg-transparent text-center text-base font-bold text-foreground tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-ring [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"

@@ -60,7 +60,6 @@ export function Contact360Dialog({ contactId, onClose }: { contactId: string | n
 
   const [note, setNote] = useState('');
   // Agendar seguimiento: react-hook-form + las reglas de followUpInputSchema.
-  // Antes el botón quedaba deshabilitado sin decir qué faltaba.
   const {
     register: registerFu,
     handleSubmit: handleSubmitFu,
@@ -154,7 +153,7 @@ export function Contact360Dialog({ contactId, onClose }: { contactId: string | n
                   </Select>
                 </div>
               </div>
-              <div className="rounded-lg border bg-muted/40 p-3">
+              <div className="rounded-2xl border bg-muted/40 p-3">
                 <p className="text-xs text-muted-foreground">LTV (ventas confirmadas)</p>
                 <p className="nums text-2xl font-bold text-primary-2">{formatCordobas(ficha.ltv)}</p>
                 <p className="mt-1 text-xs text-muted-foreground">
@@ -192,7 +191,7 @@ export function Contact360Dialog({ contactId, onClose }: { contactId: string | n
               ) : (
                 <ul className="space-y-2">
                   {pendingFollowUps.map((f) => (
-                    <li key={f.id} className="flex items-center justify-between rounded-lg border p-2.5 text-sm">
+                    <li key={f.id} className="flex items-center justify-between rounded-xl border p-2.5 text-sm">
                       <span>
                         <span className="font-medium">{fmtDate(f.scheduledDate)}</span> — {f.reason}
                       </span>
@@ -211,7 +210,7 @@ export function Contact360Dialog({ contactId, onClose }: { contactId: string | n
               <form
                 onSubmit={handleAddFollowUp}
                 noValidate
-                className="flex flex-col gap-3 rounded-card border border-border bg-muted/30 p-3 sm:flex-row sm:items-start"
+                className="flex flex-col gap-3 rounded-2xl border border-border bg-muted/30 p-3 sm:flex-row sm:items-start"
               >
                 <Field className="flex-1" data-invalid={!!fuErrors.scheduledDate}>
                   <FieldLabel htmlFor="contact360-fu-date" required>Fecha</FieldLabel>
@@ -249,7 +248,7 @@ export function Contact360Dialog({ contactId, onClose }: { contactId: string | n
               ) : (
                 <ul className="space-y-2">
                   {ficha.activities.map((a) => (
-                    <li key={a.id} className="rounded-lg border p-2.5 text-sm">
+                    <li key={a.id} className="rounded-xl border p-2.5 text-sm">
                       <p className="whitespace-pre-wrap">{a.note}</p>
                       <p className="mt-1 text-xs text-muted-foreground">
                         {fmtDate(a.createdAt)}

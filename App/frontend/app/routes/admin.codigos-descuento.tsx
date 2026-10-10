@@ -115,7 +115,7 @@ export default function AdminDiscountCodes() {
   });
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-5">
       <PageHeader
         eyebrow="Tienda"
         title="Códigos de descuento"
@@ -124,7 +124,7 @@ export default function AdminDiscountCodes() {
         actions={
         <Dialog open={modalOpen} onOpenChange={setModalOpen}>
           <DialogTrigger asChild>
-            <Button className="h-9 gap-2 rounded-md">
+            <Button className="h-9 gap-2 rounded-xl">
               <HugeIcon icon={Add01Icon} size={16} strokeWidth={2} aria-hidden />
               Generar código
               <Kbd>N</Kbd>
@@ -219,11 +219,11 @@ export default function AdminDiscountCodes() {
           <Metric label="Total descontado" value={formatCordobas(totalDescontado)} />
         </MetricStrip>
 
-        <div>
+        <div className="overflow-clip rounded-2xl border border-border bg-card">
           {isLoading ? (
             <div className="space-y-2 p-4">
               {Array.from({ length: 4 }).map((_, i) => (
-                <Skeleton key={i} className="h-14 w-full rounded-md" />
+                <Skeleton key={i} className="h-14 w-full rounded-xl" />
               ))}
             </div>
           ) : filteredData.length === 0 ? (
@@ -254,14 +254,14 @@ export default function AdminDiscountCodes() {
                           onClick={() => copyCode(d.code)}
                           title="Copiar código"
                           className={cn(
-                            "flex items-center gap-1.5 rounded-md bg-muted/60 px-2 py-1 font-spec text-sm font-semibold tracking-wide transition-colors hover:bg-muted",
+                            "flex items-center gap-1.5 rounded-xl bg-muted/60 px-2 py-1 font-spec text-sm font-semibold tracking-wide transition-colors hover:bg-muted",
                             effectivelyOff ? "text-muted-foreground line-through" : "text-foreground"
                           )}
                         >
                           {d.code}
                           <HugeIcon icon={Copy01Icon} size={12} className="text-muted-foreground" aria-hidden />
                         </button>
-                        <span className="rounded-md border border-border px-2 py-0.5 text-xs text-muted-foreground">
+                        <span className="rounded-xl border border-border px-2 py-0.5 text-xs text-muted-foreground">
                           {d.type === 'percent' ? `−${d.value} %` : `−C$${d.value}`}
                         </span>
                       </div>
@@ -327,7 +327,7 @@ export default function AdminDiscountCodes() {
                           title={d.active ? 'Desactivar' : 'Reactivar'}
                           aria-label={d.active ? `Desactivar ${d.code}` : `Reactivar ${d.code}`}
                           className={cn(
-                            "grid h-8 w-8 shrink-0 place-items-center rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                            "grid h-8 w-8 shrink-0 place-items-center rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                             d.active ? "text-muted-foreground hover:bg-destructive/10 hover:text-destructive" : "text-success hover:bg-success/10"
                           )}
                         >

@@ -56,8 +56,7 @@ export function EditArrivalModal({
           simulateCost({ id: purchase.id, shippingUnit: val })
             .unwrap()
             .then(res => {
-              // Solo se MUESTRA. Antes se copiaba solo al campo de precio al
-              // abrir el modal y pisaba el precio puesto a mano al guardar.
+              // Solo se muestra: copiarlo al campo pisaría el precio puesto a mano.
               setSimulatedPrice(res.precioSugerido);
             })
             .catch(err => {
@@ -122,7 +121,7 @@ export function EditArrivalModal({
         </Field>
 
         {simulatedPrice !== null && (
-          <div className="p-3 bg-primary/10 border border-primary/20 rounded-md">
+          <div className="p-3 bg-primary/10 border border-primary/20 rounded-2xl">
             <p className="text-sm text-foreground">
               <span className="font-semibold">Precio sugerido calculado:</span>{' '}
               <span className="nums">{formatCordobas(simulatedPrice, 'C$', 2)}</span>

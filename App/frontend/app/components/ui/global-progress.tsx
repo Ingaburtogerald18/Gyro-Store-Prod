@@ -1,18 +1,5 @@
-// Barra de progreso global: 2 px pegada al borde superior del área de contenido.
-//
-// ── Qué reemplaza ──
-// Antes de la Fase 1, cambiar de módulo montaba un overlay que tapaba la
-// pantalla con un mínimo de 450 ms. Esto es lo contrario: no tapa nada, no
-// desplaza el layout y en las cargas rápidas NO SE VE.
-//
-// ── Las tres reglas que la hacen honesta ──
-// 1. Umbral de 150 ms. Un indicador que parpadea 80 ms se lee como un glitch,
-//    no como carga. Si la respuesta llega antes, el usuario nunca ve nada — que
-//    es exactamente la sensación de "instantáneo" que se busca.
-// 2. Avance asintótico al 90 %. Nunca llega sola al 100 %: fingir el final y
-//    después quedarse esperando es peor que no mostrar nada.
-// 3. Al terminar, salta al 100 % y se desvanece. El cierre confirma que la
-//    operación acabó.
+// Barra de progreso global de 2 px arriba del contenido. Aparece recién a los
+// 150 ms, avanza hasta el 90 % y al terminar salta al 100 % y se desvanece.
 import { useNavigation } from '@remix-run/react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useEffect, useRef, useState } from 'react';

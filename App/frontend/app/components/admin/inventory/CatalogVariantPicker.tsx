@@ -1,14 +1,8 @@
-// Elegir a qué producto y variante del catálogo pertenece una compra.
-//
-// ── Por qué ──
-// Antes el lote solo tenía un nombre escrito a mano, y la tienda lo veía recién
-// cuando alguien vinculaba su código en el editor de Catálogo: cada recompra
-// quedaba invisible hasta ese paso. Con el producto y la variante elegidos acá,
-// el lote nace vinculado (decisión 2026-10-07: una compra = una variante).
+// Elegir a qué producto y variante del catálogo pertenece una compra, para que
+// el lote nazca vinculado (una compra = una variante).
 //
 // La llave de la variante es la misma que usa Catálogo ("Negro / Con
-// micrófono"), armada con las opciones que ESTE producto ofrece. Un producto sin
-// ejes tiene una sola variante, de llave ''.
+// micrófono"); un producto sin ejes tiene una sola variante, de llave ''.
 import { useMemo } from "react";
 
 import type { AdminProduct } from "@shared/schemas";

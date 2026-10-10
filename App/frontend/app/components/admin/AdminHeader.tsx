@@ -70,8 +70,8 @@ export function AdminHeader({ isAdmin, role, userId, name, email, photo, onSignO
 
   return (
     <>
-      <a href="#admin-content" className="sr-only z-50 rounded-lg bg-primary p-3 text-primary-foreground focus:not-sr-only focus:absolute">Saltar al contenido</a>
-      <header className="admin-topbar sticky top-0 z-30 flex min-h-16 shrink-0 items-center gap-3 border-b border-border bg-card/95 px-4 backdrop-blur-md lg:gap-6 lg:px-8">
+      <a href="#admin-content" className="sr-only z-50 rounded-xl bg-primary p-3 text-primary-foreground focus:not-sr-only focus:absolute">Saltar al contenido</a>
+      <header className="admin-topbar sticky top-0 z-30 flex min-h-16 shrink-0 items-center gap-3 border-b border-border bg-card px-4 lg:gap-6 lg:px-8">
         <div className="flex min-w-0 flex-1 items-center gap-3">
           <SidebarTrigger className="size-11 shrink-0 rounded-xl border border-border bg-card text-primary-2" aria-label="Abrir o cerrar navegación" title="Navegación (Ctrl+B)" />
           <nav aria-label="Ubicación actual" className="min-w-0 text-sm">
@@ -82,7 +82,7 @@ export function AdminHeader({ isAdmin, role, userId, name, email, photo, onSignO
         <Button variant="outline" onClick={() => setSearchOpen(true)} aria-label="Buscar módulos (Ctrl+K)" className="shrink-0 gap-2 text-muted-foreground lg:w-64 lg:justify-start">
           <HugeIcon icon={Search01Icon} size={16} />
           <span className="hidden lg:inline">Buscar módulos…</span>
-          <kbd className="ml-auto hidden rounded border px-1.5 text-2xs lg:inline">Ctrl K</kbd>
+          <kbd className="ml-auto hidden rounded-sm border px-1.5 text-2xs lg:inline">Ctrl K</kbd>
         </Button>
         <div className="flex shrink-0 items-center gap-2 sm:gap-3">
           <Button asChild variant="ghost" className="hidden sm:inline-flex">
@@ -170,7 +170,7 @@ export function AdminHeader({ isAdmin, role, userId, name, email, photo, onSignO
             ['Ctrl / ⌘ + K', 'Buscar un módulo'], ['Ctrl / ⌘ + B', 'Abrir o cerrar la navegación'],
             ['/', 'Buscar en la tabla visible, fuera de campos de texto'], ['Esc', 'Cerrar un diálogo o limpiar la búsqueda de la tabla'],
             ['Tab · Enter · Espacio', 'Recorrer y activar controles'],
-          ].map(([key, description]) => <div key={key} className="flex items-start justify-between gap-6"><dt className="shrink-0 rounded border bg-muted px-2 py-1 text-xs">{key}</dt><dd className="text-right text-muted-foreground">{description}</dd></div>)}</dl>
+          ].map(([key, description]) => <div key={key} className="flex items-start justify-between gap-6"><dt className="shrink-0 rounded-sm border bg-muted px-2 py-1 text-xs">{key}</dt><dd className="text-right text-muted-foreground">{description}</dd></div>)}</dl>
           <p className="border-t pt-4 text-sm text-muted-foreground">En las tablas podés elegir columnas, cambiar la densidad y guardar una vista. La campana muestra avisos de ventas; cada módulo conserva sus propios filtros.</p>
         </DialogContent>
       </Dialog>

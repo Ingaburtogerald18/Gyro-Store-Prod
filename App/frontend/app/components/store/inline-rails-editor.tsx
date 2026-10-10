@@ -57,7 +57,7 @@ function SortableRailItem({
       ref={setNodeRef}
       style={style}
       className={cn(
-        "group flex w-full max-w-2xl items-center gap-3 rounded-xl border bg-card p-3 shadow-sm transition-all",
+        "group flex w-full max-w-2xl items-center gap-3 rounded-xl border bg-card p-3 transition-all",
         isDragging && "opacity-50 ring-2 ring-primary shadow-lg"
       )}
     >

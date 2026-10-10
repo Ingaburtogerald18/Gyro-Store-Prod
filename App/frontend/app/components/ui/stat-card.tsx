@@ -34,14 +34,8 @@ export function SpotlightCard({
     ref.current.style.setProperty("--spot-y", `${e.clientY - r.top}px`);
   }
 
-  // Tres arreglos sobre lo que había:
-  //  · `hover:border/80` NO es una clase válida — Tailwind no generaba nada, así
-  //    que el hover de borde nunca existió. Ahora es `hover:border-border/80`.
-  //  · Sin `hover:-translate-y-1`: mover el elemento al pasar el mouse desplaza
-  //    el layout y pelea con el `whileHover` que StatCard ya aplica afuera.
-  //  · Sin `shadow-2xl`: la elevación va por borde y fondo (ver Fase 7.1).
   const baseStyles =
-    "rounded-card border bg-card shadow-sm transition-colors duration-200 hover:border-border/80";
+    "rounded-2xl border bg-card transition-colors duration-200 hover:border-border/80";
 
   // Sin `hover:-translate-y-1`: mover el elemento al pasar el mouse desplaza el
   // layout y, en una grilla, hace que las tarjetas vecinas parezcan temblar.
@@ -119,11 +113,6 @@ export function StatCard({
   const theme = COLOR_MAP[chosenColor];
   const interactive = Boolean(onClick || href);
 
-  // Sin `SpotlightCard` adentro (Fase 1.6). La StatCard montaba DOS capas de
-  // efecto sobre el mismo elemento: el `whileHover` del motion.div de abajo y,
-  // dentro, un spotlight con su propio `hover:-translate-y-1`. El resplandor se
-  // reserva para las dos tarjetas grandes de análisis, donde hay superficie
-  // suficiente para que se lea como intención y no como ruido.
   const inner = (
     <div className="p-4">
       <div className="flex items-center gap-2">
@@ -149,11 +138,11 @@ export function StatCard({
       data-tone={chosenColor}
       title={hint}
       className={cn(
-        "stat-card-container rounded-card border transition-colors duration-300",
+        "stat-card-container rounded-2xl border transition-colors duration-300",
         theme.card,
         // El realce solo aparece si la tarjeta HACE algo. Una tarjeta que se
         // ilumina y no responde al click es peor que una que no se ilumina.
-        interactive && "cursor-pointer hover:border-primary/40 hover:shadow-sm",
+        interactive && "cursor-pointer hover:border-primary/40",
       )}
     >
       {inner}
@@ -166,7 +155,7 @@ export function StatCard({
   // la animación de entrada y el spotlight.
   if (href) {
     return (
-      <NavLink to={href} className="block rounded-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+      <NavLink to={href} className="block rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
         {shell}
       </NavLink>
     );
@@ -178,7 +167,7 @@ export function StatCard({
         type="button"
         onClick={onClick}
         aria-label={`Ver detalle de ${label}`}
-        className="block w-full text-left rounded-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+        className="block w-full text-left rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
       >
         {shell}
       </button>

@@ -1,642 +1,252 @@
-# DESIGN.md — Gyro Store · Sistema de diseño **shadcn / style Rhea**
+# Gyro Store · Reglas de diseño
 
-> El proyecto adopta el preset oficial de shadcn `b2DeDk3s1` en storefront y back-office:
-> **style Rhea (base `radix`) · base color Mist · theme Emerald · charts Green · Chivo (catálogo y panel)**.
-> La configuración vive en `components.json` (`"style": "radix-rhea"`, `"baseColor": "mist"`,
-> `"iconLibrary": "hugeicons"`).
-> Este documento describe el sistema **vivo en el código**; si el código y este archivo
-> divergen, se actualiza este archivo en el mismo PR.
+Este es el único documento de diseño del proyecto. Vale para la tienda y para el panel.
 
----
+- Si el código no cumple una regla, se arregla el código.
+- Si una regla parece estar mal, se pregunta al dueño antes de cambiarla.
+- Cuando el dueño decide algo nuevo, se cambia este archivo en el mismo commit y se anota en el registro del final.
 
-## Actualización visual del Admin Center — octubre de 2026
+## 1. Color
 
-El panel comparte la identidad del catálogo: Chivo, fondo crema y tarjetas
-blancas en claro; fondo negro neutro y tarjetas gris carbón en oscuro. La
-paleta y los controles usan reglas compartidas en `tailwind.css`, que también
-alcanzan los diálogos y menús que se montan en portales.
+Los colores viven en `app/tailwind.css`, en el bloque de la paleta de marca. En los componentes se usa siempre el nombre del color, nunca el valor.
 
-- Amarillo `#ffc20e`: botones de acción principal, con texto tinta y relieve
-  de 3px, compartido con el catálogo. No se usa para textos informativos sobre fondo claro.
-- Esmeralda: selección, enlaces, foco y navegación. El token `--primary` del
-  panel conserva este rol para no cambiar el significado de los estados y
-  gráficos existentes; los botones principales usan `--action` y las mismas reglas que el catálogo.
-- Rojo: errores, acciones destructivas y la variante `cancel` para Cerrar y Cancelar, por pedido del usuario.
-- Controles de 44px en móvil; controles normales de al menos 36px en escritorio.
-- Menú lateral visible en escritorio y controlado por botón; sin expansión
-  automática por hover. En móvil tiene botón de abrir, cerrar y cierre al navegar.
-- La vista previa `.store-preview` usa estas mismas reglas de fuente, paleta y controles.
+| Color | Nombre | Claro | Oscuro | Uso |
+| --- | --- | --- | --- | --- |
+| Tinta | `--ink`, `--foreground` | `#102423` | `#f4f4f2` | Texto. Contorno y sombra del botón principal |
+| Crema | `--background` | `#fffcf3` | `#0e0f10` | Fondo de página |
+| Blanco | `--card`, `--popover` | `#ffffff` | `#18191b` | Tarjetas, menús, ventanas |
+| Suave | `--muted`, `--secondary`, `--accent` | `#eef4f1` | `#222326` | Fondos de apoyo |
+| Texto secundario | `--muted-foreground` | `#4b605d` | `#a8aaad` | Etiquetas, ayudas, fechas |
+| Amarillo | `--action` | `#ffc20e` | `#ffc20e` | Acción principal. Texto tinta (`#111111` en oscuro) |
+| Esmeralda | `--primary-2` | `#0e7c68` | `#3dc5a9` | Selección, navegación, links, foco, éxito |
+| Teal del logo | `--logo` | `#3dc5a9` | `#3dc5a9` | Logo y línea del header |
+| Header | `--header-background` | `#fffcf3` | `#141517` | Fondo del header |
+| Coral | `--promo` | `#f07a6a` | `#f07a6a` | Ofertas |
+| Bordó | `--sticker-shadow` (oscuro), `--header-cart-shadow` | `#a8402f` | `#a8402f` | Sombra dura en oscuro y del carrito |
+| Borde | `--border` | tinta 16 % | blanco 10 % | Tarjetas y separadores |
+| Borde de campo | `--input` | tinta 48 % | blanco 34 % | Campos, selects, botones con borde |
+| Error | `--destructive` | `#e7000b` | `#f04438` | Errores, eliminar, cancelar |
+| Advertencia | `--warning` | `#915c08` | `#d99a2b` | Datos por completar, bajo margen |
+| Información | `--info` | `#036eae` | `#3ba6f5` | Avisos neutros, en tránsito |
+| Éxito | `--success` | = esmeralda | = esmeralda | Recibido, entregado, pagado |
+| WhatsApp | `--whatsapp` | `#027d34` | `#2ed264` | Solo los botones de WhatsApp |
 
-No se modifican fórmulas, permisos, validaciones ni el flujo de negocio de los
-módulos. La densidad y composición de cada módulo se revisarán por separado.
+Siempre:
+- Amarillo solo para la acción principal: una por pantalla, por ventana o por tarjeta.
+- Esmeralda para lo elegido y para dónde estás.
+- Coral solo cuando hay oferta, y solo como fondo con texto tinta. Como texto no se lee (2.7:1).
+- Rojo solo para errores, eliminar y cancelar.
+- Los números van en color de texto. El color se reserva para estados.
+- Gráficos con colores de la marca, en este orden: esmeralda, amarillo, coral, teal, tinta, gris.
 
-## 0. En una frase
+Nunca:
+- Valores sueltos en componentes (`#ffc20e`, `bg-yellow-400`, `rgb(...)`).
+- Un color que no esté en esta tabla.
+- Comunicar un estado solo con color: siempre con texto o ícono.
 
-Rhea es la variante **compacta** de shadcn: controles y superficies más densos que Maia o Luma.
-Los componentes declaran estructura y semántica; la densidad y los estados salen del preset.
+## 2. Tipografía
 
----
-
-## 1. De dónde sale cada cosa
-
-| Capa | Archivo | Qué define |
-|---|---|---|
-| Primitivas | `app/components/ui/*.tsx` | Estructura, accesibilidad, `data-slot` **y la apariencia** (vía `cva`) |
-| Tokens (color) | `app/tailwind.css` → `:root` / `[data-theme="dark"]` | La paleta, en tokens semánticos |
-| Puente shadcn | `app/tailwind.css` → `@theme inline` | Mapea `--background`/`--primary`/… a `--color-*`, y define radios, fuentes y `--text-2xs` |
-
-**Regla base:** los componentes de `ui/` vienen del registry de shadcn (base `radix`) y se
-modifican **lo mínimo**. No se les reescribe la apariencia desde el call site.
-
-### No hay skin `.cn-*`
-
-Versiones anteriores de este documento describían un `app/style-rhea.css` con las clases
-`.cn-*` del preset, importado desde `tailwind.css`. **Ese archivo no existe en el repo** (no
-aparece en el historial de git) y `tailwind.css` no lo importa. El look sale entero de los
-tokens de `tailwind.css` + las utilidades inline de cada primitiva, ya a densidad Rhea
-(botones `h-8`, etc.). Si algún día se regeneran primitivas con `npx shadcn` y el CLI agrega
-ese archivo, revisar que no pise nada antes de importarlo.
-
-Cuando este documento dice "lo resuelve Rhea", entiéndase *el preset tal como está aplicado en
-las primitivas*.
-
-### La excepción: `forwardRef` en los controles de formulario
-
-`Input`, `Textarea` y `NativeSelect` están envueltos en `React.forwardRef`. **No es un
-capricho ni una prop custom: es compatibilidad con React 18.** El registry de shadcn ya asume
-React 19, donde `ref` viaja como una prop normal; este proyecto está en `react@18.3.1`, cuyo
-jsx runtime intercepta `ref` del spread antes de que llegue al componente
-(`react-jsx-runtime.development.js` → `hasValidRef`). En un componente de función sin
-`forwardRef` eso significa que `<Input {...register("x")} />` registra el `onChange` pero
-**nunca el nodo del DOM**: `reset()` y `setValue()` de react-hook-form dejan de escribir en el
-campo — típicamente un modal de edición que abre con los campos en blanco.
-
-Cada `shadcn add --overwrite` sobre estos tres archivos se lleva el `forwardRef`. Hay que
-volver a ponerlo, o migrar el proyecto a React 19.
-
-### La otra excepción: el estado activo de `Tabs`
-
-`tabs.tsx` pinta la pestaña activa como un **pill lleno con `--primary`**, no con el
-`bg-background` / `dark:bg-input/30` del registry. El default no se veía:
-
-| | activo vs. su contenedor |
-|---|---|
-| Registry, oscuro (`bg-input/30` sobre `bg-muted`) | **1.62:1** |
-| Registry, claro (`bg-background` sobre `bg-muted`) | **1.11:1** |
-| Pill lleno, claro | **4.82:1** |
-
-En oscuro el borde del pill queda en 1.96:1, pero ahí el peso lo carga el texto:
-`--primary-foreground` sobre `--primary` da **7.2:1**. El estado nunca se apoya solo en
-color — también cambia el `font-weight` (§8).
-
-Esto además unifica los dos sistemas de tabs del panel: `AnimatedTabs` (el propio, con
-indicador deslizante) ya usaba un pill `bg-primary`, así que ahora los dos hablan igual.
-
-El mismo criterio aplica a las opciones de variante de la ficha (`variant-picker.tsx`): la
-elegida usa el `Button` **lleno** (`variant="default"`), no un outline tintado. Ojo: el
-variant `outline` trae `dark:bg-transparent`, que le gana a cualquier `bg-*` que se le sume
-desde el call site — por eso se cambia el variant, no se pisa el fondo.
-
----
-
-## 2. Color — base **Mist** + theme **Emerald**
-
-Tokens `oklch` del preset. Light en `:root`, dark en `[data-theme="dark"]` — la variante `dark:`
-sigue a `data-theme`, no al `prefers-color-scheme` del sistema (lo controla `useTheme`).
-
-| Token | Uso |
-|---|---|
-| `--background` / `--foreground` | Fondo y texto de la app |
-| `--card` / `--popover` | Tarjetas, popovers, sidebar |
-| `--muted` / `--muted-foreground` | Superficie secundaria y texto secundario |
-| `--primary` | CTA y acento de marca (Emerald) |
-| `--border` / `--input` / `--ring` | Hairlines, campos y anillos de foco |
-| `--destructive` | Error y acciones destructivas |
-| `--destructive-foreground` | Texto sobre rojo lleno: blanco en claro, tinta en oscuro |
-
-Cerrar y Cancelar usan la variante compartida **`cancel`**, con texto y borde rojos.
-Eliminar conserva su variante destructiva y su confirmación.
-La variante `destructive` conserva su fondo tenue. La subida del editor muestra
-porcentaje real solo durante el envío; mientras el servidor procesa y almacena,
-`Progress value={null}` muestra una animación indeterminada, sin porcentaje, y
-«Archivo listo» recién con la URL confirmada. La carga se puede cancelar siempre.
-Las animaciones de carga respetan `prefers-reduced-motion`.
-
-En Tailwind se usan como `bg-background`, `text-muted-foreground`, `border-border`, etc. — nunca
-la variable cruda.
-
-### Series de gráficos
-
-`--chart-1..5` es la escala **Green** del preset. La consume la primitiva `chart` (sobre Recharts).
-
-### Extras que shadcn no trae
-
-Viven en `tailwind.css` junto a los del preset, con valor por tema:
-
-- `--whatsapp` / `--whatsapp-foreground` / `--whatsapp-hover` — verde del canal. No es
-  decorativo: identifica el contacto y el checkout. Se usa vía las variantes `whatsapp` /
-  `whatsappOutline` de `Button`, nunca como hex suelto. **El texto sobre el verde cambia por
-  tema**: blanco en claro (5.25:1) y casi negro en oscuro (9.4:1). Antes era blanco sobre
-  `#25d366` en oscuro — ≈2:1, el botón más usado de la tienda por debajo del piso de §9.
-- `--promo` — violeta de la etiqueta de promoción. Variante `promo` de `Badge`.
-- `--success` / `--warning` / `--info` — estados semánticos. **Tienen valor distinto por
-  tema y no es simetría decorativa**: los tres se usan también como color de *texto*, así que
-  en claro van oscuros (L≈0.52) para pasar 4.5:1 contra `--background`, y en oscuro van claros
-  (L≈0.72–0.8). Medidos contra el fondo de cada tema: warning 5.65 / 10.4, success 5.19 / 9.6,
-  info 5.46 / 8.9. Antes los tres compartían el tono pensado para oscuro y sobre blanco daban
-  2.54, 3.28 y 3.91 — por debajo del piso de §9. **Si se retoca alguno, se recalcula el
-  contraste; no se elige a ojo.**
-- `--tone-indigo|sky|amber|emerald|rose|purple|red` — los 7 acentos de `StatCard`.
-  **No se mapean a `--chart-*`**: en este preset los charts son toda la escala Green y las
-  tarjetas quedarían todas del mismo color.
-- `--radius-card` (12px) y `--radius-pill` → clases `rounded-card` y `rounded-pill`.
-
-### Reglas de color
-
-1. **Cero colores crudos de Tailwind** en componentes (`bg-slate-900`, `text-emerald-500`…) y
-   **cero hex arbitrarios** (`bg-[#25D366]`). Todo sale de tokens semánticos.
-2. Nada de segundo acento decorativo. La jerarquía se hace con peso, tamaño y espacio.
-3. `border` es utilidad de *grosor*, no de color: `border/50` no genera nada. El color con
-   alfa se escribe entero — `border-border/50`, `border-warning/30`.
-4. **Semántica de color en tarjetas de KPI (`StatCard`)**: El color (`tone-*`) debe indicar el tipo de dato, de forma consistente en todo el módulo. La convención es:
-   - `indigo`: Conteos de unidades, cantidades y stock.
-   - `sky`: Costos, egresos e impuestos (salidas de dinero esperadas).
-   - `emerald`: Ingresos, valores totales con envío y ganancias.
-   - `rose`: Alertas, métricas críticas o negativos (ej. artículos agotados).
-   Nunca usar dos colores para el mismo tipo de dato. Evitar usar todos los colores disponibles (ej. `amber`, `purple`, `red`) si no aportan un significado distinto; un esquema de 4 colores consolida y ordena la vista.
-
----
-
-## 3. Tipografía
-
-La tipografía depende del **área** de la app, que `root.tsx` fija en `<html data-area>` según
-la ruta:
-
-| Área | Rutas | `--font-sans` (cuerpo) | `--font-heading` (titulares) |
-|---|---|---|---|
-| `store` | tienda pública: `/`, `/producto`, `/combo`, `/contacto`… | **Chivo** | **Chivo** |
-| `admin` | `/admin*`, `/login`, `/auth*` | **Chivo** | **Chivo** |
-
-En el **panel**, los montos grandes (métricas y totales) mantienen la clase
-`font-display`; tanto los datos como el cuerpo y los títulos usan Chivo.
-
-Además, **Chivo Mono** (`--font-spec` y `--font-mono`, clases `font-spec` y `font-mono`) queda reservada a **códigos**
-(número de pedido, contador de la galería). Las specs de la tarjeta y de la ficha, la
-disponibilidad y los badges van en Chivo normal, con su etiqueta ("Impedancia: 24 Ω").
-La tienda **nunca muestra cantidades de inventario**: solo «Disponible», «Agotado» o
-«Consultar disponibilidad».
-
-Las dos familias se sirven localmente con `@fontsource-variable` (sin Google Fonts). El woff2 latino de
-Chivo se precarga en `links()` de `root.tsx` para que el titular del hero no salte de fuente.
-Los subsets no latinos no se descargan: cada `@font-face` declara su `unicode-range`.
-
-**Por qué el área va en `<html>` y no en el layout de cada ruta.** Los `Dialog`/`Sheet` de
-shadcn se renderizan en un portal colgado de `<body>`, fuera del árbol del layout. Con la
-variable en `<html>`, el título del carrito y el de un diálogo del panel salen
-en Chivo, sin tocar las primitivas.
-
-**Fuente única.** `--area-font-sans` y `--area-font-heading` se definen una vez en
-`:root` como Chivo. Los títulos, el cuerpo, los importes y los controles heredan
-esa familia en ambas áreas, incluidos los portales. Los códigos usan Chivo Mono.
-
-**Controles compartidos.** `Button` define los tamaños de ambas áreas: normal
-40px, pequeño 36px, grande 44px. Los objetivos táctiles son de al menos 44px.
-Las reglas comunes de `tailwind.css` definen radio de 12px, borde de 2px y sombra
-de 3px en acciones principales. El panel no redefine su color ni relieve.
-
-**Jerarquía en el storefront** (siempre con la escala de Tailwind, nunca `text-[Npx]`):
+Chivo para todo. Chivo Mono (`font-mono`) solo para códigos: SKU, número de orden, número de pedido.
 
 | Rol | Clases |
-|---|---|
-| Titular del hero | `font-heading text-4xl md:text-6xl font-extrabold tracking-tight leading-[1.02]` |
-| Títulos de sección / carrusel / "Resultados" | `font-heading text-2xl md:text-3xl font-bold tracking-tight` |
-| Nombre en la ficha y en el combo | `font-heading text-3xl sm:text-4xl font-extrabold tracking-tight` |
-| Precio en la ficha | `font-heading text-3xl font-extrabold tracking-tight tabular-nums` |
-| Precio en la tarjeta | `font-heading text-lg sm:text-xl font-extrabold tracking-tight tabular-nums` |
-| Nombre en la tarjeta | `text-sm sm:text-lg font-semibold` |
-| Párrafos y descripciones | `font-normal` — nunca `font-light` ni `font-thin` |
-| Datos técnicos | `font-spec` (Chivo Mono) |
-
-Los pesos 700–800 son parte de la identidad elegida, pero **solo** en titulares y precios.
-Nada de degradados en el texto ni de una tercera familia. `font-spec` nunca en párrafos ni
-en botones.
-
-**Escala de tamaños: solo la de Tailwind + `text-2xs`.** `--text-2xs` (11px, line-height
-1rem) es el paso para badges, eyebrows y metadatos densos, y el **piso** del sistema. No se
-escriben tamaños sueltos (`text-[10px]`, `text-[11px]`…): eran ~120 y cada uno elegía un
-número distinto. Excepciones deliberadas: el titular del hero y el ticket impreso
-(`Ticket.tsx`), que tienen su propia escala. Cifras (precios, stock, contadores) siempre
-`tabular-nums` / `.nums`. En `DataTable`, las celdas con `meta.align === "right"` aplican
-automáticamente `tabular-nums` para alinear columnas numéricas. Si se requiere más carácter
-en las tablas, se puede sumar `font-heading` a esa misma regla.
-
-### Formato de cifras — una sola puerta
-
-Todo monto sale de `app/lib/formatters.ts`. **Nunca se formatea a mano en el componente**
-(`toFixed(2)`, `` `C$ ${x}` ``, `toLocaleString` suelto): eso fue lo que produjo tres estilos de
-dinero distintos conviviendo en el panel.
-
-| Función | Para qué |
-|---|---|
-| `formatNumber(n, decimals)` | Cifra pelada con separador de miles. Base de las demás. |
-| `formatCordobas(n, symbol?, decimals?)` | Córdobas. `decimals` es 0 por defecto (storefront, totales) y 2 donde el módulo maneja centavos (facturación, costos de inventario). |
-| `formatUsd(n, max?, min?)` | Dólares (compras a China). |
-| `formatByCurrency(n, code, decimals?)` | Cuando la moneda es dato (`"NIO"` / `"USD"`). Devuelve símbolo, no el código pegado al número. |
-| `cordobasFromUsd(n)` | Conversión + formato para los `sub` de las StatCard. |
-| `roundTo(n, decimals?)` | Redondeo de **cálculo**, no de presentación. |
-
-Si un caso no encaja, se extiende ese archivo — no se formatea en el call site.
-
----
-
-## 4. Geometría y espaciado
-
-La define Rhea, no nosotros. Los radios y densidades salen del preset; lo propio se limita a
-`rounded-card` para las tarjetas del admin.
-
----
-
-## 5. Motion
-
-- **Enter/exit de primitivas:** lo resuelve Rhea con `data-open` / `data-closed`
-  (`animate-in`, `fade-in-0`, `zoom-in-95`, `slide-in-from-*`), vía `tw-animate-css`.
-- **Movimiento propio** (layout, listas, KPIs): `framer-motion`, con `layoutId` para indicadores
-  que se deslizan y `stagger` corto en listas.
-- **`prefers-reduced-motion` es obligatorio** en toda animación propia (`useReducedMotion()` o
-  `motion-reduce:*`). Sin excepción.
-
----
-
-## 6. Iconografía
-
-**HugeIcons**, vía `@hugeicons/react` + `@hugeicons/core-free-icons`. Lucide y Phosphor están
-desinstalados; no se vuelven a agregar.
-
-El patrón es distinto al de Lucide: HugeIcons expone **datos** (`IconSvgElement`), no componentes,
-y **no dimensiona por `className`** — el tamaño va en la prop `size`, en px. Se renderiza con el
-wrapper `HugeIcon` (`~/components/ui/icon`), que dibuja el `<svg>` estático y agrega `aria-hidden`
-por defecto salvo que el call-site declare `role`/`aria-label`:
-
-```tsx
-import { HugeIcon } from '~/components/ui/icon';
-import { ShoppingCart02Icon } from '@hugeicons/core-free-icons';
-
-<HugeIcon icon={ShoppingCart02Icon} size={16} strokeWidth={2} />
-```
-
-`className` **sí** sigue sirviendo para color y demás utilidades (`className="text-destructive"`).
-
-Cuando un icono viaja como valor (una tabla de navegación, una prop `icon`), el tipo es
-`IconSvgElement` y se renderiza con `<HugeIcon icon={x} />` — no `<x />`. Así lo hacen
-`stat-card.tsx` y el `NAV_GROUPS` de `admin.tsx`.
-
-El spinner de carga está centralizado en `ui/spinner.tsx`; para un botón ocupado va
-`disabled={isLoading}` + `{isLoading && <Spinner className="mr-2" />}`, no una prop `loading`.
-
-**Sin emojis** en UI de marca.
-
----
-
-## 6b. Formularios
-
-### Un solo estado: react-hook-form + zodResolver
-
-**Ningún formulario del panel maneja su estado con `useState`.** Todos son
-`useForm` + `zodResolver`, y el schema sale de `App/shared/schemas.ts` — el mismo
-contrato que valida el backend. No se escriben reglas nuevas que lo dupliquen.
-
-Cuando el formulario pide menos de lo que el endpoint recibe, el schema se
-**deriva** (`.omit()` / `.extend()`), no se reescribe. Ej.: el diálogo de compra de
-`admin.inventario` es `newPurchaseInputSchema.omit({ code, suggestedPrice })` —
-`code` lo asigna el servidor.
-
-Los `<input>` devuelven **string** y los schemas del backend esperan **number**.
-El envoltorio es `z.preprocess(emptyToNaN, z.coerce.number())`: un campo vacío
-tiene que fallar, no convertirse en `0` (que `z.coerce.number()` aceptaría en
-silencio). El tipo de ENTRADA del formulario (`z.input<typeof schema>`) no es el
-de salida; RHF necesita los dos.
-
-Si una regla de negocio es del front y no del backend (ej. "el precio de oferta
-debe ser menor al de todas las variantes"), va como `.superRefine()` sobre el
-schema del backend con `path: ['campo']`. Así sale como error **del campo** sin
-inventar un contrato paralelo.
-
-### Un solo campo: la familia `Field`
-
-`components/ui/field.tsx` es LA forma de componer un campo. Nada de
-`<div className="space-y-2"><Label/><Input/></div>`:
-
-```tsx
-<Field data-invalid={!!errors.code}>
-  <FieldLabel htmlFor="code" required>Código</FieldLabel>
-  <Input id="code" aria-required aria-invalid={!!errors.code} {...register('code')} />
-  <FieldDescription>Lo asigna el servidor si lo dejás vacío.</FieldDescription>
-  <FieldError errors={[errors.code]} />
-</Field>
-```
-
-- `required` en `FieldLabel` pinta el asterisco (glifo, no solo color — §8) y
-  expone `data-required`. Lo accesible lo aporta el control con `aria-required`.
-- `data-invalid` en `Field` tiñe el grupo; `aria-invalid` en el control dispara el
-  anillo destructivo de Rhea.
-- Para switches y checkboxes: `<Field orientation="horizontal">` +
-  `FieldContent` + `FieldLabel` + `FieldDescription`.
-- El ritmo vertical lo da `Field`/`FieldGroup`, no `space-y-*` a mano.
-
-### Errores: en el campo. Toast: el resultado.
-
-| Qué | Dónde |
-|---|---|
-| Validación de un campo (formato, requerido, duplicado, regla cruzada) | `FieldError` — **nunca** un toast |
-| Acción bloqueada por una regla | El control se `disabled` con `title`, no se deja intentar y avisar |
-| Resultado de la operación (guardado, fallo de red, 4xx del backend) | `toast` |
-
-`setError('campo', { message })` es la vía para los errores que solo se conocen al
-enviar (ej. código duplicado contra la lista ya cargada).
-
-### Contenedores
-
-| Tarea | Contenedor |
-|---|---|
-| Formulario del panel (corto o largo) y confirmación | `Dialog` |
-| Panel contextual del **storefront** (carrito, quick-add) y sidebar en móvil | `Sheet` |
-
-El panel usa `Dialog` en exclusiva, incluido el editor de producto. **No se migra
-a `Sheet` a pesar de ser el formulario más largo**: es un banco de trabajo de dos
-columnas (contenido + barra lateral de organización) que necesita ancho, no un
-panel lateral; ya resuelve el largo con cuerpo scrolleable y pie fijo.
-
-`ui/drawer.tsx` (vaul) es una primitiva del registry **sin ningún uso**. No se
-introduce: cualquier caso que la tentaría es `Dialog` o `Sheet` según la tabla.
-
----
-
-## 7. Componentes propios del storefront
-
-Las primitivas son de shadcn; estas piezas son **nuestras** y siguen vigentes:
-
-- **`ProductCard`** — panel `bg-card`, foto en `product-stage` con blur-up y hover-swap,
-  CTA siempre visible, dos layouts (`grid` / `list`).
-- **`Hero`** — slider de slides editables desde el admin (`heroSlides` en `app_config`).
-- **Navbar** — crema en claro y carbón en oscuro; categorías con selección esmeralda
-  (fondo tenue y peso, sin subrayado), buscador blanco/gris con foco esmeralda, carrito
-  amarillo con icono tinta y sombra roja, menú (pedidos, ayuda, apariencia) en un
-  único círculo esmeralda sobre `DropdownMenu` (Escape y retorno de foco).
-  Los tokens `--header-*` limitan esta paleta al encabezado del storefront. La
-  altura base se mantiene en 57px para la navegación sticky de la ficha. Las
-  categorías en línea aparecen recién en `lg`; en móvil y tablet van en el panel
-  de categorías, para que no compitan con el buscador.
-- **Selección** — variantes, filtros y categorías elegidas: **esmeralda** en los dos
-  temas (borde 2px `--primary-2` + fondo tenue + peso). El amarillo es solo para
-  comprar y continuar; el foco en oscuro también es esmeralda.
-- **`ProductCarousel`** — scroll-snap + flechas que se deshabilitan en los extremos.
-- **Gyro en el carrito vacío y con productos** — ilustración editable, sin fondo ni
-  marco: 152px con el carrito vacío y 104px junto al banner del carrito con productos.
-  Entrada breve y dos balanceos suaves (nada perpetuo); el salto al tocarla es
-  decorativo y no entra en el orden de tabulación. Se detiene con el carrito cerrado,
-  fuera de vista o con la pestaña oculta; `prefers-reduced-motion` muestra la imagen
-  estática.
-- **Carrito y checkout** — un solo panel por pasos (carrito → datos → pedido
-  registrado), sin dos modales a la vez. Campos y botón final de 48px con letra de
-  16px. Si el servidor detecta cambios (precio, stock, variante), el pedido no se
-  crea y se muestran por línea con su acción.
-  Si el banner tiene un enlace, conserva la navegación al tocarlo y solo usa
-  entrada y balanceo, sin agregar un botón dentro del enlace.
-- **Filtros del catálogo** — controles de 44px con borde visible, selección
-  esmeralda y un check en los filtros binarios activos. El contador usa amarillo;
-  los chips y el menú de orden comparten el acento esmeralda en ambos temas.
-  El selector se adapta al ancho móvil sin desbordar con etiquetas largas.
-  Estos estilos se limitan al storefront mediante las clases `catalog-filter-*`.
-- **`QueryState`** — envuelve el patrón loading/error/vacío de los listados admin. Cada estado
-  puede traer su propio fallback; si no, cae en uno genérico.
-- **PDP** — nombre y precio antes de la galería en móvil; dos columnas en escritorio,
-  con galería sticky de hasta 480px y fotos completas (`object-contain`). Variantes
-  en filas, cantidad y CTA + WhatsApp de al menos 48px. Descripción y specs abiertas
-  debajo del bloque principal: fuente de lectura normal, divisores finos y rótulo
-  junto al valor en escritorio. En móvil, las filas cortas conservan etiqueta y valor
-  juntos, las largas se apilan y se muestran tres especificaciones con opción de ver
-  todas. Los beneficios de compra forman una franja debajo, sin tarjetas individuales;
-  en móvil están dentro de «Envío, pago y garantía», desplegable y cerrado inicialmente.
-  La barra móvil se oculta mientras los botones de
-  compra principales o el footer están a la vista. Cambio de foto con fade breve
-  que respeta `prefers-reduced-motion`.
-
----
-
-## 8. Anti-patrones (rechazar en review)
-
-- ❌ Colores crudos de Tailwind (`text-amber-500`) o hex arbitrarios (`bg-[#25D366]`).
-- ❌ `<input>` / `<select>` crudos en un formulario. Van `Input`, `Textarea`, `Select` o
-  `NativeSelect`. Excepción: inputs de infraestructura sin apariencia propia (file oculto,
-  radio `sr-only`, buscador embebido dentro de un contenedor ya estilizado como `DataTable`).
-- ❌ Copiar en línea las clases de una primitiva (`className="flex h-10 w-full rounded-md
-  border border-input …"`). Se ve parecido pero pierde foco, `disabled` y `aria-invalid`, y
-  queda congelado en el idioma de Tailwind v3 (`ring-offset-background`) que este proyecto ya
-  no usa. **`className="input"` no existe**: es herencia de v1 y renderiza sin estilo alguno.
-- ❌ Formatear dinero a mano en el componente. Todo pasa por `lib/formatters.ts` (§3).
-- ❌ `useState` como estado de un formulario del panel, y `<div><Label/><Input/></div>`
-  en vez de la familia `Field` (§6b).
-- ❌ Sacar un error de validación de campo por `toast` (§6b).
-- ❌ Escribir apariencia en el `.tsx` de una primitiva: va al style.
-- ❌ Importar `lucide-react` o `@phosphor-icons/react`.
-- ❌ Dimensionar un icono de HugeIcons con `h-4 w-4` en vez de `size={16}`.
-- ❌ Props custom en primitivas del registry (`<Button loading>`, `<Input options>`): el próximo
-  `shadcn add --overwrite` se las lleva. Se resuelve en el call site.
-- ❌ Dos `className` en el mismo tag: React se queda con el último y el otro se pierde en silencio.
-- ❌ Emojis en UI de marca.
-- ❌ Glow, gradient-text, glassmorphism decorativo.
-- ❌ Animaciones sin `prefers-reduced-motion`.
-- ❌ Negro puro `#000000`.
-- ❌ Diferenciar elementos **solo** por color.
-- ❌ Copys de relleno ("Descubre el futuro", "Next-Gen").
-
----
-
-## 9. Accesibilidad (piso, no opcional)
-
-- Contraste: cuerpo ≥4.5:1, texto grande ≥3:1.
-- Foco visible en todo interactivo (Rhea lo trae con `ring-3` + `ring-ring/30`).
-- `prefers-reduced-motion` respetado.
-- Touch targets ≥44px.
-- `alt` significativo en fotos; decorativas `aria-hidden`.
-- Nunca `focus-visible:outline-none` sin un reemplazo (`focus-visible:ring-2 ring-ring`).
-- Botón de solo ícono ⇒ `aria-label` (o texto `sr-only`), en español.
-- Nada de `<div onClick>`: si es clickeable es un `<button>` (o `role` + `tabIndex` + teclado).
-  Cada `<label>` apunta a su control con `htmlFor` / `id`.
-- Una tarjeta = un solo enlace enfocable (no dos `<Link>` al mismo destino).
-- `npm run lint` (ESLint + `jsx-a11y`) y `npm run typecheck` tienen que salir sin errores.
-
-### Errores de ruta
-
-`root.tsx` exporta un `ErrorBoundary` (`components/layout/route-error.tsx`) que distingue 404
-de error inesperado, en español y con la marca. Cada ruta `admin.*` re-exporta
-`AdminRouteError`, así el error queda dentro del área de contenido y la barra lateral sigue
-viva. El de `root` se renderiza **fuera del `<Provider>` de Redux**: no puede usar el store.
-
----
-
-## 10. Deuda / pendientes
-
-- **Nombres propios ya resueltos**: `stat-card.tsx` exporta `SpotlightCard`/`SectionHeader`
-  (antes `Card`/`CardHeader`, que chocaban con la primitiva `card.tsx`). Regla: lo nuestro
-  lleva nombre propio, nunca el de una primitiva del registry.
-- **`createdAt` real en productos** para "Lo Más Nuevo".
-- **Marcas y logos reales** en `/public/brands`.
-- **`window.confirm()` nativo en 6 sitios**, contra la regla de contenedores de §6b
-  (las confirmaciones van por `Dialog`/`AlertDialog`, que ya existe como primitiva):
-  `admin.catalogo.tsx` (borrar producto y borrar categoría), `admin.salidas.tsx`
-  (marcar devuelta), `admin.inventario.tsx` (retirar de bodega),
-  `TemplatesPanel.tsx` (borrar plantilla) y `ProductEditorDialog.tsx` (aviso de
-  variantes sin lote — este último queda anidado dentro de un `Dialog` abierto, así
-  que necesita decidirse aparte).
-- **`GeneralConfig` en `admin.configuracion.tsx` es una maqueta**: campos con
-  `defaultValue`, sin estado ni endpoint. No cuenta como formulario migrado porque
-  todavía no guarda nada.
-
----
-
-## 11. Reglas del centro de administración
-
-Instaladas en la optimización por fases. El diagnóstico que las originó está en
-`Docs/16-Auditoria-UI-Admin.md`. Aplican a toda feature nueva del admin.
-
-### 11.1 Un solo elemento domina
-
-**Por pantalla, un único elemento puede tener el peso máximo.** Si dos compiten,
-ninguno gana y el usuario no sabe dónde mirar primero.
-
-En Reportería ese lugar lo tiene "Total vendido" (`HeroMetric`: 48 px, `CountUp`
-y sparkline). Los demás KPIs son `CompactKpi`: 20 px, sin contador animado, sin
-spotlight, sin sombra.
-
-### 11.2 El color es semántico, no decorativo
-
-- Los **valores numéricos** van en `text-foreground`. Siempre.
-- El `tone` de una tarjeta pinta **el icono** y el borde en hover. Nada más.
-- El color fuerte se reserva a tres cosas: el **delta** (success/destructive),
-  los **estados** (`StatusBadge`) y las **alertas reales**.
-
-Un tono distinto por tarjeta convierte la pantalla en un arcoíris y hace que el
-color deje de significar algo.
-
-### 11.3 Escala tipográfica
-
-| Rol | Clase |
-|---|---|
-| Título de página (`PageHeader`) | `font-heading text-2xl font-semibold tracking-tight` |
-| Métrica héroe | `font-heading text-5xl font-semibold tabular-nums` |
-| KPI compacto | `text-xl font-semibold tabular-nums` |
-| Eyebrow / `SectionLabel` | `text-2xs font-semibold uppercase tracking-[0.08em]` |
-| Cuerpo y celdas | `text-sm` (`text-[13px]` en densidad compacta) |
-
-Nada por debajo de 11 px, y a 11 px solo con `uppercase` + `tracking`.
-
-### 11.4 Espaciado
-
-- Entre secciones mayores: `space-y-8` · entre bloques: `gap-6` · entre tarjetas
-  de una fila: `gap-4`
-- Padding de tarjeta: `p-5` (densa) o `p-6` (destacada). **No mezclar `p-4` y
-  `p-5` en la misma fila.**
-- El contenido vive en `mx-auto w-full max-w-[1600px]`.
-
-### 11.5 Carga
-
-**Cada bloque carga su propio esqueleto, con la forma final del contenido.**
-Nunca un spinner centrado, nunca un salto de layout.
-
-`QueryState` con `shape`: `stats` · `table` · `chart` · `card` · `list`. El
-catálogo vive en `components/ui/skeletons.tsx`; una forma nueva se agrega ahí,
-no en la ruta.
-
-- `isLoading` (primera carga) → esqueleto.
-- `isFetching` (refetch) → `fetching`, que atenúa lo que ya está. **No se vacía
-  una tabla que ya tenía filas.**
-- **Prohibidos los mínimos artificiales de carga.** El parpadeo se resuelve con
-  umbral de aparición (`GlobalProgress` espera 150 ms), no retrasando la app.
-
-### 11.6 Motion
-
-Una sola animación de entrada por pantalla, siempre con `useReducedMotion()`.
-
-Retirados a propósito: el stagger de filas de `DataTable`, el `SpotlightCard`
-dentro de `StatCard`, y todo `hover:-translate-y-*` (mueve el layout).
-`spin` es el único gesto en bucle del sistema y solo lo usa el spinner.
-
-### 11.7 Tablas
-
-- La tabla **no se envuelve en `Card`**: ya trae borde y fondo.
-- Un solo scroll por pantalla; el `<thead>` va `sticky top-14`.
-- Sin `shadow-lg`: elevación por borde y fondo.
-- `paginated` activo por defecto.
-- Números a la derecha con `meta: { align: 'right' }`.
-- Densidad y columnas visibles se persisten; lo segundo necesita `tableId`.
-- **"No hay datos" y "el filtro no encontró nada" son mensajes distintos.**
-- Si la búsqueda debe encontrar lo que se VE (un nombre resuelto, no un uuid), la
-  columna necesita `accessorFn`, no `accessorKey`: el filtro global mira el valor
-  de la celda, no lo que renderiza.
-
-### 11.8 Contenedores por tipo de tarea
-
-| Tarea | Contenedor |
-|---|---|
-| Formulario largo, detalle de un registro | **Drawer** (`Sheet`), header y footer fijos |
-| Confirmación destructiva | `Dialog`, con el **nombre del objeto** en el texto |
-| Formulario de ≤3 campos | `Dialog` |
-| Desglose de un KPI | `DrilldownDialog` |
-
-Los drawers de detalle son **enlazables** (`?sale=<id>`), para que una
-notificación apunte al registro exacto y no a la pantalla que lo contiene.
-
-### 11.9 Atajos
-
-`⌘K` paleta · `g`+`1..9` navegación · `?` hoja de atajos · `/` o `⌘F` buscador de
-tabla · `Esc` limpia.
-
-Todos se ignoran mientras el foco está en un campo de texto. Un atajo sin entrada
-en la hoja de `?` no existe para el usuario.
-
-### 11.10 Tokens
-
-**Cancelar y cerrar:** los botones que abandonan un formulario y las “X” de
-diálogos o paneles usan `Button variant="cancel"`: texto y borde rojos, fondo
-rojo suave y foco visible, en ambos temas. Usar el token `destructive`, sin
-colores sueltos. Las acciones que eliminan o anulan datos conservan la variante
-`destructive`; “Seguir editando” mantiene su estilo secundario.
-
-Cero colores crudos de Tailwind, cero hex, cero `rgba()` en componentes. Si hace
-falta un color que no existe, primero se agrega el token en `:root` y
-`[data-theme="dark"]` + su registro en `@theme inline`.
-
-Ojo con `border`: **a secas fija el ancho en los CUATRO lados**. Para un
-subrayado va `border-b border-border`, nunca `border-b border`.
-
-### 11.11 La superficie de trabajo (patrón de cada sección)
-
-Desde el rediseño de Inventario, cada sección de operación sigue la misma
-estructura, con las piezas de `components/admin/workspace.tsx`:
-
-1. **`PageHeader`**: migas "Grupo / Sección", título y UNA acción principal
-   (con su atajo de teclado, `useShortcut('n', …)` + `<Kbd>N</Kbd>`). A lo sumo
-   una secundaria; el resto va a un menú "Más".
-2. **`<Workspace>`**: UNA tarjeta (`rounded-card`, `overflow-clip`) que contiene:
-   - **`<WorkspaceToolbar>`**: una sola fila con `SegmentedControl` (la vista o el
-     estado — reemplaza Tabs y AnimatedTabs), `ToolbarSearch` ("/" enfoca, Esc
-     limpia) y `ToolbarSelect` para filtros con su rótulo adentro.
-   - **`<MetricStrip>`** con hasta 4 `<Metric>`: números en Chivo
-     (`font-display`), en color de texto; el dato secundario va en `sub`. Nunca
-     una tarjeta por número ni un color por tarjeta.
-   - La tabla o el contenido, con `DataTable hideSearch globalFilterValue={…}`
-     cuando la búsqueda vive en la barra.
-
-**Radios:** 8 px en controles (`rounded-md`), 12 px en contenedores
-(`rounded-card`), píldora solo en estados (`StatusBadge`).
-**Fechas:** `formatLongDate` → "28 abr 2026". **Nombres de producto:**
-`splitProductName` → modelo en negrita y variante debajo.
-**Estados:** verde = terminado/en regla, azul = en curso, ámbar = atención,
-rojo = problema real, gris = inactivo. Un dato histórico (ej. "llegó en 92 días")
-va neutro.
-**Carga:** skeletons (`QueryState shape=…`), no el loader de marca.
-**Tablas anchas:** `defaultHiddenColumns` para que entren en una laptop.
-
-Reportería y Analítica son pantallas de gráficos: no usan `Workspace`, pero sí
-los montos en Chivo, los radios y los colores con significado.
+| --- | --- |
+| Titular del inicio | `font-heading text-4xl md:text-6xl font-extrabold tracking-tight` |
+| Título de sección (tienda) | `font-heading text-2xl md:text-3xl font-bold tracking-tight` |
+| Título de página (panel) | `font-heading text-2xl font-bold tracking-tight` |
+| Título de tarjeta o ventana | `text-lg font-semibold` |
+| Nombre de producto | `font-semibold` |
+| Precio | `font-heading font-extrabold tabular-nums` |
+| Métrica | `font-heading text-2xl font-extrabold tabular-nums` |
+| Cuerpo | `text-sm` |
+| Etiqueta, ayuda | `text-xs text-muted-foreground` |
+| Mínimo | `text-2xs` (11 px), solo en mayúsculas con `tracking-wide` |
+
+Siempre:
+- Pesos 700 y 800 solo en títulos, precios y métricas.
+- Cifras con `tabular-nums`.
+- Montos y fechas con `app/lib/formatters.ts`: córdobas `C$1,710` (sin decimales en la tienda, con 2 en costos), dólares `$12.50`, fecha `28 abr 2026`, fecha y hora `28 abr 2026, 2:30 p. m.`.
+
+Nunca:
+- Tamaños sueltos (`text-[13px]`).
+- `font-light` o `font-thin`.
+- Formatear un monto o una fecha a mano en el componente.
+
+## 3. Forma
+
+| Qué | Valor |
+| --- | --- |
+| Esquinas de botones, campos y chips | 12 px (`rounded-xl`) |
+| Esquinas de tarjetas, tablas y ventanas | 16 px (`rounded-2xl`) |
+| Esquinas de paneles grandes de la tienda | 24 px (`rounded-3xl`) |
+| Redondo completo | Solo puntos de estado, contadores y botones de ícono de la galería |
+| Bordes | 1 px. 2 px solo en la opción elegida y en el botón principal |
+| Sombras | Ninguna en tarjetas, tablas y campos. Dura (3 px) en el botón principal. Suave solo en menús y ventanas flotantes |
+| Espacios | Múltiplos de 4 px. Panel: 20 px entre bloques (`gap-5`). Tienda: 24 a 32 px. Dentro de una tarjeta: 16 o 20 px |
+
+Siempre:
+- Toda tarjeta lleva borde. Blanco sobre crema no se distingue sin él (1.03:1).
+
+## 4. Botones
+
+| Variante | Aspecto | Para qué |
+| --- | --- | --- |
+| `default` | Amarillo, contorno tinta de 2 px, sombra dura de 3 px | Acción principal |
+| `outline` | Blanco, borde `--input`; al pasar el mouse, borde esmeralda | Acciones secundarias |
+| `cancel` | Rojo con borde | Cancelar y Cerrar |
+| `destructive` | Rojo suave | Eliminar, dentro de una confirmación |
+| `whatsapp` | Verde WhatsApp con relieve | Escribir por WhatsApp como acción principal |
+| `whatsappOutline` | Borde verde, sin relieve | WhatsApp como acción secundaria |
+| `link` | Texto esmeralda subrayado al pasar | Acciones dentro de un texto |
+| `ghost` | Sin fondo | Solo botones de ícono en barras y menús |
+
+Tamaños: 44 px (`h-11`) en todos lados; 36 px (`size="sm"`) solo dentro de tablas.
+
+Siempre:
+- El botón dice lo que hace, con verbo: «Registrar compra», «Guardar cambios», «Agregar».
+- Al presionar el botón principal, baja 2 px y la sombra pasa a 1 px.
+- El botón principal siempre lleva su contorno: el amarillo contra el crema es 1.6:1.
+
+Nunca:
+- Dos botones amarillos en la misma ventana o tarjeta.
+- Un botón amarillo dentro de una fila de tabla.
+- La variante `secondary`.
+
+## 5. Selección, chips y barra de herramientas
+
+- Opción elegida (variante, filtro, vista): borde esmeralda de 2 px, fondo con 12 % de esmeralda, texto en semibold. Se marca con `aria-pressed`.
+- Elegir vista: botones con borde marcados así. No pestañas ni grupos de botones distintos.
+- Chips, solo cuatro tipos: estado (punto y texto), filtro activo (tinte esmeralda y ×), contador (amarillo) y categoría (suave).
+- Barra de herramientas: tarjeta blanca con borde esmeralda al 30 % y línea esmeralda de 2 px arriba. Adentro: buscador, filtros, conteo y la acción principal a la derecha.
+
+## 6. Tablas
+
+- Se usa tabla siempre que se comparan registros por columnas. Tarjetas solo para productos con foto y para órdenes de compra.
+- Piezas: `components/ui/table.tsx` para el aspecto y `DataTable` para buscar, ordenar y paginar.
+- Contenedor blanco, borde de 1 px, 16 px de esquina, sin sombra.
+- Encabezado con fondo crema, `text-xs font-semibold text-muted-foreground`, sin mayúsculas. Las columnas ordenables muestran la flecha.
+- Filas de 52 px (40 px en modo compacto), `text-sm`. Al pasar el mouse, esmeralda al 5 %.
+- Columnas en este orden: código, descripción, números, estado, acciones.
+- Código en `font-mono` gris. Producto: nombre en semibold y la variante debajo en `text-xs` gris.
+- Números a la derecha. La moneda va en el encabezado si toda la columna es de una moneda.
+- Totales en la última fila, en negrita, fijos abajo.
+- Estado: punto de color y texto.
+- Acciones al final, en un menú ⋮. Como mucho una acción visible por fila, con borde.
+- Cabe en 1280 px sin scroll lateral. Si no cabe, las columnas secundarias se ocultan y se activan desde «Columnas».
+- 25 filas por página. Abajo a la derecha: «1–25 de 230».
+
+## 7. Formularios
+
+- Cortos (hasta 6 campos): ventana `max-w-xl`. Largos: ventana `max-w-5xl` con secciones. Configuración: en la página.
+- Título con verbo y objeto: «Registrar compra». Nunca «Nuevo» ni «Formulario».
+- Una columna. Dos solo para pares cortos (fecha y número, moneda y monto).
+- Cada campo con `Field`: etiqueta arriba siempre visible, asterisco si es obligatorio, ayuda debajo solo si hace falta, error debajo en rojo diciendo cómo arreglarlo.
+- Campos de 44 px. Montos con el símbolo adentro a la izquierda y `inputMode="decimal"`.
+- Hasta 10 opciones: `Select`. Más de 10: `Combobox` con buscador.
+- Pie: «Cancelar» (`cancel`) a la izquierda y la acción (`default`) a la derecha, alineados a la derecha.
+- Mientras guarda, el botón se deshabilita y dice «Guardando…». Al terminar, se cierra y un aviso confirma («Compra registrada»).
+- Si el servidor falla, el mensaje va arriba del formulario, sin cerrar ni perder lo escrito.
+- Si hay cambios sin guardar, cerrar pregunta «¿Descartar los cambios?».
+- Datos con react-hook-form y un esquema de validación. Obligatorio en formularios nuevos o reescritos.
+
+Nunca:
+- El error de un campo en un aviso flotante.
+- Una etiqueta que solo existe como texto gris dentro del campo.
+
+## 8. Ventanas, avisos y estados
+
+- Ventanas centradas (`Dialog`) para formularios y confirmaciones. Paneles laterales (`Sheet`) solo en la tienda: carrito y filtros en el celular.
+- Confirmar solo lo que no se puede deshacer, diciendo qué se pierde: «¿Eliminar la orden LT12? Se borran sus 4 productos».
+- Avisos flotantes solo para el resultado de una acción. Se van solos a los 4 segundos.
+- Vacío: ícono, una línea que dice qué falta y la acción que lo llena.
+- Cargando: esqueleto con la forma del contenido (`components/ui/skeletons.tsx`). Nunca solo un spinner.
+- Error: qué pasó en palabras simples y un botón «Reintentar».
+
+## 9. Íconos, movimiento e imágenes
+
+- Íconos de HugeIcons con la propiedad `size`: 16 en botones y tablas, 20 en navegación, 24 en estados vacíos.
+- Movimiento: 150 ms al pasar el mouse o presionar, 200 a 250 ms al abrir y cerrar. Sin rebotes.
+- En el panel solo se mueven el botón principal, los bordes al pasar el mouse y las flechas al abrir.
+- Todo movimiento respeta «reducir movimiento» del sistema.
+- Fotos de producto cuadradas, de 1000 × 1000 px como mínimo, fondo blanco, el producto cerca del 80 % de la foto, siempre completas (`object-contain`). La primera foto es el producto solo.
+- Logo: sin recolorear ni deformar, mínimo 140 × 40 px.
+- Mascota: solo en estados vacíos, error 404 y pedido confirmado.
+
+## 10. Pantallas
+
+Panel:
+- Pensado para computadora desde 1280 px. En pantallas más chicas no se rompe, pero no se adapta.
+- Encabezado: título de página y, a la derecha, la acción principal con su atajo (`<Kbd>N</Kbd>`).
+- Debajo, bloques separados sobre el crema: barra de herramientas, métricas y contenido.
+- Un elemento domina cada pantalla: la tabla, la lista de órdenes o el formulario.
+
+Tienda:
+- Se diseña primero para 360 px de ancho.
+- Objetivos táctiles de 44 px como mínimo.
+- Nunca se muestra el stock exacto: «Disponible», «Agotado» o «Consultar disponibilidad».
+
+Los dos:
+- Claro por defecto. Toda pantalla se revisa en claro y en oscuro.
+
+## 11. Textos
+
+- Voseo en todo, también en el panel: «Elegí», «Registrá», «Escribí».
+- Botones con verbo. Títulos cortos, sin subtítulo que repita el título.
+- Mismas palabras en todo el proyecto: Orden de compra (no Lote), Producto, Variante, Pedido web, Venta, Catálogo, Tienda, Proveedor.
+- Nada en inglés si hay palabra en español.
+
+## 12. Accesibilidad
+
+- Contraste de texto de 4.5:1 como mínimo; 3:1 en texto grande y en bordes de campos.
+- Foco del teclado siempre visible (anillo esmeralda).
+- Todo se puede usar con el teclado.
+- Las imágenes llevan texto alternativo; los íconos de adorno, `aria-hidden`.
+
+## 13. Lo que no va
+
+- Degradados de adorno, vidrio, desenfoque, brillos.
+- Emojis y el ícono de estrellitas.
+- Tarjetas de métricas iguales con un cuadradito de color con ícono en cada una.
+- Textos de marketing en el panel: «Gestioná de forma eficiente», «¡Excelente!».
+- Todo centrado o todo en grilla de tarjetas iguales.
+
+## 14. Código
+
+- Los componentes de `app/components/ui` no se cambian para una pantalla. Si hace falta algo distinto, se agrega una variante aquí y en el componente.
+- Los estilos se escriben una vez, en el componente compartido. Nada de copiar reglas de una pantalla a otra.
+- Comentarios de 1 o 2 líneas, solo para explicar un porqué que no se ve en el código. La historia de un cambio va en el mensaje del commit.
+- Sin código comentado, sin archivos sin usar, sin notas de trabajo en el repositorio.
+- `npm run check` tiene que pasar antes de cada commit.
+
+## 15. Antes de dar algo por terminado
+
+- [ ] Claro y oscuro.
+- [ ] Panel a 1280 y 1440 px. Tienda a 360 px.
+- [ ] Navegación solo con teclado.
+- [ ] Comparado con la página de muestra del panel.
+- [ ] `npm run check` sin errores.
+
+## Pendiente en el código
+
+Lo que este documento pide y el código todavía no tiene. Cada línea se borra cuando se cumple.
+
+- Pedidos web y Códigos de descuento: pasar sus listas a `DataTable` (hoy son filas propias dentro de una tarjeta).
+- CRM: contactos en tabla en vez de tarjetas.
+- Atajo de teclado de la acción principal en Pedidos web, Usuarios, Catálogo e Inicio.
+- Comentarios largos: acortar a 1 o 2 líneas los bloques que quedan (unos 340, en casi todos los archivos de `app/`).
+
+## Registro de decisiones
+
+| Fecha | Decisión |
+| --- | --- |
+| 2026-09-30 | Chivo y Chivo Mono como únicas letras |
+| 2026-10-05 | Paleta de botones amarillos con contorno y sombra dura. Claro por defecto; oscuro neutro, sin verde |
+| 2026-10-07 | La tienda nunca muestra stock exacto. Voseo en todos los textos |
+| Antes del 2026-10-10 | Cancelar y Cerrar en rojo |
+| 2026-10-10 | Encabezado de cada orden de compra en blanco con borde esmeralda |
+| 2026-10-10 | Chivo también en todo el panel |
+| 2026-10-10 | El panel usa bloques separados sobre el crema, como el catálogo; se migra módulo por módulo |
+| 2026-10-10 | Formularios largos en ventana centrada, no en panel lateral |
+| 2026-10-10 | El panel es para computadora desde 1280 px |
+| 2026-10-10 | Opción elegida con borde esmeralda de 2 px y tinte |
+| 2026-10-10 | Solo el dueño cambia una regla; quien la aplica actualiza este archivo en el mismo commit |
+| 2026-10-10 | Un solo documento de diseño: este |

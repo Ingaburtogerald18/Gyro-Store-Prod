@@ -62,7 +62,7 @@ export function ProductTopNav({
   return (
     <nav
       aria-label="Navegación del producto"
-      className="sticky top-[57px] z-30 -mx-4 border-b bg-background/80 px-4 backdrop-blur-xl"
+      className="sticky top-[57px] z-30 -mx-4 border-b bg-background px-4"
     >
       <div className="mx-auto flex h-12 max-w-7xl items-center justify-between">
         <Breadcrumb className="ml-2">

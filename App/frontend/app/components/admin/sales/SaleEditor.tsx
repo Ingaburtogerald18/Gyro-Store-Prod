@@ -241,11 +241,8 @@ export function SaleEditor({
         return;
       }
 
-      // Se precarga TODO lo que la factura ya sabe: líneas, cliente y teléfono.
-      // Antes solo se verificaba y el vendedor tenía que volver a tipear lo que
-      // ya estaba impreso — y además no veía la cotización hasta registrar.
-      // Al llenar las líneas, el debounce de 400 ms cotiza solo y el desglose
-      // financiero aparece al instante.
+      // Se precarga lo que la factura ya sabe (líneas, cliente, teléfono) y el
+      // debounce de 400 ms cotiza solo al llenar las líneas.
       if (inv.items?.length) {
         // Mismo prorrateo que hace el backend en `registerSale`: el descuento de
         // la factura baja el precio efectivo de cada línea, así que la
@@ -373,7 +370,7 @@ export function SaleEditor({
     <div className="grid gap-6 lg:grid-cols-[1.6fr_1fr] lg:items-start">
       {/* ── Columna izquierda: datos + productos ── */}
       <div className="space-y-4">
-        <section className="space-y-3 rounded-card border bg-card p-4 shadow-sm">
+        <section className="space-y-3 rounded-2xl border bg-card p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <HugeIcon icon={UserIcon} size={16} strokeWidth={2} className="text-primary-2" aria-hidden />
@@ -415,7 +412,7 @@ export function SaleEditor({
         </section>
 
         {!isEdit && (
-          <section className="space-y-3 rounded-card border bg-card p-4 shadow-sm">
+          <section className="space-y-3 rounded-2xl border bg-card p-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <HugeIcon icon={Alert02Icon} size={16} strokeWidth={2} className="text-primary-2" aria-hidden />
@@ -470,7 +467,7 @@ export function SaleEditor({
         )}
 
         {isAdmin && (
-          <section className="space-y-3 rounded-card border bg-card p-4 shadow-sm">
+          <section className="space-y-3 rounded-2xl border bg-card p-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <HugeIcon icon={UserIcon} size={16} strokeWidth={2} className="text-primary-2" aria-hidden />
@@ -491,7 +488,7 @@ export function SaleEditor({
             </div>
 
             {invoiceSeller ? (
-              <p className="flex items-start gap-1.5 rounded-lg border border-primary-2/30 bg-primary-2/10 px-3 py-2 text-xs text-primary-2">
+              <p className="flex items-start gap-1.5 rounded-xl border border-primary-2/30 bg-primary-2/10 px-3 py-2 text-xs text-primary-2">
                 <HugeIcon icon={Alert02Icon} size={14} strokeWidth={2} className="mt-px shrink-0" aria-hidden />
                 <span>
                   Esta venta queda a nombre de{' '}
@@ -535,7 +532,7 @@ export function SaleEditor({
         )}
 
         {/* Fecha de venta */}
-        <section className="space-y-3 rounded-card border bg-card p-4 shadow-sm">
+        <section className="space-y-3 rounded-2xl border bg-card p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <HugeIcon icon={Calendar03Icon} size={16} strokeWidth={2} className="text-primary-2" aria-hidden />
@@ -559,17 +556,17 @@ export function SaleEditor({
           </div>
         </section>
 
-        <section className="space-y-3 rounded-card border bg-card p-4 shadow-sm">
+        <section className="space-y-3 rounded-2xl border bg-card p-4">
           <div className="flex items-center gap-2">
             <HugeIcon icon={PackageIcon} size={16} strokeWidth={2} className="text-primary-2" aria-hidden />
             <h3 className="text-sm font-semibold text-foreground">Productos</h3>
-            <span className="nums ml-auto rounded-pill bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+            <span className="nums ml-auto rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
               {lines.length}
             </span>
           </div>
 
           {linesLocked && (
-            <p className="flex items-start gap-1.5 rounded-lg border border-primary-2/30 bg-primary-2/10 px-3 py-2 text-xs text-primary-2">
+            <p className="flex items-start gap-1.5 rounded-xl border border-primary-2/30 bg-primary-2/10 px-3 py-2 text-xs text-primary-2">
               <HugeIcon icon={Alert02Icon} size={14} strokeWidth={2} className="mt-px shrink-0" aria-hidden />
               Estos productos vienen de la factura {linkedInvoice?.invoiceCode} ya verificada — no se
               pueden editar acá (evita que la venta quede distinta de lo que dice el ticket). Para
@@ -594,7 +591,7 @@ export function SaleEditor({
 
         {isEdit && sale?.status !== 'pending_approval' && (
           <Field
-            className="rounded-card border bg-card p-4 shadow-sm"
+            className="rounded-2xl border bg-card p-4"
             data-invalid={!editReason.trim()}
           >
             <FieldLabel htmlFor="edit-reason" required>

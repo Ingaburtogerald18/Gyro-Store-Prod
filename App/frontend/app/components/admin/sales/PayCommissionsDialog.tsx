@@ -234,13 +234,13 @@ export function PayCommissionsDialog({
                       {selectedSales.length === seller.sales.length ? 'Quitar todas' : 'Elegir todas'}
                     </button>
                   </div>
-                  <ul className="divide-y divide-border rounded-card border border-border">
+                  <ul className="divide-y divide-border rounded-2xl border border-border">
                     {seller.sales.map((sale) => (
                       <li key={sale.id}>
                         <label className="flex cursor-pointer items-center gap-3 px-3 py-2 text-sm">
                           <input
                             type="checkbox"
-                            className="size-4 accent-[var(--primary-2,#0E7C68)]"
+                            className="size-4 accent-primary-2"
                             checked={selected.has(sale.id)}
                             onChange={() => toggle(sale.id)}
                             disabled={busy}
@@ -263,7 +263,7 @@ export function PayCommissionsDialog({
               )}
 
               {seller && (
-                <div className="space-y-1.5 rounded-card border border-border px-4 py-3 text-sm">
+                <div className="space-y-1.5 rounded-2xl border border-border px-4 py-3 text-sm">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Comisión de las ventas elegidas</span>
                     <span className="nums">{formatCordobas(gross, 'C$', 2)}</span>
@@ -310,7 +310,7 @@ export function PayCommissionsDialog({
                 <FieldLabel htmlFor="pay-receipt">Comprobante</FieldLabel>
                 <label
                   htmlFor="pay-receipt"
-                  className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-border px-3 py-2.5 text-sm text-muted-foreground hover:bg-muted/50"
+                  className="flex cursor-pointer items-center gap-2 rounded-xl border border-dashed border-border px-3 py-2.5 text-sm text-muted-foreground hover:bg-muted/50"
                 >
                   <HugeIcon icon={Upload04Icon} size={16} strokeWidth={2} aria-hidden />
                   <span className="min-w-0 truncate">{file ? file.name : 'Subir foto del comprobante'}</span>

@@ -1,14 +1,8 @@
-// Editor de producto del panel.
+// Editor de producto: la columna ancha define el producto (nombre, fotos,
+// variantes) y la angosta lo clasifica y publica.
 //
-// Layout de dos columnas (el patrón de Shopify/Linear): la columna ancha tiene
-// lo que define el producto —nombre, descripción, fotos, variantes— y la
-// angosta lo que lo clasifica y publica. Antes eran cinco tarjetas idénticas
-// apiladas, todas con el mismo peso visual: nada indicaba qué era importante.
-//
-// Portado de `CatalogEditorDrawer` de v1, con dos diferencias de fondo:
-//   · el molde (plantilla) es COMPARTIDO, así que este editor no lo modifica;
-//   · las variantes se vinculan a LOTES de bodega (`purchases.code`), no a un
-//     SKU compartido — en v2 cada lote tiene su propio código único.
+// El molde es compartido, así que este editor no lo modifica, y las variantes
+// se vinculan a lotes de bodega (`purchases.code`).
 import { HugeIcon } from '~/components/ui/icon';
 import { Tick01Icon } from '@hugeicons/core-free-icons';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -338,13 +332,8 @@ export function ProductEditorDialog({
     // la validación mientras uno está en curso.
     if (submittingRef.current) return;
 
-    // Aviso NO bloqueante: una variante sin lote se muestra «Agotado» (estado
-    // válido y editable después, cuando llega el lote). Antes esto era un
-    // `window.confirm`, pero el navegador SUPRIME esos diálogos tras varios
-    // seguidos —pasa al reintentar muchas veces— y entonces devuelve `false` sin
-    // mostrar nada: el guardado se cancelaba en silencio y parecía que «no dejaba
-    // crear» los productos CON variantes (los simples no disparan el confirm). Un
-    // toast informa sin poder bloquear ni ser suprimido.
+    // Aviso no bloqueante: una variante sin lote se muestra «Agotado». Va en un
+    // toast porque el navegador suprime los `window.confirm` repetidos.
     const unmapped = combos.length - mappedCount;
     if (unmapped > 0) {
       toast.warning(
@@ -383,9 +372,7 @@ export function ProductEditorDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      {/* p-0 + flex + max-h-[90vh]: el cuerpo scrollea solo y el pie queda
-          siempre a la vista. Con el scroll en el contenedor entero, en un
-          formulario largo había que bajar hasta el final para «Guardar». */}
+      {/* El cuerpo scrollea solo y el pie con «Guardar» queda siempre a la vista. */}
       <DialogContent className="flex max-h-[90vh] w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl lg:max-w-3xl">
         <DialogHeader className="shrink-0 border-b border-border px-6 py-4 pr-14">
           <DialogTitle className="text-lg">
@@ -659,7 +646,7 @@ export function ProductEditorDialog({
               </FormSection>
 
               <FormSection title="6. Estado y Publicación" hint="Configura la visibilidad del producto en la tienda.">
-                <div className="space-y-4 rounded-card border border-border bg-muted/20 p-5">
+                <div className="space-y-4 rounded-2xl border border-border bg-muted/20 p-5">
                   <Controller
                     control={control}
                     name="published"
@@ -742,14 +729,8 @@ export function ProductEditorDialog({
   );
 }
 
-// Opción que el producto ofrece o no. Es una casilla, no un botón de acción:
-// `role="checkbox"` porque son varias selecciones independientes dentro de un eje.
-//
-// El texto va SIEMPRE a contraste pleno (`foreground` / `muted-foreground`).
-// Antes el estado encendido se pintaba `text-primary` sobre `bg-primary/10`, y
-// en tema oscuro `--primary` es oklch(0.432): verde oscuro sobre verde oscuro,
-// muy por debajo del 4.5:1 que exige DESIGN.md §9. Ahora el estado lo carga la
-// casilla —forma + tilde—, no el color del texto.
+// Opción que el producto ofrece o no: `role="checkbox"` porque son selecciones
+// independientes. El estado lo marca la casilla; el texto va a contraste pleno.
 function OptionToggle({
   label,
   checked,
@@ -783,7 +764,7 @@ function OptionToggle({
       <span
         aria-hidden
         className={cn(
-          'grid size-4 shrink-0 place-items-center rounded-[5px] border transition-colors',
+          'grid size-4 shrink-0 place-items-center rounded-sm border transition-colors',
           'motion-reduce:transition-none',
           checked ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-input/60',
         )}
@@ -795,8 +776,7 @@ function OptionToggle({
   );
 }
 
-// Encabezado tipográfico con hairline. Reemplaza a la tarjeta con chip de icono
-// que se repetía en cada sección: cinco marcos idénticos no jerarquizan nada.
+// Encabezado de sección con línea fina: separa sin repetir marcos.
 function FormSection({
   title,
   hint,

@@ -1,15 +1,5 @@
-// Inventario (panel). Sigue el lenguaje del catálogo de la tienda: tarjetas
-// blancas sueltas sobre el crema, una barra de filtros con la línea esmeralda
-// arriba, controles de 44 px, selección en esmeralda y el amarillo solo para
-// acciones (Registrar compra, Recibir).
-//
-// Orden de la pantalla: encabezado con la acción principal (atajo N), barra de
-// filtros, métricas y la lista (órdenes de compra o productos en bodega) con
-// su título, como «Resultados» en el catálogo.
-//
-// Radios: 12 px en controles y 16 px en tarjetas, igual que la tienda. Los
-// estilos propios viven en styles/admin.css bajo `.inventory-page`, para no
-// tocar el resto del panel.
+// Inventario: barra de herramientas, métricas y la lista (órdenes de compra o
+// productos en bodega), en bloques sueltos sobre el crema.
 import { useMemo, useState } from "react";
 import { useSearchParams } from "@remix-run/react";
 import { Add01Icon, ShoppingBag01Icon, WarehouseIcon } from "@hugeicons/core-free-icons";
@@ -24,10 +14,10 @@ import { PurchaseCommandPalette } from "~/components/admin/inventory/PurchaseCom
 import { Kbd, ToolbarSearch, ToolbarSelect, useShortcut } from "~/components/admin/workspace";
 import { PageHeader } from "~/components/layout/PageHeader";
 import { Button } from "~/components/ui/button";
+import { Toolbar } from "~/components/ui/toolbar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "~/components/ui/dialog";
 import { HugeIcon } from "~/components/ui/icon";
 import { pageTitle } from "~/lib/brand";
-import { cn } from "~/lib/utils";
 import { useGetPurchaseOrdersQuery, useGetPurchasesQuery } from "~/store/api/inventoryV1Api";
 
 export const meta: MetaFunction = () => {
@@ -76,8 +66,7 @@ export default function AdminInventario() {
   const monthOptions = useMemo(buildMonthOptions, []);
 
   const { data: purchases = [] } = useGetPurchasesQuery();
-  // Con la migración 0024 se registran órdenes de Alibaba; sin ella, compras
-  // sueltas como antes.
+  // Sin la migración 0024 no hay órdenes de Alibaba: se registran compras sueltas.
   const { data: ordersData } = useGetPurchaseOrdersQuery();
   const ordersEnabled = ordersData?.available === true;
 
@@ -112,15 +101,13 @@ export default function AdminInventario() {
   useShortcut("n", () => setPurchaseFormOpen(true));
 
   return (
-    // gap y no space-y: el `mb-0` del encabezado le ganaba al margen de space-y
-    // y la barra quedaba pegada al título.
-    <div className="inventory-page flex flex-col gap-5">
+    <div className="flex flex-col gap-5">
       <PageHeader
         eyebrow="Operación"
         title="Inventario"
         className="mb-0"
         actions={
-          <Button onClick={() => setPurchaseFormOpen(true)} className="h-11 gap-2 px-4">
+          <Button onClick={() => setPurchaseFormOpen(true)} className="gap-2">
             <HugeIcon icon={Add01Icon} size={16} strokeWidth={2} aria-hidden />
             Registrar compra
             <Kbd>N</Kbd>
@@ -128,8 +115,7 @@ export default function AdminInventario() {
         }
       />
 
-      {/* Barra de filtros: la misma pieza que la del catálogo de la tienda. */}
-      <div className="inventory-toolbar flex flex-wrap items-center gap-2 rounded-2xl border bg-card p-3 sm:gap-3 sm:px-4">
+      <Toolbar className="gap-2 sm:gap-3 sm:px-4">
         <div role="group" aria-label="Vista" className="flex shrink-0 gap-2">
           {VIEWS.map((v) => {
             const active = view === v.value;
@@ -140,7 +126,7 @@ export default function AdminInventario() {
                 variant="outline"
                 aria-pressed={active}
                 onClick={() => goToView(v.value)}
-                className={cn("inventory-control inventory-toggle gap-2 px-3.5", active && "font-semibold")}
+                className="gap-2 px-3.5"
               >
                 <HugeIcon icon={v.icon} size={16} strokeWidth={2} aria-hidden className="text-primary-2" />
                 {v.label}
@@ -152,7 +138,6 @@ export default function AdminInventario() {
           value={search}
           onChange={setSearch}
           placeholder="Buscar producto, código u orden"
-          className="inventory-control md:h-11"
         />
         {view === "purchases" && (
           <ToolbarSelect
@@ -167,7 +152,7 @@ export default function AdminInventario() {
         ) : (
           <ToolbarSelect label="Estado" value={stockFilter} onChange={(v) => updateParams({ type: v })} options={STOCK_STATUS} />
         )}
-      </div>
+      </Toolbar>
 
       {view === "purchases" ? <PurchaseMetrics period={effectivePeriod} /> : <StockMetrics />}
 
@@ -209,7 +194,6 @@ export default function AdminInventario() {
         open={commandPaletteOpen}
         onOpenChange={setCommandPaletteOpen}
         purchases={purchases}
-        // Antes elegir una compra solo cerraba la paleta. Ahora la busca en Compras.
         onSelect={(p) => {
           setSearch(p.code);
           setPurchaseStatus("all");

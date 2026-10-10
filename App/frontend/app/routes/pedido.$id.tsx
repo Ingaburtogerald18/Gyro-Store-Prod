@@ -192,9 +192,9 @@ function OrderView({
           {order.items.map((item, i) => (
             <li key={i} className="flex items-center gap-3 px-5 py-3">
               {item.image ? (
-                <img src={item.image} alt="" className="size-12 shrink-0 rounded-md object-contain" />
+                <img src={item.image} alt="" className="size-12 shrink-0 rounded-xl object-contain" />
               ) : (
-                <span className="size-12 shrink-0 rounded-md bg-muted" aria-hidden />
+                <span className="size-12 shrink-0 rounded-xl bg-muted" aria-hidden />
               )}
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm text-foreground">{item.name}</p>

@@ -219,7 +219,7 @@ function ExistingOrderSummary({
   const arrived = order.status === "received" || order.status === "partial";
 
   return (
-    <div className="space-y-2 rounded-card border border-primary/30 bg-primary/5 p-4 text-sm">
+    <div className="space-y-2 rounded-2xl border border-primary/30 bg-primary/5 p-4 text-sm">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <p className="font-semibold text-foreground">Esta orden ya está registrada: el producto se agrega a ella.</p>

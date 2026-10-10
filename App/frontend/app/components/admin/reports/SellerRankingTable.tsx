@@ -45,7 +45,7 @@ export function SellerRankingTable({
         error={isError}
         empty={sellers.length === 0}
         emptyFallback={<p className="py-12 text-center text-xs text-muted-foreground">Nadie vendió en este período.</p>}
-        loadingFallback={<div className="h-56 animate-pulse rounded-card bg-muted" />}
+        loadingFallback={<div className="h-56 animate-pulse rounded-2xl bg-muted" />}
       >
         <ol className="space-y-3">
           {sellers.map((seller, index) => {

@@ -1,12 +1,5 @@
-// Cuentas bancarias de la tienda: dónde puede depositar o transferir un cliente.
-//
-// Las carga y edita el admin en Configuración → General, y viajan al storefront
-// por `GET /api/config`. Hasta ahora se guardaban y no se mostraban en ninguna
-// parte — este componente cierra ese circuito.
-//
-// Si no hay ninguna cargada no renderiza nada: una sección "Formas de pago"
-// vacía se lee como que la tienda no acepta transferencias, que es peor que no
-// mencionarlo.
+// Cuentas bancarias de la tienda, cargadas en Configuración → General. Sin
+// ninguna no se muestra: una sección vacía parece que no se aceptan transferencias.
 import { useState } from 'react';
 import { HugeIcon } from '~/components/ui/icon';
 import { CreditCardIcon, Copy01Icon, Tick02Icon } from '@hugeicons/core-free-icons';

@@ -4,12 +4,10 @@
 // mismo color, en todas las pantallas y entre sesiones, sin columna nueva en la
 // base ni un selector de color que el admin tenga que mantener.
 //
-// Sale de los 7 tonos que DESIGN.md §2 ya define (`--tone-*`). No se usan los
-// `--chart-*` a propósito: en este preset son toda la escala Green y todas las
-// categorías quedarían del mismo color.
+// Sale de los 7 tonos `--tone-*` de tailwind.css.
 //
 // El color NUNCA va solo: siempre acompaña al nombre. Diferenciar únicamente
-// por color deja afuera a quien no lo distingue (DESIGN.md §8).
+// por color deja afuera a quien no lo distingue.
 
 export const TONES = ['indigo', 'sky', 'amber', 'emerald', 'rose', 'purple', 'red'] as const;
 

@@ -113,7 +113,7 @@ export function TicketPrintModal({
             </div>
 
             {/* Preview container */}
-            <div className="max-h-[55vh] overflow-y-auto rounded-2xl border bg-white shadow-lg custom-scrollbar">
+            <div className="max-h-[55vh] overflow-y-auto rounded-2xl border bg-white custom-scrollbar">
               {isLoading || !ticket ? (
                 <div className="flex h-48 items-center justify-center">
                   <Spinner className="h-6 w-6 text-muted-foreground" />

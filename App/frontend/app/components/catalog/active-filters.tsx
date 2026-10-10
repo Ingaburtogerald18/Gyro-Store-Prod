@@ -1,13 +1,9 @@
-// Chips de los filtros puestos, con "quitar" individual y un "Limpiar todo".
-//
-// Sin esto, un filtro aplicado desde el bottom sheet queda invisible al cerrarlo
-// y el catálogo parece vacío "porque sí". Los chips son el recibo de lo que el
-// usuario pidió.
-import { HugeIcon } from '~/components/ui/icon';
-import { Cancel01Icon } from '@hugeicons/core-free-icons';
+// Filtros puestos, para que uno aplicado desde el panel del celular no quede
+// invisible al cerrarlo.
 
 import type { StoreCategory } from '~/store/api/sessionApi';
 import { Button } from '~/components/ui/button';
+import { Chip } from '~/components/ui/chip';
 import { useGetConfigQuery } from '~/store/api/sessionApi';
 import { useAppDispatch, useAppSelector } from '~/store/hooks';
 import {
@@ -28,7 +24,7 @@ import {
 import { formatCordobas } from '~/lib/formatters';
 import { findCategory, priceRangeError } from '~/lib/catalogQuery';
 
-interface Chip {
+interface ActiveFilter {
   id: string;
   label: string;
   onRemove: () => void;
@@ -46,7 +42,7 @@ export function ActiveFilters({ categories = [] }: { categories?: StoreCategory[
   const onlyOnSale = useAppSelector(selectOnlyOnSale);
   const onlyInStock = useAppSelector(selectOnlyInStock);
 
-  const chips: Chip[] = [];
+  const chips: ActiveFilter[] = [];
 
   if (search.trim()) {
     chips.push({
@@ -94,29 +90,20 @@ export function ActiveFilters({ categories = [] }: { categories?: StoreCategory[
   if (chips.length === 0) return null;
 
   return (
-    <div className="catalog-active-filters mb-4 flex flex-wrap items-center gap-2">
+    <div className="mb-4 flex flex-wrap items-center gap-2">
       <span className="text-sm font-medium text-muted-foreground">Filtros:</span>
 
-      {/* El CHIP ENTERO es el botón de quitar, no una X diminuta a su derecha:
-          así el objetivo táctil llega a 44px de alto sin inflar el diseño, y no
-          hay dos zonas con significados distintos dentro de la misma píldora. */}
+      {/* Todo el chip quita el filtro: así llega a 44 px de alto. */}
       {chips.map((chip) => (
-        <button
+        <Chip
           key={chip.id}
-          type="button"
-          onClick={chip.onRemove}
-          aria-label={`Quitar filtro ${chip.label}`}
-          className="catalog-filter-chip group inline-flex min-h-11 items-center gap-1.5 rounded-xl border px-3 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+          variant="filter"
+          onRemove={chip.onRemove}
+          removeLabel={`Quitar filtro ${chip.label}`}
+          className="min-h-11 text-sm"
         >
           {chip.label}
-          <HugeIcon
-            icon={Cancel01Icon}
-            size={12}
-            strokeWidth={2}
-            aria-hidden
-            className="text-muted-foreground transition-colors group-hover:text-foreground"
-          />
-        </button>
+        </Chip>
       ))}
 
       {chips.length > 1 && (

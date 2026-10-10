@@ -1,13 +1,5 @@
-// La métrica que domina la pantalla de Reportería.
-//
-// ── Por qué existe ──
-// Antes había seis bandas de tarjetas del mismo tamaño y peso: nada decía "mirá
-// esto primero". La regla que se instala con este componente, y que vale para
-// todo el admin: **un solo elemento por pantalla puede tener el peso máximo.**
-// Si dos compiten, ninguno gana.
-//
-// Por eso el resto de los KPIs pasan a versión compacta y sin CountUp. El peso
-// no se reparte.
+// La métrica que domina la pantalla de Reportería. Un solo elemento por
+// pantalla lleva el peso máximo; el resto de los KPIs va en versión compacta.
 import type React from 'react';
 import type { IconSvgElement } from '@hugeicons/react';
 import { Area, AreaChart } from 'recharts';
@@ -171,7 +163,7 @@ export function CompactKpi({
   );
 
   const cls =
-    'rounded-card border border-border bg-card p-4 text-left transition-colors hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
+    'rounded-2xl border border-border bg-card p-4 text-left transition-colors hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
 
   if (href) {
     return (

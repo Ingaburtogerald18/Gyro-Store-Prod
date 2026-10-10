@@ -158,7 +158,7 @@ export function PozoFlowBars({
   const animKey = ledger?.month ?? 'none';
 
   return (
-    <div className={cn('rounded-card border border-border bg-card p-5 shadow-sm', className)}>
+    <div className={cn('rounded-2xl border border-border bg-card p-5', className)}>
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h3 className="text-sm font-semibold text-foreground">Estado de los pozos</h3>
@@ -170,7 +170,7 @@ export function PozoFlowBars({
           <button
             type="button"
             onClick={() => onSelectPozo('todos')}
-            className="flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1 text-xs font-medium text-primary-2 transition-colors hover:bg-accent"
+            className="flex items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-1 text-xs font-medium text-primary-2 transition-colors hover:bg-accent"
           >
             <HugeIcon icon={FilterIcon} size={13} strokeWidth={2} aria-hidden />
             Mostrar todos
@@ -188,7 +188,7 @@ export function PozoFlowBars({
       </ul>
 
       {isLoading && rows.length === 0 ? (
-        <div className="h-72 animate-pulse rounded-card bg-muted" />
+        <div className="h-72 animate-pulse rounded-2xl bg-muted" />
       ) : (
         <div className="divide-y divide-border/70">
           {rows.map((row) => {
@@ -216,11 +216,11 @@ export function PozoFlowBars({
                   : {})}
                 className={cn(
                   'flex items-start gap-3 px-2 py-3',
-                  selectable && 'cursor-pointer rounded-md transition-colors hover:bg-accent/40',
+                  selectable && 'cursor-pointer rounded-xl transition-colors hover:bg-accent/40',
                   selected && 'bg-primary-2/10 ring-1 ring-primary-2',
                 )}
               >
-                <div className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
+                <div className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground">
                   <HugeIcon icon={Icon} size={15} strokeWidth={2} aria-hidden />
                 </div>
                 <div className="min-w-0 flex-1 space-y-1.5">
@@ -243,7 +243,7 @@ export function PozoFlowBars({
 
           {ledger && (
             <div className="flex items-start gap-3 px-2 py-3">
-              <div className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
+              <div className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground">
                 <HugeIcon icon={GiftIcon} size={15} strokeWidth={2} aria-hidden />
               </div>
               <div className="min-w-0 flex-1 space-y-1.5">

@@ -19,11 +19,9 @@ type Tab = 'general' | 'variables' | 'recursos';
 export default function AdminConfiguracion() {
   const [currentTab, setCurrentTab] = useState<Tab>('general');
 
-  // Alineada a la izquierda y con el encabezado común, como el resto del
-  // panel (antes era la única centrada, con título propio y zoom de entrada).
   // `max-w-4xl`: son formularios; a todo el ancho los campos quedan enormes.
   return (
-    <div className="max-w-4xl space-y-6">
+    <div className="flex max-w-4xl flex-col gap-5">
       <PageHeader
         eyebrow="Análisis y sistema"
         title="Configuración"
