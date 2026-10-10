@@ -107,6 +107,7 @@ Siempre:
 - El botón dice lo que hace, con verbo: «Registrar compra», «Guardar cambios», «Agregar».
 - Al presionar el botón principal, baja 2 px y la sombra pasa a 1 px.
 - El botón principal siempre lleva su contorno: el amarillo contra el crema es 1.6:1.
+- Las acciones de una orden de compra van juntas en un solo botón amarillo «Acciones ▾» (`RowActionsMenu` con `trigger="button"`), con «Recibir en Nicaragua» primero. En las filas de tabla sigue el menú ⋮ con borde.
 
 Nunca:
 - Dos botones amarillos en la misma ventana o tarjeta.
@@ -265,3 +266,4 @@ Lo que este documento pide y el código todavía no tiene. Cada línea se borra 
 | 2026-10-10 | Sombra del botón principal y del carrito en bordó, en claro y en oscuro |
 | 2026-10-10 | Ofertas en rosa con texto bordó; línea del header en bordó; encabezado de tablas en rosa |
 | 2026-10-10 | Tablas con relieve: contorno marcado, línea grabada entre filas, sombra bajo el encabezado y tabla levantada del fondo. Código, variante y estado a 14 px; código y encabezado en tinta |
+| 2026-10-10 | Orden de compra: «Recibir» y el menú ⋮ se juntan en un solo botón amarillo «Acciones» |

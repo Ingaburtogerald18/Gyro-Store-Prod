@@ -518,15 +518,9 @@ function OrderHeader({
         </span>
       )}
       <span className="ml-auto flex items-center gap-3">
-        {hasPending && (
-          <Button className="gap-1.5" onClick={onReceive}>
-            <HugeIcon icon={PackageReceiveIcon} size={16} strokeWidth={2} aria-hidden />
-            Recibir
-          </Button>
-        )}
         <RowActionsMenu
+          trigger="button"
           label={`Acciones de la orden ${order.orderNumber}`}
-          className="inline-flex size-11 items-center justify-center rounded-xl border border-input bg-card text-foreground hover:border-primary-2"
           actions={[
             hasPending && { group: "Orden", label: "Recibir en Nicaragua", icon: <HugeIcon icon={PackageReceiveIcon} size={16} strokeWidth={2} />, onClick: onReceive },
             { group: "Orden", label: order.missing.length ? "Completar datos" : "Editar orden", icon: <HugeIcon icon={Edit02Icon} size={16} strokeWidth={2} />, onClick: onEdit },

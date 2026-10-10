@@ -1,7 +1,7 @@
-// Menú de acciones de fila ("⋯"): un botón discreto que abre las acciones etiquetadas.
+// Menú de acciones: en filas, un "⋯" discreto; en una tarjeta, el botón principal «Acciones».
 import { HugeIcon } from "~/components/ui/icon";
 import { Button } from "~/components/ui/button";
-import { MoreVerticalIcon } from "@hugeicons/core-free-icons";
+import { ArrowDown01Icon, MoreVerticalIcon } from "@hugeicons/core-free-icons";
 import { cn } from "~/lib/utils";
 import {
   DropdownMenu,
@@ -33,7 +33,17 @@ export interface RowAction {
 // acciones condicionalmente con `cond && {...}` sin ensuciar el JSX.
 type MaybeAction = RowAction | false | "" | 0 | null | undefined;
 
-export function RowActionsMenu({ actions, className, label = "Acciones" }: { actions: MaybeAction[]; className?: string; label?: string }) {
+export function RowActionsMenu({
+  actions,
+  className,
+  label = "Acciones",
+  trigger = "icon",
+}: {
+  actions: MaybeAction[];
+  className?: string;
+  label?: string;
+  trigger?: "icon" | "button";
+}) {
   const items = actions.filter(Boolean) as RowAction[];
   
   if (items.length === 0) return null;
@@ -51,20 +61,27 @@ export function RowActionsMenu({ actions, className, label = "Acciones" }: { act
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button
-          type="button"
-          variant="outline"
-          size="icon-sm"
-          title={label}
-          aria-label={label}
-          className={cn(
-            "rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-            "data-[state=open]:bg-muted data-[state=open]:text-foreground",
-            className,
-          )}
-        >
-          <HugeIcon icon={MoreVerticalIcon} size={16} strokeWidth={2} />
-        </Button>
+        {trigger === "button" ? (
+          <Button type="button" aria-label={label} className={cn("gap-1.5", className)}>
+            Acciones
+            <HugeIcon icon={ArrowDown01Icon} size={16} strokeWidth={2} aria-hidden />
+          </Button>
+        ) : (
+          <Button
+            type="button"
+            variant="outline"
+            size="icon-sm"
+            title={label}
+            aria-label={label}
+            className={cn(
+              "rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              "data-[state=open]:bg-muted data-[state=open]:text-foreground",
+              className,
+            )}
+          >
+            <HugeIcon icon={MoreVerticalIcon} size={16} strokeWidth={2} />
+          </Button>
+        )}
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
         {ungroupedItems.map((a, i) => (
