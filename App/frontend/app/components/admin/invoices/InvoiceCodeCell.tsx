@@ -44,7 +44,7 @@ export function InvoiceCodeCell({ code, bold }: { code: string; bold?: boolean }
           icon={copied ? Tick01Icon : Copy01Icon}
           size={14}
           strokeWidth={2}
-          className={cn(copied && 'text-success')}
+          className={cn(copied && 'text-foreground')}
         />
       </button>
     </span>

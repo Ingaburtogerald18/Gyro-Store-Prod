@@ -8,6 +8,7 @@ import { Add01Icon, InboxIcon } from "@hugeicons/core-free-icons";
 import { Kbd, Metric, MetricStrip, SegmentedControl, ToolbarSearch, ToolbarSelect, Workspace, WorkspaceToolbar } from "~/components/admin/workspace";
 import { PageHeader } from "~/components/layout/PageHeader";
 import { Button } from "~/components/ui/button";
+import { CodeCell } from "~/components/ui/cells";
 import { Chip } from "~/components/ui/chip";
 import { DataTable } from "~/components/ui/DataTable";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "~/components/ui/empty";
@@ -28,13 +29,12 @@ const COLORS: { name: string; token: string; className: string }[] = [
   { name: "Tinta", token: "--ink", className: "bg-ink" },
   { name: "Crema", token: "--background", className: "bg-background" },
   { name: "Blanco", token: "--card", className: "bg-card" },
-  { name: "Suave", token: "--muted", className: "bg-muted" },
-  { name: "Texto secundario", token: "--muted-foreground", className: "bg-muted-foreground" },
+    { name: "Texto secundario", token: "--muted-foreground", className: "bg-muted-foreground" },
   { name: "Amarillo", token: "--action", className: "bg-action" },
-  { name: "Esmeralda", token: "--primary-2", className: "bg-primary-2" },
+  { name: "Bordó", token: "--primary-2", className: "bg-primary-2" },
+  { name: "Rosa", token: "--rose", className: "bg-rose" },
   { name: "Teal del logo", token: "--logo", className: "bg-logo" },
-  { name: "Coral", token: "--promo", className: "bg-promo" },
-  { name: "Error", token: "--destructive", className: "bg-destructive" },
+    { name: "Error", token: "--destructive", className: "bg-destructive" },
   { name: "Advertencia", token: "--warning", className: "bg-warning" },
   { name: "Información", token: "--info", className: "bg-info" },
   { name: "WhatsApp", token: "--whatsapp", className: "bg-whatsapp" },
@@ -81,7 +81,7 @@ const COLUMNS: ColumnDef<SampleRow, unknown>[] = [
   {
     accessorKey: "code",
     header: "Código",
-    cell: (c) => <span className="font-mono text-xs text-muted-foreground">{c.getValue<string>()}</span>,
+    cell: (c) => <CodeCell value={c.getValue<string>()} />,
   },
   {
     accessorKey: "product",

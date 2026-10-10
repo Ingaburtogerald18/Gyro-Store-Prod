@@ -14,9 +14,9 @@ const buttonVariants = cva(
           "border-input bg-card text-foreground hover:border-primary-2 aria-expanded:border-primary-2",
         ghost:
           "hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50",
-        // Cancelar o cerrar una edición: rojo con borde, sin competir con guardar.
+        // Gris y no rojo: el rojo se parece al bordó y queda para eliminar y errores.
         cancel:
-          "border-destructive/50 bg-destructive/5 text-destructive hover:border-destructive hover:bg-destructive/15 focus-visible:border-destructive focus-visible:ring-destructive/30 dark:bg-destructive/10 dark:hover:bg-destructive/20",
+          "border-input bg-card text-foreground hover:border-foreground/60 hover:bg-foreground/5 aria-expanded:border-foreground/60",
         destructive:
           "bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40",
         destructiveSolid:

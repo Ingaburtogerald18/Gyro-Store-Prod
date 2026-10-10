@@ -92,35 +92,13 @@ creadas), tasa de recompra (compradores registrados que vuelven a comprar), atri
 
 Premium, tech, nítido, confiable. Voz directa en español nicaragüense, sin relleno. [CONFIRMADO]
 
-**Referencias de producto:** Apple Store (calma, aire, foco en producto), Nike/StockX (jerarquía
-fuerte, precio protagonista, densidad controlada), Sonos/Nothing (oscuro editorial, monocromo con
-un acento). [CONFIRMADO]
+**Identidad visual:** mascota Gyro (personaje amigable, pelo en punta, lentes de sol).
 
-**Anti-referencias:** plantilla de e-commerce genérica — pills con gradiente arcoíris, gradient-text
-decorativo, sombras difusas, botones con degradado como acción principal, hit-areas chicas, filtros
-escondidos. Ni look SaaS-cream ni neón permanente. [CONFIRMADO]
-
-**Identidad visual:** mascota Gyro (personaje amigable, pelo en punta, lentes de sol). Colores, letras y
-reglas de diseño en `DESIGN.md`.
-
-> **Nota de v2:** implemento este diseño con **shadcn/ui**, pero pintando cada componente con mis
-> tokens. La librería me da la accesibilidad y el comportamiento; el look sigue siendo 100% mío. [v2]
+Las reglas de diseño están en DESIGN.md.
 
 ---
 
-## 6. Principios de producto (los mantengo en v2)
-
-1. **El producto manda** — la foto y el precio son el héroe; el chrome (nav, filtros) se calla.
-2. **Un solo acento con propósito** — esmeralda solo para acción/selección/estado.
-3. **Tokens semánticos siempre** — cero colores crudos; dark↔light es un flip.
-4. **Jerarquía por peso y espacio**, no por color ni cajas anidadas.
-5. **Táctil y accesible** — hit-areas ≥44px, foco visible, contraste AA, motion con propósito.
-
-[CONFIRMADO — de `PRODUCT.md`]
-
----
-
-## 7. Restricciones de contexto (Nicaragua) que moldean el producto
+## 6. Restricciones de contexto (Nicaragua) que moldean el producto
 
 - **Móvil primero y datos caros** → peso de página bajo, imágenes optimizadas (ver doc 07).
 - **Pago cultural por WhatsApp** → la conversión real es el mensaje, no un "add to cart" de pago.

@@ -28,7 +28,7 @@ npm-debug.log*
 # layout. Son documentos con datos reales de ventas: no van al repo.
 App/tmp/
 
-# ── Scratch temporal de herramientas de edición (Claude Code / Rhea) ──
+# ── Scratch temporal de herramientas de edición ──
 .rhea-tmp/
 
 # Perfiles de navegador que dejan los agentes al hacer pruebas (cookies y

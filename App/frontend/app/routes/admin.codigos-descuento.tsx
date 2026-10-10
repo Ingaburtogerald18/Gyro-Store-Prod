@@ -312,7 +312,7 @@ export default function AdminDiscountCodes() {
                         className={cn(
                           'rounded-full px-2.5 py-0.5 text-xs font-medium whitespace-nowrap',
                           !d.active ? 'bg-muted text-muted-foreground'
-                            : exhausted ? 'bg-success/10 text-success'
+                            : exhausted ? 'bg-success/10 text-foreground'
                             : expired ? 'bg-warning/10 text-warning'
                             : 'bg-info/10 text-info',
                         )}
@@ -328,7 +328,7 @@ export default function AdminDiscountCodes() {
                           aria-label={d.active ? `Desactivar ${d.code}` : `Reactivar ${d.code}`}
                           className={cn(
                             "grid h-8 w-8 shrink-0 place-items-center rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                            d.active ? "text-muted-foreground hover:bg-destructive/10 hover:text-destructive" : "text-success hover:bg-success/10"
+                            d.active ? "text-muted-foreground hover:bg-destructive/10 hover:text-destructive" : "text-foreground hover:bg-success/10"
                           )}
                         >
                           <HugeIcon icon={PowerServiceIcon} size={16} strokeWidth={2} aria-hidden />

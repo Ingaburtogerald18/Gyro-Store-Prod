@@ -103,7 +103,7 @@ export function CurrentInventoryTable({
             // Ancho mínimo: con 12 columnas el nombre se partía palabra por palabra.
             <div className="flex min-w-36 flex-col">
               <span className="font-semibold text-foreground">{model}</span>
-              {variant && <span className="text-xs text-muted-foreground">{variant}</span>}
+              {variant && <span className="text-sm text-muted-foreground">{variant}</span>}
             </div>
           );
         },
@@ -124,7 +124,7 @@ export function CurrentInventoryTable({
               onClick={() => navigate(`/admin/catalogo?sku=${rowData.code}`)}
               className="inline-flex items-center gap-1 whitespace-nowrap rounded-xl text-xs text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
-              <HugeIcon icon={CheckmarkCircle01Icon} size={13} strokeWidth={2} className="text-success" aria-hidden />
+              <HugeIcon icon={CheckmarkCircle01Icon} size={13} strokeWidth={2} className="text-foreground" aria-hidden />
               Vinculado
             </button>
           ) : (

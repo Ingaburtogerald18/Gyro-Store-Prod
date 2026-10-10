@@ -54,7 +54,7 @@ export function ProductGallery({
           type="button"
           onClick={() => setZoomed(true)}
           aria-label={`Ampliar imagen de ${name}`}
-          className="product-stage group relative mx-auto block aspect-square w-full max-w-[20rem] cursor-zoom-in overflow-hidden rounded-2xl bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none sm:max-w-[30rem]"
+          className="product-stage group relative mx-auto block aspect-square w-full max-w-[20rem] cursor-zoom-in overflow-hidden rounded-2xl bg-card focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none sm:max-w-[30rem]"
         >
           <motion.img
             key={current}

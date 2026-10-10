@@ -143,7 +143,7 @@ export function BannerEditor({ slide, onChange, onBusy, errors = {} }: {
               </div>
             </>
           )}
-          {upload.kind === 'done' && <p className="text-sm text-success">Archivo listo. Se ve en el banner al aplicar.</p>}
+          {upload.kind === 'done' && <p className="text-sm text-foreground">Archivo listo. Se ve en el banner al aplicar.</p>}
           {upload.kind === 'cancelled' && <p className="text-sm text-muted-foreground">Carga cancelada. La imagen anterior no cambió.</p>}
           {upload.kind === 'error' && (
             <p role="alert" className="text-sm text-destructive">{upload.message} La imagen anterior no cambió.</p>

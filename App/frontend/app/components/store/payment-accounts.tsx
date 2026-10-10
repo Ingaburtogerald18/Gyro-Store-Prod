@@ -62,7 +62,7 @@ function AccountRow({ account }: { account: StoreBankAccount }) {
           icon={copied ? Tick02Icon : Copy01Icon}
           size={16}
           strokeWidth={2}
-          className={copied ? 'text-success' : undefined}
+          className={copied ? 'text-foreground' : undefined}
         />
         <span className="ml-1.5 text-xs">{copied ? 'Copiado' : 'Copiar'}</span>
       </Button>

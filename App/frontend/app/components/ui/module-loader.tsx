@@ -128,9 +128,5 @@ export function BrandLoader({ text = 'Cargando…' }: { text?: string }) {
   );
 }
 
-// Acá vivía `ModuleLoader`, el overlay que tapaba el contenido en cada cambio de
-// ruta del admin. Se retiró de `admin.tsx` (tenía un mínimo anti-parpadeo de
-// 450 ms que se pagaba siempre, y con el backend en 80 ms cada navegación
-// costaba medio segundo de pantalla tapada) y quedó exportado sin consumidores.
-// Lo reemplazan la barra `GlobalProgress` —que aparece recién a los 150 ms— y
-// los esqueletos por bloque. Ver Docs/08 §9.
+// Overlay de carga a pantalla completa. Sirve para un arranque en frío, no para
+// navegar entre módulos: eso lo cubren `GlobalProgress` y los esqueletos.

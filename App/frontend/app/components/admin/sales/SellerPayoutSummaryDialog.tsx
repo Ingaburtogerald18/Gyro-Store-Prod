@@ -42,7 +42,7 @@ export function SellerPayoutSummaryDialog({
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <HugeIcon icon={CheckmarkCircle01Icon} size={20} className="text-success" />
+            <HugeIcon icon={CheckmarkCircle01Icon} size={20} className="text-foreground" />
             Ventas aprobadas
           </DialogTitle>
           <DialogDescription>{target?.sellerName}</DialogDescription>

@@ -13,7 +13,7 @@ const DOT: Record<Availability, string> = {
 };
 
 const TEXT: Record<Availability, string> = {
-  available: 'text-success',
+  available: 'text-foreground',
   sold_out: 'text-destructive',
   unknown: 'text-foreground',
 };

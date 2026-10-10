@@ -287,7 +287,7 @@ export default function AdminDashboard() {
                     value={gananciaReal}
                     prev={kpis.ganancia_real_prev ?? kpis.ganancia_tienda_total_prev}
                     format={formatMoney}
-                    valueClassName={gananciaReal >= 0 ? 'text-success' : 'text-destructive'}
+                    valueClassName={gananciaReal >= 0 ? 'text-foreground' : 'text-destructive'}
                     sub={isAdmin && (kpis.gastos_de_ganancia ?? 0) > 0 ? 'Después de los gastos que no cubrieron los pozos' : undefined}
                     onClick={() => setDrilldown('ganancia')}
                   />
