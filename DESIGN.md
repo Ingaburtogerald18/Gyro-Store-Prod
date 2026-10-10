@@ -16,13 +16,13 @@ Los colores viven en `app/tailwind.css`, en el bloque de la paleta de marca. En 
 | Crema | `--background` | `#fffcf3` | `#0e0f10` | Fondo de página |
 | Blanco | `--card`, `--popover` | `#ffffff` | `#18191b` | Tarjetas, menús, ventanas |
 | Rosa | `--rose`, `--muted`, `--selection` | `#f4ded9` | `#222326` (`--selection`: rosa oscuro al 16 %) | Fondo de lo elegido, encabezado de tablas, ofertas, círculo detrás de las fotos |
-| Texto secundario | `--muted-foreground` | `#6e5a57` | `#a8aaad` | Etiquetas, ayudas, fechas |
+| Texto secundario | `--muted-foreground` | `#6e5a57` | `#a8a29e` | Etiquetas, ayudas, fechas |
 | Amarillo | `--action` | `#ffc20e` | `#ffc20e` | Acción principal. Texto tinta (`#111111` en oscuro) |
 | Bordó | `--bordo`, `--primary-2` | `#812c2c` | `#e8a09a` (rosa oscuro) | Selección, navegación, links, foco, precios, línea del header |
 | Sombra del botón | `--sticker-shadow`, `--header-cart-shadow` | `#812c2c` | `#812c2c` | Sombra dura del botón principal y del carrito |
 | Teal del logo | `--logo`, `--success` | `#3dc5a9` | `#3dc5a9` | Logo, mascota y el punto de «Recibido», «Pagado», «Disponible» |
 | Header | `--header-background` | `#fffcf3` | `#141517` | Fondo del header |
-| Ofertas | `--promo` | rosa, texto bordó | rosa, texto bordó | Ofertas |
+| Ofertas | `--promo` | rosa, texto bordó | `#3a2a2b`, texto rosa | Ofertas |
 | Borde | `--border` | tinta 16 % | blanco 10 % | Tarjetas y separadores |
 | Borde de campo | `--input` | tinta 48 % | blanco 34 % | Campos, selects, botones con borde |
 | Error | `--destructive` | `#d92d20` | `#f04438` | Errores y eliminar |
@@ -37,7 +37,7 @@ Siempre:
 - Teal solo en el logo, la mascota y el punto de éxito. Como texto no se lee (2:1): el texto de éxito va en tinta.
 - Rojo solo para errores y eliminar, siempre con ícono o texto.
 - Los números van en color de texto. El color se reserva para estados.
-- Gráficos con colores de la marca, en este orden: bordó, amarillo, teal, rosa oscuro, tinta.
+- Gráficos con colores de la marca, en este orden: bordó, amarillo, tinta, rosa oscuro, gris.
 
 Nunca:
 - Valores sueltos en componentes (`#ffc20e`, `bg-yellow-400`, `rgb(...)`).
@@ -182,6 +182,7 @@ Panel:
 - Un elemento domina cada pantalla: la tabla, la lista de órdenes o el formulario.
 
 Tienda:
+- El producto manda: la foto y el precio son lo más visible; navegación y filtros quedan en segundo plano.
 - Se diseña primero para 360 px de ancho.
 - Objetivos táctiles de 44 px como mínimo.
 - Nunca se muestra el stock exacto: «Disponible», «Agotado» o «Consultar disponibilidad».
@@ -234,6 +235,8 @@ Lo que este documento pide y el código todavía no tiene. Cada línea se borra 
 - Pedidos web y Códigos de descuento: pasar sus listas a `DataTable` (hoy son filas propias dentro de una tarjeta).
 - CRM: contactos en tabla en vez de tarjetas.
 - Atajo de teclado de la acción principal en Pedidos web, Usuarios, Catálogo e Inicio.
+- Reportería: el selector de periodo (`PeriodPicker`) usa pestañas animadas; pasarlo a botones con borde.
+- Contadores animados (`CountUp`) en las métricas del panel: el panel solo mueve el botón principal, bordes y flechas.
 - Comentarios largos: acortar a 1 o 2 líneas los bloques que quedan (unos 340, en casi todos los archivos de `app/`).
 
 ## Registro de decisiones
@@ -252,6 +255,7 @@ Lo que este documento pide y el código todavía no tiene. Cada línea se borra 
 | 2026-10-10 | Opción elegida con borde esmeralda de 2 px y tinte |
 | 2026-10-10 | Solo el dueño cambia una regla; quien la aplica actualiza este archivo en el mismo commit |
 | 2026-10-10 | Un solo documento de diseño: este |
+| 2026-10-10 | En la tienda el producto manda: foto y precio por encima de navegación y filtros |
 | 2026-10-10 | Paleta de cuatro colores: crema, bordó, amarillo y rosa. El bordó reemplaza al esmeralda (rosa oscuro en modo oscuro) y el rosa al verde menta. Texto `#2a1d1d` y texto secundario `#6e5a57` |
 | 2026-10-10 | El verde sale de la interfaz: queda en el logo, la mascota y el punto de éxito (teal) |
 | 2026-10-10 | Cancelar y Cerrar pasan a gris con borde; el rojo queda para eliminar y errores |

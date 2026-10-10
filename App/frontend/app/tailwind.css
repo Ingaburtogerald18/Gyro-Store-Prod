@@ -223,12 +223,12 @@ html[data-area='admin'],
   --sticker-shadow: var(--bordo);
   --radius: 0.625rem;
 
-  /* Gráficos: bordó, amarillo, teal, rosa oscuro, tinta. */
+  /* Gráficos: bordó, amarillo, tinta, rosa oscuro, gris. */
   --chart-1: var(--bordo);
   --chart-2: #ffc20e;
-  --chart-3: #3dc5a9;
-  --chart-4: #e8a09a;
-  --chart-5: var(--ink);
+  --chart-3: var(--ink);
+  --chart-4: #d98a84;
+  --chart-5: #a8a29e;
 
   --sidebar: var(--card);
   --sidebar-foreground: var(--foreground);
@@ -293,7 +293,9 @@ html[data-theme='dark'] .store-palette {
   --primary-2: #e8a09a;
   --selection: color-mix(in srgb, var(--primary-2) 16%, var(--card));
   --muted: #222326;
-  --muted-foreground: #a8aaad;
+  --muted-foreground: #a8a29e;
+  --promo: #3a2a2b;
+  --promo-foreground: #f4ded9;
   --secondary-foreground: #f4f4f2;
   --accent-foreground: #f4f4f2;
   --border: rgb(255 255 255 / 10%);
@@ -310,9 +312,9 @@ html[data-theme='dark'] .store-palette {
   /* Mismo orden que en claro, en tonos que se leen sobre #18191b. */
   --chart-1: #e8a09a;
   --chart-2: #ffc20e;
-  --chart-3: #3dc5a9;
-  --chart-4: #f4ded9;
-  --chart-5: #f4f4f2;
+  --chart-3: #f4f4f2;
+  --chart-4: #b5545a;
+  --chart-5: #78716c;
 
   --sidebar-primary-foreground: var(--ink);
 

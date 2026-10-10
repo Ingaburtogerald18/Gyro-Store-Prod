@@ -129,7 +129,7 @@ utils, `shared/schemas.ts`. Verde `/api/health`.
 
 ### Hito 1 — Storefront (lo crítico para abrir)
 Catálogo, templates, combos, PDP, checkout WhatsApp (`public_orders` con recálculo), contacto →
-`contacts`. Diseño Editorial Dark con shadcn/ui, tema claro/oscuro. Cerrar R4/R5/R6.
+`contacts`. Diseño según DESIGN.md. Cerrar R4/R5/R6.
 
 ### Hito 2 — Inventario y catálogo admin
 `purchases` (FIFO con TX SQL), `products`, `migrated_inventory`, modo edición del catálogo (dnd-kit,
@@ -171,84 +171,29 @@ la apertura.
 
 ---
 
-## 9. UI del admin — retirado y pendiente (Fase 1 de optimización)
+## 9. Deuda técnica pendiente del frontend
 
-Las reglas de diseño vigentes están en `DESIGN.md`.
+Lo que es de diseño está en DESIGN.md, en «Pendiente en el código». Acá queda el resto:
 
-### Retirado
-
-**`ModuleLoader`** (`components/ui/module-loader.tsx`) — el overlay que tapaba el contenido en cada
-cambio de ruta del admin. Se retiró de `admin.tsx`, pero **el componente sigue en el repo**: es
-válido para una pantalla de arranque en frío, no para navegación. `BrandLoader`, del mismo archivo,
-sí se sigue usando (`admin.tsx`, `admin.usuarios`, `admin.configuracion`).
-
-Motivo: tenía un mínimo anti-parpadeo de 450 ms que se pagaba **siempre**. Con el backend
-respondiendo en 80 ms, cada navegación costaba medio segundo de pantalla tapada. Un mínimo
-artificial no arregla el parpadeo; lo convierte en lentitud constante. Lo reemplazan el umbral de
-aparición de 150 ms en `GlobalProgress` y los esqueletos por bloque.
-
-**Stagger de filas en `DataTable`** — la entrada escalonada montaba un `motion.tr` por fila (hasta
-60) y era una de las seis animaciones que corrían a la vez al entrar a un módulo.
-
-**`SpotlightCard` dentro de `StatCard`** — cada tarjeta montaba dos capas de efecto sobre el mismo
-elemento. El resplandor queda para las tarjetas grandes de análisis.
-
-### Pendiente
-
-- **`CountUp` en los KPIs secundarios.** El plan pide dejarlo solo en la métrica héroe, pero esa
-  métrica se crea en la Fase 3. Quitarlo ahora y volver a ponerlo en una tarjeta después es churn
-  sobre un bloque que la Fase 3 reestructura entero. **Se resuelve en la Fase 3.**
-- **`GlobalProgress` es `fixed` al viewport, no al `SidebarInset`.** El plan pedía lo segundo, pero
-  `root.tsx` ya monta una instancia para toda la app y dos dibujarían dos barras. Cruza por encima
-  del sidebar, que además es el patrón habitual.
-- **`fetching` de `QueryState` aplicado solo en `admin.ventas`.** Falta extenderlo a inventario,
-  facturación, cuotas y caja. El componente ya lo soporta.
-- **Paginación en servidor** (Fase 6.4): `DataTable` pagina en cliente sobre el dataset completo, o
-  sea que el navegador descarga todo el histórico para mostrar 25 filas. Es la deuda de rendimiento
-  más grande del panel.
-- **Prefetch de datos en hover** del nav (Fase 1.5): los `NavLink` ya tienen `prefetch="intent"`
-  para el código de la ruta, pero no se precargan los datos con `api.util.prefetch`.
-
-### Pendiente tras las fases 2–7
-
-- **Periodo global en el topbar (Fase 2.4).** Bloqueado por falta de consumidores: de las diez
-  rutas, solo Reportería e Inventario filtran por rango. `getSales`, caja y facturación no
-  aceptan fechas —ni en el front ni en sus endpoints—, así que un selector global no haría nada
-  en ocho pantallas. Ruta de migración: agregar el filtro de fechas a esos tres módulos
-  (backend incluido) y recién entonces subir el selector.
-- **Paleta `--chart-1..5`: resuelta parcialmente.** Eran idénticos en claro y oscuro, con L de
-  0.871 a 0.448 y saltos desparejos (de 0.148 a 0.079): sobre blanco el más claro casi no se
-  veía y sobre oscuro el más oscuro tampoco. Ahora cada tema tiene su propio rango (claro
-  0.74→0.35, oscuro 0.88→0.49) con saltos parejos de **0.13** y un neutro en `--chart-5`.
-  Queda por debajo de los 0.15 que pedía el plan: con cinco pasos de un solo hue, 0.15 obliga a
-  un extremo que se funde con el fondo. Falta verificarlo a ojo en el donut.
-- **`<Delta>` fuera del dashboard.** El componente está listo, pero solo `get_financial_kpis`
-  devuelve valores del periodo anterior (0017). `InventoryKpis`, `SellerPerformance`,
-  `SalesBreakdownCards` y los KPIs de caja necesitan la misma cirugía de doble ventana en sus
-  RPCs.
-- **Editores migrados a drawer (Fase 5.3): hecho, sin verificar en navegador.** `SaleEditor`,
-  `InvoiceEditor` y `ProductEditorDialog` pasaron de `Dialog` a `Sheet` con header fijo y cuerpo
-  scrolleable, y los tres se cargan con `React.lazy`. `ProductEditorDialog` conserva el nombre
-  del archivo aunque ya no monte un `Dialog`, para no romper imports. **Probar los tres flujos
-  completos antes de confiar en ellos**: son las tres operaciones centrales del negocio y el
-  cambio no se pudo abrir en un navegador.
-- **Búsqueda en vivo en la paleta ⌘K.** Requiere `GET /api/search?q=` con recorte por rol
-  (máx. 5 resultados por tipo: factura, cliente, producto, vendedor). No existe.
-- **Paginación en SERVIDOR (Fase 6.4).** `DataTable` pagina en cliente sobre el dataset
-  completo: el navegador descarga todo el histórico para mostrar 25 filas. Es la deuda de
-  rendimiento más grande del panel. Afecta a ventas, facturación e inventario histórico.
-  Ruta: `limit`/`cursor` en los endpoints + `manualPagination` en TanStack.
-- **Medición de bundle y Lighthouse (Fase 6.1).** Falta el script `npm run analyze`
-  (`rollup-plugin-visualizer`) y los números base de LCP/TBT/CLS. Sin medición, las mejoras de
-  code splitting son a ciegas.
-- **Rutas gordas (Fase 7.3).** `admin.usuarios.tsx` (980 líneas) y `admin.configuracion.tsx`
-  (785) siguen siendo monolitos. El objetivo es que ninguna ruta pase de ~250, extrayendo a
-  `components/admin/<modulo>/` como ya hacen ventas e inventario.
-- **Tabs triplicados (Fase 7.2).** Conviven tres implementaciones: pills a mano en
-  `admin.inventario`, `Tabs` de shadcn en ventas/catálogo/cuotas, y `AnimatedTabs` en
-  configuración/usuarios/PeriodPicker. Converger hacia `AnimatedTabs`, que ya resuelve el pill
-  con `layoutId`.
-- **`SectionHeader` de `stat-card.tsx`** quedó marcado `@deprecated` apuntando a
-  `layout/SectionLabel`, sin migrar sus consumidores.
-- **Emojis en la UI**: el filtro de tránsito de `PurchasesTable` usa 🟢/🟠/🔴. Deben ser puntos
-  con los tokens `success`/`warning`/`destructive`.
+- **Paginación en servidor.** `DataTable` pagina en cliente sobre el dataset completo: el navegador
+  descarga todo el histórico para mostrar 25 filas. Es la deuda de rendimiento más grande del panel
+  (ventas, facturación, inventario histórico). Ruta: `limit`/`cursor` en los endpoints +
+  `manualPagination` en TanStack.
+- **Prefetch de datos en hover** del nav: los `NavLink` ya precargan el código de la ruta
+  (`prefetch="intent"`), pero no los datos con `api.util.prefetch`.
+- **Periodo global en el topbar.** Solo Reportería e Inventario filtran por rango; `getSales`, caja y
+  facturación no aceptan fechas ni en el front ni en sus endpoints. Primero agregar el filtro de
+  fechas a esos módulos (backend incluido) y después subir el selector.
+- **`<Delta>` fuera del dashboard.** Solo `get_financial_kpis` devuelve el periodo anterior.
+  `InventoryKpis`, `SellerPerformance`, `SalesBreakdownCards` y los KPIs de caja necesitan la
+  misma doble ventana en sus RPCs.
+- **`fetching` de `QueryState`** (datos viejos atenuados durante un refetch) solo está en
+  `admin.ventas`. Falta en inventario, facturación, cuotas y caja.
+- **Búsqueda en vivo en la paleta ⌘K.** Requiere `GET /api/search?q=` con recorte por rol (máx. 5
+  resultados por tipo: factura, cliente, producto, vendedor). No existe.
+- **Medición de bundle y Lighthouse.** Falta `npm run analyze` (`rollup-plugin-visualizer`) y los
+  números base de LCP/TBT/CLS.
+- **Rutas gordas.** `admin.usuarios.tsx` y `admin.configuracion.tsx` siguen siendo monolitos. El
+  objetivo es que ninguna ruta pase de ~250 líneas, extrayendo a `components/admin/<modulo>/`.
+- **`ModuleLoader`** (`components/ui/module-loader.tsx`) quedó exportado sin consumidores;
+  `BrandLoader`, del mismo archivo, sí se usa.
