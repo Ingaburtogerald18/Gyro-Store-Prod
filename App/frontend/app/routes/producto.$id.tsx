@@ -24,7 +24,7 @@ import { PurchaseStatus, addLabel, cartItemFor } from '~/components/product/purc
 import { TrustBox } from '~/components/product/trust-box';
 import { WhatsappIcon } from '~/components/ui/whatsapp-icon';
 import { VariantPicker } from '~/components/product/variant-picker';
-import { autoSelection, pickableAxes, purchaseState, variantLabel, type VariantSelection } from '~/lib/purchase';
+import { autoSelection, isConsultOnly, pickableAxes, purchaseState, variantLabel, type VariantSelection } from '~/lib/purchase';
 import { Badge } from '~/components/ui/badge';
 import { Button } from '~/components/ui/button';
 import { Separator } from '~/components/ui/separator';
@@ -93,6 +93,8 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
 // datos de bodega no se afirma disponibilidad. Con precios distintos por
 // variante, rango (AggregateOffer) en vez de un precio único engañoso.
 function productOffers(product: CatalogDetail, url: string) {
+  // «Próximamente» todavía no tiene precio: no se publica una oferta.
+  if (product.availability === 'coming_soon') return undefined;
   const availability =
     product.availability === 'available'
       ? 'https://schema.org/InStock'
@@ -229,7 +231,7 @@ export default function ProductDetail() {
             url,
           })
         : productWhatsappMessage({
-            kind: state.kind === 'sold_out' || state.kind === 'unknown' ? 'availability' : 'info',
+            kind: isConsultOnly(state.kind) ? 'availability' : 'info',
             name: product.name,
             variant: selectedLabel || undefined,
             url,
@@ -237,8 +239,9 @@ export default function ProductDetail() {
     window.open(buildWhatsappUrl(config?.whatsapp ?? '', message), '_blank', 'noopener,noreferrer');
   }
 
-  // Agotado o sin stock verificable: la acción principal es consultar.
-  const consultOnly = state.kind === 'sold_out' || state.kind === 'unknown';
+  // Agotado, próximamente o sin stock verificable: la acción principal es consultar.
+  const consultOnly = isConsultOnly(state.kind);
+  const comingSoon = variant ? variant.availability === 'coming_soon' : product.availability === 'coming_soon';
   const whatsappLabel = state.kind === 'ready' ? 'Pedir por WhatsApp' : 'Consultar por WhatsApp';
 
   return (
@@ -264,18 +267,22 @@ export default function ProductDetail() {
                 {description}
               </p>
             )}
-            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-              <span className="font-heading text-3xl font-extrabold tracking-tight text-primary-2 tabular-nums">
-                {showFrom && <span className="mr-1.5 text-base font-semibold text-muted-foreground">Desde</span>}
-                {formatCordobas(price, currency)}
-              </span>
-              {onSale && compareAt && (
-                <span className="text-base text-muted-foreground line-through tabular-nums">
-                  <span className="sr-only">Antes </span>
-                  {formatCordobas(compareAt, currency)}
+            {comingSoon ? (
+              <p className="font-heading text-xl font-bold text-foreground">Próximamente</p>
+            ) : (
+              <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                <span className="font-heading text-3xl font-extrabold tracking-tight text-primary-2 tabular-nums">
+                  {showFrom && <span className="mr-1.5 text-base font-semibold text-muted-foreground">Desde</span>}
+                  {formatCordobas(price, currency)}
                 </span>
-              )}
-            </div>
+                {onSale && compareAt && (
+                  <span className="text-base text-muted-foreground line-through tabular-nums">
+                    <span className="sr-only">Antes </span>
+                    {formatCordobas(compareAt, currency)}
+                  </span>
+                )}
+              </div>
+            )}
             {promoNote && (
               <p className="text-sm font-medium text-foreground">
                 Oferta en algunas opciones: elegí una para ver su precio.
@@ -389,7 +396,7 @@ export default function ProductDetail() {
         key={product.id}
         buyActionsId="product-buy-actions"
         name={product.name}
-        price={`${showFrom ? 'Desde ' : ''}${formatCordobas(price * (state.kind === 'ready' ? safeQuantity : 1), currency)}`}
+        price={comingSoon ? 'Próximamente' : `${showFrom ? 'Desde ' : ''}${formatCordobas(price * (state.kind === 'ready' ? safeQuantity : 1), currency)}`}
         mode={consultOnly ? 'consult' : 'add'}
         addLabel={addLabel(state, { short: true })}
         onAdd={handleAddToCart}

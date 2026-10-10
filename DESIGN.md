@@ -191,7 +191,8 @@ Tienda:
 - El producto manda: la foto y el precio son lo más visible; navegación y filtros quedan en segundo plano.
 - Se diseña primero para 360 px de ancho.
 - Objetivos táctiles de 44 px como mínimo.
-- Nunca se muestra el stock exacto: «Disponible», «Agotado» o «Consultar disponibilidad».
+- Nunca se muestra el stock exacto: «Disponible», «Próximamente», «Agotado» o «Consultar disponibilidad».
+- «Próximamente» (sin stock y con una compra en camino) se muestra sin precio. Ni «Próximamente» ni «Agotado» se pueden pedir.
 
 Los dos:
 - Claro por defecto. Toda pantalla se revisa en claro y en oscuro.
@@ -272,3 +273,4 @@ Lo que este documento pide y el código todavía no tiene. Cada línea se borra 
 | 2026-10-10 | Lo elegido con texto bordó (en oscuro, fondo `#26272a`); barra de herramientas con borde normal; fila de tabla en rosa al pasar el mouse; contorno del botón amarillo `#111111` en oscuro; ofertas con borde bordó; precios en bordó; gráficos de Reportería en bordó, sin verde |
 | 2026-10-10 | Rediseño aprobado del editor de portada: estructura, tienda e inspector fijo, edición directa del borrador, deshacer/rehacer, composiciones preparadas y publicación confirmada. Excepción a los formularios de banner en ventana; el carrito sigue en ventana |
 | 2026-10-10 | Una plantilla por modelo: la tienda muestra su nombre, descripción y categoría; la nota interna no se publica. Plantillas y categorías se administran en Inventario (vista Plantillas), ya no en Catálogo |
+| 2026-10-10 | El precio de la tienda es el de venta que se pone al recibir en bodega (el del lote más viejo con stock). Nuevo estado «Próximamente», sin precio; «Próximamente» y «Agotado» no se pueden pedir |

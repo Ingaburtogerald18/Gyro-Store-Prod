@@ -103,6 +103,10 @@ export function resolveOrderLines(
       issues.push({ index, reason: 'unknown_stock' });
       return;
     }
+    if (variant.availability === 'coming_soon') {
+      issues.push({ index, reason: 'coming_soon' });
+      return;
+    }
     if (variant.availability === 'sold_out' || variant.stock <= 0) {
       issues.push({ index, reason: 'sold_out' });
       return;

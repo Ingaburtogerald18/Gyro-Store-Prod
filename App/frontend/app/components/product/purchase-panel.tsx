@@ -38,6 +38,8 @@ export function addLabel(state: PurchaseState, { short = false } = {}) {
       return 'Elegí otra combinación';
     case 'sold_out':
       return 'Agotado';
+    case 'coming_soon':
+      return 'Próximamente';
     case 'unknown':
       return 'Consultar disponibilidad';
     case 'ready':
@@ -86,6 +88,12 @@ export function PurchaseStatus({
         <p className="text-sm text-muted-foreground">
           Esta opción está agotada. Podés consultar por WhatsApp cuándo vuelve
           {canClear && onClear ? ' o elegir otra.' : '.'}
+        </p>
+      )}
+      {state.kind === 'coming_soon' && (
+        <p className="text-sm text-muted-foreground">
+          Esta opción viene en camino y todavía no se puede pedir. Consultanos por WhatsApp
+          {canClear && onClear ? ' o elegí otra.' : '.'}
         </p>
       )}
       {state.kind === 'unknown' && (

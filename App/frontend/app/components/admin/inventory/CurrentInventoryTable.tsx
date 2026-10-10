@@ -211,7 +211,8 @@ export function CurrentInventoryTable({
         meta: { align: "right" },
         cell: ({ row }) => {
           const ps = row.original.suggestedPrice;
-          if (!ps) return <span className="text-muted-foreground text-xs">—</span>;
+          // Sin precio, la tienda usa el del catálogo hasta que se le ponga uno con «Editar».
+          if (!ps) return <span className="text-xs text-warning">Sin precio</span>;
           return <MoneyCell tone="strong" value={ps} />;
         },
       },

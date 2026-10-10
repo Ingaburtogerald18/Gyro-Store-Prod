@@ -105,11 +105,13 @@ export const specRowSchema = z.object({
 });
 
 // Disponibilidad cualitativa: lo único que el cliente ve del inventario.
-//   · available → hay unidades en los lotes vinculados.
-//   · sold_out  → la variante está vinculada a bodega y no quedan unidades.
-//   · unknown   → no hay vínculo con bodega: el stock no se conoce. Se ofrece
-//                 «Consultar disponibilidad» por WhatsApp, nunca como compra.
-export const AVAILABILITY = ['available', 'sold_out', 'unknown'] as const;
+//   · available   → hay unidades en los lotes vinculados.
+//   · coming_soon → sin unidades en bodega y con una compra en camino. Sin precio
+//                   y no se puede pedir.
+//   · sold_out    → la variante está vinculada a bodega y no quedan unidades.
+//   · unknown     → no hay vínculo con bodega (o no tiene precio): se ofrece
+//                   «Consultar disponibilidad» por WhatsApp, nunca como compra.
+export const AVAILABILITY = ['available', 'coming_soon', 'sold_out', 'unknown'] as const;
 export const availabilitySchema = z.enum(AVAILABILITY);
 export type Availability = z.infer<typeof availabilitySchema>;
 
@@ -122,7 +124,8 @@ export const catalogProductSchema = z.object({
   categoryId: z.string().uuid().nullable().optional(),
   images: z.array(z.string()),
   // Precio que muestra la tarjeta: el menor de las variantes comprables (o de
-  // todas, si ninguna lo es). Con `priceFrom` se presenta como «Desde …».
+  // todas, si ninguna lo es). Con `priceFrom` se presenta como «Desde …». Es 0
+  // en «Próximamente», que no muestra precio.
   price: z.number(),
   // Precio «antes» SOLO cuando todas las variantes comparten el mismo precio y
   // la misma rebaja: una tarjeta no muestra la rebaja del modelo entero si
@@ -172,7 +175,7 @@ export const catalogAxisSchema = z.object({
 export const catalogVariantSchema = z.object({
   variantName: z.string(),
   axisValues: z.array(z.string()),
-  // Precio vigente de ESTA combinación (promoción incluida).
+  // Precio vigente de ESTA combinación (promoción incluida); 0 en «Próximamente».
   price: z.number(),
   // Precio regular cuando la combinación tiene promoción.
   compareAtPrice: z.number().optional(),
@@ -908,6 +911,7 @@ export const ORDER_ISSUE_REASONS = [
   'variant_required', // falta elegir opciones (carrito viejo sin variante)
   'invalid_variant',  // la variante guardada ya no existe en el producto
   'sold_out',         // la variante se agotó
+  'coming_soon',      // la variante viene en camino: todavía no se puede pedir
   'unknown_stock',    // la variante no tiene stock verificable
   'insufficient',     // pide más unidades de las disponibles
   'price_changed',    // el precio cambió desde que se agregó
@@ -1040,7 +1044,8 @@ export type UpdatePurchaseInput = z.infer<typeof updatePurchaseInputSchema>;
 export const arrivalInputSchema = z.object({
   arrivalDate: z.iso.date(),
   shippingUnit: z.number().min(0),
-  suggestedPrice: z.number().min(0).optional(),
+  // Precio de venta del lote (C$): es el único precio que usa la tienda.
+  suggestedPrice: z.number().positive('Escribí el precio de venta.'),
   // Tasa C$/USD que se congela en el lote. Opcional: sin ella se usa la de
   // Configuración (el modal la precarga con esa misma).
   exchangeRate: z.number().positive().max(1000).optional(),
@@ -1141,26 +1146,30 @@ export type AddPurchaseOrderLinesInput = z.infer<typeof addPurchaseOrderLinesInp
 // Las líneas que no se mandan siguen en tránsito: así se recibe por partes.
 // Un mismo envío del agente suele traer varias órdenes: `extraOrderIds` suma
 // las otras órdenes que llegaron juntas, y el envío se reparte entre todas.
+const receiptLineFields = {
+  purchaseId: z.uuid(),
+  receivedQuantity: z.number().int().positive('Lo recibido debe ser mayor a 0.').max(1_000_000),
+};
+const receiptLines = <T extends z.ZodType>(salePrice: T) =>
+  z
+    .array(z.object({ ...receiptLineFields, salePrice }))
+    .min(1, 'Elegí al menos un producto recibido.')
+    .max(100);
+
 export const receivePurchaseOrderInputSchema = z.object({
   arrivalDate: z.iso.date(),
   extraOrderIds: z.array(z.uuid()).max(30).optional(),
   exchangeRate: z.number().positive().max(1000).optional(),
   shippingTotalUsd: z.number().min(0).max(10_000_000),
-  lines: z
-    .array(
-      z.object({
-        purchaseId: z.uuid(),
-        receivedQuantity: z.number().int().positive('Lo recibido debe ser mayor a 0.').max(1_000_000),
-        // Precio de venta del lote (C$). Sin él, el sugerido.
-        salePrice: z.number().min(0).max(10_000_000).optional(),
-      }),
-    )
-    .min(1, 'Elegí al menos un producto recibido.')
-    .max(100),
+  // Precio de venta del lote (C$): es el único precio que usa la tienda.
+  lines: receiptLines(z.number().positive('Escribí el precio de venta.').max(10_000_000)),
 });
 export type ReceivePurchaseOrderInput = z.infer<typeof receivePurchaseOrderInputSchema>;
 
-export const simulatePurchaseOrderReceiptInputSchema = receivePurchaseOrderInputSchema.omit({ arrivalDate: true });
+// La simulación calcula el precio sugerido, así que todavía no lo pide.
+export const simulatePurchaseOrderReceiptInputSchema = receivePurchaseOrderInputSchema
+  .omit({ arrivalDate: true, lines: true })
+  .extend({ lines: receiptLines(z.number().min(0).max(10_000_000).optional()) });
 export type SimulatePurchaseOrderReceiptInput = z.infer<typeof simulatePurchaseOrderReceiptInputSchema>;
 
 // ============================================================================

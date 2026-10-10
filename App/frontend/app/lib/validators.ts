@@ -72,7 +72,8 @@ export type PurchaseFormValues = z.input<typeof purchaseFormSchema>;
 export const arrivalFormSchema = z.object({
   arrivalDate: z.string().min(1, "Fecha de ingreso requerida"),
   shippingUnit: z.coerce.number().nonnegative("No puede ser negativo"),
-  suggestedPrice: z.coerce.number().nonnegative("No puede ser negativo").optional(),
+  // Es el único precio que usa la tienda.
+  suggestedPrice: z.coerce.number({ error: "Escribí el precio de venta." }).positive("Escribí el precio de venta."),
   // Vacío = la tasa de Configuración.
   exchangeRate: z.preprocess(
     (v) => (v === "" || v === null || v === undefined ? undefined : Number(v)),

@@ -66,6 +66,7 @@ export function ProductCard({
   const hoverImage = product.images[1];
   const available = product.availability === 'available';
   const soldOut = product.availability === 'sold_out';
+  const comingSoon = product.availability === 'coming_soon';
   const compareAt = product.compareAtPrice ?? 0;
   const onSale = compareAt > product.price;
   const discountPct = onSale ? Math.round((1 - product.price / compareAt) * 100) : 0;
@@ -185,18 +186,21 @@ export function ProductCard({
           ))}
         </dl>
       )}
-      <div className="mt-1 flex flex-wrap items-baseline gap-x-2">
-        {product.priceFrom && <span className="text-xs font-medium text-muted-foreground">Desde</span>}
-        <span className="font-heading text-lg font-extrabold tracking-tight text-primary-2 tabular-nums">
-          {formatCordobas(product.price, currency)}
-        </span>
-        {onSale && (
-          <span className="text-xs text-muted-foreground line-through tabular-nums sm:text-sm">
-            <span className="sr-only">Antes </span>
-            {formatCordobas(compareAt, currency)}
+      {/* «Próximamente» no tiene precio todavía: el estado de abajo lo dice. */}
+      {!comingSoon && (
+        <div className="mt-1 flex flex-wrap items-baseline gap-x-2">
+          {product.priceFrom && <span className="text-xs font-medium text-muted-foreground">Desde</span>}
+          <span className="font-heading text-lg font-extrabold tracking-tight text-primary-2 tabular-nums">
+            {formatCordobas(product.price, currency)}
           </span>
-        )}
-      </div>
+          {onSale && (
+            <span className="text-xs text-muted-foreground line-through tabular-nums sm:text-sm">
+              <span className="sr-only">Antes </span>
+              {formatCordobas(compareAt, currency)}
+            </span>
+          )}
+        </div>
+      )}
       {!available && (
         <p className={cn('text-xs font-medium', soldOut ? 'text-destructive' : 'text-foreground')}>
           {AVAILABILITY_LABEL[product.availability]}

@@ -33,7 +33,7 @@ export function resolveVariant(
 /**
  * Estado de una opción dentro de un eje, dado lo que ya está elegido en los
  * demás: 'available' si lleva a alguna combinación comprable; si no, la mejor
- * de las otras ('unknown' antes que 'sold_out', porque se puede consultar).
+ * de las otras (próximamente, consultar y por último agotado).
  */
 export function optionAvailability(
   axes: CatalogAxis[],
@@ -48,6 +48,7 @@ export function optionAvailability(
       axes.every((a, i) => i === axisIndex || !selection[a.key] || valueAt(v, i) === selection[a.key]),
   );
   if (matching.some((v) => v.availability === 'available')) return 'available';
+  if (matching.some((v) => v.availability === 'coming_soon')) return 'coming_soon';
   if (matching.some((v) => v.availability === 'unknown')) return 'unknown';
   return 'sold_out';
 }
@@ -77,6 +78,7 @@ export type PurchaseState =
   | { kind: 'missing'; axis: CatalogAxis }
   | { kind: 'invalid' }
   | { kind: 'sold_out'; variant: CatalogVariant }
+  | { kind: 'coming_soon'; variant: CatalogVariant }
   | { kind: 'unknown'; variant: CatalogVariant }
   | { kind: 'ready'; variant: CatalogVariant; maxQuantity: number };
 
@@ -105,13 +107,19 @@ export function purchaseState({
   const variant = resolveVariant(axes, variants, selection);
   if (!variant) return { kind: 'invalid' };
   if (variant.availability === 'unknown') return { kind: 'unknown', variant };
+  if (variant.availability === 'coming_soon') return { kind: 'coming_soon', variant };
   if (variant.availability === 'sold_out' || variant.stock <= 0) return { kind: 'sold_out', variant };
   return { kind: 'ready', variant, maxQuantity: variant.stock };
 }
 
+/** Ni comprable ni con precio que mostrar: solo se consulta. */
+export const isConsultOnly = (kind: PurchaseState['kind']) =>
+  kind === 'sold_out' || kind === 'coming_soon' || kind === 'unknown';
+
 /** Texto cualitativo de disponibilidad: nunca cantidades. */
 export const AVAILABILITY_LABEL: Record<Availability, string> = {
   available: 'Disponible',
+  coming_soon: 'Próximamente',
   sold_out: 'Agotado',
   unknown: 'Consultar disponibilidad',
 };

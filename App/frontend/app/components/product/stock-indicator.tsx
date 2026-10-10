@@ -8,12 +8,14 @@ import { cn } from '~/lib/utils';
 
 const DOT: Record<Availability, string> = {
   available: 'bg-success',
+  coming_soon: 'bg-primary-2',
   sold_out: 'bg-destructive',
   unknown: 'bg-warning',
 };
 
 const TEXT: Record<Availability, string> = {
   available: 'text-foreground',
+  coming_soon: 'text-foreground',
   sold_out: 'text-destructive',
   unknown: 'text-foreground',
 };

@@ -187,9 +187,11 @@ function buildCombinations(item: PublicCatalogItem, axes: Axis[]): string[][] {
 // ── Precio ──
 //
 // Una sola regla para la tarjeta, la ficha, el selector rápido y el pedido:
-//   1. Precio regular de la variante: el suyo propio (`mapping.price`) o, si no
-//      tiene, el del producto (`base_price` con oferta activa — ahí `price` es
-//      el de oferta —; `price` sin oferta, con `base_price` de respaldo).
+//   1. Precio regular de la variante: el de venta del lote de bodega que toca
+//      (`lotPrice`). Los lotes viejos sin precio usan el del catálogo: el de la
+//      variante (`mapping.price`) o el del producto (`base_price` con oferta
+//      activa — ahí `price` es el de oferta —; `price` sin oferta, con
+//      `base_price` de respaldo).
 //   2. Promoción vigente, la más específica primero:
 //      · `mapping.promoPrice` (promoción de ESA variante);
 //      · `price` del producto cuando `is_promo` (oferta del modelo entero).
@@ -208,52 +210,90 @@ type PriceFields = Pick<PublicCatalogItem, 'price' | 'base_price' | 'is_promo'>;
 export function resolveVariantPrice(
   item: PriceFields,
   mapping?: Pick<VariantMapping, 'price' | 'promoPrice'>,
+  lotPrice?: number,
 ): ResolvedPrice {
   const itemPrice = item.price ?? null;
   const basePrice = item.base_price ?? null;
   const productRegular = item.is_promo
     ? (basePrice && basePrice > 0 ? basePrice : (itemPrice ?? 0))
     : (itemPrice ?? basePrice ?? 0);
-  const regular = mapping?.price && mapping.price > 0 ? mapping.price : productRegular;
+  const catalogRegular = mapping?.price && mapping.price > 0 ? mapping.price : productRegular;
+  const fromLot = lotPrice !== undefined && lotPrice > 0;
+  const regular = fromLot ? lotPrice : catalogRegular;
 
   const candidates = [mapping?.promoPrice, item.is_promo ? (itemPrice ?? undefined) : undefined];
   const promo = candidates.find((p): p is number => typeof p === 'number' && p > 0 && p < regular);
   if (promo !== undefined) return { price: promo, compareAtPrice: regular, isPromo: true };
 
-  const compareAtPrice = !item.is_promo && basePrice && basePrice > regular ? basePrice : undefined;
+  const compareAtPrice = !fromLot && !item.is_promo && basePrice && basePrice > regular ? basePrice : undefined;
   return { price: regular, ...(compareAtPrice ? { compareAtPrice } : {}), isPromo: false };
 }
 
 // ── Disponibilidad ──
 //
+// Lote de bodega visto por la tienda (getLotsByCodes). Un número suelto es solo
+// lo disponible del lote, sin estado ni precio.
+export interface LotInfo {
+  available: number;
+  inTransit: boolean;
+  salePrice: number | null;
+  /** Orden FIFO: fecha de compra y de registro. */
+  fifoKey: string;
+}
+export type StockByCode = ReadonlyMap<string, number | LotInfo>;
+
 // Stock real de una variante: suma de lo disponible en los lotes vinculados.
 //   · Sin vínculo con bodega → 'unknown': no se sabe, y no se inventa una
 //     unidad para poder venderla (antes se mostraba stock 1).
+//   · Sin unidades y con una compra en camino → 'coming_soon'.
 //   · Vinculada y sin unidades → 'sold_out'.
+// `lotPrice` es el precio de venta del lote más viejo con unidades (el que
+// descuenta la próxima venta); agotada, el del último lote recibido.
 export function resolveAvailability(
   mapping: Pick<VariantMapping, 'codes'> | undefined,
-  stockByCode: Map<string, number>,
-): { stock: number; availability: Availability } {
+  stockByCode: StockByCode,
+): { stock: number; availability: Availability; lotPrice?: number } {
   if (!mapping || mapping.codes.length === 0) return { stock: 0, availability: 'unknown' };
-  const stock = mapping.codes.reduce((sum, code) => sum + (stockByCode.get(code) ?? 0), 0);
-  return { stock, availability: stock > 0 ? 'available' : 'sold_out' };
+  let stock = 0;
+  const lots: LotInfo[] = [];
+  for (const code of mapping.codes) {
+    const lot = stockByCode.get(code);
+    if (lot === undefined) continue;
+    if (typeof lot === 'number') {
+      stock += lot;
+      continue;
+    }
+    stock += lot.available;
+    lots.push(lot);
+  }
+  lots.sort((a, b) => a.fifoKey.localeCompare(b.fifoKey));
+
+  if (stock > 0) {
+    const price = lots.find((lot) => lot.available > 0)?.salePrice;
+    return { stock, availability: 'available', ...(price ? { lotPrice: price } : {}) };
+  }
+  if (lots.some((lot) => lot.inTransit)) return { stock: 0, availability: 'coming_soon' };
+  const last = lots.filter((lot) => lot.salePrice).at(-1)?.salePrice;
+  return { stock: 0, availability: 'sold_out', ...(last ? { lotPrice: last } : {}) };
 }
 
 export function buildVariants(
   item: PublicCatalogItem,
-  stockByCode: Map<string, number> = new Map(),
+  stockByCode: StockByCode = new Map(),
 ): CatalogVariant[] {
   const axes = normalizeAxes(item.template?.axes);
   const mappings = mappingsOf(item);
   return buildCombinations(item, axes).map((axisValues) => {
     const variantName = axisValues.join(' / ');
     const mapping = mappings.get(variantName);
-    return {
-      variantName,
-      axisValues,
-      ...resolveVariantPrice(item, mapping),
-      ...resolveAvailability(mapping, stockByCode),
-    };
+    const { stock, availability, lotPrice } = resolveAvailability(mapping, stockByCode);
+    if (availability === 'coming_soon') {
+      return { variantName, axisValues, price: 0, isPromo: false, stock, availability };
+    }
+    const price = resolveVariantPrice(item, mapping, lotPrice);
+    // Sin ningún precio no se vende por la tienda: se consulta.
+    const priced = availability !== 'available' || price.price > 0;
+    return { variantName, axisValues, ...price, stock, availability: priced ? availability : 'unknown' };
   });
 }
 
@@ -281,13 +321,18 @@ export function summarizeVariants(variants: CatalogVariant[]): VariantSummary {
   const compareSet = new Set(pool.map((v) => v.compareAtPrice ?? null));
   const compareAtPrice = !priceFrom && compareSet.size === 1 ? pool[0]?.compareAtPrice : undefined;
 
-  // Agotado solo si TODO lo verificable está agotado y nada es desconocido:
-  // una variante sin vínculo con bodega se puede consultar.
+  // Sin nada comprable: «Próximamente» si algo viene en camino; si no,
+  // agotado solo cuando nada es desconocido (lo desconocido se puede consultar).
   const availability: Availability = buyable.length
     ? 'available'
-    : variants.some((v) => v.availability === 'unknown')
-      ? 'unknown'
-      : 'sold_out';
+    : variants.some((v) => v.availability === 'coming_soon')
+      ? 'coming_soon'
+      : variants.some((v) => v.availability === 'unknown')
+        ? 'unknown'
+        : 'sold_out';
+  if (availability === 'coming_soon') {
+    return { price: 0, priceFrom: false, stock: 0, availability, isPromo: false, promoScope: 'none' };
+  }
 
   return {
     price,
@@ -307,7 +352,7 @@ export function summarizeVariants(variants: CatalogVariant[]): VariantSummary {
 // cliente no necesita saber de qué lote sale su pedido.
 export function toCatalogDetail(
   item: PublicCatalogItem,
-  stockByCode: Map<string, number> = new Map(),
+  stockByCode: StockByCode = new Map(),
 ): CatalogDetail {
   const axes = normalizeAxes(item.template?.axes);
 
@@ -339,7 +384,7 @@ export function toCatalogDetail(
 
 export function toCatalogProduct(
   item: PublicCatalogItem,
-  stockByCode: Map<string, number> = new Map(),
+  stockByCode: StockByCode = new Map(),
 ): CatalogProduct {
   const axes = normalizeAxes(item.template?.axes);
 

@@ -148,7 +148,7 @@ export function ArrivalModal({
         )}
 
         <Field data-invalid={!!errors.suggestedPrice}>
-          <FieldLabel htmlFor="arrival-price">Precio de venta final (C$)</FieldLabel>
+          <FieldLabel htmlFor="arrival-price" required>Precio de venta final (C$)</FieldLabel>
           <Input id="arrival-price" type="number" step="0.01" min={0} className="font-bold" {...register("suggestedPrice")} aria-invalid={!!errors.suggestedPrice} />
           <FieldDescription>Si lo dejás vacío se guarda el sugerido calculado arriba.</FieldDescription>
           <FieldError errors={[errors.suggestedPrice]} />
