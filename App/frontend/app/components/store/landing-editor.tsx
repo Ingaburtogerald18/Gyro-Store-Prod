@@ -314,7 +314,7 @@ export function LandingEditor() {
       ? { text: 'Subiendo archivo…', tone: 'bg-info/10 text-info' }
       : dirty
         ? { text: 'Borrador sin publicar', tone: 'bg-warning/10 text-warning' }
-        : { text: 'Igual a lo publicado', tone: 'bg-success/10 text-success' };
+        : { text: 'Igual a lo publicado', tone: 'bg-success/10 text-foreground' };
 
   const headerMode = categoryMode(draft?.headerCategoriesMode, draft?.headerCategories);
   const homeMode = categoryMode(draft?.homeCategoriesMode, draft?.homeCategories);

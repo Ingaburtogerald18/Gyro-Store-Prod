@@ -131,7 +131,7 @@ function AgendaTab({ onOpen }: { onOpen: (id: string) => void }) {
       emptyFallback={
         <Card className="rounded-2xl border-dashed bg-card shadow-none">
           <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-            <HugeIcon icon={CheckmarkCircle02Icon} size={32} strokeWidth={2} className="mb-3 text-success" />
+            <HugeIcon icon={CheckmarkCircle02Icon} size={32} strokeWidth={2} className="mb-3 text-foreground" />
             <h3 className="text-lg font-medium text-foreground">Nada pendiente</h3>
             <p className="mt-1 max-w-sm text-sm text-muted-foreground">No hay seguimientos por hacer. Agendá uno desde la ficha de un cliente.</p>
           </CardContent>
@@ -163,7 +163,7 @@ function AgendaTab({ onOpen }: { onOpen: (id: string) => void }) {
                   opuestas eran fáciles de confundir. */}
               <span className="flex shrink-0 gap-1.5">
                 <Button size="sm" variant="outline" className="h-8 gap-1.5 rounded-xl" onClick={() => setStatus(f.id, 'completed')}>
-                  <HugeIcon icon={CheckmarkCircle02Icon} size={15} strokeWidth={2} className="text-success" aria-hidden />
+                  <HugeIcon icon={CheckmarkCircle02Icon} size={15} strokeWidth={2} className="text-foreground" aria-hidden />
                   Hecho
                 </Button>
                 <Button size="sm" variant="ghost" className="h-8 gap-1.5 rounded-xl text-muted-foreground" onClick={() => setStatus(f.id, 'cancelled')}>

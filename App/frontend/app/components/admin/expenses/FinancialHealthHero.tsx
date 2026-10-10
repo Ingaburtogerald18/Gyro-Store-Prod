@@ -57,7 +57,7 @@ export function FinancialHealthHero({
             Tomó de la ganancia
           </span>
         ) : (
-          <span className="flex h-6 items-center gap-1 rounded-full border border-success/20 bg-success/10 px-2.5 text-2xs font-medium text-success">
+          <span className="flex h-6 items-center gap-1 rounded-full border border-success/20 bg-success/10 px-2.5 text-2xs font-medium text-foreground">
             <HugeIcon icon={CheckmarkCircle01Icon} size={13} strokeWidth={2} aria-hidden />
             {Math.round(percentUsed)}% usado
           </span>
@@ -70,7 +70,7 @@ export function FinancialHealthHero({
           <div className="flex items-baseline justify-between">
             <div>
               <p className="text-xs text-muted-foreground">Disponible para el mes siguiente</p>
-              <span className="nums font-display text-3xl font-bold tracking-tight text-success sm:text-4xl">
+              <span className="nums font-display text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
                 {isLoading ? 'C$ …' : fmt(disponible)}
               </span>
             </div>
@@ -128,7 +128,7 @@ export function FinancialHealthHero({
           <span
             className={cn(
               'nums mt-1 block font-display text-2xl font-bold',
-              gananciaReal > 0 ? 'text-success' : gananciaReal < 0 ? 'text-destructive' : 'text-foreground',
+              gananciaReal > 0 ? 'text-foreground' : gananciaReal < 0 ? 'text-destructive' : 'text-foreground',
             )}
           >
             {isLoading ? '…' : fmt(gananciaReal)}

@@ -128,7 +128,7 @@ function PaymentDialog({ plan, onClose }: { plan: InstallmentPlan | null; onClos
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Pagado</span>
-                  <span className="font-semibold text-success">{formatCordobas(plan.amountPaid)}</span>
+                  <span className="font-semibold text-foreground">{formatCordobas(plan.amountPaid)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Pendiente</span>
@@ -209,7 +209,7 @@ function PlanCard({ plan, onPay }: { plan: InstallmentPlan; onPay: () => void })
                 variant="outline"
                 // Verde = saldado; azul = en curso. El ámbar se reserva para
                 // atrasos, y un plan activo no está atrasado por serlo.
-                className={plan.status === 'completed' ? 'rounded-full border-success/30 bg-success/10 text-success' : 'rounded-full border-info/30 bg-info/10 text-info'}
+                className={plan.status === 'completed' ? 'rounded-full border-success/30 bg-success/10 text-foreground' : 'rounded-full border-info/30 bg-info/10 text-info'}
               >
                 {plan.status === 'completed' ? 'Pagado' : 'Activo'}
               </Badge>

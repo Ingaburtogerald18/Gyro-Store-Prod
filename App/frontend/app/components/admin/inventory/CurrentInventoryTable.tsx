@@ -124,7 +124,7 @@ export function CurrentInventoryTable({
               onClick={() => navigate(`/admin/catalogo?sku=${rowData.code}`)}
               className="inline-flex items-center gap-1 whitespace-nowrap rounded-xl text-xs text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
-              <HugeIcon icon={CheckmarkCircle01Icon} size={13} strokeWidth={2} className="text-success" aria-hidden />
+              <HugeIcon icon={CheckmarkCircle01Icon} size={13} strokeWidth={2} className="text-foreground" aria-hidden />
               Vinculado
             </button>
           ) : (

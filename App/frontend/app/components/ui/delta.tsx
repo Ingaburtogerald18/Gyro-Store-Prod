@@ -61,7 +61,7 @@ export function Delta({
     <span
       className={cn(
         'nums inline-flex items-center gap-0.5 text-xs font-medium',
-        good ? 'text-success' : 'text-destructive',
+        good ? 'text-foreground' : 'text-destructive',
         className,
       )}
       // El lector de pantalla no puede interpretar una flecha ni un color.

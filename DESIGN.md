@@ -12,37 +12,38 @@ Los colores viven en `app/tailwind.css`, en el bloque de la paleta de marca. En 
 
 | Color | Nombre | Claro | Oscuro | Uso |
 | --- | --- | --- | --- | --- |
-| Tinta | `--ink`, `--foreground` | `#102423` | `#f4f4f2` | Texto. Contorno y sombra del botón principal |
+| Tinta | `--ink`, `--foreground` | `#2a1d1d` | `#f4f4f2` | Texto. Contorno del botón principal |
 | Crema | `--background` | `#fffcf3` | `#0e0f10` | Fondo de página |
 | Blanco | `--card`, `--popover` | `#ffffff` | `#18191b` | Tarjetas, menús, ventanas |
-| Suave | `--muted`, `--secondary`, `--accent` | `#eef4f1` | `#222326` | Fondos de apoyo |
-| Texto secundario | `--muted-foreground` | `#4b605d` | `#a8aaad` | Etiquetas, ayudas, fechas |
+| Rosa | `--rose`, `--muted`, `--selection` | `#f4ded9` | `#222326` (`--selection`: rosa oscuro al 16 %) | Fondo de lo elegido, encabezado de tablas, ofertas, círculo detrás de las fotos |
+| Texto secundario | `--muted-foreground` | `#6e5a57` | `#a8aaad` | Etiquetas, ayudas, fechas |
 | Amarillo | `--action` | `#ffc20e` | `#ffc20e` | Acción principal. Texto tinta (`#111111` en oscuro) |
-| Esmeralda | `--primary-2` | `#0e7c68` | `#3dc5a9` | Selección, navegación, links, foco, éxito |
-| Teal del logo | `--logo` | `#3dc5a9` | `#3dc5a9` | Logo y línea del header |
+| Bordó | `--bordo`, `--primary-2` | `#812c2c` | `#e8a09a` (rosa oscuro) | Selección, navegación, links, foco, precios, línea del header |
+| Sombra del botón | `--sticker-shadow`, `--header-cart-shadow` | `#812c2c` | `#812c2c` | Sombra dura del botón principal y del carrito |
+| Teal del logo | `--logo`, `--success` | `#3dc5a9` | `#3dc5a9` | Logo, mascota y el punto de «Recibido», «Pagado», «Disponible» |
 | Header | `--header-background` | `#fffcf3` | `#141517` | Fondo del header |
-| Coral | `--promo` | `#f07a6a` | `#f07a6a` | Ofertas |
-| Bordó | `--sticker-shadow` (oscuro), `--header-cart-shadow` | `#a8402f` | `#a8402f` | Sombra dura en oscuro y del carrito |
+| Ofertas | `--promo` | rosa, texto bordó | rosa, texto bordó | Ofertas |
 | Borde | `--border` | tinta 16 % | blanco 10 % | Tarjetas y separadores |
 | Borde de campo | `--input` | tinta 48 % | blanco 34 % | Campos, selects, botones con borde |
-| Error | `--destructive` | `#e7000b` | `#f04438` | Errores, eliminar, cancelar |
+| Error | `--destructive` | `#d92d20` | `#f04438` | Errores y eliminar |
 | Advertencia | `--warning` | `#915c08` | `#d99a2b` | Datos por completar, bajo margen |
 | Información | `--info` | `#036eae` | `#3ba6f5` | Avisos neutros, en tránsito |
-| Éxito | `--success` | = esmeralda | = esmeralda | Recibido, entregado, pagado |
 | WhatsApp | `--whatsapp` | `#027d34` | `#2ed264` | Solo los botones de WhatsApp |
 
 Siempre:
 - Amarillo solo para la acción principal: una por pantalla, por ventana o por tarjeta.
-- Esmeralda para lo elegido y para dónde estás.
-- Coral solo cuando hay oferta, y solo como fondo con texto tinta. Como texto no se lee (2.7:1).
-- Rojo solo para errores, eliminar y cancelar.
+- Bordó para lo elegido y para dónde estás. En oscuro pasa a rosa oscuro, porque el bordó sobre negro es 2.1:1.
+- Rosa nunca separa solo (contra el crema es 1.3:1): las tarjetas llevan borde.
+- Teal solo en el logo, la mascota y el punto de éxito. Como texto no se lee (2:1): el texto de éxito va en tinta.
+- Rojo solo para errores y eliminar, siempre con ícono o texto.
 - Los números van en color de texto. El color se reserva para estados.
-- Gráficos con colores de la marca, en este orden: esmeralda, amarillo, coral, teal, tinta, gris.
+- Gráficos con colores de la marca, en este orden: bordó, amarillo, teal, rosa oscuro, tinta.
 
 Nunca:
 - Valores sueltos en componentes (`#ffc20e`, `bg-yellow-400`, `rgb(...)`).
 - Un color que no esté en esta tabla.
 - Comunicar un estado solo con color: siempre con texto o ícono.
+- Verde en la interfaz fuera del logo, la mascota y el punto de éxito.
 
 ## 2. Tipografía
 
@@ -90,13 +91,13 @@ Siempre:
 
 | Variante | Aspecto | Para qué |
 | --- | --- | --- |
-| `default` | Amarillo, contorno tinta de 2 px, sombra dura de 3 px | Acción principal |
-| `outline` | Blanco, borde `--input`; al pasar el mouse, borde esmeralda | Acciones secundarias |
-| `cancel` | Rojo con borde | Cancelar y Cerrar |
+| `default` | Amarillo, contorno tinta de 2 px, sombra dura bordó de 3 px | Acción principal |
+| `outline` | Blanco, borde `--input`; al pasar el mouse, borde bordó | Acciones secundarias |
+| `cancel` | Blanco con borde gris | Cancelar y Cerrar |
 | `destructive` | Rojo suave | Eliminar, dentro de una confirmación |
 | `whatsapp` | Verde WhatsApp con relieve | Escribir por WhatsApp como acción principal |
 | `whatsappOutline` | Borde verde, sin relieve | WhatsApp como acción secundaria |
-| `link` | Texto esmeralda subrayado al pasar | Acciones dentro de un texto |
+| `link` | Texto bordó subrayado al pasar | Acciones dentro de un texto |
 | `ghost` | Sin fondo | Solo botones de ícono en barras y menús |
 
 Tamaños: 44 px (`h-11`) en todos lados; 36 px (`size="sm"`) solo dentro de tablas.
@@ -113,23 +114,23 @@ Nunca:
 
 ## 5. Selección, chips y barra de herramientas
 
-- Opción elegida (variante, filtro, vista): borde esmeralda de 2 px, fondo con 12 % de esmeralda, texto en semibold. Se marca con `aria-pressed`.
+- Opción elegida (variante, filtro, vista): borde bordó de 2 px, fondo rosa, texto en semibold. Se marca con `aria-pressed`.
 - Elegir vista: botones con borde marcados así. No pestañas ni grupos de botones distintos.
-- Chips, solo cuatro tipos: estado (punto y texto), filtro activo (tinte esmeralda y ×), contador (amarillo) y categoría (suave).
-- Barra de herramientas: tarjeta blanca con borde esmeralda al 30 % y línea esmeralda de 2 px arriba. Adentro: buscador, filtros, conteo y la acción principal a la derecha.
+- Chips, solo cuatro tipos: estado (punto y texto), filtro activo (fondo rosa y ×), contador (amarillo) y categoría (suave).
+- Barra de herramientas: tarjeta blanca con borde bordó al 30 % y línea bordó de 2 px arriba. Adentro: buscador, filtros, conteo y la acción principal a la derecha.
 
 ## 6. Tablas
 
 - Se usa tabla siempre que se comparan registros por columnas. Tarjetas solo para productos con foto y para órdenes de compra.
 - Piezas: `components/ui/table.tsx` para el aspecto y `DataTable` para buscar, ordenar y paginar.
 - Contenedor blanco, borde de 1 px, 16 px de esquina, sin sombra.
-- Encabezado con fondo crema, `text-xs font-semibold text-muted-foreground`, sin mayúsculas. Las columnas ordenables muestran la flecha.
-- Filas de 52 px (40 px en modo compacto), `text-sm`. Al pasar el mouse, esmeralda al 5 %.
+- Encabezado con fondo rosa, `text-xs font-semibold text-muted-foreground`, sin mayúsculas. Las columnas ordenables muestran la flecha.
+- Filas de 52 px (40 px en modo compacto), `text-sm`. Al pasar el mouse, bordó al 5 %.
 - Columnas en este orden: código, descripción, números, estado, acciones.
 - Código en `font-mono` gris. Producto: nombre en semibold y la variante debajo en `text-xs` gris.
 - Números a la derecha. La moneda va en el encabezado si toda la columna es de una moneda.
 - Totales en la última fila, en negrita, fijos abajo.
-- Estado: punto de color y texto.
+- Estado: punto de color y texto en tinta.
 - Acciones al final, en un menú ⋮. Como mucho una acción visible por fila, con borde.
 - Cabe en 1280 px sin scroll lateral. Si no cabe, las columnas secundarias se ocultan y se activan desde «Columnas».
 - 25 filas por página. Abajo a la derecha: «1–25 de 230».
@@ -167,6 +168,7 @@ Nunca:
 - Movimiento: 150 ms al pasar el mouse o presionar, 200 a 250 ms al abrir y cerrar. Sin rebotes.
 - En el panel solo se mueven el botón principal, los bordes al pasar el mouse y las flechas al abrir.
 - Todo movimiento respeta «reducir movimiento» del sistema.
+- En la tienda, en claro, las fotos llevan un círculo rosa detrás; la foto se multiplica para que su fondo blanco lo deje ver.
 - Fotos de producto cuadradas, de 1000 × 1000 px como mínimo, fondo blanco, el producto cerca del 80 % de la foto, siempre completas (`object-contain`). La primera foto es el producto solo.
 - Logo: sin recolorear ni deformar, mínimo 140 × 40 px.
 - Mascota: solo en estados vacíos, error 404 y pedido confirmado.
@@ -197,7 +199,7 @@ Los dos:
 ## 12. Accesibilidad
 
 - Contraste de texto de 4.5:1 como mínimo; 3:1 en texto grande y en bordes de campos.
-- Foco del teclado siempre visible (anillo esmeralda).
+- Foco del teclado siempre visible (anillo bordó).
 - Todo se puede usar con el teclado.
 - Las imágenes llevan texto alternativo; los íconos de adorno, `aria-hidden`.
 
@@ -241,7 +243,7 @@ Lo que este documento pide y el código todavía no tiene. Cada línea se borra 
 | 2026-09-30 | Chivo y Chivo Mono como únicas letras |
 | 2026-10-05 | Paleta de botones amarillos con contorno y sombra dura. Claro por defecto; oscuro neutro, sin verde |
 | 2026-10-07 | La tienda nunca muestra stock exacto. Voseo en todos los textos |
-| Antes del 2026-10-10 | Cancelar y Cerrar en rojo |
+| Antes del 2026-10-10 | Cancelar y Cerrar en rojo (reemplazada el 2026-10-10) |
 | 2026-10-10 | Encabezado de cada orden de compra en blanco con borde esmeralda |
 | 2026-10-10 | Chivo también en todo el panel |
 | 2026-10-10 | El panel usa bloques separados sobre el crema, como el catálogo; se migra módulo por módulo |
@@ -250,3 +252,8 @@ Lo que este documento pide y el código todavía no tiene. Cada línea se borra 
 | 2026-10-10 | Opción elegida con borde esmeralda de 2 px y tinte |
 | 2026-10-10 | Solo el dueño cambia una regla; quien la aplica actualiza este archivo en el mismo commit |
 | 2026-10-10 | Un solo documento de diseño: este |
+| 2026-10-10 | Paleta de cuatro colores: crema, bordó, amarillo y rosa. El bordó reemplaza al esmeralda (rosa oscuro en modo oscuro) y el rosa al verde menta. Texto `#2a1d1d` y texto secundario `#6e5a57` |
+| 2026-10-10 | El verde sale de la interfaz: queda en el logo, la mascota y el punto de éxito (teal) |
+| 2026-10-10 | Cancelar y Cerrar pasan a gris con borde; el rojo queda para eliminar y errores |
+| 2026-10-10 | Sombra del botón principal y del carrito en bordó, en claro y en oscuro |
+| 2026-10-10 | Ofertas en rosa con texto bordó; línea del header en bordó; encabezado de tablas en rosa |

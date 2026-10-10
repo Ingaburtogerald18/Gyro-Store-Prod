@@ -651,7 +651,7 @@ export function OrderPlaced({
         {content.successImage ? (
           <img src={content.successImage} alt="" className="size-28 object-contain" />
         ) : (
-          <span className="grid size-12 place-items-center rounded-full bg-success/15 text-success" aria-hidden>
+          <span className="grid size-12 place-items-center rounded-full bg-success/15 text-foreground" aria-hidden>
             <HugeIcon icon={CheckmarkCircle02Icon} size={26} strokeWidth={2} />
           </span>
         )}

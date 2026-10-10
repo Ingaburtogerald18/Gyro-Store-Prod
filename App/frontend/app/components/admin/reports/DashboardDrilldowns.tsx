@@ -202,7 +202,7 @@ export function DashboardDrilldowns({
                     </span>
                     <span
                       className={`nums block text-2xs font-medium ${
-                        isAbove ? 'text-success' : 'text-muted-foreground'
+                        isAbove ? 'text-foreground' : 'text-muted-foreground'
                       }`}
                     >
                       {isAbove ? `+${formatMoney(diff)}` : formatMoney(diff)} vs promedio
@@ -247,7 +247,7 @@ export function DashboardDrilldowns({
                     {formatNumber(row.num_ventas)} {row.num_ventas === 1 ? 'venta' : 'ventas'}
                   </span>
                 </div>
-                <span className="nums shrink-0 font-semibold text-success">
+                <span className="nums shrink-0 font-semibold text-foreground">
                   {formatMoney(row.comision)}
                 </span>
               </div>
@@ -277,7 +277,7 @@ export function DashboardDrilldowns({
             ))}
             <div className="flex items-center justify-between border-t border-border/60 pt-2 text-sm font-bold text-foreground sm:text-base">
               <span>Ganancia real</span>
-              <span className={cn('nums', gananciaReal >= 0 ? 'text-success' : 'text-destructive')}>
+              <span className={cn('nums', gananciaReal >= 0 ? 'text-foreground' : 'text-destructive')}>
                 {formatMoney(gananciaReal)}
               </span>
             </div>
@@ -301,8 +301,8 @@ export function DashboardDrilldowns({
               </span>
             </div>
             <div className={cn('rounded-2xl border p-3', gananciaReal >= 0 ? 'border-success/30 bg-success/5' : 'border-destructive/30 bg-destructive/5')}>
-              <span className={cn('text-2xs font-medium', gananciaReal >= 0 ? 'text-success' : 'text-destructive')}>Ganancia real</span>
-              <p className={cn('nums mt-1 text-base font-semibold sm:text-lg', gananciaReal >= 0 ? 'text-success' : 'text-destructive')}>
+              <span className={cn('text-2xs font-medium', gananciaReal >= 0 ? 'text-foreground' : 'text-destructive')}>Ganancia real</span>
+              <p className={cn('nums mt-1 text-base font-semibold sm:text-lg', gananciaReal >= 0 ? 'text-foreground' : 'text-destructive')}>
                 {formatMoney(gananciaReal)}
               </p>
               <span className="text-2xs text-muted-foreground">{gananciaReal >= 0 ? 'Balance positivo' : 'Operando en rojo'}</span>
@@ -349,7 +349,7 @@ export function DashboardDrilldowns({
                         {row.cliente || (row.invoice_number ? `#${row.invoice_number}` : 'Venta')}
                       </span>
                     </div>
-                    <span className="nums shrink-0 font-semibold text-success">
+                    <span className="nums shrink-0 font-semibold text-foreground">
                       {formatMoney(row.ganancia)}
                     </span>
                   </div>
