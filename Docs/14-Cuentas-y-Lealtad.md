@@ -179,9 +179,7 @@ estrategia de cada uno es distinta:
 ### 6.1 Estrategia de escasez en el storefront público
 **En el storefront público NO se aplican ni se anuncian descuentos automáticos por volumen** a
 compradores anónimos. En su lugar, el storefront muestra mensajes tipo *"Registrate para obtener
-códigos"* — la carnada de la máquina de captación (§2). Esto es un cambio respecto a como lo tenía
-pensado antes (ver corrección en doc 13 §Mundo 1, que decía "se muestran todos los descuentos" — ya
-no es así).
+códigos"* — la carnada de la máquina de captación (§2).
 
 **El mayoreo del cotizador del vendedor SE MANTIENE tal cual** (doc 11 §5, doc 12 §2C): un vendedor
 armando una cotización real para un cliente que compra volumen sigue viendo y aplicando esos
@@ -202,7 +200,7 @@ descuento por cantidad de una compra puntual). El flujo:
    alguien del staff lo haya revisado y aprobado.
 4. Una vez aprobado, esa cuenta ve precio mayoreo en su experiencia de "mi cuenta" (o se lo aplica el
    vendedor al cotizar para ese cliente — el detalle exacto de dónde se refleja el precio **se define
-   al construir el front de cuenta**, doc 05/13).
+   al construir el front de cuenta**).
 
 ---
 

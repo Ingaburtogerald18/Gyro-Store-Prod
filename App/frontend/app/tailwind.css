@@ -183,7 +183,7 @@ html[data-area='store'],
 html[data-area='admin'],
 .store-preview,
 .store-palette {
-  --ink: #102423;
+  --ink: #2a1d1d;
   --background: #fffcf3;
   --foreground: var(--ink);
   --card: #ffffff;
@@ -194,37 +194,37 @@ html[data-area='admin'],
   --action-foreground: var(--ink);
   --primary: var(--action);
   --primary-foreground: var(--ink);
-  --primary-2: #0e7c68;
-  --muted: #eef4f1;
-  --muted-foreground: #4b605d;
+  --primary-2: #812c2c;
+  --muted: #f4ded9;
+  --muted-foreground: #6e5a57;
   --secondary: var(--muted);
   --secondary-foreground: var(--ink);
   --accent: var(--muted);
   --accent-foreground: var(--ink);
-  --border: rgb(16 36 35 / 16%);
-  --input: rgb(16 36 35 / 48%);
+  --border: rgb(42 29 29 / 16%);
+  --input: rgb(42 29 29 / 48%);
   --ring: var(--primary-2);
   --logo: #3dc5a9;
   --header-background: var(--background);
-  --promo: #f07a6a;
-  --promo-foreground: var(--ink);
+  --promo: var(--muted);
+  --promo-foreground: var(--primary-2);
   --destructive: #e7000b;
   --destructive-foreground: #ffffff;
-  --success: var(--primary-2);
+  --success: var(--logo);
   --warning: #915c08;
   --info: #036eae;
   --whatsapp: #027d34;
   --whatsapp-foreground: #ffffff;
   --whatsapp-hover: #026a2c;
-  --sticker-shadow: var(--ink);
+  --sticker-shadow: #812c2c;
   --radius: 0.625rem;
 
   /* Gráficos: esmeralda, amarillo, coral, teal, tinta. */
-  --chart-1: #0e7c68;
+  --chart-1: #812c2c;
   --chart-2: #ffc20e;
-  --chart-3: #f07a6a;
-  --chart-4: #3dc5a9;
-  --chart-5: #102423;
+  --chart-3: #2a1d1d;
+  --chart-4: #d98a84;
+  --chart-5: #a8a29e;
 
   --sidebar: var(--card);
   --sidebar-foreground: var(--foreground);
@@ -249,9 +249,9 @@ html[data-area='admin'],
   --header-selected-background: var(--muted);
   --header-control-background: var(--muted);
   --header-search-background: var(--card);
-  --header-search-border: rgb(16 36 35 / 28%);
-  --header-divider: var(--logo);
-  --header-cart-shadow: #a8402f;
+  --header-search-border: rgb(42 29 29 / 28%);
+  --header-divider: var(--primary-2);
+  --header-cart-shadow: #812c2c;
 
   /* Color físico del producto: igual en los dos temas, por eso no se redefine
      en oscuro. Lo resuelve lib/productColors.ts. */
@@ -285,9 +285,11 @@ html[data-theme='dark'] .store-palette {
   --action-foreground: #111111;
   --primary: var(--action);
   --primary-foreground: #111111;
-  --primary-2: #3dc5a9;
+  --primary-2: #e8a09a;
   --muted: #222326;
-  --muted-foreground: #a8aaad;
+  --muted-foreground: #a8a29e;
+  --promo: #3a2a2b;
+  --promo-foreground: #f4ded9;
   --secondary-foreground: #f4f4f2;
   --accent-foreground: #f4f4f2;
   --border: rgb(255 255 255 / 10%);
@@ -300,16 +302,16 @@ html[data-theme='dark'] .store-palette {
   --whatsapp: #2ed264;
   --whatsapp-foreground: #0e0f10;
   --whatsapp-hover: #5ade86;
-  --sticker-shadow: #a8402f;
+  --sticker-shadow: #812c2c;
 
   /* Mismo orden que en claro, en tonos que se leen sobre #18191b. */
-  --chart-1: #22a487;
+  --chart-1: #e8a09a;
   --chart-2: #ffc20e;
-  --chart-3: #f07a6a;
-  --chart-4: #8fe3d1;
-  --chart-5: #f4f4f2;
+  --chart-3: #f4f4f2;
+  --chart-4: #b5545a;
+  --chart-5: #78716c;
 
-  --sidebar-primary-foreground: #102423;
+  --sidebar-primary-foreground: #2a1d1d;
   --sidebar-accent: color-mix(in srgb, var(--primary-2) 16%, var(--card));
 
   --tone-indigo: oklch(0.7 0.16 275);
@@ -325,7 +327,7 @@ html[data-theme='dark'] .store-palette {
   --header-control-background: var(--header-background);
   --header-search-background: #24262b;
   --header-search-border: rgb(255 255 255 / 24%);
-  --header-divider: color-mix(in srgb, var(--primary-2) 75%, transparent);
+  --header-divider: var(--primary-2);
 }
 
 /* Altura constante de 57px en ambos temas: la ficha se ancla debajo del header.
@@ -452,7 +454,7 @@ html[data-area='admin'] {
   --primary-foreground: #ffffff;
 }
 html[data-area='admin'][data-theme='dark'] {
-  --primary-foreground: #102423;
+  --primary-foreground: #2a1d1d;
 }
 html[data-area='admin'] .admin-topbar {
   box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--primary-2) 65%, transparent);

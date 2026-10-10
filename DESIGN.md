@@ -180,6 +180,7 @@ Panel:
 - Un elemento domina cada pantalla: la tabla, la lista de órdenes o el formulario.
 
 Tienda:
+- El producto manda: la foto y el precio son lo más visible; navegación y filtros quedan en segundo plano.
 - Se diseña primero para 360 px de ancho.
 - Objetivos táctiles de 44 px como mínimo.
 - Nunca se muestra el stock exacto: «Disponible», «Agotado» o «Consultar disponibilidad».
@@ -232,6 +233,8 @@ Lo que este documento pide y el código todavía no tiene. Cada línea se borra 
 - Pedidos web y Códigos de descuento: pasar sus listas a `DataTable` (hoy son filas propias dentro de una tarjeta).
 - CRM: contactos en tabla en vez de tarjetas.
 - Atajo de teclado de la acción principal en Pedidos web, Usuarios, Catálogo e Inicio.
+- Reportería: el selector de periodo (`PeriodPicker`) usa pestañas animadas; pasarlo a botones con borde.
+- Contadores animados (`CountUp`) en las métricas del panel: el panel solo mueve el botón principal, bordes y flechas.
 - Comentarios largos: acortar a 1 o 2 líneas los bloques que quedan (unos 340, en casi todos los archivos de `app/`).
 
 ## Registro de decisiones
@@ -250,3 +253,4 @@ Lo que este documento pide y el código todavía no tiene. Cada línea se borra 
 | 2026-10-10 | Opción elegida con borde esmeralda de 2 px y tinte |
 | 2026-10-10 | Solo el dueño cambia una regla; quien la aplica actualiza este archivo en el mismo commit |
 | 2026-10-10 | Un solo documento de diseño: este |
+| 2026-10-10 | En la tienda el producto manda: foto y precio por encima de navegación y filtros |
