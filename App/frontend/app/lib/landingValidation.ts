@@ -53,6 +53,7 @@ export interface LandingErrors {
 export function validateLanding(config: LandingConfig, ctx: ValidationContext): LandingErrors {
   const slides: Record<string, SlideErrors> = {};
   for (const slide of config.heroSlides) {
+    if (slide.visible === false) continue;
     const errors = validateSlide(slide, ctx);
     if (Object.keys(errors).length) slides[slide.id] = errors;
   }

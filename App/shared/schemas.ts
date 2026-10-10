@@ -420,6 +420,8 @@ export const heroSlideSchema = z.object({
   actionType: z.enum(['modal', 'link', 'social']),
   actionTarget: z.string().max(2048),
   locked: z.boolean().optional(),
+  layout: z.enum(['left', 'right', 'top']).optional(),
+  visible: z.boolean().optional(),
 });
 
 // Techo de diapositivas: el hero es una vitrina, no un carrusel infinito.

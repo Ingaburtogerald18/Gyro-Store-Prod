@@ -566,13 +566,22 @@ html[data-landing-preview="edit"] [data-landing-section] {
   cursor: pointer;
 }
 html[data-landing-preview="edit"] [data-landing-section]:hover {
-  outline: 2px solid var(--primary);
+  outline: 2px solid var(--primary-2);
+  outline-offset: -2px;
+}
+html[data-landing-preview="edit"] [data-landing-element]:is(:hover, :focus-visible),
+html[data-landing-preview="edit"][data-landing-selected-section="banners"][data-landing-part="title"] [data-landing-element="title"],
+html[data-landing-preview="edit"][data-landing-selected-section="banners"][data-landing-part="description"] [data-landing-element="description"],
+html[data-landing-preview="edit"][data-landing-selected-section="banners"][data-landing-part="image"] [data-landing-element="image"],
+html[data-landing-preview="edit"][data-landing-selected-section="banners"][data-landing-part="button"] [data-landing-element="button"],
+html[data-landing-preview="edit"][data-landing-selected-section="banners"][data-landing-part="banner"] [data-landing-section="banners"],
+html[data-landing-preview="edit"][data-landing-selected-section="navigation"] [data-landing-section="navigation"],
+html[data-landing-preview="edit"][data-landing-selected-section="products"] [data-landing-section="products"] {
+  outline: 2px solid var(--primary-2);
   outline-offset: -2px;
 }
 
 /* Superficie de trabajo del editor de portada. */
 .landing-studio .studio-canvas {
   background-color: var(--muted);
-  background-image: radial-gradient(circle, color-mix(in oklab, var(--foreground) 12%, transparent) 1px, transparent 1px);
-  background-size: 20px 20px;
 }

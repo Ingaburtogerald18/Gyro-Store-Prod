@@ -152,6 +152,7 @@ Nunca:
 - Si el servidor falla, el mensaje va arriba del formulario, sin cerrar ni perder lo escrito.
 - Si hay cambios sin guardar, cerrar pregunta «¿Descartar los cambios?».
 - Datos con react-hook-form y un esquema de validación. Obligatorio en formularios nuevos o reescritos.
+- Excepción en el editor de portada: los campos del banner se editan en el inspector fijo y actualizan el borrador de inmediato. La tienda cambia solo al confirmar «Publicar». Los formularios del carrito conservan su ventana centrada.
 
 Nunca:
 - El error de un campo en un aviso flotante.
@@ -184,6 +185,7 @@ Panel:
 - Encabezado: título de página y, a la derecha, la acción principal con su atajo (`<Kbd>N</Kbd>`).
 - Debajo, bloques separados sobre el crema: barra de herramientas, métricas y contenido.
 - Un elemento domina cada pantalla: la tabla, la lista de órdenes o el formulario.
+- Editor de portada: estructura plegable a la izquierda, tienda real aislada al centro e inspector contextual a la derecha. Barra superior con estado del borrador, deshacer, rehacer, vista previa y publicación. Composiciones de banner preparadas (imagen a izquierda, derecha o arriba), sin posiciones libres. La vista móvil usa un ancho real de 360 px.
 
 Tienda:
 - El producto manda: la foto y el precio son lo más visible; navegación y filtros quedan en segundo plano.
@@ -267,3 +269,4 @@ Lo que este documento pide y el código todavía no tiene. Cada línea se borra 
 | 2026-10-10 | Ofertas en rosa con texto bordó; línea del header en bordó; encabezado de tablas en rosa |
 | 2026-10-10 | Tablas con relieve: contorno marcado, línea grabada entre filas, sombra bajo el encabezado y tabla levantada del fondo. Código, variante y estado a 14 px; código y encabezado en tinta |
 | 2026-10-10 | Orden de compra: «Recibir» y el menú ⋮ se juntan en un solo botón amarillo «Acciones» |
+| 2026-10-10 | Rediseño aprobado del editor de portada: estructura, tienda e inspector fijo, edición directa del borrador, deshacer/rehacer, composiciones preparadas y publicación confirmada. Excepción a los formularios de banner en ventana; el carrito sigue en ventana |

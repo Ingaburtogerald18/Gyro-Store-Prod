@@ -3,7 +3,8 @@
 // un XMLHttpRequest falso y el storage es un objeto en memoria.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import type { HeroSlide, LandingConfig } from '@shared/schemas';
+import { landingConfigSchema, type HeroSlide, type LandingConfig } from '@shared/schemas';
+import { builderReducer, initBuilderSession, updateHeroSlide, updateHeroSlides, setCategoryMode, updateCartContent, undoBuilderChange, redoBuilderChange, endBuilderChange } from '../app/store/slices/builderSlice';
 import { clearLandingDraft, loadLandingDraft, saveLandingDraft, signature } from '../app/lib/landingDraft';
 import { hasLandingErrors, isValidTarget, validateLanding, validateSlide } from '../app/lib/landingValidation';
 
@@ -22,6 +23,41 @@ const slide: HeroSlide = {
   buttonText: 'Ver catálogo', actionType: 'link', actionTarget: '/#catalogo',
 };
 const config: LandingConfig = { headerCategories: [], heroSlides: [slide] };
+
+test('la historia agrupa escritura y conserva banners, categorías y carrito', () => {
+  let state = builderReducer(undefined, initBuilderSession(config));
+  state = builderReducer(state, updateHeroSlide({ slide: { ...slide, title: 'A' }, key: 's1:title' }));
+  state = builderReducer(state, updateHeroSlide({ slide: { ...slide, title: 'Audio' }, key: 's1:title' }));
+  assert.equal(state.past.length, 1);
+  state = builderReducer(state, undoBuilderChange());
+  assert.equal(state.draftLandingConfig?.heroSlides[0]?.title, slide.title);
+  state = builderReducer(state, redoBuilderChange());
+  assert.equal(state.draftLandingConfig?.heroSlides[0]?.title, 'Audio');
+  state = builderReducer(state, endBuilderChange());
+  state = builderReducer(state, setCategoryMode({ zone: 'header', mode: 'hidden' }));
+  state = builderReducer(state, updateCartContent({ title: 'Tu pedido' }));
+  state = builderReducer(state, undoBuilderChange());
+  assert.equal(state.draftLandingConfig?.cart, undefined);
+  assert.equal(state.draftLandingConfig?.headerCategoriesMode, 'hidden');
+  state = builderReducer(state, undoBuilderChange());
+  assert.equal(state.draftLandingConfig?.headerCategoriesMode, undefined);
+  state = builderReducer(state, updateHeroSlides([slide, { ...slide, id: 's2' }]));
+  assert.equal(state.future.length, 0);
+  assert.equal(state.draftLandingConfig?.heroSlides.length, 2);
+  state = builderReducer(state, undoBuilderChange());
+  assert.equal(state.draftLandingConfig?.heroSlides.length, 1);
+  assert.equal(state.draftLandingConfig?.heroSlides[0]?.title, 'Audio');
+});
+
+test('composición y visibilidad se conservan sin romper configuraciones anteriores', () => {
+  assert.equal(landingConfigSchema.safeParse(config).success, true);
+  const next = { ...config, heroSlides: [{ ...slide, layout: 'right', visible: false }] };
+  const parsed = landingConfigSchema.parse(next);
+  assert.equal(parsed.heroSlides[0]?.layout, 'right');
+  assert.equal(parsed.heroSlides[0]?.visible, false);
+  assert.equal(landingConfigSchema.safeParse({ ...config, heroSlides: [{ ...slide, layout: 'free' }] }).success, false);
+  assert.equal(hasLandingErrors(validateLanding({ ...config, heroSlides: [{ ...slide, title: '', visible: false }] }, { productUrls: [], socialCount: 0 })), false);
+});
 
 test('el borrador se guarda por usuario y sitio, y no se mezcla', () => {
   const store = memoryStorage();
