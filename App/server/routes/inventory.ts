@@ -43,6 +43,7 @@ import {
   createPurchaseOrder,
   createSupplier,
   deletePurchaseOrder,
+  getInvoiceFile,
   getPackagePhoto,
   getPurchaseOrder,
   listPurchaseOrders,
@@ -325,7 +326,23 @@ router.put(
   }),
 );
 
-// ── facturas ── (se crean al guardar una orden; acá solo se corrigen)
+// ── facturas ── (se crean al guardar una orden; acá solo se corrigen y se leen)
+
+router.get(
+  '/invoices/:id/file',
+  asyncHandler(async (req, res) => {
+    const id = parseUuidParam(req.params.id, 'Factura no encontrada.');
+    const file = await getInvoiceFile(id);
+    if (!file) {
+      res.status(404).json({ error: 'Factura no encontrada.' });
+      return;
+    }
+    res.set('Content-Type', file.contentType);
+    res.set('Content-Disposition', `inline; filename="${file.filename}"`);
+    res.set('Cache-Control', 'private, no-store');
+    res.send(file.body);
+  }),
+);
 
 router.put(
   '/invoices/:id',

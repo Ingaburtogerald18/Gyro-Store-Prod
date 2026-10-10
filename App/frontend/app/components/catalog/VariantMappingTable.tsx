@@ -101,10 +101,13 @@ export function VariantMappingTable({
   function updateRow(combo: string, codes: string[], price?: number) {
     const next = { ...variantMappings };
     const clean = [...new Set(codes.filter(Boolean))];
-    if (clean.length === 0) {
+    // Se arma sobre la variante guardada para no perder datos que esta tabla no edita (promoPrice).
+    const { price: _oldPrice, ...rest } = next[combo] ?? { codes: [] };
+    const entry = { ...rest, codes: clean, ...(price !== undefined && { price }) };
+    if (clean.length === 0 && entry.price === undefined && entry.promoPrice === undefined) {
       delete next[combo];
     } else {
-      next[combo] = price === undefined ? { codes: clean } : { codes: clean, price };
+      next[combo] = entry;
     }
     onChange(next);
   }

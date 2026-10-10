@@ -86,6 +86,10 @@ app.use(
         connectSrc: ["'self'", supabaseOrigin, supabaseWss],
         imgSrc: ["'self'", 'data:', 'blob:', supabaseOrigin, ...r2Origin],
         mediaSrc: ["'self'", 'data:', 'blob:', ...r2Origin],
+        // La factura se ve dentro del panel desde un blob: (la ruta pide sesión);
+        // el visor de PDF del navegador cuenta como objeto, por eso también object-src.
+        frameSrc: ["'self'", 'blob:'],
+        objectSrc: ['blob:'],
       },
     },
   }),
