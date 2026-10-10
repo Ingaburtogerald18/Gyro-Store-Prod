@@ -15,6 +15,7 @@ import type {
 } from '../../shared/schemas';
 import { firstOfEmbed } from '../utils/firstOfEmbed';
 import { normalizeAxes } from './catalogPresenter';
+import { keepVariantPromos, toVariantMappings } from './variantMappings';
 
 // Se listan las columnas a mano (nunca `select('*')`): así una columna nueva no
 // se filtra sola a una respuesta sin que nadie lo revise.
@@ -103,29 +104,6 @@ function toAxisOptions(value: unknown): Record<string, string[]> {
   for (const [key, options] of Object.entries(value as Record<string, unknown>)) {
     const list = toStringArray(options);
     if (list.length) out[key] = list;
-  }
-  return out;
-}
-
-// Mapeo variante → códigos de lote. Acepta la forma vieja de v1 (`skus`/`sku`,
-// cuando el vínculo era contra un SKU compartido) para que los datos migrados
-// sigan apareciendo en el editor en vez de verse como "sin vincular".
-function toVariantMappings(value: unknown): VariantMappings {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
-  const out: VariantMappings = {};
-  for (const [combo, raw] of Object.entries(value as Record<string, unknown>)) {
-    if (!raw || typeof raw !== 'object') continue;
-    const entry = raw as Record<string, unknown>;
-    const codes = [
-      ...toStringArray(entry.codes),
-      ...toStringArray(entry.skus),
-      ...(typeof entry.sku === 'string' && entry.sku ? [entry.sku] : []),
-    ];
-    if (!codes.length) continue;
-    const price = typeof entry.price === 'number' && entry.price > 0 ? entry.price : undefined;
-    out[combo] = price === undefined
-      ? { codes: [...new Set(codes)] }
-      : { codes: [...new Set(codes)], price };
   }
   return out;
 }
@@ -271,7 +249,11 @@ export async function updateAdminProduct(
 
   const { error } = await db
     .from('catalog_items')
-    .update({ ...toItemRow(input), template_id: templateId })
+    .update({
+      ...toItemRow(input),
+      template_id: templateId,
+      variant_mappings: keepVariantPromos(input.variantMappings ?? {}, existing.variantMappings),
+    })
     .eq('id', id);
 
   if (error) throw error;
