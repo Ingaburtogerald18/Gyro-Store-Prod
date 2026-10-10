@@ -100,8 +100,9 @@ export function CurrentInventoryTable({
         cell: (c) => {
           const { model, variant } = splitProductName(c.getValue() as string);
           return (
-            <div className="flex flex-col">
-              <span className="font-medium text-foreground">{model}</span>
+            // Ancho mínimo: con 12 columnas el nombre se partía palabra por palabra.
+            <div className="flex min-w-36 flex-col">
+              <span className="font-semibold text-foreground">{model}</span>
               {variant && <span className="text-xs text-muted-foreground">{variant}</span>}
             </div>
           );
@@ -121,7 +122,7 @@ export function CurrentInventoryTable({
             <button
               type="button"
               onClick={() => navigate(`/admin/catalogo?sku=${rowData.code}`)}
-              className="inline-flex items-center gap-1 rounded-md text-xs text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="inline-flex items-center gap-1 whitespace-nowrap rounded-md text-xs text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <HugeIcon icon={CheckmarkCircle01Icon} size={13} strokeWidth={2} className="text-success" aria-hidden />
               Vinculado
@@ -133,7 +134,7 @@ export function CurrentInventoryTable({
                 navigate('/admin/catalogo');
                 toast.info('Desde acá podés vincular artículos del inventario con productos del catálogo público.');
               }}
-              className="inline-flex items-center gap-1 rounded-md text-xs font-medium text-warning hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="inline-flex items-center gap-1 whitespace-nowrap rounded-md text-xs font-medium text-warning hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <HugeIcon icon={Alert02Icon} size={13} strokeWidth={2} aria-hidden />
               Sin vincular
@@ -152,7 +153,7 @@ export function CurrentInventoryTable({
           const label = val ? categoryLabel(val).replace(/^KZ\s+/, "") : "";
           if (!label || label === "—") return <span className="text-muted-foreground">—</span>;
           return (
-            <span className="whitespace-nowrap rounded-md border border-border px-2 py-0.5 text-xs text-muted-foreground">
+            <span className="whitespace-nowrap rounded-lg border border-border px-2 py-0.5 text-xs text-muted-foreground">
               {label}
             </span>
           );

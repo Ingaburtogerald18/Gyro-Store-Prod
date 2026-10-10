@@ -238,22 +238,28 @@ export function PurchasesTable({
 
   if (isLoading) {
     return (
-      <div className="space-y-2 p-5">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <Skeleton key={i} className="h-10 w-full rounded-md" />
+      <div className="space-y-3">
+        <Skeleton className="h-8 w-56 rounded-lg" />
+        {Array.from({ length: 3 }).map((_, i) => (
+          <Skeleton key={i} className="h-28 w-full rounded-2xl" />
         ))}
       </div>
     );
   }
 
-  const th = "whitespace-nowrap px-4 py-3 text-left text-xs font-semibold text-foreground";
+  const th = "whitespace-nowrap px-4 py-2.5 text-left text-xs font-medium text-muted-foreground";
   const td = "px-4 py-3.5 align-middle";
 
   return (
     <>
       {lots.length === 0 ? (
-        <div className="px-4 py-16 text-center text-sm text-muted-foreground">
-          {purchases.length === 0 ? 'Aún no hay compras registradas.' : 'Ninguna compra coincide con la búsqueda o el filtro.'}
+        <div className="rounded-2xl border bg-card px-4 py-16 text-center">
+          <p className="font-heading text-lg font-bold text-foreground">
+            {purchases.length === 0 ? 'Aún no hay compras registradas' : 'Ninguna compra coincide'}
+          </p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {purchases.length === 0 ? 'Registrá la primera con «Registrar compra».' : 'Probá con otra búsqueda o quitá algún filtro.'}
+          </p>
         </div>
       ) : (
         <>
@@ -264,24 +270,26 @@ export function PurchasesTable({
               id: lot.key,
               label: `${lot.order ? 'Orden' : 'Lote'} ${lot.lot}`,
               summary: (
-                <>
-                  <span className="flex flex-wrap items-center gap-x-3 gap-y-2">
-                    <span className="break-all text-base font-semibold text-foreground">{lot.order ? 'Orden' : 'Lote'} <span className="font-spec">{lot.lot}</span></span>
-                    <StatusPill tone={lot.tone} />
-                    {lot.order?.numberProvisional && <span className="text-xs text-warning">Número provisional</span>}
-                  </span>
-                  <span className="mt-2 flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
-                    <span className="space-y-1 text-sm">
-                      <span className="block font-medium text-foreground">{lot.order?.supplier?.name || (lot.order ? 'Proveedor por completar' : 'Compra por lote')}</span>
-                      <span className="block text-xs text-muted-foreground">{formatLongDate(lot.date)} · {lot.lineCount} {lot.lineCount === 1 ? 'producto' : 'productos'} · {lot.units.toLocaleString('es-NI')} unidades{lot.transit && ` · ${lot.transit}`}</span>
-                      {lot.items.length < lot.lineCount && <span className="block text-xs font-medium text-foreground">{lot.items.length} de {lot.lineCount} productos coinciden con los filtros</span>}
+                <span className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
+                  <span className="min-w-0 space-y-1.5">
+                    <span className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
+                      <span className="break-all font-heading text-lg leading-tight font-bold text-foreground">
+                        {lot.order ? 'Orden' : 'Lote'} <span className="font-spec text-base font-semibold">{lot.lot}</span>
+                      </span>
+                      <StatusPill tone={lot.tone} />
+                      {lot.order?.numberProvisional && (
+                        <span className="inventory-warning-chip rounded-lg border px-2 py-0.5 text-2xs font-semibold">Número provisional</span>
+                      )}
                     </span>
-                    <span className="shrink-0 sm:text-right">
-                      <span className="block text-xs text-muted-foreground">Total {lot.order ? 'de la orden' : 'del lote'} · USD</span>
-                      <span className="text-lg font-semibold tabular-nums text-foreground">{formatUsd(lot.total)}</span>
-                    </span>
+                    <span className="block text-sm font-semibold text-foreground">{lot.order?.supplier?.name || (lot.order ? 'Proveedor por completar' : 'Compra por lote')}</span>
+                    <span className="block text-xs text-muted-foreground">{formatLongDate(lot.date)} · {lot.lineCount} {lot.lineCount === 1 ? 'producto' : 'productos'} · {lot.units.toLocaleString('es-NI')} unidades{lot.transit && ` · ${lot.transit}`}</span>
+                    {lot.items.length < lot.lineCount && <span className="block text-xs font-medium text-primary-2">{lot.items.length} de {lot.lineCount} productos coinciden con los filtros</span>}
                   </span>
-                </>
+                  <span className="shrink-0 sm:text-right">
+                    <span className="block text-xs text-muted-foreground">Total {lot.order ? 'de la orden' : 'del lote'} · USD</span>
+                    <span className="font-heading text-xl font-extrabold tracking-tight text-foreground tabular-nums">{formatUsd(lot.total)}</span>
+                  </span>
+                </span>
               ),
               toolbar: lot.order ? <OrderHeader
                 order={lot.order}
@@ -296,22 +304,24 @@ export function PurchasesTable({
                 // Keyboard focus lets narrow-screen users scroll the table with arrow keys.
                 // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
                 <div className="overflow-x-auto" tabIndex={0} role="region" aria-label={`Productos de ${lot.lot}; desplazamiento horizontal disponible`}>
-                  <table className="purchase-order-table w-full min-w-[680px] table-fixed border-collapse text-sm tabular-nums">
+                  <table className="inventory-order-table w-full min-w-[780px] table-fixed border-collapse text-sm tabular-nums">
                     <caption className="sr-only">Productos de {lot.order ? 'la orden' : 'lote'} {lot.lot}. Importes en dólares estadounidenses.</caption>
                     <colgroup>
+                      <col className="w-[120px]" />
                       <col />
                       <col className="w-[156px]" />
                       <col className="w-[132px]" />
                       <col className="w-[132px]" />
                       <col className="w-[84px]" />
                     </colgroup>
-                    <thead className="purchase-column-head border-y border-border">
+                    <thead className="inventory-table-head border-b">
                       <tr>
-                        <th scope="col" className={th}>Código / producto</th>
+                        <th scope="col" className={th}>Código</th>
+                        <th scope="col" className={th}>Producto</th>
                         <th scope="col" className={cn(th, 'text-right')}>Costo unit. USD</th>
                         <th scope="col" className={cn(th, 'text-right')}>Total USD</th>
                         <th scope="col" className={th}>Estado</th>
-                        <th scope="col" className={cn(th, 'w-px')}>Acciones</th>
+                        <th scope="col" className={cn(th, 'text-right')}>Acciones</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -319,18 +329,18 @@ export function PurchasesTable({
                         const { model, variant } = splitProductName(p.productName);
                         const tone = toneOf(p);
                         return (
-                          <tr key={p.id} className="purchase-product-row border-b border-border transition-colors">
-                            {/* Código arriba, nombre y la variante debajo. */}
+                          <tr key={p.id} className="inventory-product-row border-b transition-colors">
+                            <td className={cn(td, "whitespace-nowrap font-spec text-xs text-muted-foreground")}>{p.code || 'Sin código'}</td>
+                            {/* Nombre y, debajo, la variante. */}
                             <td className={cn(td, "min-w-0")}>
                               <div className="flex flex-col gap-0.5 break-words">
-                                <span className="font-spec text-xs text-muted-foreground">{p.code || 'Sin código'}</span>
-                                <span className="font-medium text-foreground">{model}</span>
+                                <span className="font-semibold text-foreground">{model}</span>
                                 {variant && <span className="text-xs text-muted-foreground">{variant}</span>}
                               </div>
                             </td>
                             <td className={cn(td, "text-right")}>
                               <div className="flex flex-col items-end" title={`Base ${formatUsd(p.costUnit, 4)} + impuesto ${formatUsd(p.taxUnit, 4)}`}>
-                                <span className="text-foreground">{formatUsd(p.priceUnit)}</span>
+                                <span className="font-medium text-foreground">{formatUsd(p.priceUnit)}</span>
                                 <span className="text-2xs text-muted-foreground">
                                   {formatUsd(p.costUnit)} + {formatUsd(p.taxUnit)} imp.
                                 </span>
@@ -339,7 +349,7 @@ export function PurchasesTable({
                             {/* Las unidades van bajo el total: es el total de esas unidades. */}
                             <td className={cn(td, "text-right")}>
                               <div className="flex flex-col items-end">
-                                <span className="font-display font-bold text-foreground">{formatUsd(p.total)}</span>
+                                <span className="font-heading font-extrabold text-foreground">{formatUsd(p.total)}</span>
                                 <span className="text-2xs text-muted-foreground">
                                   {p.quantity.toLocaleString('es-NI')} {p.quantity === 1 ? 'unidad' : 'unidades'}
                                 </span>
@@ -354,7 +364,7 @@ export function PurchasesTable({
                             <td className={cn(td, "text-right")}>
                               <RowActionsMenu
                                 label={`Acciones de ${p.code || p.productName}`}
-                                className="inline-flex size-9 items-center justify-center border border-border bg-card text-foreground"
+                                className="inline-flex size-9 items-center justify-center rounded-xl border border-border bg-card text-foreground"
                                 actions={
                                   p.status === "china"
                                     ? [
@@ -376,13 +386,13 @@ export function PurchasesTable({
                         );
                       })}
                     </tbody>
-                    <tfoot className="purchase-column-head border-t border-border">
+                    <tfoot className="inventory-table-foot">
                       <tr>
-                        <th scope="row" className="px-4 py-3 text-left text-xs font-medium">
+                        <th scope="row" colSpan={2} className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">
                           Subtotal mostrado · {lot.items.length} productos · {lot.items.reduce((sum, item) => sum + (item.quantity ?? 0), 0).toLocaleString('es-NI')} unidades
                         </th>
                         <td />
-                        <td className="px-4 py-3 text-right font-bold">{formatUsd(lot.items.reduce((sum, item) => sum + (item.total ?? 0), 0))}</td>
+                        <td className="px-4 py-3 text-right font-heading font-extrabold text-foreground">{formatUsd(lot.items.reduce((sum, item) => sum + (item.total ?? 0), 0))}</td>
                         <td colSpan={2} />
                       </tr>
                     </tfoot>
@@ -391,9 +401,13 @@ export function PurchasesTable({
               ),
             }))}
           />
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border bg-muted/50 px-5 py-4 text-sm">
-            <span className="text-muted-foreground">Resumen filtrado · {filtered.length} productos · {totalUnits.toLocaleString('es-NI')} unidades</span>
-            <span className="font-display text-base font-bold text-foreground">Total mostrado: {formatUsd(totalUsd)} USD</span>
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl border bg-card px-5 py-4">
+            <span className="text-sm text-muted-foreground">Resumen filtrado · {filtered.length} productos · {totalUnits.toLocaleString('es-NI')} unidades</span>
+            <span className="flex items-baseline gap-2">
+              <span className="text-sm text-muted-foreground">Total mostrado</span>
+              <span className="font-heading text-2xl font-extrabold tracking-tight text-foreground tabular-nums">{formatUsd(totalUsd)}</span>
+              <span className="text-xs font-medium text-muted-foreground">USD</span>
+            </span>
           </div>
         </>
       )}
@@ -457,20 +471,20 @@ function OrderHeader({
   const missing = order.missing.map((m) => MISSING_LABELS[m]).join(", ");
 
   return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
       {order.missing.length > 0 && (
         <button
           type="button"
           onClick={onEdit}
           title={`Falta: ${missing}`}
-          className="min-h-9 rounded-lg border border-warning/40 bg-warning/10 px-3 py-1 text-xs font-semibold text-warning hover:bg-warning/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="inventory-warning-chip min-h-9 rounded-xl border px-3 py-1 text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           Datos por completar
         </button>
       )}
       {order.invoice?.mismatch && (
         <span
-          className="rounded-full border border-warning/40 px-2 py-0.5 text-2xs font-semibold text-warning"
+          className="inventory-warning-chip inline-flex min-h-9 items-center rounded-xl border px-3 text-xs font-semibold"
           title={`Factura ${formatUsd(order.invoice.totalUsd ?? 0)} · productos de sus órdenes ${formatUsd(order.invoice.linesTotalUsd)}`}
         >
           {/* Se carga de a un producto: que falte es normal mientras se carga. */}
@@ -489,14 +503,14 @@ function OrderHeader({
               ? `Compartida con ${order.invoice.orders.filter((o) => o.id !== order.id).map((o) => o.orderNumber).join(", ")}`
               : undefined
           }
-          className="inline-flex items-center gap-1 text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+          className="inventory-chip inline-flex min-h-9 items-center gap-1.5 rounded-xl border px-3 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          <HugeIcon icon={Invoice01Icon} size={14} strokeWidth={2} aria-hidden />
+          <HugeIcon icon={Invoice01Icon} size={14} strokeWidth={2} aria-hidden className="text-primary-2" />
           {order.invoice.orders.length > 1 ? `Factura (${order.invoice.orders.length} órdenes)` : "Factura"}
         </a>
       )}
       {photos > 0 && (
-        <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+        <span className="inline-flex min-h-9 items-center gap-1.5 text-xs text-muted-foreground">
           <HugeIcon icon={Image01Icon} size={14} strokeWidth={2} aria-hidden />
           {photos} {photos === 1 ? "foto" : "fotos"}
           {photosBusy && <Spinner className="size-3" />}
@@ -504,14 +518,15 @@ function OrderHeader({
       )}
       <span className="ml-auto flex items-center gap-3">
         {hasPending && (
-          <Button size="sm" variant="outline" className="h-10 gap-1.5 rounded-md text-sm" onClick={onReceive}>
-            <HugeIcon icon={PackageReceiveIcon} size={14} strokeWidth={2} aria-hidden />
+          // Recibir es LA acción de una orden en camino: amarillo, como Agregar en la tienda.
+          <Button className="h-10 gap-1.5 px-4 text-sm" onClick={onReceive}>
+            <HugeIcon icon={PackageReceiveIcon} size={16} strokeWidth={2} aria-hidden />
             Recibir
           </Button>
         )}
         <RowActionsMenu
           label={`Acciones de la orden ${order.orderNumber}`}
-          className="inline-flex size-10 items-center justify-center border border-border bg-card text-foreground"
+          className="inline-flex size-10 items-center justify-center rounded-xl border border-border bg-card text-foreground"
           actions={[
             hasPending && { group: "Orden", label: "Recibir en Nicaragua", icon: <HugeIcon icon={PackageReceiveIcon} size={16} strokeWidth={2} />, onClick: onReceive },
             { group: "Orden", label: order.missing.length ? "Completar datos" : "Editar orden", icon: <HugeIcon icon={Edit02Icon} size={16} strokeWidth={2} />, onClick: onEdit },
