@@ -26,7 +26,7 @@ Los colores viven en `app/tailwind.css`, en el bloque de la paleta de marca. En 
 | Borde | `--border` | tinta 16 % | blanco 10 % | Tarjetas y separadores |
 | Borde de campo | `--input` | tinta 48 % | blanco 34 % | Campos, selects, botones con borde |
 | Relieve de tablas | `--table-edge`, `--table-groove`, `--table-shine`, `--table-shade`, `--table-lift` | tinta 26 %, tinta 20 %, blanco 95 %, tinta 5.5 % | blanco 20 %, negro 75 %, blanco 7 %, negro 22 % | Contorno, línea grabada, sombreado de fila y sombra de las tablas |
-| Error | `--destructive` | `#d92d20` | `#f04438` | Errores y eliminar |
+| Rojo | `--destructive` | `#d92d20` | `#f04438` | Errores, eliminar, cancelar y cerrar |
 | Advertencia | `--warning` | `#915c08` | `#d99a2b` | Datos por completar, bajo margen |
 | Información | `--info` | `#036eae` | `#3ba6f5` | Avisos neutros, en tránsito |
 | WhatsApp | `--whatsapp` | `#027d34` | `#2ed264` | Solo los botones de WhatsApp |
@@ -36,7 +36,7 @@ Siempre:
 - Bordó para lo elegido y para dónde estás. En oscuro pasa a rosa oscuro, porque el bordó sobre negro es 2.1:1.
 - Rosa nunca separa solo (contra el crema es 1.3:1): las tarjetas llevan borde.
 - Teal en el logo, la mascota, una línea discreta de identidad en encabezados del panel y formularios, y el punto de éxito. Como texto no se lee (2:1): las etiquetas y el texto de éxito van en tinta.
-- Rojo solo para errores y eliminar, siempre con ícono o texto.
+- Rojo para errores, eliminar, cancelar y cerrar, siempre con ícono o texto.
 - Los números van en color de texto. El color se reserva para estados.
 - Gráficos con colores de la marca, en este orden: bordó, amarillo, tinta, rosa oscuro, gris.
 
@@ -94,7 +94,7 @@ Siempre:
 | --- | --- | --- |
 | `default` | Amarillo, contorno tinta de 2 px, sombra dura bordó de 3 px | Acción principal |
 | `outline` | Blanco, borde `--input`; al pasar el mouse, borde bordó | Acciones secundarias |
-| `cancel` | Blanco con borde gris | Cancelar y Cerrar |
+| `cancel` | Fondo de tarjeta, texto y borde rojos; al pasar el mouse, fondo rojo y texto de contraste | Cancelar y Cerrar, incluidas las X de cierre |
 | `destructive` | Rojo suave | Eliminar, dentro de una confirmación |
 | `whatsapp` | Verde WhatsApp con relieve | Escribir por WhatsApp como acción principal |
 | `whatsappOutline` | Borde verde, sin relieve | WhatsApp como acción secundaria |
@@ -151,7 +151,7 @@ Nunca:
 - Cada campo con `Field`: etiqueta arriba siempre visible, asterisco si es obligatorio, ayuda debajo solo si hace falta, error debajo en rojo diciendo cómo arreglarlo.
 - Campos de 44 px. Montos con el símbolo adentro a la izquierda y `inputMode="decimal"`.
 - Hasta 10 opciones: `Select`. Más de 10: `Combobox` con buscador.
-- Pie: «Cancelar» (`cancel`) a la izquierda y la acción (`default`) a la derecha, alineados a la derecha.
+- Pie: «Cancelar» (`cancel`, rojo) a la izquierda y la acción (`default`) a la derecha, alineados a la derecha. Las X de cierre usan la misma variante `cancel`.
 - Mientras guarda, el botón se deshabilita y dice «Guardando…». Al terminar, se cierra y un aviso confirma («Compra registrada»).
 - Si el servidor falla, el mensaje va arriba del formulario, sin cerrar ni perder lo escrito.
 - Si hay cambios sin guardar, cerrar pregunta «¿Descartar los cambios?».
@@ -281,3 +281,4 @@ Lo que este documento pide y el código todavía no tiene. Cada línea se borra 
 | 2026-10-10 | Rediseño aprobado de Plantillas: resúmenes públicos y columnas acotadas sin scroll lateral, opciones resumidas y productos vinculados con conteo de publicados. Ficha centrada por secciones, vista previa pública en vivo y pie de acciones fijo; notas internas fuera del listado y de la vista previa |
 | 2026-10-10 | El precio de la tienda es el de venta que se pone al recibir en bodega (el del lote más viejo con stock). Nuevo estado «Próximamente», sin precio; «Próximamente» y «Agotado» no se pueden pedir |
 | 2026-10-10 | Unificación aprobada de formularios: campos y botones compartidos de 44 px, amarillo para confirmar o guardar, bordó para foco y selección, cancelación neutra y componentes comunes de encabezado, secciones, cuerpo y pie fijo. Teal del logo como detalle discreto de identidad en el panel y los encabezados de formularios, con la paleta existente en claro y oscuro |
+| 2026-10-10 | Corrección del dueño al probar formularios: Cancelar, Cerrar y las X de cierre vuelven a rojo mediante la variante compartida `cancel`, con texto y borde rojos, fondo de tarjeta y fondo rojo al pasar el mouse. Reemplaza la cancelación neutra anterior y respeta los colores de claro y oscuro |
