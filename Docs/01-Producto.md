@@ -100,9 +100,8 @@ un acento). [CONFIRMADO]
 decorativo, sombras difusas, botones con degradado como acción principal, hit-areas chicas, filtros
 escondidos. Ni look SaaS-cream ni neón permanente. [CONFIRMADO]
 
-**Identidad visual:** mascota Gyro (personaje amigable, pelo en punta, lentes de sol); acento único
-**esmeralda** `#10b981`; modo oscuro por defecto con variante clara "Daylight". Detalle completo en
-`DESIGN.md`. [CONFIRMADO]
+**Identidad visual:** mascota Gyro (personaje amigable, pelo en punta, lentes de sol). Colores, letras y
+reglas de diseño en `DESIGN.md`.
 
 > **Nota de v2:** implemento este diseño con **shadcn/ui**, pero pintando cada componente con mis
 > tokens. La librería me da la accesibilidad y el comportamiento; el look sigue siendo 100% mío. [v2]

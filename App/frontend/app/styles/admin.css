@@ -1,0 +1,27 @@
+/* Admin layout and table spacing. Shared control appearance lives in tailwind.css. */
+html[data-area='admin'] .admin-topbar [data-size='icon'] { width: 2.75rem; height: 2.75rem; }
+html[data-area='admin'] :is([data-slot='dropdown-menu-item'], [data-slot='dropdown-menu-checkbox-item'], [data-slot='dropdown-menu-radio-item']) {
+  min-height: 2.5rem;
+  border-radius: 0.5rem;
+}
+html[data-area='admin'] [data-slot='sidebar-menu-button'][data-active='true'] {
+  box-shadow: inset 3px 0 0 var(--sidebar-primary);
+}
+html[data-area='admin'] .data-table td:has(> :is(button, a, div) [data-ui-button]),
+html[data-area='admin'] .data-table td:has(> [data-ui-button]) { white-space: nowrap; }
+html[data-area='admin'] .data-table td [data-ui-button] { flex-shrink: 0; }
+html[data-area='admin'] .data-table td [data-ui-button] + [data-ui-button] { margin-inline-start: 0.25rem; }
+
+@media (pointer: coarse) {
+  html[data-area='admin'] :is([data-slot='sidebar-menu-button'], .data-table-toolbar button) { min-height: 2.75rem; }
+  html[data-area='admin'] .data-table label { min-height: 2.75rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-area='admin'] *, html[data-area='admin'] *::before, html[data-area='admin'] *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

@@ -1,10 +1,5 @@
-// Callback de OAuth (Microsoft/Entra vía Supabase). Es la URL a la que Supabase
-// redirige tras autenticar, con `?code=…` (flujo PKCE).
-//
-// El cliente de Supabase (detectSessionInUrl: true) intercambia ese code por una
-// sesión en segundo plano al inicializarse; esta ruta solo ESPERA a que la
-// sesión exista y entonces manda a /admin. Antes no había callback: el usuario
-// caía en `/` con el `?code=` colgado, logueado pero sin llegar al panel.
+// Callback de OAuth (Microsoft vía Supabase, flujo PKCE). Supabase cambia el
+// `?code=` por una sesión al iniciar; esta ruta espera esa sesión y manda a /admin.
 import { useEffect, useState } from "react";
 import type { MetaFunction } from "@remix-run/node";
 import { Spinner } from "~/components/ui/spinner";

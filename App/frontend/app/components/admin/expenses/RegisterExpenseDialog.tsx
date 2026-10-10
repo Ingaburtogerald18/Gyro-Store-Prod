@@ -202,7 +202,7 @@ export function ExpenseFormDialog({
             </DialogDescription>
           </DialogHeader>
 
-          <ul className="divide-y divide-border rounded-card border border-border text-sm">
+          <ul className="divide-y divide-border rounded-2xl border border-border text-sm">
             {fuentes.map((f) => (
               <li key={f.label} className="flex items-center justify-between gap-3 px-3 py-2">
                 <span className={cn('text-muted-foreground', f.danger && 'font-medium text-destructive')}>{f.label}</span>
@@ -218,11 +218,11 @@ export function ExpenseFormDialog({
             </p>
           )}
 
-          <DialogFooter className="gap-2 sm:gap-0">
+          <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setPending(null)} disabled={isLoading}>
               Volver
             </Button>
-            <Button type="button" onClick={() => save(pending.body)} disabled={isLoading} className="bg-primary-2 text-primary-2-foreground hover:bg-primary-2/90">
+            <Button type="button" onClick={() => save(pending.body)} disabled={isLoading}>
               {isLoading && <Spinner className="mr-2" />}
               {isEdit ? 'Guardar igual' : 'Registrar igual'}
             </Button>
@@ -276,22 +276,19 @@ export function ExpenseFormDialog({
                 control={control}
                 name="moneda"
                 render={({ field }) => (
-                  <div className="flex gap-1 rounded-md border p-1">
+                  <div role="group" aria-label="Moneda" className="flex gap-2">
                     {(['COR', 'USD'] as const).map((m) => (
-                      <button
+                      <Button
                         key={m}
                         type="button"
-                        className={cn(
-                          'flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
-                          field.value === m
-                            ? 'bg-primary-2 text-primary-2-foreground shadow-sm'
-                            : 'text-muted-foreground hover:text-foreground',
-                        )}
+                        variant="outline"
+                        aria-pressed={field.value === m}
+                        className="flex-1"
                         onClick={() => field.onChange(m)}
                         disabled={isLoading}
                       >
                         {m === 'COR' ? 'C$ Córdobas' : '$ Dólares'}
-                      </button>
+                      </Button>
                     ))}
                   </div>
                 )}
@@ -372,11 +369,11 @@ export function ExpenseFormDialog({
             </Field>
           </div>
 
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isLoading}>
+          <DialogFooter>
+            <Button type="button" variant="cancel" onClick={() => onOpenChange(false)} disabled={isLoading}>
               Cancelar
             </Button>
-            <Button type="submit" disabled={isLoading} className="bg-primary-2 text-primary-2-foreground hover:bg-primary-2/90">
+            <Button type="submit" disabled={isLoading}>
               {isLoading && <Spinner className="mr-2" />}
               {isEdit ? 'Guardar cambios' : 'Registrar gasto'}
             </Button>
@@ -398,7 +395,7 @@ export function RegisterExpenseDialog({
   const [open, setOpen] = useState(false);
   return (
     <>
-      <Button onClick={() => setOpen(true)} className="gap-2 bg-primary-2 text-primary-2-foreground shadow-sm hover:bg-primary-2/90">
+      <Button onClick={() => setOpen(true)} className="gap-2">
         <HugeIcon icon={Add01Icon} size={16} strokeWidth={2} aria-hidden />
         Registrar gasto
       </Button>

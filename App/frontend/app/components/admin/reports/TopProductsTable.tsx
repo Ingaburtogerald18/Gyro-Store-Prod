@@ -47,7 +47,7 @@ export function TopProductsTable({
         error={isError}
         empty={data.length === 0}
         emptyFallback={<p className="py-12 text-center text-xs text-muted-foreground">No se vendió ningún producto en este período.</p>}
-        loadingFallback={<div className="h-48 animate-pulse rounded-card bg-muted" />}
+        loadingFallback={<div className="h-48 animate-pulse rounded-2xl bg-muted" />}
       >
         <ol className="space-y-3">
           {data.map((row, index) => {

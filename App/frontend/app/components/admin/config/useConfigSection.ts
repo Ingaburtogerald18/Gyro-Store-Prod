@@ -1,12 +1,5 @@
-// Carga y guardado de una pestaña de Configuración.
-//
-// Las cuatro pestañas (General, Variables, Categorías, Recursos) hacían lo mismo
-// con cincuenta líneas idénticas cada una: pedir la sesión de Supabase, hacer el
-// GET, `reset()` del formulario, atrapar el error, hacer el PUT, leer `issues`
-// del backend, invalidar el caché de config y tirar el toast. Cuatro copias del
-// mismo flujo es cuatro lugares donde arreglar el mismo bug — y de hecho una de
-// ellas se había quedado sin el `invalidateTags`, así que guardar no refrescaba
-// el storefront.
+// Carga y guardado de una pestaña de Configuración, compartidos por las cuatro
+// para que el flujo (GET, PUT, errores, invalidar caché) viva en un solo lugar.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useForm, type DefaultValues, type FieldValues, type Resolver } from 'react-hook-form';
 import { toast } from 'sonner';

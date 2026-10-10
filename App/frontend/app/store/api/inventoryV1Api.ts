@@ -26,6 +26,129 @@ export interface Purchase {
   catalogItemId?: string | null;
   /** Variante ("Negro / Con micrófono"; '' en productos sin variantes). */
   variantKey?: string | null;
+  /** Orden de Alibaba de la línea (null sin orden o sin la migración 0024). */
+  orderId?: string | null;
+  /** Lo pedido, cuando llegó otra cantidad (null = llegó lo pedido). */
+  quantityOrdered?: number | null;
+}
+
+// ── Órdenes de compra (Alibaba, migración 0024) ──
+
+export interface Supplier {
+  id: string;
+  name: string;
+  contact: string;
+  storeUrl: string;
+  notes: string;
+}
+
+export interface SupplierPayload {
+  name: string;
+  contact?: string;
+  storeUrl?: string;
+  notes?: string;
+}
+
+/** Factura de Alibaba: una puede cubrir varias órdenes. */
+export interface PurchaseInvoice {
+  id: string;
+  invoiceNumber: string;
+  fileUrl: string | null;
+  totalUsd: number | null;
+  notes: string;
+  createdAt: string;
+  orders: { id: string; orderNumber: string }[];
+  /** Suma de los productos de todas sus órdenes (USD). */
+  linesTotalUsd: number;
+  mismatch: boolean;
+}
+
+export interface PurchaseInvoicePayload {
+  invoiceNumber?: string;
+  fileUrl?: string | null;
+  totalUsd?: number | null;
+  notes?: string;
+}
+
+export type PurchaseOrderStatus = "empty" | "transit" | "partial" | "received";
+export type PurchaseOrderMissing = "number" | "supplier" | "invoice" | "photos";
+
+export interface PurchaseOrder {
+  id: string;
+  orderNumber: string;
+  /** Número heredado del lote viejo: falta el de Alibaba. */
+  numberProvisional: boolean;
+  purchaseDate: string;
+  supplier: Supplier | null;
+  /** Puede ser compartida con otras órdenes. */
+  invoice: PurchaseInvoice | null;
+  packagePhotos: string[];
+  notes: string;
+  legacy: boolean;
+  createdAt: string;
+  lineCount: number;
+  receivedLineCount: number;
+  units: number;
+  linesTotalUsd: number;
+  status: PurchaseOrderStatus;
+  missing: PurchaseOrderMissing[];
+  arrivalDate: string | null;
+}
+
+export interface PurchaseOrderLinePayload {
+  productName: string;
+  category: string;
+  quantity: number;
+  costUnit: number;
+  taxUnit: number;
+  catalogItemId?: string;
+  variantKey?: string;
+}
+
+export interface PurchaseOrderHeaderPayload {
+  orderNumber: string;
+  purchaseDate: string;
+  supplierId?: string | null;
+  newSupplier?: SupplierPayload;
+  invoiceId?: string | null;
+  newInvoice?: PurchaseInvoicePayload;
+  packagePhotos?: string[];
+  notes?: string;
+}
+
+export interface NewPurchaseOrderPayload extends PurchaseOrderHeaderPayload {
+  lines: PurchaseOrderLinePayload[];
+}
+
+export interface ReceiveOrderLinePayload {
+  purchaseId: string;
+  receivedQuantity: number;
+  salePrice?: number;
+}
+
+export interface ReceiveOrderPayload {
+  arrivalDate: string;
+  /** Otras órdenes que llegaron en el mismo envío (el envío se reparte entre todas). */
+  extraOrderIds?: string[];
+  exchangeRate?: number;
+  shippingTotalUsd: number;
+  lines: ReceiveOrderLinePayload[];
+}
+
+export interface ReceiptPreview {
+  totalUnits: number;
+  shippingUnit: number;
+  exchangeRate: number;
+  lines: {
+    purchaseId: string;
+    code: string;
+    productName: string;
+    ordered: number;
+    received: number;
+    costoRealCs: number;
+    costeFinal: number;
+    precioSugerido: number;
+  }[];
 }
 
 export interface InventoryRow {
@@ -156,6 +279,52 @@ export const inventoryApi = baseApi.injectEndpoints({
       query: (purchaseId) => ({ url: "/inventory/movements", params: { purchaseId } }),
       providesTags: ["Purchase"],
     }),
+
+    // ── Órdenes de compra ──
+    // `available: false` = falta la migración 0024: el panel sigue con el
+    // formulario de compra suelta.
+    getPurchaseOrders: build.query<{ available: boolean; orders: PurchaseOrder[] }, void>({
+      query: () => "/inventory/orders",
+      providesTags: ["Purchase"],
+    }),
+    createPurchaseOrder: build.mutation<PurchaseOrder, NewPurchaseOrderPayload>({
+      query: (body) => ({ url: "/inventory/orders", method: "POST", body }),
+      invalidatesTags: ["Purchase"],
+    }),
+    updatePurchaseOrder: build.mutation<PurchaseOrder, { id: string; body: PurchaseOrderHeaderPayload }>({
+      query: ({ id, body }) => ({ url: `/inventory/orders/${id}`, method: "PUT", body }),
+      invalidatesTags: ["Purchase"],
+    }),
+    deletePurchaseOrder: build.mutation<{ ok: boolean }, string>({
+      query: (id) => ({ url: `/inventory/orders/${id}`, method: "DELETE" }),
+      invalidatesTags: ["Purchase"],
+    }),
+    addPurchaseOrderLines: build.mutation<PurchaseOrder, { id: string; lines: PurchaseOrderLinePayload[] }>({
+      query: ({ id, lines }) => ({ url: `/inventory/orders/${id}/lines`, method: "POST", body: { lines } }),
+      invalidatesTags: ["Purchase"],
+    }),
+    simulateOrderReceipt: build.mutation<ReceiptPreview, { id: string; body: Omit<ReceiveOrderPayload, "arrivalDate"> }>({
+      query: ({ id, body }) => ({ url: `/inventory/orders/${id}/simulate-receipt`, method: "POST", body }),
+    }),
+    receivePurchaseOrder: build.mutation<
+      { received: number; shippingUnit: number; exchangeRate: number },
+      { id: string; body: ReceiveOrderPayload }
+    >({
+      query: ({ id, body }) => ({ url: `/inventory/orders/${id}/receive`, method: "POST", body }),
+      invalidatesTags: ["Purchase", "Product", "Catalog"],
+    }),
+    getSuppliers: build.query<Supplier[], void>({
+      query: () => "/inventory/suppliers",
+      providesTags: ["Purchase"],
+    }),
+    updatePurchaseInvoice: build.mutation<{ ok: boolean }, { id: string; body: PurchaseInvoicePayload }>({
+      query: ({ id, body }) => ({ url: `/inventory/invoices/${id}`, method: "PUT", body }),
+      invalidatesTags: ["Purchase"],
+    }),
+    updateSupplier: build.mutation<Supplier, { id: string; body: SupplierPayload }>({
+      query: ({ id, body }) => ({ url: `/inventory/suppliers/${id}`, method: "PUT", body }),
+      invalidatesTags: ["Purchase"],
+    }),
   }),
 });
 
@@ -189,5 +358,15 @@ export const {
   useDeletePurchaseMutation,
   useAdjustStockMutation,
   useGetStockMovementsQuery,
+  useGetPurchaseOrdersQuery,
+  useCreatePurchaseOrderMutation,
+  useUpdatePurchaseOrderMutation,
+  useDeletePurchaseOrderMutation,
+  useAddPurchaseOrderLinesMutation,
+  useSimulateOrderReceiptMutation,
+  useReceivePurchaseOrderMutation,
+  useGetSuppliersQuery,
+  useUpdateSupplierMutation,
+  useUpdatePurchaseInvoiceMutation,
 } = inventoryApi;
 

@@ -38,7 +38,8 @@ import { DashboardDrilldowns, type DrilldownType } from '~/components/admin/repo
 import { MonthSelector, getMonthRange, type MonthYear } from '~/components/admin/reports/MonthSelector';
 import { SalesDailyTrendChart } from '~/components/admin/reports/SalesDailyTrendChart';
 import { SellerRankingTable } from '~/components/admin/reports/SellerRankingTable';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs';
+import { Tabs, TabsContent } from '~/components/ui/tabs';
+import { SegmentedControl } from '~/components/admin/workspace';
 import { ExpensesTab } from '~/components/admin/expenses/ExpensesTab';
 
 export const meta: MetaFunction = () => {
@@ -159,8 +160,7 @@ export default function AdminDashboard() {
   }, [selectedMonth]);
 
   return (
-    <>
-      {/* 1. Header con Título, Selector de Mes y Botón Exportar CSV */}
+    <div className="flex flex-col gap-5">
       <PageHeader
         eyebrow="Operación"
         title="Reportería"
@@ -178,21 +178,18 @@ export default function AdminDashboard() {
       <Tabs
         value={activeTab}
         onValueChange={(val) => setActiveTab(val as 'resumen' | 'gastos')}
-        className="space-y-6"
+        className="space-y-5"
       >
         {isAdmin && (
-          <div className="flex items-center justify-between border-b border-border/60 pb-3">
-            <TabsList className="bg-muted/80 p-1">
-              <TabsTrigger value="resumen" className="gap-2 px-4 py-1.5 text-xs font-medium">
-                <HugeIcon icon={ChartLineData01Icon} size={15} />
-                Ventas y rentabilidad
-              </TabsTrigger>
-              <TabsTrigger value="gastos" className="gap-2 px-4 py-1.5 text-xs font-medium">
-                <HugeIcon icon={DollarSquareIcon} size={15} />
-                Gastos y presupuesto
-              </TabsTrigger>
-            </TabsList>
-          </div>
+          <SegmentedControl
+            label="Vista de la reportería"
+            value={activeTab}
+            onChange={setActiveTab}
+            options={[
+              { value: "resumen", label: "Ventas y rentabilidad" },
+              { value: "gastos", label: "Gastos y presupuesto" },
+            ]}
+          />
         )}
 
         <TabsContent value="resumen" className="mt-0 focus-visible:outline-none">
@@ -212,7 +209,7 @@ export default function AdminDashboard() {
           >
             {/* Si el mes está totalmente vacío, mostrar un banner informativo pero permitir explorar */}
             {isMonthEmpty && (
-              <div className="rounded-card border border-dashed border-border/80 bg-card/40 p-8 text-center">
+              <div className="rounded-2xl border border-dashed border-border/80 bg-card/40 p-8 text-center">
                 <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-full bg-muted/60 text-muted-foreground">
                   <HugeIcon icon={ChartLineData01Icon} size={22} strokeWidth={1.8} />
                 </div>
@@ -365,7 +362,7 @@ export default function AdminDashboard() {
     queryParams={queryParams}
     kpis={kpis}
   />
-</>
+    </div>
   );
 }
 

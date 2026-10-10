@@ -166,7 +166,7 @@ export function TemplatesPanel({ categories }: { categories: Category[] }) {
                           {axis.label}:
                         </span>
                         {axis.options.slice(0, 4).map((option) => (
-                          <Badge key={option} variant="secondary" className="text-2xs">
+                          <Badge key={option} variant="category" className="text-2xs">
                             {option}
                           </Badge>
                         ))}
@@ -475,7 +475,7 @@ function TemplateEditorDialog({
           </div>
 
           <DialogFooter className="border-t pt-4">
-            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
+            <Button type="button" variant="cancel" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
             <Button type="submit" disabled={creating || updating}>

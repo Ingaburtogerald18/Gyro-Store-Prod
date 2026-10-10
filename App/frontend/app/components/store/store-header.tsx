@@ -19,8 +19,7 @@ import { HeaderSettingsMenu } from './header-settings-menu';
 import { getBrandName } from '~/lib/brand';
 import gyroBag from '~/assets/brand/gyro-bag.png';
 
-/** Botón del carrito con contador y "pop" al agregar. Comparte fuente de verdad
- *  con el resto de la app (cartSlice); reemplaza al botón estático. */
+/** Botón del carrito con contador y "pop" al agregar (lee cartSlice). */
 function CartButton() {
   const dispatch = useAppDispatch();
   const count = useAppSelector(selectCartCount);
@@ -55,7 +54,7 @@ function CartButton() {
             exit={{ scale: 0, opacity: 0 }}
             transition={reduce ? { duration: 0 } : { type: "spring", stiffness: 520, damping: 20 }}
             // ring-background lo separa del header con un halo del color de fondo → "flota".
-            className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-destructive px-1 text-2xs font-bold tabular-nums text-destructive-foreground ring-2 ring-background shadow-lg"
+            className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-destructive px-1 text-2xs font-bold tabular-nums text-destructive-foreground ring-2 ring-background"
           >
             {count > 99 ? '99+' : count}
           </motion.span>

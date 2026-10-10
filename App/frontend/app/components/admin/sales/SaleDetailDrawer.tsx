@@ -1,12 +1,6 @@
-// Detalle de una venta, en diálogo centrado.
-//
-// `flex flex-col` + max-h-[90vh]: el cuerpo scrollea y el pie con las acciones
-// (aprobar/rechazar) queda siempre fijo a la vista.
-//
-// ── Por qué es ENLAZABLE (`?sale=<id>`) ──
-// Es lo que permite que la campana de notificaciones apunte al registro exacto
-// en vez de a la pestaña que lo contiene. Hasta ahora no se podía: no existía
-// `GET /api/sales/:id`.
+// Detalle de una venta en diálogo centrado: el cuerpo scrollea y las acciones
+// quedan fijas abajo. Es enlazable (`?sale=<id>`) para que las notificaciones
+// apunten al registro exacto.
 import { HugeIcon } from '~/components/ui/icon';
 import {
   ArrowDown01Icon,
@@ -121,7 +115,7 @@ export function SaleDetailDrawer({
                 </dl>
 
                 {isAdmin && sale.belowMinMargin && (
-                  <p className="flex items-start gap-1.5 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
+                  <p className="flex items-start gap-1.5 rounded-xl border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
                     <HugeIcon icon={Alert02Icon} size={14} strokeWidth={2} className="mt-px shrink-0" aria-hidden />
                     <span>
                       Hay productos vendidos por debajo del margen mínimo
@@ -135,7 +129,7 @@ export function SaleDetailDrawer({
                   <h3 className="mb-2 text-2xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
                     Productos
                   </h3>
-                  <div className="divide-y divide-border rounded-card border border-border">
+                  <div className="divide-y divide-border rounded-2xl border border-border">
                     {sale.items.map((it, i) => (
                       <div key={`${it.productName}-${i}`} className="flex items-start justify-between gap-3 px-3 py-2.5 text-sm">
                         <div className="min-w-0">
@@ -307,7 +301,7 @@ function FinancialSection({ sale }: { sale: SaleWithItems }) {
         )}
       </h3>
 
-      <dl className="space-y-1.5 rounded-card border border-border px-3 py-2.5 text-sm">
+      <dl className="space-y-1.5 rounded-2xl border border-border px-3 py-2.5 text-sm">
         <div className="flex justify-between">
           <dt className="text-muted-foreground">Costo de mercadería</dt>
           <dd className="nums">{formatCordobas(costoMercaderia, 'C$', 2)}</dd>
@@ -343,7 +337,7 @@ function FinancialSection({ sale }: { sale: SaleWithItems }) {
       {expanded && (
         <div className="mt-3 space-y-3">
           {!definitivo && (
-            <p className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-2xs leading-snug text-muted-foreground">
+            <p className="rounded-xl border border-border bg-muted/40 px-3 py-2 text-2xs leading-snug text-muted-foreground">
               Estos números son una <span className="font-medium">estimación</span>: el costo sale del
               stock disponible, no de los lotes que se van a consumir. Al aprobar la venta se
               recalculan con el costo real y pueden moverse.
@@ -361,7 +355,7 @@ function FinancialSection({ sale }: { sale: SaleWithItems }) {
           ))}
 
           {totalPozos > 0 && (
-            <div className="rounded-lg border bg-muted/40 p-3">
+            <div className="rounded-2xl border bg-muted/40 p-3">
               <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2 border-b pb-2">
                 <span className="flex items-center gap-1.5">
                   <HugeIcon icon={DropletIcon} size={15} strokeWidth={2} className="text-primary" aria-hidden />

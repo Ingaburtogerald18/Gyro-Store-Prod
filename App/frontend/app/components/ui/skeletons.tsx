@@ -22,9 +22,9 @@ export function SkeletonStatRow({ n = 4, className }: { n?: number; className?: 
   return (
     <div className={cn('grid gap-4 md:grid-cols-2', n >= 5 ? 'lg:grid-cols-5' : 'lg:grid-cols-3', className)}>
       {Array.from({ length: n }).map((_, i) => (
-        <div key={i} className="rounded-card border bg-card p-4">
+        <div key={i} className="rounded-2xl border bg-card p-4">
           <div className="flex items-center gap-2">
-            <Skeleton className="size-4 rounded" />
+            <Skeleton className="size-4 rounded-sm" />
             <Skeleton className="h-3 w-24" />
           </div>
           <Skeleton className="mt-3 h-7 w-32" />
@@ -54,7 +54,7 @@ export function SkeletonTable({
   className?: string;
 }) {
   return (
-    <div className={cn('overflow-hidden rounded-card border bg-card', className)}>
+    <div className={cn('overflow-hidden rounded-2xl border bg-card', className)}>
       <div className="flex items-center gap-4 border-b border-border bg-muted/40 px-3 py-2.5">
         {Array.from({ length: cols }).map((_, i) => (
           <Skeleton key={i} className={cn('h-3', COL_WIDTHS[i % COL_WIDTHS.length])} />
@@ -81,10 +81,10 @@ const BAR_HEIGHTS = ['h-1/3', 'h-1/2', 'h-2/3', 'h-1/4', 'h-3/4', 'h-2/5', 'h-4/
 
 export function SkeletonChart({ className }: { className?: string }) {
   return (
-    <div className={cn('rounded-card border bg-card p-5', className)}>
+    <div className={cn('rounded-2xl border bg-card p-5', className)}>
       <div className="mb-4 flex items-center justify-between border-b pb-4">
         <div className="flex items-center gap-2">
-          <Skeleton className="size-5 rounded" />
+          <Skeleton className="size-5 rounded-sm" />
           <Skeleton className="h-4 w-40" />
         </div>
         <Skeleton className="h-3 w-16" />
@@ -101,9 +101,9 @@ export function SkeletonChart({ className }: { className?: string }) {
 /** Tarjeta genérica: encabezado + N líneas. */
 export function SkeletonCard({ lines = 4, className }: { lines?: number; className?: string }) {
   return (
-    <div className={cn('rounded-card border bg-card p-5', className)}>
+    <div className={cn('rounded-2xl border bg-card p-5', className)}>
       <div className="mb-4 flex items-center gap-2 border-b pb-4">
-        <Skeleton className="size-5 rounded" />
+        <Skeleton className="size-5 rounded-sm" />
         <Skeleton className="h-4 w-36" />
       </div>
       <div className="space-y-3">

@@ -254,7 +254,7 @@ export function UserDetailDialog({
                     botón de guardar. Un select de rol que se aplica solo, junto a
                     un formulario que no, necesita decirlo — si no, se cambia el rol
                     y se cierra el diálogo creyendo que no se guardó nada. */}
-                <section className="grid gap-4 rounded-card border border-border bg-muted/30 p-4">
+                <section className="grid gap-4 rounded-2xl border border-border bg-muted/30 p-4">
                   <header>
                     <h3 className="font-heading text-sm font-semibold text-foreground">
                       Administración

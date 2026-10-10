@@ -68,7 +68,7 @@ export function RouteError({
       <h1 className="text-2xl font-bold tracking-tight text-foreground">{title}</h1>
       <p className="text-sm text-balance text-muted-foreground">{text}</p>
       {developmentError && (
-        <details className="w-full rounded-lg border p-3 text-left text-sm">
+        <details className="w-full rounded-2xl border p-3 text-left text-sm">
           <summary className="cursor-pointer">Detalle del error (desarrollo)</summary>
           <pre className="mt-2 whitespace-pre-wrap break-words">{developmentError}</pre>
         </details>

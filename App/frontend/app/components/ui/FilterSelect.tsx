@@ -64,7 +64,7 @@ export function FilterSelect({
       title={dotTitle}
       // El resplandor sale del token, no de un ámbar hardcodeado: así sigue al
       // tema y acompaña si `--warning` cambia.
-      className="h-1.5 w-1.5 shrink-0 rounded-full bg-warning shadow-[0_0_6px_var(--color-warning)]"
+      className="h-1.5 w-1.5 shrink-0 rounded-full bg-warning"
     />
   );
 
@@ -79,7 +79,7 @@ export function FilterSelect({
           variant === "ghost"
             ? "bg-transparent border-none p-0 text-sm font-semibold text-foreground hover:text-primary-2"
             : cn(
-                "flex h-9 w-full items-center justify-between gap-2 rounded-md border border-border bg-card px-3 text-sm text-foreground transition-all duration-200 hover:bg-muted/80 focus:outline-none focus:ring-2 focus:ring-primary/20",
+                "flex h-9 w-full items-center justify-between gap-2 rounded-xl border border-border bg-card px-3 text-sm text-foreground transition-all duration-200 hover:bg-muted/80 focus:outline-none focus:ring-2 focus:ring-primary/20",
                 open && "border-primary/50 ring-2 ring-primary/20"
               ),
         )}
@@ -112,7 +112,7 @@ export function FilterSelect({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -6, scale: 0.97 }}
             transition={{ duration: 0.14, ease: [0.16, 1, 0.3, 1] }}
-            className="absolute left-0 z-50 mt-2 flex flex-col gap-1 min-w-[180px] w-max max-w-[300px] max-h-64 overflow-y-auto rounded-card border bg-card p-1 shadow-2xl"
+            className="absolute left-0 z-50 mt-2 flex flex-col gap-1 min-w-[180px] w-max max-w-[300px] max-h-64 overflow-y-auto rounded-2xl border bg-card p-1 shadow-2xl"
           >
             {options.map((o) => {
               const isSel = o.value === value;
@@ -125,7 +125,7 @@ export function FilterSelect({
                     setOpen(false);
                   }}
                   className={cn(
-                    "flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition-colors",
+                    "flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm transition-colors",
                     isSel ? "bg-primary/10 text-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground",
                   )}
                 >

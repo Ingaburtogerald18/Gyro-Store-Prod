@@ -210,10 +210,8 @@ export function ProductGrid({ products, categories = [], isLoading, error }: Pro
   );
 }
 
-// Grilla uniforme: todas las tarjetas del mismo tamaño y aspect-ratio, sin tiles
-// anchos. El `h-full` en cada celda ancla el CTA al fondo con alturas parejas.
-// La entrada animada (fade + subida, escalonada por fila) la hace ProductCard;
-// antes esta celda animaba lo mismo por encima y se sumaban dos transiciones.
+// Grilla uniforme: el `h-full` de cada celda ancla el CTA al fondo. La entrada
+// animada la hace ProductCard, no la celda.
 export function ProductResultsGrid({ products }: { products: CatalogProduct[] }) {
   return (
     <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-5 lg:grid-cols-4">

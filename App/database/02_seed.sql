@@ -1,8 +1,7 @@
 -- ============================================================================
 -- 02_seed.sql — Datos de arranque de Gyro Store v2
 -- ============================================================================
--- Se aplica DESPUÉS de `01_schema.sql`, no antes: inserta en `accounts`, y la
--- sección de Caja del esquema le agrega columnas a esa tabla.
+-- Se aplica DESPUÉS de `01_schema.sql`.
 --
 -- ⚠️  Revisar los valores financieros antes de aplicarlo en producción: son la
 --     configuración real del negocio (pozos, márgenes, comisión), no ejemplos.
@@ -17,7 +16,6 @@
 --   · Las 8 plantillas heredadas de v1, portadas desde el CÓDIGO de sus scripts
 --     de seed (no desde Firestore), para que sean reproducibles sin
 --     credenciales de producción.
---   · Las cuentas de caja y banco.
 --   · La configuración financiera que el backend necesita para costear.
 -- ============================================================================
 
@@ -153,22 +151,6 @@ from (values
 where not exists (select 1 from templates t where t.name = v.name);
 
 -- ============================================================================
--- Cuentas de caja y banco
--- ============================================================================
--- `accounts` no tiene llave natural única y el `id` es aleatorio, así que
--- `on conflict do nothing` NO evitaría duplicados al re-correr el seed (nunca
--- hay conflicto que atrapar). El guard por `nombre` sí lo hace idempotente,
--- igual que el bloque de plantillas de más arriba.
-insert into accounts (nombre, tipo, moneda)
-select v.nombre, v.tipo::cuenta_tipo, v.moneda
-from (values
-  ('Caja Física (Córdobas)', 'efectivo', 'NIO'),
-  ('BAC Córdobas',           'banco',    'NIO'),
-  ('BAC Dólares',            'banco',    'USD')
-) as v(nombre, tipo, moneda)
-where not exists (select 1 from accounts a where a.nombre = v.nombre);
-
--- ============================================================================
 -- Configuración financiera (app_config)
 -- ============================================================================
 -- Configuración inicial base requerida por el backend para el costeo,
@@ -224,9 +206,6 @@ insert into app_config (key, value) values
       {"min_qty": 12, "pct": 15, "warning": true}
     ]'::jsonb
   )
-on conflict (key) do update
-set value = excluded.value;
-
--- ============================================================================
--- Cierre de archivo 0005_seed.sql
--- ============================================================================
+-- `do nothing`: si el seed se vuelve a correr sobre una base viva, no pisa la
+-- configuración que ya se ajustó desde el panel.
+on conflict (key) do nothing;

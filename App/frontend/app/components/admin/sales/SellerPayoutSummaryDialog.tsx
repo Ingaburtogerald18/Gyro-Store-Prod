@@ -49,14 +49,14 @@ export function SellerPayoutSummaryDialog({
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="rounded-card border border-success/30 bg-success/10 px-4 py-3 text-sm">
+          <div className="rounded-2xl border border-success/30 bg-success/10 px-4 py-3 text-sm">
             <p className="text-foreground">
               Se aprobaron <strong>{target?.batchCount}</strong> venta{target?.batchCount === 1 ? '' : 's'} por{' '}
               <strong>{formatCordobas(target?.batchComision ?? 0)}</strong> de comisión.
             </p>
           </div>
 
-          <div className="space-y-2 rounded-card border border-border px-4 py-3 text-sm">
+          <div className="space-y-2 rounded-2xl border border-border px-4 py-3 text-sm">
             <div className="mb-1 flex items-center gap-1.5 text-2xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
               <HugeIcon icon={Wallet01Icon} size={14} strokeWidth={2} />
               Total pendiente de pago

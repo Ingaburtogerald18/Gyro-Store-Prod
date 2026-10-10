@@ -64,10 +64,8 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
     if (catalogRes?.ok) {
       const items = ((await catalogRes.json()) as { items?: CatalogProduct[] }).items ?? [];
       products = items;
-      // "Tal vez te pueda interesar" son productos de LA MISMA categoría; solo si
-      // esa gama es muy corta se rellena con el resto del catálogo. Antes cortaba
-      // los 12 primeros sin filtrar, así que a una ficha de audífonos le salían
-      // accesorios de moto.
+      // "Tal vez te pueda interesar": productos de la misma categoría; solo si
+      // son pocos se completa con el resto del catálogo.
       const others = items.filter((p) => p.id !== productId);
       const category = product?.category;
       const sameCategory = category ? others.filter((p) => p.category === category) : [];

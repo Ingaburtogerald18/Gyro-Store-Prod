@@ -87,6 +87,11 @@ export async function uploadFile(buffer: Buffer, folder: string, filename: strin
   return `${R2_PUBLIC_URL}/${encodeURI(key)}`;
 }
 
+/** true si la URL es de nuestro bucket (y no una dirección cualquiera). */
+export function isStorageUrl(url: string): boolean {
+  return Boolean(R2_PUBLIC_URL) && url.startsWith(`${R2_PUBLIC_URL}/`);
+}
+
 export async function deleteFileByUrl(publicUrl?: string | null) {
   if (!publicUrl || typeof publicUrl !== 'string') return;
   const prefix = `${R2_PUBLIC_URL}/`;

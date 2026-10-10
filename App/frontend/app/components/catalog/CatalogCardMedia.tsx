@@ -1,11 +1,5 @@
-// Cabecera visual de una tarjeta del catálogo admin: la foto (o su fallback) con
-// el badge de Público/Oculto encima.
-//
-// Estaba duplicada CARÁCTER POR CARÁCTER en `SortableCatalogGrid` y en
-// `CombosPanel` — mismo `aspect-square`, mismo icono de fallback, mismas clases
-// del badge. Dos copias del mismo bloque son dos lugares donde arreglar el mismo
-// detalle visual, y basta que alguien toque una para que las tarjetas de
-// productos y las de combos dejen de parecerse.
+// Foto (o su fallback) de una tarjeta del catálogo admin con el badge de
+// Público/Oculto, compartida por productos y combos para que se vean iguales.
 import { HugeIcon } from '~/components/ui/icon';
 import { GlobeIcon, Image01Icon, LockIcon } from '@hugeicons/core-free-icons';
 
@@ -32,11 +26,11 @@ export function CatalogCardMedia({
           primero que se busca es cuáles están publicados. */}
       <div className="absolute bottom-2 right-2">
         {published ? (
-          <Badge variant="secondary" className="bg-primary text-primary-foreground shadow-sm">
+          <Badge variant="category" className="bg-primary text-primary-foreground">
             <HugeIcon icon={GlobeIcon} size={12} strokeWidth={2} className="mr-1" /> Público
           </Badge>
         ) : (
-          <Badge variant="secondary" className="bg-muted/80 text-muted-foreground hover:bg-muted">
+          <Badge variant="category" className="bg-muted/80 text-muted-foreground hover:bg-muted">
             <HugeIcon icon={LockIcon} size={12} strokeWidth={2} className="mr-1" /> Oculto
           </Badge>
         )}

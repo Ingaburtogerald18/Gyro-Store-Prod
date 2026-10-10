@@ -22,7 +22,6 @@
 | **02** | Arquitectura | Stack, estructura de carpetas, flujo de datos, patrones. | ✅ Construido |
 | **03** | Datos y seguridad | Modelo Postgres, auth con Entra, roles, RLS deny-all. | ✅ Construido |
 | **04** | Backend (API) | Contratos por dominio, middleware, validación, errores. | ✅ Construido |
-| **05** | Frontend | Rutas Remix, RTK Query, shadcn/ui. Diseño → `DESIGN.md`. | ✅ Construido |
 | **06** | Dominios funcionales | Las 8 fases al detalle. | ⚠️ Parcial — falta Logística |
 | **07** | Infraestructura y despliegue | Variables, Render, Supabase, R2, build. | ✅ Construido |
 | **08** | Deuda técnica | Hallazgos del review y orden de trabajo. | 📌 Revisar — anterior a gran parte del código |
@@ -30,13 +29,10 @@
 | **10** | CRM y WhatsApp | Ficha 360, agenda, inbox, Cloud API. | ⚠️ Parcial — CRM-A hecho; inbox/bot no |
 | **11** | Lógica financiera | Costeo, Costo F/U, pozos, PVP, comisiones, mayoreo. | ✅ Construido |
 | **12** | Especificación de módulos y arranque | Lógica por módulo, auditoría de seguridad, prompts de arranque. | 🗄️ Mixto — la spec sirve, los prompts ya se ejecutaron |
-| **13** | Arquitectura de interfaces (UI) | Qué ve cada rol: storefront y back-office. | Vigente |
 | **14** | Cuentas de comprador y lealtad | Auth del comprador (OTP), sellos, mayorista, atribución. | 📋 Plan — sin implementar |
 | **15** | Cumplimiento fiscal (Nicaragua) | Plan de activación fiscal. | 📋 Plan — sin implementar |
-| **16** | Auditoría de UI del panel | Revisión de la interfaz del back-office. | 🗄️ Histórico — foto de un momento |
 | **17** | Comprobantes en SharePoint | Archivo de PDF por semana, outbox, Graph app-only. | ✅ Construido |
 | — | `PLAN-CUENTAS-Y-ANALITICA` | Plan conjunto de cuentas + analítica de intención. | ⚠️ Parcial — analítica hecha, cuentas no |
-| — | `PORT-CATALOGO-V1` | Fase 0: análisis de brechas del catálogo v1 → v2. | 🗄️ Histórico — el port ya se hizo |
 
 **Leyenda:** ✅ construido y en uso · ⚠️ parcial · 📋 plan sin empezar · 🗄️ histórico (se conserva por
 el *porqué*, no como instrucción) · 📌 necesita revisión
@@ -73,7 +69,7 @@ Cerradas antes de escribir código, y todas siguen en pie:
 | **Imágenes** | **Cloudflare R2** (+ Sharp + nombre por hash). | Ya funcionaba y no tiene costo de egress. |
 | **Backend** | **TypeScript + ESM**, unificado con el front. | Una sola cultura de tipos entre front y back. |
 | **Ambientes** | Dos proyectos Supabase: dev y prod. | Probar migraciones sin ensuciar la data real. |
-| **UI** | **shadcn/ui** sobre los tokens de `DESIGN.md`. | Componentes sin estilo impuesto: preservan el look Editorial Dark. |
+| **UI** | **shadcn/ui** sobre los tokens de `DESIGN.md`. | Componentes sin estilo impuesto: el look lo define `DESIGN.md`. |
 | **CRM** | CRM nativo + **WhatsApp Cloud API**, sin n8n. | Lo más barato para arrancar; plan por fases en el doc 10. |
 | **Cuentas de comprador** | Opcionales, nunca requisito para comprar. | Sube retención sin tocar la fricción cero del checkout por WhatsApp. |
 
@@ -93,8 +89,7 @@ lleva una marca de confianza:
 
 ## Documentos fuera de este set
 
-- **`DESIGN.md`** (raíz del repo) — el sistema de diseño *Editorial Dark*. Fuente de verdad del look
-  del storefront; el doc 05 lo referencia y no lo duplica.
+- **`DESIGN.md`** (raíz del repo) — el único documento de diseño, para la tienda y el panel.
 - **`App/database/01_schema.sql`** — el esquema completo, con la cabecera de cada bloque explicando el
   porqué de cada cambio. Para el modelo de datos real manda ese archivo, no el doc 03.
 

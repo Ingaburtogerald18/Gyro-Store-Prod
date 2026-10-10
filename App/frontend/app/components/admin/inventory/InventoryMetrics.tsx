@@ -1,14 +1,6 @@
-// Franja de métricas del inventario: UNA superficie con cuatro números y
-// divisores verticales. Reemplaza las seis StatCard + la barra de resumen que
-// había arriba de la tabla.
-//
-// ── Por qué así ──
-// Las tarjetas repetían datos (724 aparecía tres veces, el total dos) y cada
-// una tenía su color de número sin que el color significara nada. Acá los
-// números van en el color del texto y en Chivo (--font-display, la letra de los
-// montos); el color queda para UNA señal: ámbar cuando hay algo que mirar
-// (mercadería en camino, productos agotados).
-import { Metric, MetricStrip as Strip, MetricStripSkeleton as StripSkeleton } from "~/components/admin/workspace";
+// Métricas de Inventario: cuatro números en el color del texto; el ámbar marca
+// lo único que hay que mirar (mercadería en camino, agotados).
+import { Metric, MetricStrip, MetricStripSkeleton } from "~/components/admin/workspace";
 import { useGetCurrentInventoryQuery, useGetInventoryKpisQuery, useGetPurchasesQuery } from "~/store/api/inventoryV1Api";
 import { cordobasFromUsd, formatUsd } from "~/lib/formatters";
 import { cn } from "~/lib/utils";
@@ -27,7 +19,7 @@ export function PurchaseMetrics({ period = "all" }: { period?: string }) {
   const { data: k, isLoading } = useGetInventoryKpisQuery(period);
   const { data: purchases = [] } = useGetPurchasesQuery(period);
 
-  if (isLoading || !k) return <StripSkeleton />;
+  if (isLoading || !k) return <MetricStripSkeleton />;
 
   const units = k.totalPurchases || 0;
   const avgUnit = units > 0 ? k.totalInversionConImpuestosUsd / units : 0;
@@ -35,9 +27,7 @@ export function PurchaseMetrics({ period = "all" }: { period?: string }) {
   const distinctProducts = new Set(purchases.map((p) => p.productName)).size;
 
   return (
-    <Strip>
-      {/* Antes mostraba `received` (todo lo comprado de lotes ya recibidos,
-          vendido incluido) bajo el nombre "en bodega". */}
+    <MetricStrip>
       <Metric
         label="Unidades en bodega"
         value={fmtInt(k.availableUnits)}
@@ -70,7 +60,7 @@ export function PurchaseMetrics({ period = "all" }: { period?: string }) {
         value={formatUsd(avgUnit)}
         sub={`${fmtInt(distinctProducts)} ${distinctProducts === 1 ? "producto distinto" : "productos distintos"}`}
       />
-    </Strip>
+    </MetricStrip>
   );
 }
 
@@ -78,7 +68,7 @@ export function PurchaseMetrics({ period = "all" }: { period?: string }) {
 export function StockMetrics({ period = "all" }: { period?: string }) {
   const { data: rows = [], isLoading } = useGetCurrentInventoryQuery(period);
 
-  if (isLoading) return <StripSkeleton />;
+  if (isLoading) return <MetricStripSkeleton />;
 
   const available = rows.reduce((acc, r) => acc + (r.available || 0), 0);
   const shippingUsd = rows.reduce((acc, r) => acc + (r.shippingUnitUsd || 0) * (r.available || 0), 0);
@@ -90,7 +80,7 @@ export function StockMetrics({ period = "all" }: { period?: string }) {
   const outOfStock = stockByProduct.size - inStock;
 
   return (
-    <Strip>
+    <MetricStrip>
       <Metric
         label="Unidades disponibles"
         value={fmtInt(available)}
@@ -107,6 +97,6 @@ export function StockMetrics({ period = "all" }: { period?: string }) {
           </span>
         }
       />
-    </Strip>
+    </MetricStrip>
   );
 }

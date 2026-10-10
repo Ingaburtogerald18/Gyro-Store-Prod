@@ -24,10 +24,7 @@ interface ComboboxProps {
   id?: string;
   "aria-invalid"?: boolean;
   disabled?: boolean;
-  /**
-   * Contenido extra a la derecha de cada sugerencia (stock, código, precio…).
-   * Sin esto la lista solo muestra el texto de la opción, como antes.
-   */
+  /** Contenido extra a la derecha de cada sugerencia (stock, código, precio…). */
   renderOptionMeta?: (option: string) => React.ReactNode;
   /**
    * Texto ADICIONAL contra el que buscar, además del propio nombre de la opción
@@ -69,10 +66,8 @@ export function Combobox({
       .slice(0, 40)
   }, [options, value, getSearchText])
 
-  // Sin el filtro de "match exacto" que había antes: bloqueaba reabrir la
-  // lista con un click cuando el valor actual YA es una opción válida (p. ej.
-  // reabrir para cambiar algo que ya se había elegido). Al enfocar/hacer
-  // click se abre igual, coincida o no con una opción existente.
+  // Al enfocar o hacer clic se abre siempre, aunque el valor ya sea una opción:
+  // así se puede reabrir para cambiarla.
   const showOptions = visibleOptions.length > 0 && open;
 
   return (

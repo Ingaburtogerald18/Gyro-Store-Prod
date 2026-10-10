@@ -1,12 +1,5 @@
-// ¿Hay alguna query de RTK Query en vuelo?
-//
-// Vivía en `module-loader.tsx`, junto al overlay que se retiró en la Fase 1.
-// Se movió acá porque quien lo consume ahora es `GlobalProgress`, que no tiene
-// nada que ver con aquel loader.
-//
-// Lee el estado del `baseApi` (reducerPath 'api') directo, en vez de que cada
-// vista tenga que reportar su propio `isFetching`: el indicador global tiene
-// que saber si hay actividad en CUALQUIER parte del árbol.
+// ¿Hay alguna query de RTK Query en vuelo? Lee el estado de `baseApi` directo
+// para que el indicador global vea la actividad de todo el árbol.
 import { useAppSelector } from '~/store/hooks';
 
 export function useAnyQueryPending(): boolean {

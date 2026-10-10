@@ -49,7 +49,7 @@ export function CommissionPaymentsDialog({ open, onClose }: { open: boolean; onC
             {visible.length === 0 ? (
               <p className="py-6 text-sm text-muted-foreground">Todavía no hay pagos registrados.</p>
             ) : (
-              <ul className="divide-y divide-border rounded-card border border-border">
+              <ul className="divide-y divide-border rounded-2xl border border-border">
                 {visible.map((p) => (
                   <li key={p.id} className="space-y-1 px-4 py-3 text-sm">
                     <div className="flex items-start justify-between gap-3">

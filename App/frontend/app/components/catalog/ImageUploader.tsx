@@ -226,7 +226,7 @@ function SortableImageItem({
       />
 
       {isCover && (
-        <span className="absolute left-1.5 top-1.5 z-10 rounded-md bg-primary px-1.5 py-0.5 text-2xs font-bold text-primary-foreground">
+        <span className="absolute left-1.5 top-1.5 z-10 rounded-xl bg-primary px-1.5 py-0.5 text-2xs font-bold text-primary-foreground">
           Portada
         </span>
       )}
@@ -240,7 +240,7 @@ function SortableImageItem({
           isDragging && "opacity-100 cursor-grabbing"
         )}
       >
-        <div className="rounded-md bg-black/60 p-1 text-white backdrop-blur-sm">
+        <div className="rounded-xl bg-black/60 p-1 text-white">
           <HugeIcon icon={DragDropVerticalIcon} size={14} strokeWidth={2} />
         </div>
       </div>
@@ -255,7 +255,7 @@ function SortableImageItem({
         {!isCover && (
           <Button
             type="button"
-            variant="secondary"
+            variant="onMedia"
             size="icon-xs"
             aria-label={`Usar la foto ${index + 1} como portada`}
             title="Hacer portada"
@@ -267,7 +267,7 @@ function SortableImageItem({
         )}
         <Button
           type="button"
-          variant="secondary"
+          variant="onMedia"
           size="icon-xs"
           aria-label={`Quitar la foto ${index + 1}`}
           title="Quitar"

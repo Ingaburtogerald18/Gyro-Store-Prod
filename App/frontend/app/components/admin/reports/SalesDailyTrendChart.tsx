@@ -11,7 +11,7 @@ import { formatCordobas, formatNumber } from '~/lib/formatters';
 import { useGetSalesTrendQuery } from '~/store/api/reportsApi';
 import type { PeriodRange } from './period';
 
-// Vendido y ganancia son ingresos: los dos en emerald (DESIGN.md §2.4). Se
+// Vendido y ganancia son ingresos: los dos en emerald. Se
 // distinguen por forma e intensidad: barras suaves para lo vendido, línea
 // llena para la ganancia.
 const dailyChartConfig = {
@@ -154,7 +154,7 @@ export function SalesDailyTrendChart({
       <QueryState
         loading={isLoading}
         error={isError}
-        loadingFallback={<div className="h-72 animate-pulse rounded-card bg-muted" />}
+        loadingFallback={<div className="h-72 animate-pulse rounded-2xl bg-muted" />}
       >
         <ChartContainer config={dailyChartConfig} className="aspect-auto h-72 w-full">
           <ComposedChart key={`${year}-${month}`} data={dailyPoints} margin={{ left: 8, right: 12, top: 12, bottom: 4 }}>
@@ -220,7 +220,7 @@ function DayTooltip({
   const margen = data.total_vendido > 0 ? (data.ganancia / data.total_vendido) * 100 : 0;
 
   return (
-    <div className="min-w-[220px] rounded-card border border-border bg-popover p-3 text-xs text-popover-foreground shadow-lg">
+    <div className="min-w-[220px] rounded-2xl border border-border bg-popover p-3 text-xs text-popover-foreground shadow-lg">
       <p className="mb-2 border-b border-border pb-1.5 font-semibold first-letter:uppercase">{data.dateStr}</p>
       {data.hasSales ? (
         <dl className="space-y-1">

@@ -84,7 +84,7 @@ export function SaleLinesTable({
               exit={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.98 }}
               transition={reduceMotion ? { duration: 0 } : { duration: 0.18, ease: 'easeOut' }}
               className={cn(
-                'space-y-3 rounded-card border bg-muted/40 p-3.5',
+                'space-y-3 rounded-2xl border bg-muted/40 p-3.5',
                 (overStock || isDuplicate) && 'border-destructive/40',
               )}
             >
@@ -141,7 +141,7 @@ export function SaleLinesTable({
                 {product && (
                   <span
                     className={cn(
-                      'nums hidden shrink-0 items-center gap-1 rounded-pill px-2 py-0.5 text-xs font-medium sm:flex',
+                      'nums hidden shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium sm:flex',
                       overStock
                         ? 'bg-destructive/10 text-destructive'
                         : 'bg-primary/10 text-primary-2',
@@ -221,14 +221,14 @@ export function SaleLinesTable({
               </div>
 
               {overStock && product && (
-                <p className="flex items-center gap-1.5 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive">
+                <p className="flex items-center gap-1.5 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive">
                   <HugeIcon icon={Alert02Icon} size={14} strokeWidth={2} className="shrink-0" aria-hidden />
                   Solo hay {product.stock} uds disponibles.
                 </p>
               )}
 
               {isDuplicate && (
-                <p className="flex items-center gap-1.5 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive">
+                <p className="flex items-center gap-1.5 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive">
                   <HugeIcon icon={Alert02Icon} size={14} strokeWidth={2} className="shrink-0" aria-hidden />
                   Este producto está en otra línea: juntá las unidades en una sola.
                 </p>

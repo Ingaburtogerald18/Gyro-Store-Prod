@@ -824,7 +824,7 @@ export const publicOrderItemInputSchema = z
   });
 
 // Los campos que llena la PERSONA, sin los ítems. Se exporta aparte para que el
-// formulario del checkout derive de acá (DESIGN.md §6b: derivar, no reescribir)
+// formulario del checkout derive de acá
 // en vez de mantener una copia de las mismas reglas.
 export const publicOrderFieldsSchema = z.object({
   phone: z
@@ -1053,6 +1053,113 @@ export const arrivalInputSchema = z.object({
   exchangeRate: z.number().positive().max(1000).optional(),
 });
 export type ArrivalInput = z.infer<typeof arrivalInputSchema>;
+
+// ── Órdenes de compra (Alibaba) — migración 0024 ──
+// Una orden agrupa varias líneas (`purchases`, una por variante) con su número
+// de Alibaba, el proveedor, la factura y las fotos del empaque.
+
+export const supplierInputSchema = z.object({
+  name: z.string().trim().min(1, 'El nombre del proveedor es obligatorio.').max(120),
+  contact: z.string().trim().max(200).default(''),
+  storeUrl: z.string().trim().max(500).default(''),
+  notes: z.string().trim().max(500).default(''),
+});
+export type SupplierInput = z.infer<typeof supplierInputSchema>;
+
+// Factura de Alibaba. Una misma factura puede cubrir varias órdenes: se carga
+// una vez y las demás órdenes la eligen.
+export const purchaseInvoiceInputSchema = z
+  .object({
+    invoiceNumber: z.string().trim().max(60).default(''),
+    fileUrl: z.url().max(1000).nullable().default(null),
+    totalUsd: z.number().min(0).max(10_000_000).nullable().default(null),
+    notes: z.string().trim().max(500).default(''),
+  })
+  .refine((data) => Boolean(data.fileUrl) || data.totalUsd != null || data.invoiceNumber !== '', {
+    message: 'Subí la factura o escribí su total.',
+    path: ['fileUrl'],
+  });
+export type PurchaseInvoiceInput = z.infer<typeof purchaseInvoiceInputSchema>;
+
+export const purchaseOrderLineInputSchema = z.object({
+  productName: z.string().trim().min(1, 'El nombre del producto es obligatorio.').max(160),
+  category: z.string().min(1, 'La categoría es obligatoria.').max(80),
+  quantity: z.number().int().positive('La cantidad debe ser mayor a 0.').max(1_000_000),
+  costUnit: z.number().min(0).max(1_000_000),
+  taxUnit: z.number().min(0).max(1_000_000),
+  catalogItemId: z.uuid().optional(),
+  variantKey: z.string().max(200).optional(),
+});
+export type PurchaseOrderLineInput = z.infer<typeof purchaseOrderLineInputSchema>;
+
+const purchaseOrderHeaderFields = {
+  // 40 = el largo que acepta `purchases.lot`, donde se copia el número.
+  orderNumber: z.string().trim().min(3, 'Escribí el número de orden de Alibaba.').max(40),
+  purchaseDate: z.iso.date(),
+  // Proveedor guardado (`supplierId`) o uno nuevo (`newSupplier`). `null` en la
+  // edición = quitar el proveedor.
+  supplierId: z.uuid().nullable().optional(),
+  newSupplier: supplierInputSchema.optional(),
+  // Factura ya cargada (`invoiceId`, quizás de otra orden de la misma compra)
+  // o una nueva (`newInvoice`). `null` en la edición = quitar la factura.
+  invoiceId: z.uuid().nullable().optional(),
+  newInvoice: purchaseInvoiceInputSchema.optional(),
+  packagePhotos: z.array(z.url().max(1000)).max(8).default([]),
+  notes: z.string().trim().max(1000).default(''),
+};
+
+export const newPurchaseOrderInputSchema = z
+  .object({
+    ...purchaseOrderHeaderFields,
+    lines: z.array(purchaseOrderLineInputSchema).min(1, 'Agregá al menos un producto.').max(100),
+  })
+  .refine((data) => Boolean(data.supplierId || data.newSupplier), {
+    message: 'Elegí el proveedor o cargá uno nuevo.',
+    path: ['supplierId'],
+  });
+export type NewPurchaseOrderInput = z.infer<typeof newPurchaseOrderInputSchema>;
+
+// Completar o corregir la orden (también las viejas, que nacen sin proveedor,
+// factura ni fotos). No toca las líneas: esas se editan una por una.
+export const updatePurchaseOrderInputSchema = z.object({
+  ...purchaseOrderHeaderFields,
+  // Sin default: un campo que no viene se conserva, no se vacía.
+  packagePhotos: z.array(z.url().max(1000)).max(8).optional(),
+  notes: z.string().trim().max(1000).optional(),
+});
+export type UpdatePurchaseOrderInput = z.infer<typeof updatePurchaseOrderInputSchema>;
+
+export const addPurchaseOrderLinesInputSchema = z.object({
+  lines: z.array(purchaseOrderLineInputSchema).min(1, 'Agregá al menos un producto.').max(100),
+});
+export type AddPurchaseOrderLinesInput = z.infer<typeof addPurchaseOrderLinesInputSchema>;
+
+// Recibir en Nicaragua. El envío se escribe TOTAL y se reparte por unidades
+// recibidas (decisión 2026-10-09; el reparto por peso/CBM queda para después).
+// Las líneas que no se mandan siguen en tránsito: así se recibe por partes.
+// Un mismo envío del agente suele traer varias órdenes: `extraOrderIds` suma
+// las otras órdenes que llegaron juntas, y el envío se reparte entre todas.
+export const receivePurchaseOrderInputSchema = z.object({
+  arrivalDate: z.iso.date(),
+  extraOrderIds: z.array(z.uuid()).max(30).optional(),
+  exchangeRate: z.number().positive().max(1000).optional(),
+  shippingTotalUsd: z.number().min(0).max(10_000_000),
+  lines: z
+    .array(
+      z.object({
+        purchaseId: z.uuid(),
+        receivedQuantity: z.number().int().positive('Lo recibido debe ser mayor a 0.').max(1_000_000),
+        // Precio de venta del lote (C$). Sin él, el sugerido.
+        salePrice: z.number().min(0).max(10_000_000).optional(),
+      }),
+    )
+    .min(1, 'Elegí al menos un producto recibido.')
+    .max(100),
+});
+export type ReceivePurchaseOrderInput = z.infer<typeof receivePurchaseOrderInputSchema>;
+
+export const simulatePurchaseOrderReceiptInputSchema = receivePurchaseOrderInputSchema.omit({ arrivalDate: true });
+export type SimulatePurchaseOrderReceiptInput = z.infer<typeof simulatePurchaseOrderReceiptInputSchema>;
 
 // ============================================================================
 // ── SCHEMAS DEL DOMINIO: VENTAS (ADMIN/SELLER) ──

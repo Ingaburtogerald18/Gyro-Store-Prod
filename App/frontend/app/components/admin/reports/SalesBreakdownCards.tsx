@@ -3,7 +3,7 @@
 // con su leyenda debajo. Así se comparan los cortes de un vistazo.
 //
 // Todo es "ventas": un solo tono (emerald) en distinta intensidad, no un color
-// por grupo (DESIGN.md §2.4). Cada grupo llega del backend como
+// por grupo. Cada grupo llega del backend como
 // {key, count, total}; acá solo se traduce la clave.
 //
 // Todos suman el total vendido (sin delivery), salvo método de pago, que solo
@@ -126,7 +126,7 @@ export function SalesBreakdownCards({ range, className }: { range: PeriodRange; 
         loading={isLoading}
         error={isError}
         empty={!data}
-        loadingFallback={<div className="h-72 animate-pulse rounded-card bg-muted" />}
+        loadingFallback={<div className="h-72 animate-pulse rounded-2xl bg-muted" />}
       >
         {data && (
           <div className="divide-y divide-border/70">

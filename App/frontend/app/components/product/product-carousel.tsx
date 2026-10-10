@@ -66,7 +66,7 @@ export function ProductCarousel({
           {href && (
             <Link
               to={href}
-              className="rounded-md px-1 text-sm font-semibold text-primary-2 underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+              className="rounded-xl px-1 text-sm font-semibold text-primary-2 underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
             >
               Ver todo
               <span className="sr-only"> en {title}</span>

@@ -67,7 +67,7 @@ export function SaleReturnsSection({ sale }: { sale: SaleWithItems }) {
       </div>
 
       {returns.length > 0 && (
-        <ul className="divide-y divide-border rounded-card border border-border text-sm">
+        <ul className="divide-y divide-border rounded-2xl border border-border text-sm">
           {returns.map((r) => (
             <li key={r.id} className="space-y-0.5 px-3 py-2">
               <div className="flex justify-between gap-3">
@@ -86,7 +86,7 @@ export function SaleReturnsSection({ sale }: { sale: SaleWithItems }) {
       {returns.length === 0 && !open && <p className="text-xs text-muted-foreground">Sin devoluciones.</p>}
 
       {open && (
-        <div className="space-y-3 rounded-card border border-border p-3">
+        <div className="space-y-3 rounded-2xl border border-border p-3">
           <Field>
             <FieldLabel htmlFor="return-product">Producto</FieldLabel>
             <Select value={productName} onValueChange={setProductName} disabled={isLoading}>
@@ -161,7 +161,7 @@ export function SaleReturnsSection({ sale }: { sale: SaleWithItems }) {
               {isLoading && <Spinner className="mr-2" />}
               Registrar devolución
             </Button>
-            <Button size="sm" variant="ghost" onClick={() => setOpen(false)} disabled={isLoading}>
+            <Button size="sm" variant="cancel" onClick={() => setOpen(false)} disabled={isLoading}>
               Cancelar
             </Button>
           </div>

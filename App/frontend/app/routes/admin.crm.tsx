@@ -67,14 +67,14 @@ export default function AdminCrm() {
   useShortcut('n', () => setCreateOpen(true));
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-5">
       <PageHeader
         eyebrow="Análisis y sistema"
         title="CRM y clientes"
         description="Seguimientos del día y la ficha completa de cada cliente."
         className="mb-0"
         actions={
-          <Button onClick={() => setCreateOpen(true)} className="h-9 gap-2 rounded-md">
+          <Button onClick={() => setCreateOpen(true)} className="h-9 gap-2 rounded-xl">
             <HugeIcon icon={Add01Icon} size={16} strokeWidth={2} aria-hidden />
             Nuevo contacto
             <Kbd>N</Kbd>
@@ -97,7 +97,7 @@ export default function AdminCrm() {
             <ToolbarSearch value={search} onChange={setSearch} placeholder="Buscar por nombre o teléfono" />
           )}
         </WorkspaceToolbar>
-        <div className="p-4">
+        <div>
           {tab === 'agenda' ? <AgendaTab onOpen={setSelected} /> : <ContactsTab search={search} onOpen={setSelected} />}
         </div>
       </Workspace>
@@ -129,7 +129,7 @@ function AgendaTab({ onOpen }: { onOpen: (id: string) => void }) {
       onRetry={refetch}
       shape="list"
       emptyFallback={
-        <Card className="rounded-card border-dashed bg-card shadow-none">
+        <Card className="rounded-2xl border-dashed bg-card shadow-none">
           <CardContent className="flex flex-col items-center justify-center py-16 text-center">
             <HugeIcon icon={CheckmarkCircle02Icon} size={32} strokeWidth={2} className="mb-3 text-success" />
             <h3 className="text-lg font-medium text-foreground">Nada pendiente</h3>
@@ -143,7 +143,7 @@ function AgendaTab({ onOpen }: { onOpen: (id: string) => void }) {
           const overdue = !!f.scheduledDate && f.scheduledDate < TODAY;
           const isToday = f.scheduledDate === TODAY;
           return (
-            <li key={f.id} className="flex items-center justify-between gap-3 rounded-card border border-border bg-card p-3">
+            <li key={f.id} className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-card p-3">
               <button className="min-w-0 flex-1 text-left" onClick={() => onOpen(f.contactId)}>
                 <div className="flex items-center gap-2">
                   <span className="truncate font-medium text-foreground">{f.contactName || f.contactPhone || 'Contacto'}</span>
@@ -162,11 +162,11 @@ function AgendaTab({ onOpen }: { onOpen: (id: string) => void }) {
               {/* Acciones con texto: dos íconos chicos (✓ y ✕) para dos acciones
                   opuestas eran fáciles de confundir. */}
               <span className="flex shrink-0 gap-1.5">
-                <Button size="sm" variant="outline" className="h-8 gap-1.5 rounded-md" onClick={() => setStatus(f.id, 'completed')}>
+                <Button size="sm" variant="outline" className="h-8 gap-1.5 rounded-xl" onClick={() => setStatus(f.id, 'completed')}>
                   <HugeIcon icon={CheckmarkCircle02Icon} size={15} strokeWidth={2} className="text-success" aria-hidden />
                   Hecho
                 </Button>
-                <Button size="sm" variant="ghost" className="h-8 gap-1.5 rounded-md text-muted-foreground" onClick={() => setStatus(f.id, 'cancelled')}>
+                <Button size="sm" variant="ghost" className="h-8 gap-1.5 rounded-xl text-muted-foreground" onClick={() => setStatus(f.id, 'cancelled')}>
                   <HugeIcon icon={Cancel01Icon} size={15} strokeWidth={2} aria-hidden />
                   Descartar
                 </Button>
@@ -193,7 +193,7 @@ function ContactsTab({ search, onOpen }: { search: string; onOpen: (id: string) 
       onRetry={refetch}
       shape="card"
       emptyFallback={
-        <Card className="rounded-card border-dashed bg-card shadow-none">
+        <Card className="rounded-2xl border-dashed bg-card shadow-none">
           <CardContent className="flex flex-col items-center justify-center py-16 text-center">
             <HugeIcon icon={UserMultiple02Icon} size={32} strokeWidth={2} className="mb-3 text-muted-foreground" />
             <h3 className="text-lg font-medium text-foreground">Sin contactos</h3>
@@ -207,7 +207,7 @@ function ContactsTab({ search, onOpen }: { search: string; onOpen: (id: string) 
           <button
             key={c.id}
             onClick={() => onOpen(c.id)}
-            className="flex flex-col items-start gap-1 rounded-card border border-border bg-card p-4 text-left transition-colors hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="flex flex-col items-start gap-1 rounded-2xl border border-border bg-card p-4 text-left transition-colors hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <span className="flex w-full items-center justify-between gap-2">
               <span className="truncate font-semibold text-foreground">{c.name || c.phone || 'Contacto'}</span>
@@ -314,7 +314,7 @@ function CreateContactDialog({
             </Field>
           </div>
           <DialogFooter className="mt-4">
-            <Button type="button" variant="ghost" onClick={onClose}>Cancelar</Button>
+            <Button type="button" variant="cancel" onClick={onClose}>Cancelar</Button>
             <Button type="submit" disabled={isLoading}>
               {isLoading && <Spinner className="mr-2" />}
               Crear contacto

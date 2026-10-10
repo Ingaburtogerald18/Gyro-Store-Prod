@@ -44,7 +44,7 @@ export function ConfirmDialog({
           <DialogDescription className="pt-2">{description}</DialogDescription>
         </DialogHeader>
         <DialogFooter className="mt-4">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant={cancelText === "Cancelar" ? "cancel" : "outline"} onClick={() => onOpenChange(false)}>
             {cancelText}
           </Button>
           <Button

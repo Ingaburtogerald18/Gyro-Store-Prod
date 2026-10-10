@@ -1,14 +1,7 @@
-// Mantiene la URL de la home y los filtros del catálogo en sincronía, en los
-// dos sentidos (contrato en lib/catalogQuery.ts):
+// Sincroniza en los dos sentidos la URL de la home y los filtros del catálogo
+// (contrato en lib/catalogQuery.ts). Un parámetro que falta limpia su filtro.
 //
-//   · URL → filtros: al cargar, al compartir un enlace, con atrás/adelante y al
-//     volver a «/». Un parámetro que falta LIMPIA su filtro (antes quedaba el
-//     filtro viejo pegado).
-//   · filtros → URL: quitar un chip, elegir categoría o escribir en el buscador
-//     actualizan la URL, así recargar o compartir muestra lo mismo.
-//
-// Sin bucles: cada lado solo escribe si la firma del otro es distinta. Cambiar
-// la URL no vuelve a pedir el catálogo (ver `shouldRevalidate` de la home).
+// Sin bucles: cada lado solo escribe si la firma del otro es distinta.
 import { useEffect, useRef } from 'react';
 import { useSearchParams } from '@remix-run/react';
 import type { StoreCategory } from '~/store/api/sessionApi';

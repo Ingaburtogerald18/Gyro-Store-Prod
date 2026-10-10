@@ -34,7 +34,7 @@ export function QuoteSummary({
   invoice?: Invoice | null;
 }) {
   return (
-    <section className="rounded-card border bg-card p-4 shadow-sm">
+    <section className="rounded-2xl border bg-card p-4">
       <header className="mb-3 flex items-center gap-2">
         <HugeIcon icon={Invoice01Icon} size={16} strokeWidth={2} className="text-primary-2" aria-hidden />
         <h3 className="font-semibold text-foreground">Resumen</h3>
@@ -42,7 +42,7 @@ export function QuoteSummary({
       </header>
 
       {errorMsg ? (
-        <p className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-xs font-medium text-destructive">
+        <p className="rounded-2xl border border-destructive/30 bg-destructive/10 p-3 text-xs font-medium text-destructive">
           {errorMsg}
         </p>
       ) : !result ? (
@@ -81,7 +81,7 @@ export function QuoteSummary({
 
           {/* Totales de la venta: solo aportan cuando hay más de un producto. */}
           {result.lines.length > 1 && (
-            <div className="space-y-1 rounded-lg border-2 border-primary/20 bg-primary/5 p-3">
+            <div className="space-y-1 rounded-2xl border-2 border-primary/20 bg-primary/5 p-3">
               <span className="text-2xs font-bold uppercase tracking-wider text-primary-2">
                 Totales de la venta
               </span>

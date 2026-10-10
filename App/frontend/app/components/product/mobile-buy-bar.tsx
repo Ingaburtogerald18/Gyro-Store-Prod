@@ -45,7 +45,7 @@ export function MobileBuyBar({
       transition={reduce ? { duration: 0.15 } : { duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
       aria-hidden={hidden}
       style={{ pointerEvents: hidden ? 'none' : 'auto' }}
-      className="fixed inset-x-0 bottom-[var(--consent-height,0px)] z-30 border-t border-border bg-background/95 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-xl md:hidden"
+      className="fixed inset-x-0 bottom-[var(--consent-height,0px)] z-30 border-t border-border bg-background px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:hidden"
     >
       <div className="flex items-center gap-3">
         <div className="min-w-0 flex-1">

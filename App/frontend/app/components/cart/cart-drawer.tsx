@@ -1,12 +1,5 @@
-// Carrito y checkout en UN solo panel, por pasos: carrito → datos → pedido
-// registrado. En desktop es un panel lateral; en móvil sube desde abajo.
-//
-// Antes el checkout era un diálogo encima del carrito: dos modales activos, el
-// foco repartido y Escape cerrando el de abajo. Ahora hay un solo overlay, con
-// «Volver al carrito» y el estado del formulario conservado entre pasos.
-//
-// Construido sobre <Sheet> de shadcn/ui: el foco atrapado, el cierre con Escape
-// y el aria del diálogo vienen resueltos por Radix.
+// Carrito y checkout en un solo panel por pasos (carrito → datos → pedido),
+// para que haya un único overlay con el foco y Escape bien resueltos.
 import { HugeIcon } from "~/components/ui/icon";
 import { Add01Icon, Delete02Icon, ImageNotFound01Icon, MinusSignIcon, ShoppingBag02Icon } from "@hugeicons/core-free-icons";
 import { useEffect, useId, useState } from 'react';
@@ -223,7 +216,7 @@ export function CartLine({ item, itemKey, currency }: { item: import('~/types/ca
 
   return (
     <li className="flex gap-3 rounded-xl border border-border bg-background p-3">
-      <div className="product-stage size-16 shrink-0 overflow-hidden rounded-lg bg-card">
+      <div className="product-stage size-16 shrink-0 overflow-hidden rounded-xl bg-card">
         {item.image ? (
           <img src={item.image} alt="" width={64} height={64} loading="lazy" className="h-full w-full object-contain" />
         ) : (

@@ -10,6 +10,7 @@ import { getFinancialConfig } from './appConfig';
 import { costPurchaseOnArrival, round } from './finance';
 import { BadRequestError } from '../utils/httpError';
 import { isMissingColumn } from './orderPersistence';
+import { fetchAllRows } from '../utils/fetchAllRows';
 import type {
   NewPurchaseInput,
   UpdatePurchaseInput,
@@ -46,6 +47,10 @@ export interface Purchase {
   catalogItemId: string | null;
   /** Variante dentro de ese producto ("Negro / Con micrófono"; '' sin variantes). */
   variantKey: string | null;
+  /** Orden de Alibaba a la que pertenece la línea (migración 0024). */
+  orderId: string | null;
+  /** Lo pedido, cuando llegó otra cantidad (null = llegó lo pedido). */
+  quantityOrdered: number | null;
 }
 
 export interface InventoryRow {
@@ -111,6 +116,8 @@ interface PurchaseRow {
   coste_final: number | null;
   catalog_item_id?: string | null;
   variant_key?: string | null;
+  order_id?: string | null;
+  quantity_ordered?: number | null;
 }
 
 const PURCHASE_COLUMNS = [
@@ -127,6 +134,15 @@ const PURCHASE_COLUMNS = [
 // sigue funcionando como antes.
 const LINK_COLUMNS = 'catalog_item_id, variant_key';
 const PURCHASE_COLUMNS_LINKED = `${PURCHASE_COLUMNS}, ${LINK_COLUMNS}`;
+// Orden de Alibaba (migración 0024). Mismo criterio: si falta, se lee sin ella.
+const ORDER_COLUMNS = 'order_id, quantity_ordered';
+// De la más completa a la más básica: cada migración puede estar o no aplicada.
+const PURCHASE_COLUMN_TIERS = [
+  `${PURCHASE_COLUMNS_LINKED}, ${ORDER_COLUMNS}`,
+  `${PURCHASE_COLUMNS}, ${ORDER_COLUMNS}`,
+  PURCHASE_COLUMNS_LINKED,
+  PURCHASE_COLUMNS,
+];
 
 // ============================================================================
 // ── Helpers ──
@@ -171,6 +187,8 @@ function toPurchase(row: PurchaseRow): Purchase {
     status: row.status,
     catalogItemId: row.catalog_item_id ?? null,
     variantKey: row.variant_key ?? null,
+    orderId: row.order_id ?? null,
+    quantityOrdered: row.quantity_ordered ?? null,
   };
 }
 
@@ -223,10 +241,31 @@ async function fetchPurchaseRows(period?: string, status?: PurchaseStatus): Prom
     return query;
   };
 
-  let { data, error } = await run(PURCHASE_COLUMNS_LINKED);
-  if (isMissingColumn(error)) ({ data, error } = await run(PURCHASE_COLUMNS));
-  if (error) throw error;
-  return (data ?? []) as unknown as PurchaseRow[];
+  for (const columns of PURCHASE_COLUMN_TIERS) {
+    const { data, error } = await run(columns);
+    if (isMissingColumn(error)) continue;
+    if (error) throw error;
+    return (data ?? []) as unknown as PurchaseRow[];
+  }
+  return [];
+}
+
+/**
+ * Los próximos `count` códigos GS-IN-N: siempre el mayor + 1, sin rellenar
+ * huecos. El catálogo vincula variantes por código, y reutilizar el de un lote
+ * borrado le pasaría su vínculo (y su stock en la tienda) a otro producto.
+ * Se leen TODOS los códigos (paginado): con más de 1000 lotes, PostgREST corta
+ * la respuesta y el máximo salía mal.
+ */
+export async function nextPurchaseCodes(count: number): Promise<string[]> {
+  const rows = await fetchAllRows<{ code: string }>((from, to) =>
+    db.from('purchases').select('code').like('code', 'GS-IN-%').range(from, to),
+  );
+  const maxUsed = rows
+    .map((r) => parseInt(r.code.replace('GS-IN-', ''), 10))
+    .filter((n) => !isNaN(n))
+    .reduce((max, n) => Math.max(max, n), 0);
+  return Array.from({ length: count }, (_, i) => `GS-IN-${maxUsed + 1 + i}`);
 }
 
 // ── Vínculo lote ↔ variante del catálogo ──
@@ -317,7 +356,7 @@ export async function codesForVariant(link: CatalogLink): Promise<string[]> {
  * variante se reutiliza su nombre: Ventas descuenta por nombre (FIFO), así que
  * todas las compras de la misma variante tienen que llamarse igual.
  */
-async function nameForVariant(link: CatalogLink): Promise<{ productName: string; categoryId: string | null }> {
+export async function nameForVariant(link: CatalogLink): Promise<{ productName: string; categoryId: string | null }> {
   const { data: item, error } = await db
     .from('catalog_items')
     .select('id, name, category_id, template:templates(name)')
@@ -414,21 +453,7 @@ export async function getInventoryKpis(period?: string): Promise<InventoryKpis> 
 // ============================================================================
 
 export async function createPurchase(input: NewPurchaseInput): Promise<Purchase> {
-  // Código GS-IN-N automático: siempre el mayor + 1. NO se rellenan huecos: el
-  // catálogo vincula variantes por código, y reutilizar el de un lote borrado
-  // le pasaría su vínculo (y su stock en la tienda) a un producto distinto.
-  const { data: codes, error: codeErr } = await db
-    .from('purchases')
-    .select('code')
-    .like('code', 'GS-IN-%');
-
-  if (codeErr) throw codeErr;
-
-  const maxUsed = (codes || [])
-    .map(r => parseInt(r.code.replace('GS-IN-', ''), 10))
-    .filter(n => !isNaN(n))
-    .reduce((max, n) => Math.max(max, n), 0);
-  const generatedCode = `GS-IN-${maxUsed + 1}`;
+  const [generatedCode] = await nextPurchaseCodes(1);
 
   // Compra de un producto del catálogo: el nombre y la categoría salen de ahí,
   // y el lote nace vinculado a su variante (la tienda lo ve sin pasos extra).
@@ -585,6 +610,17 @@ export async function updatePurchase(
     const canonical = link && reserved === 0 ? await nameForVariant(link) : null;
     await setPurchaseLink(id, link);
     if (canonical) input = { ...input, productName: canonical.productName };
+  }
+
+  // Una línea de una orden de Alibaba toma el número y la fecha de la orden:
+  // cambiarlos acá la separaría de su orden. Se cambian desde la orden.
+  if (existing.order_id) {
+    if (input.lot !== undefined && input.lot.trim().toUpperCase() !== String(existing.lot ?? '').trim().toUpperCase()) {
+      throw new BadRequestError('El número de orden se cambia desde la orden, no desde una línea.');
+    }
+    if (input.purchaseDate !== undefined && input.purchaseDate !== existing.purchase_date) {
+      throw new BadRequestError('La fecha de compra se cambia desde la orden, no desde una línea.');
+    }
   }
 
   // El código lo genera el sistema y es la llave del vínculo con el catálogo:

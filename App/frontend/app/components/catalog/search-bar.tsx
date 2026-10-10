@@ -65,7 +65,7 @@ export function SearchBar({
         autoFocus={autoFocus}
         placeholder="Buscar en el catálogo…"
         aria-label="Buscar productos"
-        className="text-[16px] md:text-sm [&::-webkit-search-cancel-button]:appearance-none"
+        className="text-base md:text-sm [&::-webkit-search-cancel-button]:appearance-none"
       />
 
       {search && (

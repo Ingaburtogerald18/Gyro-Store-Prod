@@ -158,7 +158,7 @@ function ColorSwatch({
       <span
         aria-hidden
         className={cn(
-          'relative grid size-10 place-items-center rounded-full border transition-shadow motion-reduce:transition-none',
+          'relative grid size-10 place-items-center rounded-full border transition-colors motion-reduce:transition-none',
           active
             ? 'border-transparent ring-2 ring-primary-2 ring-offset-2 ring-offset-background'
             : 'border-border group-hover:border-primary-2/60 dark:border-foreground/35',

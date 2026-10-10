@@ -19,8 +19,9 @@ const upload = multer({
     fileSize: MAX_UPLOAD_MB * 1024 * 1024,
   },
   fileFilter: (_req, file, cb) => {
-    if (!file.mimetype.startsWith('image/') && !file.mimetype.startsWith('video/')) {
-      return cb(new Error('Solo se permiten imágenes y videos.'));
+    // PDF: facturas de las órdenes de compra. Se guarda tal cual (sin optimizar).
+    if (!file.mimetype.startsWith('image/') && !file.mimetype.startsWith('video/') && file.mimetype !== 'application/pdf') {
+      return cb(new Error('Solo se permiten imágenes, videos y PDF.'));
     }
     cb(null, true);
   },

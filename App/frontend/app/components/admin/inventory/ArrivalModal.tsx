@@ -88,8 +88,8 @@ export function ArrivalModal({
         </DialogHeader>
       <form onSubmit={handleSubmit(onSubmit)} autoComplete="off" className="space-y-3">
         {purchase && (
-          <div className="rounded-lg bg-muted p-3 text-sm border flex items-center gap-2">
-            <span className="font-mono text-xs font-semibold text-primary-2 bg-primary/10 px-1.5 py-0.5 rounded">{purchase.code}</span>
+          <div className="rounded-2xl bg-muted p-3 text-sm border flex items-center gap-2">
+            <span className="font-mono text-xs font-semibold text-primary-2 bg-primary/10 px-1.5 py-0.5 rounded-xl">{purchase.code}</span>
             <span className="font-medium text-foreground">{purchase.productName}</span>
           </div>
         )}
@@ -136,7 +136,7 @@ export function ArrivalModal({
 
 
         {simulatedPrice !== null && (
-          <div className="p-3 bg-primary/10 border border-primary/20 rounded-md">
+          <div className="p-3 bg-primary/10 border border-primary/20 rounded-2xl">
             <p className="text-sm text-foreground">
               <span className="font-semibold">Precio sugerido calculado:</span>{' '}
               <span className="nums">{formatCordobas(simulatedPrice, 'C$', 2)}</span>
@@ -155,7 +155,7 @@ export function ArrivalModal({
         </Field>
 
         <div className="flex justify-end gap-2 border-t pt-4">
-          <Button variant="ghost" size="sm" onClick={onClose} type="button">
+          <Button variant="cancel" size="sm" onClick={onClose} type="button">
             Cancelar
           </Button>
           <Button type="submit" size="sm" disabled={isLoading}>

@@ -51,7 +51,7 @@ export function UserCard({
   const role = user.roles[0] || "seller";
 
   return (
-    <div className="flex flex-col gap-4 rounded-card border bg-card p-4 shadow-sm">
+    <div className="flex flex-col gap-4 rounded-2xl border bg-card p-4">
       {/* Cabecera: avatar + info */}
       <div className="flex items-start gap-3">
         <Avatar size="lg">
@@ -86,11 +86,11 @@ export function UserCard({
           {ROLE_LABELS[role as AppRole] || role}
         </Badge>
         {user.pending ? (
-          <StatusBadge status="pending" label="Pendiente" pulse />
+          <StatusBadge status="pending" label="Pendiente" />
         ) : isDeleted ? (
           <StatusBadge status="error" label="De Baja" />
         ) : (
-          <StatusBadge status="success" label="Activo" pulse />
+          <StatusBadge status="success" label="Activo" />
         )}
       </div>
 
@@ -163,7 +163,7 @@ export function UserCard({
                 </DropdownMenuContent>
               </DropdownMenu>
               <Button
-                variant="outline"
+                variant="destructive"
                 size="sm"
                 onClick={onDelete}
                 className="flex-1 gap-1.5 border-destructive/40 text-destructive hover:bg-destructive/10"

@@ -1,9 +1,5 @@
-// Dashboard de analítica del storefront (admin). Lee los agregados de
-// /api/analytics/admin/* — embudo, top de búsquedas, búsquedas SIN resultado
-// (la lista de compras del negocio) y productos más vistos.
-//
-// Rango: últimos 30 días (el default del backend). Un selector de rango es una
-// mejora natural para una tanda siguiente; por ahora la vista es de una pieza.
+// Analítica de la tienda (admin): embudo, búsquedas, búsquedas sin resultado y
+// productos más vistos de los últimos 30 días.
 import type { MetaFunction } from '@remix-run/node';
 import { pageTitle } from '~/lib/brand';
 import { errMsg } from '~/lib/formatters';
@@ -12,6 +8,7 @@ import { useGetAnalyticsDashboardQuery } from '~/store/api/analyticsApi';
 
 import { PageHeader } from '~/components/layout/PageHeader';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '~/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '~/components/ui/table';
 import { QueryState } from '~/components/ui/QueryState';
 import { BrandLoader } from '~/components/ui/module-loader';
 
@@ -34,7 +31,7 @@ export default function AdminAnalitica() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-5">
       <PageHeader
         eyebrow="Análisis y sistema"
         title="Analítica del storefront"
@@ -54,7 +51,7 @@ export default function AdminAnalitica() {
             <Card key={s.label}>
               <CardContent className="p-4">
                 <p className="text-xs text-muted-foreground">{s.label}</p>
-                <p className="mt-1 font-display text-2xl font-bold tabular-nums text-foreground">{s.value}</p>
+                <p className="mt-1 font-heading text-2xl font-extrabold tabular-nums text-foreground">{s.value}</p>
               </CardContent>
             </Card>
           ))}
@@ -76,9 +73,9 @@ export default function AdminAnalitica() {
                 return (
                   <div key={f.step} className="flex items-center gap-3">
                     <span className="w-40 shrink-0 text-sm text-muted-foreground">{f.step}</span>
-                    <div className="h-6 flex-1 overflow-hidden rounded-md bg-muted">
+                    <div className="h-6 flex-1 overflow-hidden rounded-xl bg-muted">
                       <div
-                        className="flex h-full items-center rounded-md bg-primary px-2 text-xs font-semibold text-primary-foreground"
+                        className="flex h-full items-center rounded-xl bg-primary px-2 text-xs font-semibold text-primary-foreground"
                         style={{ width: `${width}%` }}
                       >
                         {fmt(f.sessions)}
@@ -92,7 +89,7 @@ export default function AdminAnalitica() {
         </Card>
       )}
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         {/* Búsquedas sin resultados — demanda insatisfecha (lo más accionable) */}
         <Card>
           <CardHeader className="border-b border-border pb-4">
@@ -111,7 +108,7 @@ export default function AdminAnalitica() {
                   Sin búsquedas fallidas en el período.
                 </p>
               }
-              loadingFallback={<div className="h-40 animate-pulse rounded-md bg-muted" />}
+              loadingFallback={<div className="h-40 animate-pulse rounded-xl bg-muted" />}
             >
               <SearchTable rows={dashboard.data?.zero ?? []} highlightZero />
             </QueryState>
@@ -136,7 +133,7 @@ export default function AdminAnalitica() {
                   Aún no hay búsquedas registradas.
                 </p>
               }
-              loadingFallback={<div className="h-40 animate-pulse rounded-md bg-muted" />}
+              loadingFallback={<div className="h-40 animate-pulse rounded-xl bg-muted" />}
             >
               <SearchTable rows={dashboard.data?.searches ?? []} />
             </QueryState>
@@ -162,7 +159,7 @@ export default function AdminAnalitica() {
                 Aún no hay vistas de producto registradas.
               </p>
             }
-            loadingFallback={<div className="h-40 animate-pulse rounded-md bg-muted" />}
+            loadingFallback={<div className="h-40 animate-pulse rounded-xl bg-muted" />}
           >
             <div className="divide-y divide-border">
               {(dashboard.data?.products ?? []).map((p, i) => (
@@ -192,23 +189,26 @@ function SearchTable({
   highlightZero?: boolean;
 }) {
   return (
-    <div className="divide-y divide-border">
-      {rows.map((r) => (
-        <div key={r.query} className="flex items-center justify-between gap-3 py-2.5">
-          <span className="truncate text-sm text-foreground">{r.query}</span>
-          <div className="flex shrink-0 items-center gap-3">
-            {highlightZero ? (
-              <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive">
-                {r.zeroResultCount} sin resultados
-              </span>
-            ) : (
-              <span className="text-xs text-muted-foreground">~{r.avgResults.toFixed(0)} result.</span>
-            )}
-            <span className="text-sm font-semibold tabular-nums text-foreground">{r.count}</span>
-          </div>
-        </div>
-      ))}
-    </div>
+    <Table containerClassName="rounded-none border-0">
+      <TableHeader>
+        <tr>
+          <TableHead>Búsqueda</TableHead>
+          <TableHead className="text-right">{highlightZero ? 'Sin resultados' : 'Resultados promedio'}</TableHead>
+          <TableHead className="text-right">Veces</TableHead>
+        </tr>
+      </TableHeader>
+      <TableBody>
+        {rows.map((r) => (
+          <TableRow key={r.query}>
+            <TableCell className="max-w-0 truncate">{r.query}</TableCell>
+            <TableCell className="text-right tabular-nums">
+              {highlightZero ? <span className="text-destructive">{r.zeroResultCount}</span> : r.avgResults.toFixed(0)}
+            </TableCell>
+            <TableCell className="text-right font-semibold tabular-nums">{r.count}</TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
   );
 }
 

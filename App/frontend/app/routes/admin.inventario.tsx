@@ -1,46 +1,35 @@
-// Inventario (panel). Una sola superficie de trabajo: barra de herramientas,
-// franja de métricas y tabla, debajo de un encabezado de una fila.
-//
-// ── Por qué así ──
-// Antes, entre el título, el periodo con su propia etiqueta, las pestañas
-// píldora, seis tarjetas y una barra de resumen, la tabla empezaba a ~760 px y
-// en una laptop no se veía ni una fila. Ahora: el encabezado lleva la acción
-// principal (atajo N), una sola fila de filtros, cuatro métricas y la tabla.
-//
-// Radios de esta pantalla: 8 px en controles (rounded-md), 12 px en
-// contenedores (rounded-card) y píldora solo en los estados. Las piezas salen
-// de components/admin/workspace.tsx, compartidas con el resto del panel.
+// Inventario: barra de herramientas, métricas y la lista (órdenes de compra o
+// productos en bodega), en bloques sueltos sobre el crema.
 import { useMemo, useState } from "react";
 import { useSearchParams } from "@remix-run/react";
-import { Add01Icon } from "@hugeicons/core-free-icons";
+import { Add01Icon, ShoppingBag01Icon, WarehouseIcon } from "@hugeicons/core-free-icons";
 import type { MetaFunction } from "@remix-run/node";
 
 import { PurchaseMetrics, StockMetrics } from "~/components/admin/inventory/InventoryMetrics";
 import { PurchaseForm } from "~/components/admin/inventory/PurchaseForm";
+import { PurchaseOrderForm } from "~/components/admin/inventory/PurchaseOrderForm";
 import { PurchasesTable, type PurchaseStatusFilter } from "~/components/admin/inventory/PurchasesTable";
 import { CurrentInventoryTable } from "~/components/admin/inventory/CurrentInventoryTable";
 import { PurchaseCommandPalette } from "~/components/admin/inventory/PurchaseCommandPalette";
-import {
-  Kbd,
-  SegmentedControl,
-  ToolbarSearch,
-  ToolbarSelect,
-  Workspace,
-  WorkspaceToolbar,
-  useShortcut,
-} from "~/components/admin/workspace";
+import { Kbd, ToolbarSearch, ToolbarSelect, useShortcut } from "~/components/admin/workspace";
 import { PageHeader } from "~/components/layout/PageHeader";
 import { Button } from "~/components/ui/button";
+import { Toolbar } from "~/components/ui/toolbar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "~/components/ui/dialog";
 import { HugeIcon } from "~/components/ui/icon";
 import { pageTitle } from "~/lib/brand";
-import { useGetPurchasesQuery } from "~/store/api/inventoryV1Api";
+import { useGetPurchaseOrdersQuery, useGetPurchasesQuery } from "~/store/api/inventoryV1Api";
 
 export const meta: MetaFunction = () => {
   return [{ title: pageTitle("Inventario", { admin: true }) }];
 };
 
 type View = "purchases" | "inventory";
+
+const VIEWS: { value: View; label: string; icon: typeof ShoppingBag01Icon }[] = [
+  { value: "purchases", label: "Compras", icon: ShoppingBag01Icon },
+  { value: "inventory", label: "Stock actual", icon: WarehouseIcon },
+];
 type StockFilter = "current" | "outOfStock";
 
 const PURCHASE_STATUS: { value: PurchaseStatusFilter; label: string }[] = [
@@ -48,6 +37,7 @@ const PURCHASE_STATUS: { value: PurchaseStatusFilter; label: string }[] = [
   { value: "received", label: "En bodega" },
   { value: "transit", label: "En tránsito" },
   { value: "late", label: "Demorados" },
+  { value: "incomplete", label: "Datos por completar" },
 ];
 
 const STOCK_STATUS: { value: StockFilter; label: string }[] = [
@@ -76,6 +66,9 @@ export default function AdminInventario() {
   const monthOptions = useMemo(buildMonthOptions, []);
 
   const { data: purchases = [] } = useGetPurchasesQuery();
+  // Sin la migración 0024 no hay órdenes de Alibaba: se registran compras sueltas.
+  const { data: ordersData } = useGetPurchaseOrdersQuery();
+  const ordersEnabled = ordersData?.available === true;
 
   const view: View = searchParams.get("tab") === "inventory" ? "inventory" : "purchases";
   // `?type=migrated` de un enlace viejo cae a "current": ese módulo ya no existe.
@@ -108,13 +101,13 @@ export default function AdminInventario() {
   useShortcut("n", () => setPurchaseFormOpen(true));
 
   return (
-    <div className="space-y-5">
+    <div className="flex flex-col gap-5">
       <PageHeader
         eyebrow="Operación"
         title="Inventario"
         className="mb-0"
         actions={
-          <Button onClick={() => setPurchaseFormOpen(true)} className="h-9 gap-2 rounded-md">
+          <Button onClick={() => setPurchaseFormOpen(true)} className="gap-2">
             <HugeIcon icon={Add01Icon} size={16} strokeWidth={2} aria-hidden />
             Registrar compra
             <Kbd>N</Kbd>
@@ -122,59 +115,77 @@ export default function AdminInventario() {
         }
       />
 
-      <Workspace>
-        <WorkspaceToolbar>
-          <SegmentedControl
-            label="Vista"
-            value={view}
-            onChange={goToView}
-            options={[
-              { value: "purchases", label: "Compras" },
-              { value: "inventory", label: "Stock actual" },
-            ]}
+      <Toolbar className="gap-2 sm:gap-3 sm:px-4">
+        <div role="group" aria-label="Vista" className="flex shrink-0 gap-2">
+          {VIEWS.map((v) => {
+            const active = view === v.value;
+            return (
+              <Button
+                key={v.value}
+                type="button"
+                variant="outline"
+                aria-pressed={active}
+                onClick={() => goToView(v.value)}
+                className="gap-2 px-3.5"
+              >
+                <HugeIcon icon={v.icon} size={16} strokeWidth={2} aria-hidden className="text-primary-2" />
+                {v.label}
+              </Button>
+            );
+          })}
+        </div>
+        <ToolbarSearch
+          value={search}
+          onChange={setSearch}
+          placeholder="Buscar producto, código u orden"
+        />
+        {view === "purchases" && (
+          <ToolbarSelect
+            label="Período"
+            value={period}
+            onChange={(p) => updateParams({ period: p === "all" ? null : p })}
+            options={monthOptions}
           />
-          <ToolbarSearch value={search} onChange={setSearch} placeholder="Buscar producto, código o lote" />
-          {view === "purchases" && (
-            <ToolbarSelect
-              label="Período"
-              value={period}
-              onChange={(p) => updateParams({ period: p === "all" ? null : p })}
-              options={monthOptions}
-            />
-          )}
-          {view === "purchases" ? (
-            <ToolbarSelect label="Estado" value={purchaseStatus} onChange={setPurchaseStatus} options={PURCHASE_STATUS} />
-          ) : (
-            <ToolbarSelect label="Estado" value={stockFilter} onChange={(v) => updateParams({ type: v })} options={STOCK_STATUS} />
-          )}
-        </WorkspaceToolbar>
-
-        {view === "purchases" ? <PurchaseMetrics period={effectivePeriod} /> : <StockMetrics />}
-
-        {view === "purchases" ? (
-          <PurchasesTable
-            period={period}
-            search={search}
-            status={purchaseStatus}
-            onViewStock={() => goToView("inventory")}
-          />
-        ) : (
-          <div className="p-4">
-            <CurrentInventoryTable
-              period={effectivePeriod}
-              mode={stockFilter === "outOfStock" ? "outOfStock" : "inStock"}
-              search={search}
-            />
-          </div>
         )}
-      </Workspace>
+        {view === "purchases" ? (
+          <ToolbarSelect label="Estado" value={purchaseStatus} onChange={setPurchaseStatus} options={PURCHASE_STATUS} />
+        ) : (
+          <ToolbarSelect label="Estado" value={stockFilter} onChange={(v) => updateParams({ type: v })} options={STOCK_STATUS} />
+        )}
+      </Toolbar>
+
+      {view === "purchases" ? <PurchaseMetrics period={effectivePeriod} /> : <StockMetrics />}
+
+      {view === "purchases" ? (
+        <PurchasesTable
+          period={period}
+          search={search}
+          status={purchaseStatus}
+          onViewStock={() => goToView("inventory")}
+        />
+      ) : (
+        <section aria-labelledby="inventory-stock-title" className="space-y-3">
+          <h2 id="inventory-stock-title" className="font-heading text-xl font-bold tracking-tight text-foreground md:text-2xl">
+            {stockFilter === "outOfStock" ? "Productos agotados" : "Productos en bodega"}
+          </h2>
+          <CurrentInventoryTable
+            period={effectivePeriod}
+            mode={stockFilter === "outOfStock" ? "outOfStock" : "inStock"}
+            search={search}
+          />
+        </section>
+      )}
 
       <Dialog open={purchaseFormOpen} onOpenChange={setPurchaseFormOpen}>
-        <DialogContent className="max-h-[90vh] w-full overflow-y-auto sm:max-w-3xl">
+        <DialogContent className="max-h-[90vh] w-full overflow-y-auto sm:max-w-4xl">
           <DialogHeader>
-            <DialogTitle>Registrar compra en China</DialogTitle>
+            <DialogTitle>{ordersEnabled ? "Registrar compra de Alibaba" : "Registrar compra en China"}</DialogTitle>
           </DialogHeader>
-          <PurchaseForm onDone={() => setPurchaseFormOpen(false)} />
+          {ordersEnabled ? (
+            <PurchaseOrderForm onDone={() => setPurchaseFormOpen(false)} />
+          ) : (
+            <PurchaseForm onDone={() => setPurchaseFormOpen(false)} />
+          )}
         </DialogContent>
       </Dialog>
 
@@ -183,7 +194,6 @@ export default function AdminInventario() {
         open={commandPaletteOpen}
         onOpenChange={setCommandPaletteOpen}
         purchases={purchases}
-        // Antes elegir una compra solo cerraba la paleta. Ahora la busca en Compras.
         onSelect={(p) => {
           setSearch(p.code);
           setPurchaseStatus("all");

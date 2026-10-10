@@ -69,7 +69,7 @@ export function PurchaseCommandPalette({ open, onOpenChange, purchases, onSelect
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.15 }}
-          className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 backdrop-blur-sm pt-[15vh]"
+          className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 pt-[15vh]"
           onMouseDown={(e) => { if (e.target === e.currentTarget) onOpenChange(false); }}
         >
           <motion.div
@@ -78,7 +78,7 @@ export function PurchaseCommandPalette({ open, onOpenChange, purchases, onSelect
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: -12 }}
             transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-            className="w-full max-w-xl mx-4 overflow-hidden rounded-2xl border border-white/10 bg-card/80 shadow-2xl backdrop-blur-xl"
+            className="w-full max-w-xl mx-4 overflow-hidden rounded-2xl border border-white/10 bg-card shadow-2xl"
           >
             {/* Search input */}
             <div className="flex items-center gap-3 border-b border-border/60 px-4 py-3.5">
@@ -117,7 +117,7 @@ export function PurchaseCommandPalette({ open, onOpenChange, purchases, onSelect
                           className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-muted focus-visible:bg-muted focus-visible:outline-none"
                         >
                           {/* Code badge */}
-                          <span className="shrink-0 rounded-lg bg-primary/10 px-2 py-1 font-mono text-xs font-bold text-primary-2">
+                          <span className="shrink-0 rounded-xl bg-primary/10 px-2 py-1 font-mono text-xs font-bold text-primary-2">
                             {p.code}
                           </span>
 

@@ -1,10 +1,5 @@
-// Foto de perfil: previsualización + subida manual (arrastrar o elegir archivo).
-//
-// Reemplaza al sync con Microsoft Entra, que fallaba en silencio y dejaba a la
-// gente sin avatar. Presentacional a propósito: NO sabe contra qué endpoint se
-// sube. Quien lo usa decide — «Mi perfil» va a `POST /api/me/avatar` (aplica al
-// instante, es tu propia foto) y el diálogo del admin sube por `/api/upload` y
-// guarda la URL junto al resto del formulario.
+// Foto de perfil: previsualización y subida manual. No sabe a qué endpoint sube:
+// «Mi perfil» usa `POST /api/me/avatar` y el diálogo del admin `/api/upload`.
 import { useRef, useState } from 'react';
 import { HugeIcon } from '~/components/ui/icon';
 import { Camera01Icon, Delete02Icon } from '@hugeicons/core-free-icons';

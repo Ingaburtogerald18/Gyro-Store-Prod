@@ -58,7 +58,7 @@ export function ProfileBankFields({
   }, [isFicohsa, setValue]);
 
   return (
-    <fieldset className="grid gap-4 rounded-card border bg-muted/40 p-3">
+    <fieldset className="grid gap-4 rounded-2xl border bg-muted/40 p-3">
       <legend className="px-1 text-xs font-semibold text-foreground">{legend}</legend>
 
       <Field data-invalid={!!errors.bank_account?.bank}>

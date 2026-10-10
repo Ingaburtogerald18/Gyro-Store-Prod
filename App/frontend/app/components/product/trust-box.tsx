@@ -25,7 +25,7 @@ export function TrustBox() {
   return (
     <section aria-labelledby="trust-heading">
       <details className="group border-t border-border sm:hidden">
-        <summary className="flex min-h-12 cursor-pointer list-none items-center gap-3 py-3 text-sm font-semibold text-foreground focus-visible:rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+        <summary className="flex min-h-12 cursor-pointer list-none items-center gap-3 py-3 text-sm font-semibold text-foreground focus-visible:rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
           <HugeIcon icon={SecurityCheckIcon} size={20} aria-hidden className="shrink-0 text-primary-2" />
           <span id="trust-heading">Garantía, pago y entrega</span>
           <HugeIcon icon={ArrowDown01Icon} size={18} aria-hidden className="ml-auto shrink-0 transition-transform group-open:rotate-180 motion-reduce:transition-none" />

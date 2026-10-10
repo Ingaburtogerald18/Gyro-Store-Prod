@@ -22,7 +22,7 @@ import { STORE_POLICIES } from '~/lib/storePolicies';
 
 const HEADING = 'mb-3 text-sm font-bold text-foreground';
 const LINK =
-  'inline-flex min-h-11 max-w-full items-center justify-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:rounded-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none md:min-h-8 md:justify-start';
+  'inline-flex min-h-11 max-w-full items-center justify-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:rounded-xl focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none md:min-h-8 md:justify-start';
 
 export function PublicFooter() {
   const config = useStoreConfig();

@@ -1,8 +1,7 @@
 // Disponibilidad de la variante elegida, en texto y SIN cantidades: el cliente
 // ve «Disponible», «Agotado» o «Consultar disponibilidad», nunca «Quedan 3».
 //
-// El punto de color acompaña, no informa: el estado siempre está ESCRITO
-// (DESIGN.md §8).
+// El punto de color acompaña, no informa: el estado siempre está ESCRITO.
 import type { Availability } from '@shared/schemas';
 import { AVAILABILITY_LABEL } from '~/lib/purchase';
 import { cn } from '~/lib/utils';

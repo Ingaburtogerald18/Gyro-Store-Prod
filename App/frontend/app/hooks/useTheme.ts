@@ -1,4 +1,4 @@
-// Theming dark/light (doc 09 ítem 41, doc 05 §7). El atributo `data-theme` en
+// Theming dark/light (doc 09 ítem 41). El atributo `data-theme` en
 // <html> es la fuente visual (los tokens CSS flipean con él); Redux solo lo
 // refleja para que cualquier componente pueda leerlo. El script anti-flash de
 // root.tsx aplica el tema guardado ANTES del primer paint.

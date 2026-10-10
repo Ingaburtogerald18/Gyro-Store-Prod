@@ -281,7 +281,7 @@ export function InvoiceEditor({
 
   return (
     <div className="space-y-6">
-      <section className="space-y-3 rounded-card border bg-card p-4 shadow-sm">
+      <section className="space-y-3 rounded-2xl border bg-card p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <HugeIcon icon={UserIcon} size={16} strokeWidth={2} className="text-primary-2" aria-hidden />
@@ -325,7 +325,7 @@ export function InvoiceEditor({
       {/* Solo al crear: quién factura no se reasigna después (mismo criterio
           que las líneas — si está mal, se anula y se emite otra). */}
       {!isEdit && (
-        <section className="space-y-1.5 rounded-card border bg-card p-4 shadow-sm">
+        <section className="space-y-1.5 rounded-2xl border bg-card p-4">
           <Label htmlFor="invoice-seller">Vendedor</Label>
           <Combobox
             id="invoice-seller"
@@ -339,7 +339,7 @@ export function InvoiceEditor({
       )}
 
       {/* Fecha de factura */}
-      <section className="space-y-3 rounded-card border bg-card p-4 shadow-sm">
+      <section className="space-y-3 rounded-2xl border bg-card p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <HugeIcon icon={Calendar03Icon} size={16} strokeWidth={2} className="text-primary-2" aria-hidden />
@@ -365,7 +365,7 @@ export function InvoiceEditor({
 
       <div className="space-y-2">
         <Label>Productos</Label>
-        <div className="border rounded-md divide-y">
+        <div className="border rounded-xl divide-y">
           {lines.map((line) => (
             <div key={line.uid} className="flex flex-col sm:flex-row gap-2 p-2 items-start sm:items-center bg-card">
               <div className="flex-1 w-full">
@@ -439,7 +439,7 @@ export function InvoiceEditor({
             consumiría otro uso. El monto descontado se conserva tal cual y el
             servidor lo resta al subtotal nuevo. */}
         {isEdit && (invoice?.discount ?? 0) > 0 && (
-          <div className="rounded-card border border-primary/30 bg-primary/10 px-4 py-3 text-sm">
+          <div className="rounded-2xl border border-primary/30 bg-primary/10 px-4 py-3 text-sm">
             <span className="font-medium text-primary">
               Descuento aplicado: {formatCordobas(invoice?.discount ?? 0)}
             </span>
@@ -454,7 +454,7 @@ export function InvoiceEditor({
             Switch, no campo libre: si está apagado NO hay descuento. Al
             encenderlo se pide el código, que es lo único que descuenta. */}
         {!isEdit && (
-        <section className="space-y-3 rounded-card border bg-card p-4 shadow-sm">
+        <section className="space-y-3 rounded-2xl border bg-card p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <HugeIcon icon={Coupon01Icon} size={16} strokeWidth={2} className="text-primary-2" aria-hidden />
@@ -480,7 +480,7 @@ export function InvoiceEditor({
             <Label htmlFor="discount-code">Código de descuento</Label>
             <div className="mt-1.5">
           {appliedCode ? (
-            <div className="flex items-center justify-between rounded-md border border-primary/30 bg-primary/10 px-3 py-2">
+            <div className="flex items-center justify-between rounded-xl border border-primary/30 bg-primary/10 px-3 py-2">
               <span className="flex items-center gap-1.5 text-sm font-semibold text-primary">
                 <HugeIcon icon={Coupon01Icon} size={16} strokeWidth={2} aria-hidden />
                 {appliedCode.code}
@@ -524,7 +524,7 @@ export function InvoiceEditor({
         </section>
         )}
 
-        <section className="space-y-3 rounded-card border bg-card p-4 shadow-sm">
+        <section className="space-y-3 rounded-2xl border bg-card p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <h3 className="text-sm font-semibold text-foreground">Delivery</h3>
@@ -569,7 +569,7 @@ export function InvoiceEditor({
         </section>
       </div>
 
-      <div className="rounded-lg bg-muted p-4 flex flex-col items-end space-y-1">
+      <div className="rounded-xl bg-muted p-4 flex flex-col items-end space-y-1">
         <div className="text-sm text-muted-foreground flex justify-between w-full max-w-xs">
           <span>Subtotal:</span>
           <span>{formatCordobas(subtotal)}</span>

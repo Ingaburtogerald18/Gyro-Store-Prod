@@ -46,9 +46,8 @@ export function Hero({ initialLanding }: { initialLanding?: LandingConfig | null
   const [playing, setPlaying] = useState(false);
   const sectionRef = useRef<HTMLElement>(null);
   const [visible, setVisible] = useState(true);
-  // El primer slide sale visible desde el HTML del servidor. Con la entrada
-  // animada desde opacity 0, en una red lenta el titular quedaba invisible hasta
-  // que cargaba el JavaScript; ahora solo animan los cambios de slide.
+  // El primer slide sale visible desde el HTML del servidor; solo se animan los
+  // cambios de slide, así una red lenta no deja el titular invisible.
   const [animateEntry, setAnimateEntry] = useState(false);
   if (activeIndex !== 0 && !animateEntry) setAnimateEntry(true);
 
@@ -139,7 +138,7 @@ export function Hero({ initialLanding }: { initialLanding?: LandingConfig | null
 
   return (
     <section ref={sectionRef} data-landing-section="banners" aria-roledescription="carrusel" aria-label="Novedades de la tienda" className="mx-auto w-full max-w-7xl px-4 pt-3 pb-2 sm:pt-5">
-      <div className="relative w-full overflow-hidden rounded-3xl border border-border bg-card shadow-sm">
+      <div className="relative w-full overflow-hidden rounded-3xl border border-border bg-card">
         {/* Altura contenida: el catálogo tiene que asomar antes. min-h y no h
             fija para que un título largo no se salga de la tarjeta. */}
         <div className="flex min-h-[300px] flex-col items-stretch md:min-h-[360px] md:flex-row">

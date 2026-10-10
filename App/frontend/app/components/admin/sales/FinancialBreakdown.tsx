@@ -81,7 +81,7 @@ export function LineBreakdown({
     line.gananciaTienda !== undefined;
 
   return (
-    <div className="overflow-hidden rounded-lg border bg-muted/40">
+    <div className="overflow-hidden rounded-xl border bg-muted/40">
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}

@@ -74,7 +74,7 @@ export default function AdminUsuarios() {
   }, [currentTab, activeUsers, deletedUsers, search]);
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-5">
       <PageHeader
         eyebrow="Análisis y sistema"
         title="Personal"
@@ -101,7 +101,7 @@ export default function AdminUsuarios() {
           <ToolbarSearch value={search} onChange={setSearch} placeholder="Buscar por nombre o correo" />
         </WorkspaceToolbar>
 
-        <div className="space-y-4 p-4">
+        <div className="space-y-4">
           <p className="text-xs text-muted-foreground">
             {currentTab === "activos"
               ? "Acceden al sistema con su cuenta de Microsoft."
