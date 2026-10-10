@@ -1,8 +1,9 @@
-// Formulario de una plantilla: una por modelo (KZ EDX Pro, KZ Castor…). Nombre,
-// descripción y categoría son los que muestra la tienda; la nota interna no se
-// publica. Se usa desde la vista Plantillas y desde Registrar compra.
-import { Add01Icon, Cancel01Icon, Delete02Icon } from "@hugeicons/core-free-icons";
-import { useEffect, useState } from "react";
+import {
+  Add01Icon,
+  Cancel01Icon,
+  Delete02Icon,
+} from "@hugeicons/core-free-icons";
+import { useEffect, useState, type ReactNode } from "react";
 import {
   Controller,
   useFieldArray,
@@ -15,25 +16,61 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import type { z } from "zod";
 
-import { templateInputSchema, type AdminTemplate, type Category, type TemplateInput } from "@shared/schemas";
+import {
+  templateInputSchema,
+  type AdminTemplate,
+  type Category,
+  type TemplateInput,
+} from "@shared/schemas";
 import { Button } from "~/components/ui/button";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "~/components/ui/dialog";
-import { Field, FieldDescription, FieldError, FieldLabel } from "~/components/ui/field";
-import { DiscardChangesDialog, FormErrorBanner, serverErrorMessage } from "~/components/ui/form-feedback";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "~/components/ui/dialog";
+import { Field, FieldError, FieldLabel } from "~/components/ui/field";
+import {
+  DiscardChangesDialog,
+  FormErrorBanner,
+  serverErrorMessage,
+} from "~/components/ui/form-feedback";
 import { HugeIcon } from "~/components/ui/icon";
 import { Input } from "~/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "~/components/ui/select";
 import { Switch } from "~/components/ui/switch";
 import { Textarea } from "~/components/ui/textarea";
 import { ToneDot } from "~/components/catalog/ToneDot";
 import { cn } from "~/lib/utils";
-import { useCreateTemplateMutation, useUpdateTemplateMutation } from "~/store/api/catalogAdminApi";
+import {
+  useCreateTemplateMutation,
+  useUpdateTemplateMutation,
+} from "~/store/api/catalogAdminApi";
+import { TemplatePreview } from "./TemplatePreview";
 
 type TemplateFormValues = z.input<typeof templateInputSchema>;
 
-const EMPTY: TemplateFormValues = { name: "", categoryId: "", description: "", internalNote: "", axes: [], specs: [] };
+const EMPTY: TemplateFormValues = {
+  name: "",
+  categoryId: "",
+  description: "",
+  internalNote: "",
+  axes: [],
+  specs: [],
+};
 
-function toValues(template: AdminTemplate | null, initialName?: string): TemplateFormValues {
+function toValues(
+  template: AdminTemplate | null,
+  initialName?: string
+): TemplateFormValues {
   if (!template) return { ...EMPTY, name: initialName ?? "" };
   return {
     name: template.name,
@@ -86,8 +123,9 @@ export function TemplateFormDialog({
   }, [open, template, initialName, reset]);
 
   function requestClose(next: boolean) {
+    if (!next && isSubmitting) return;
     if (next) return onOpenChange(true);
-    if (isDirty && !isSubmitting) setConfirmDiscard(true);
+    if (isDirty) setConfirmDiscard(true);
     else onOpenChange(false);
   }
 
@@ -101,7 +139,9 @@ export function TemplateFormDialog({
       onSaved?.(saved);
       onOpenChange(false);
     } catch (err) {
-      setServerError(serverErrorMessage(err, "No se pudo guardar la plantilla."));
+      setServerError(
+        serverErrorMessage(err, "No se pudo guardar la plantilla.")
+      );
     }
   }
 
@@ -110,9 +150,15 @@ export function TemplateFormDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={requestClose}>
-        <DialogContent className="max-h-[90vh] w-full overflow-y-auto sm:max-w-5xl">
-          <DialogHeader>
-            <DialogTitle>{template ? "Editar plantilla" : "Crear plantilla"}</DialogTitle>
+        <DialogContent className="flex max-h-[90vh] w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-5xl">
+          <DialogHeader className="shrink-0 border-b px-6 py-5 pr-16">
+            <DialogTitle className="text-lg font-semibold">
+              {template ? "Editar plantilla" : "Crear plantilla"}
+            </DialogTitle>
+            <DialogDescription>
+              Una plantilla por modelo. Sus productos vinculados usan esta
+              información.
+            </DialogDescription>
           </DialogHeader>
 
           {/* Se abre dentro de «Registrar compra»: el submit no debe llegar a ese formulario. */}
@@ -121,183 +167,356 @@ export function TemplateFormDialog({
               e.stopPropagation();
               return handleSubmit(onSubmit)(e);
             }}
-            className="flex flex-col gap-5"
+            className="flex min-h-0 flex-col"
             noValidate
           >
-            <FormErrorBanner message={serverError} />
-
-            <section className="flex flex-col gap-4">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field data-invalid={!!errors.name}>
-                  <FieldLabel htmlFor="template-name" required>
-                    Nombre del modelo
-                  </FieldLabel>
-                  <Input
-                    id="template-name"
-                    placeholder="Ej. KZ EDX Pro"
-                    aria-required
-                    aria-invalid={!!errors.name}
-                    {...register("name")}
-                  />
-                  <FieldDescription>Así se ve en la tienda.</FieldDescription>
-                  <FieldError errors={[errors.name]} />
-                </Field>
-                <Field data-invalid={!!errors.categoryId}>
-                  <FieldLabel htmlFor="template-category" required>
-                    Categoría
-                  </FieldLabel>
-                  <Controller
-                    control={control}
-                    name="categoryId"
-                    render={({ field }) => (
-                      <Select value={field.value || undefined} onValueChange={field.onChange}>
-                        <SelectTrigger id="template-category" aria-invalid={!!errors.categoryId} className="w-full">
-                          <SelectValue placeholder="Elegí la categoría" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {categories.map((c) => (
-                            <SelectItem key={c.id} value={c.id}>
-                              <ToneDot toneKey={c.id} />
-                              {c.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
-                  />
-                  <FieldError errors={[errors.categoryId]} />
-                </Field>
+            {serverError && (
+              <div className="shrink-0 border-b bg-card px-6 py-3">
+                <FormErrorBanner message={serverError} />
               </div>
-
-              <Field data-invalid={!!errors.description}>
-                <FieldLabel htmlFor="template-description">Descripción para la tienda</FieldLabel>
-                <Textarea
-                  id="template-description"
-                  rows={4}
-                  placeholder="Qué es, para quién es y qué lo hace distinto."
-                  aria-invalid={!!errors.description}
-                  {...register("description")}
-                />
-                <FieldError errors={[errors.description]} />
-              </Field>
-            </section>
-
-            <section className="flex flex-col gap-3 border-t pt-5">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <h3 className="text-sm font-semibold text-foreground">Variantes</h3>
-                  <p className="text-xs text-muted-foreground">Lo que elige el cliente y tiene stock propio. Ej. Color: Negro, Blanco.</p>
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() =>
-                    // `key` no se vuelve a tocar: es la llave con la que cada producto recorta sus opciones.
-                    axes.append({ key: `eje_${Date.now()}`, label: "", options: [""], isColor: false })
-                  }
-                >
-                  <HugeIcon icon={Add01Icon} size={16} strokeWidth={2} aria-hidden />
-                  Agregar variante
-                </Button>
-              </div>
-              {inUse && (
-                <p className="text-xs text-muted-foreground">
-                  Ya hay compras de este modelo: cambiar el nombre de una opción la deja sin sus compras en la tienda. Para algo nuevo, agregá una opción.
-                </p>
-              )}
-              <FieldError errors={[errors.axes]} />
-              {axes.fields.length === 0 ? (
-                <p className="rounded-2xl border border-dashed p-5 text-center text-sm text-muted-foreground">
-                  Sin variantes: el modelo se vende en una sola versión.
-                </p>
-              ) : (
-                axes.fields.map((axis, axisIndex) => (
-                  <div key={axis.id} className="flex flex-col gap-3 rounded-2xl border bg-card p-4">
-                    <div className="flex items-end gap-2">
-                      <Field className="flex-1" data-invalid={!!errors.axes?.[axisIndex]?.label}>
-                        <FieldLabel htmlFor={`axis-${axis.id}`} required>
-                          Nombre de la variante
-                        </FieldLabel>
-                        <Input
-                          id={`axis-${axis.id}`}
-                          placeholder="Ej. Color"
-                          aria-required
-                          aria-invalid={!!errors.axes?.[axisIndex]?.label}
-                          {...register(`axes.${axisIndex}.label`)}
-                        />
-                        <FieldError errors={[errors.axes?.[axisIndex]?.label]} />
-                      </Field>
-                      <Button type="button" variant="ghost" size="icon" aria-label="Quitar variante" onClick={() => axes.remove(axisIndex)}>
-                        <HugeIcon icon={Delete02Icon} size={16} strokeWidth={2} aria-hidden />
-                      </Button>
-                    </div>
-                    <AxisOptionsField control={control} axisIndex={axisIndex} errors={errors} />
-                    <Field orientation="horizontal" className="justify-between">
-                      <FieldLabel htmlFor={`axis-color-${axis.id}`} className="font-normal">
-                        Es el color: cada opción lleva sus fotos
+            )}
+            <div className="min-h-0 overflow-y-auto bg-background p-6">
+              <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_19rem]">
+                <div className="min-w-0 space-y-5">
+                  <TemplateSection
+                    title="Información pública"
+                    description="Nombre, categoría y descripción que ve el cliente."
+                  >
+                    <Field data-invalid={!!errors.name}>
+                      <FieldLabel htmlFor="template-name" required>
+                        Nombre del modelo
+                      </FieldLabel>
+                      <Input
+                        id="template-name"
+                        placeholder="Ej. KZ EDX Pro"
+                        aria-required
+                        aria-invalid={!!errors.name}
+                        {...register("name")}
+                      />
+                      <FieldError errors={[errors.name]} />
+                    </Field>
+                    <Field data-invalid={!!errors.categoryId}>
+                      <FieldLabel htmlFor="template-category" required>
+                        Categoría
                       </FieldLabel>
                       <Controller
                         control={control}
-                        name={`axes.${axisIndex}.isColor`}
+                        name="categoryId"
                         render={({ field }) => (
-                          <Switch id={`axis-color-${axis.id}`} checked={Boolean(field.value)} onCheckedChange={field.onChange} />
+                          <Select
+                            value={field.value || undefined}
+                            onValueChange={field.onChange}
+                          >
+                            <SelectTrigger
+                              ref={field.ref}
+                              onBlur={field.onBlur}
+                              id="template-category"
+                              aria-required
+                              aria-invalid={!!errors.categoryId}
+                              className="w-full"
+                            >
+                              <SelectValue placeholder="Elegí la categoría" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {categories.map((c) => (
+                                <SelectItem key={c.id} value={c.id}>
+                                  <ToneDot toneKey={c.id} />
+                                  {c.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         )}
                       />
+                      <FieldError errors={[errors.categoryId]} />
                     </Field>
-                  </div>
-                ))
-              )}
-            </section>
+                    <Field data-invalid={!!errors.description}>
+                      <FieldLabel htmlFor="template-description">
+                        Descripción para la tienda
+                      </FieldLabel>
+                      <Textarea
+                        id="template-description"
+                        rows={4}
+                        placeholder="Qué es, para quién es y qué lo hace distinto."
+                        aria-invalid={!!errors.description}
+                        {...register("description")}
+                      />
+                      <FieldError errors={[errors.description]} />
+                    </Field>
+                  </TemplateSection>
 
-            <section className="flex flex-col gap-3 border-t pt-5">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <h3 className="text-sm font-semibold text-foreground">Especificaciones</h3>
-                  <p className="text-xs text-muted-foreground">Lo que es igual en todas las unidades. Ej. Driver: 10 mm.</p>
+                  <TemplateSection
+                    title="Opciones del modelo"
+                    description="Lo que cambia entre variantes, como color o micrófono."
+                    action={
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={axes.fields.length >= 6}
+                        onClick={() =>
+                          axes.append({
+                            key: `eje_${Date.now()}`,
+                            label: "",
+                            options: [""],
+                            isColor: false,
+                          })
+                        }
+                      >
+                        <HugeIcon
+                          icon={Add01Icon}
+                          size={16}
+                          strokeWidth={2}
+                          aria-hidden
+                        />
+                        Agregar opción
+                      </Button>
+                    }
+                  >
+                    {inUse && (
+                      <p className="rounded-xl border border-warning/30 bg-warning/5 p-3 text-xs text-foreground">
+                        Ya hay compras de este modelo: cambiar el nombre de una
+                        opción la deja sin sus compras en la tienda. Para algo
+                        nuevo, agregá una opción.
+                      </p>
+                    )}
+                    <FieldError errors={[errors.axes]} />
+                    {axes.fields.length === 0 ? (
+                      <div className="rounded-xl border border-dashed p-4">
+                        <p className="font-semibold">Una sola versión</p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Este modelo no tiene opciones de variante.
+                        </p>
+                      </div>
+                    ) : (
+                      axes.fields.map((axis, axisIndex) => (
+                        <div
+                          key={axis.id}
+                          className="flex flex-col gap-4 rounded-2xl border bg-background p-4"
+                        >
+                          <div className="flex items-end gap-2">
+                            <Field
+                              className="flex-1"
+                              data-invalid={!!errors.axes?.[axisIndex]?.label}
+                            >
+                              <FieldLabel htmlFor={`axis-${axis.id}`} required>
+                                Tipo de opción
+                              </FieldLabel>
+                              <Input
+                                id={`axis-${axis.id}`}
+                                placeholder="Ej. Color"
+                                aria-required
+                                aria-invalid={!!errors.axes?.[axisIndex]?.label}
+                                {...register(`axes.${axisIndex}.label`)}
+                              />
+                              <FieldError
+                                errors={[errors.axes?.[axisIndex]?.label]}
+                              />
+                            </Field>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              aria-label={`Quitar tipo de opción ${
+                                axisIndex + 1
+                              }`}
+                              onClick={() => axes.remove(axisIndex)}
+                            >
+                              <HugeIcon
+                                icon={Delete02Icon}
+                                size={16}
+                                strokeWidth={2}
+                                aria-hidden
+                              />
+                            </Button>
+                          </div>
+                          <AxisOptionsField
+                            control={control}
+                            axisIndex={axisIndex}
+                            errors={errors}
+                          />
+                          <Field
+                            orientation="horizontal"
+                            className="justify-between"
+                          >
+                            <FieldLabel
+                              htmlFor={`axis-color-${axis.id}`}
+                              className="font-normal"
+                            >
+                              Es el color: cada opción lleva sus fotos
+                            </FieldLabel>
+                            <Controller
+                              control={control}
+                              name={`axes.${axisIndex}.isColor`}
+                              render={({ field }) => (
+                                <Switch
+                                  id={`axis-color-${axis.id}`}
+                                  checked={Boolean(field.value)}
+                                  onCheckedChange={field.onChange}
+                                />
+                              )}
+                            />
+                          </Field>
+                        </div>
+                      ))
+                    )}
+                  </TemplateSection>
+
+                  <TemplateSection
+                    title="Ficha técnica"
+                    description="Especificaciones que comparten todas las variantes."
+                    action={
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={specs.fields.length >= 30}
+                        onClick={() => specs.append({ label: "", value: "" })}
+                      >
+                        <HugeIcon
+                          icon={Add01Icon}
+                          size={16}
+                          strokeWidth={2}
+                          aria-hidden
+                        />
+                        Agregar especificación
+                      </Button>
+                    }
+                  >
+                    <FieldError errors={[errors.specs]} />
+                    {specs.fields.length === 0 && (
+                      <p className="text-sm text-muted-foreground">
+                        Sin especificaciones. Podés agregar datos como driver,
+                        conexión o material.
+                      </p>
+                    )}
+                    {specs.fields.map((spec, index) => (
+                      <div key={spec.id} className="flex items-start gap-2">
+                        <div className="grid min-w-0 flex-1 grid-cols-2 gap-3">
+                          <Field data-invalid={!!errors.specs?.[index]?.label}>
+                            <FieldLabel htmlFor={`spec-label-${spec.id}`}>
+                              Dato
+                            </FieldLabel>
+                            <Input
+                              id={`spec-label-${spec.id}`}
+                              placeholder="Ej. Driver"
+                              aria-invalid={!!errors.specs?.[index]?.label}
+                              {...register(`specs.${index}.label`)}
+                            />
+                            <FieldError
+                              errors={[errors.specs?.[index]?.label]}
+                            />
+                          </Field>
+                          <Field data-invalid={!!errors.specs?.[index]?.value}>
+                            <FieldLabel htmlFor={`spec-value-${spec.id}`}>
+                              Valor
+                            </FieldLabel>
+                            <Input
+                              id={`spec-value-${spec.id}`}
+                              placeholder="Ej. 10 mm"
+                              aria-invalid={!!errors.specs?.[index]?.value}
+                              {...register(`specs.${index}.value`)}
+                            />
+                            <FieldError
+                              errors={[errors.specs?.[index]?.value]}
+                            />
+                          </Field>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="mt-7 shrink-0"
+                          aria-label={`Quitar especificación ${index + 1}`}
+                          onClick={() => specs.remove(index)}
+                        >
+                          <HugeIcon
+                            icon={Delete02Icon}
+                            size={16}
+                            strokeWidth={2}
+                            aria-hidden
+                          />
+                        </Button>
+                      </div>
+                    ))}
+                  </TemplateSection>
+
+                  <TemplateSection
+                    title="Notas internas"
+                    description="Información privada para el equipo; no se publica."
+                  >
+                    <Field data-invalid={!!errors.internalNote}>
+                      <FieldLabel htmlFor="template-note">
+                        Nota interna
+                      </FieldLabel>
+                      <Textarea
+                        id="template-note"
+                        rows={3}
+                        placeholder="Referencias o indicaciones para el equipo."
+                        aria-invalid={!!errors.internalNote}
+                        {...register("internalNote")}
+                      />
+                      <FieldError errors={[errors.internalNote]} />
+                    </Field>
+                  </TemplateSection>
                 </div>
-                <Button type="button" variant="outline" onClick={() => specs.append({ label: "", value: "" })}>
-                  <HugeIcon icon={Add01Icon} size={16} strokeWidth={2} aria-hidden />
-                  Agregar especificación
-                </Button>
+                <TemplatePreview control={control} categories={categories} />
               </div>
-              <FieldError errors={[errors.specs]} />
-              {specs.fields.map((spec, index) => (
-                <div key={spec.id} className="flex items-center gap-2">
-                  <Input placeholder="Etiqueta" className="w-1/3" aria-label={`Etiqueta ${index + 1}`} {...register(`specs.${index}.label`)} />
-                  <Input placeholder="Valor" className="flex-1" aria-label={`Valor ${index + 1}`} {...register(`specs.${index}.value`)} />
-                  <Button type="button" variant="ghost" size="icon" aria-label="Quitar especificación" onClick={() => specs.remove(index)}>
-                    <HugeIcon icon={Delete02Icon} size={16} strokeWidth={2} aria-hidden />
-                  </Button>
-                </div>
-              ))}
-            </section>
+            </div>
 
-            <Field className="border-t pt-5" data-invalid={!!errors.internalNote}>
-              <FieldLabel htmlFor="template-note">Nota interna</FieldLabel>
-              <Textarea id="template-note" rows={2} aria-invalid={!!errors.internalNote} {...register("internalNote")} />
-              <FieldDescription>Solo la ve el equipo; no se publica.</FieldDescription>
-              <FieldError errors={[errors.internalNote]} />
-            </Field>
-
-            <DialogFooter className="border-t pt-4">
-              <Button type="button" variant="cancel" onClick={() => requestClose(false)}>
+            <DialogFooter className="shrink-0 border-t bg-card px-6 py-4">
+              <Button
+                type="button"
+                variant="cancel"
+                disabled={isSubmitting}
+                onClick={() => requestClose(false)}
+              >
                 Cancelar
               </Button>
               <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? "Guardando…" : template ? "Guardar cambios" : "Crear plantilla"}
+                {isSubmitting
+                  ? "Guardando…"
+                  : template
+                  ? "Guardar cambios"
+                  : "Crear plantilla"}
               </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
-      <DiscardChangesDialog open={confirmDiscard} onOpenChange={setConfirmDiscard} onDiscard={() => onOpenChange(false)} />
+      <DiscardChangesDialog
+        open={confirmDiscard}
+        onOpenChange={setConfirmDiscard}
+        onDiscard={() => onOpenChange(false)}
+      />
     </>
   );
 }
 
-// `options` es un array de strings planos: `useFieldArray` necesita objetos, así
-// que el array entero es un campo controlado. El error viene en dos niveles: el
-// del array («al menos una opción») y el de cada opción vacía.
+function TemplateSection({
+  title,
+  description,
+  action,
+  children,
+}: {
+  title: string;
+  description: string;
+  action?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <section className="overflow-hidden rounded-2xl border bg-card">
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b p-5">
+        <div className="min-w-0 flex-1">
+          <h3 className="text-lg font-semibold">{title}</h3>
+          <p className="mt-1 text-xs text-muted-foreground">{description}</p>
+        </div>
+        {action}
+      </div>
+      <div className="flex flex-col gap-4 p-5">{children}</div>
+    </section>
+  );
+}
+
+// `options` tiene strings: se controla el array entero porque useFieldArray necesita objetos.
 function AxisOptionsField({
   control,
   axisIndex,
@@ -307,13 +526,17 @@ function AxisOptionsField({
   axisIndex: number;
   errors: FieldErrors<TemplateFormValues>;
 }) {
-  const raw = errors.axes?.[axisIndex]?.options as unknown as (RhfFieldError & ArrayLike<RhfFieldError | undefined>) | undefined;
-  const perOption: (RhfFieldError | undefined)[] = Array.isArray(raw) ? raw : [];
+  const raw = errors.axes?.[axisIndex]?.options as unknown as
+    | (RhfFieldError & ArrayLike<RhfFieldError | undefined>)
+    | undefined;
+  const perOption: (RhfFieldError | undefined)[] = Array.isArray(raw)
+    ? raw
+    : [];
   const rootError = raw?.message ? { message: raw.message } : undefined;
 
   return (
     <Field data-invalid={!!raw}>
-      <FieldLabel required>Opciones</FieldLabel>
+      <FieldLabel required>Valores disponibles</FieldLabel>
       <Controller
         control={control}
         name={`axes.${axisIndex}.options`}
@@ -326,32 +549,58 @@ function AxisOptionsField({
                   key={optionIndex}
                   className={cn(
                     "flex h-11 items-center gap-1 rounded-xl border border-input bg-background pr-1",
-                    perOption[optionIndex] && "border-destructive",
+                    perOption[optionIndex] && "border-destructive"
                   )}
                 >
                   <input
                     value={option}
-                    onChange={(e) => field.onChange(options.map((o, i) => (i === optionIndex ? e.target.value : o)))}
+                    onChange={(e) =>
+                      field.onChange(
+                        options.map((o, i) =>
+                          i === optionIndex ? e.target.value : o
+                        )
+                      )
+                    }
                     onBlur={field.onBlur}
                     placeholder="Opción"
                     aria-label={`Opción ${optionIndex + 1}`}
+                    aria-required
                     aria-invalid={!!perOption[optionIndex]}
-                    className="w-32 bg-transparent px-3 text-sm outline-none"
+                    className="h-full w-32 rounded-xl bg-transparent px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   />
                   <Button
                     type="button"
                     variant="ghost"
                     size="icon-sm"
                     aria-label={`Quitar opción ${option || optionIndex + 1}`}
-                    onClick={() => field.onChange(options.filter((_, i) => i !== optionIndex))}
+                    onClick={() =>
+                      field.onChange(
+                        options.filter((_, i) => i !== optionIndex)
+                      )
+                    }
                   >
-                    <HugeIcon icon={Cancel01Icon} size={16} strokeWidth={2} aria-hidden />
+                    <HugeIcon
+                      icon={Cancel01Icon}
+                      size={16}
+                      strokeWidth={2}
+                      aria-hidden
+                    />
                   </Button>
                 </div>
               ))}
-              <Button type="button" variant="outline" onClick={() => field.onChange([...options, ""])}>
-                <HugeIcon icon={Add01Icon} size={16} strokeWidth={2} aria-hidden />
-                Opción
+              <Button
+                type="button"
+                variant="outline"
+                disabled={options.length >= 40}
+                onClick={() => field.onChange([...options, ""])}
+              >
+                <HugeIcon
+                  icon={Add01Icon}
+                  size={16}
+                  strokeWidth={2}
+                  aria-hidden
+                />
+                Agregar valor
               </Button>
             </div>
           );

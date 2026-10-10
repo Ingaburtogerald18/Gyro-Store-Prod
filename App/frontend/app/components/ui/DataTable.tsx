@@ -44,6 +44,8 @@ declare module "@tanstack/react-table" {
 interface DataTableProps<T> {
   columns: ColumnDef<T, any>[];
   data: T[];
+  /** Fijo para columnas acotadas con resúmenes; automático para contenido de ancho variable. */
+  layout?: "auto" | "fixed";
   searchPlaceholder?: string;
   pageSize?: number;
   emptyText?: ReactNode;
@@ -106,6 +108,7 @@ function readColumnVisibility(tableId?: string): Record<string, boolean> {
 export function DataTable<T>({
   columns,
   data,
+  layout = "auto",
   searchPlaceholder = "Buscar…",
   pageSize = 25,
   emptyText = "Sin registros.",
@@ -364,7 +367,7 @@ export function DataTable<T>({
         </div>
       ) : (
       <>
-      <Table density={compact ? "compact" : "normal"} containerClassName="hidden md:block">
+      <Table density={compact ? "compact" : "normal"} className={cn(layout === "fixed" && "table-fixed")} containerClassName="hidden md:block">
           <TableHeader>
             {table.getHeaderGroups().map((hg) => (
               <tr key={hg.id}>

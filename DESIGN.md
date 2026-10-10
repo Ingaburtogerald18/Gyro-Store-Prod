@@ -125,6 +125,7 @@ Nunca:
 
 - Se usa tabla siempre que se comparan registros por columnas. Tarjetas solo para productos con foto y para órdenes de compra.
 - Piezas: `components/ui/table.tsx` para el aspecto y `DataTable` para buscar, ordenar y paginar.
+- `DataTable` admite `layout="fixed"` para resúmenes con anchos de columna definidos; los textos largos se acotan dentro de la celda. El modo automático sigue siendo el predeterminado.
 - Contenedor blanco, borde de 1 px (`--table-edge`), 16 px de esquina y sombra `shadow-table`, que la levanta del fondo.
 - Dentro de una tarjeta, la tabla va con `embedded` (sin borde ni sombra) y la tarjeta pone el contorno; la orden de compra abierta lleva borde bordó al 80 % y `shadow-table`.
 - Encabezado con fondo rosa, `text-xs font-semibold` en tinta, sin mayúsculas. Proyecta una sombra corta sobre la primera fila. Las columnas ordenables muestran la flecha.
@@ -185,6 +186,7 @@ Panel:
 - Encabezado: título de página y, a la derecha, la acción principal con su atajo (`<Kbd>N</Kbd>`).
 - Debajo, bloques separados sobre el crema: barra de herramientas, métricas y contenido.
 - Un elemento domina cada pantalla: la tabla, la lista de órdenes o el formulario.
+- Plantillas: tabla de modelos con resumen público de una línea, categoría, tipos de opción y conteo de productos vinculados/publicados. Las notas internas se consultan en la ficha. Edición en ventana centrada con información pública, opciones, ficha técnica y notas internas; vista previa pública de solo lectura al lado y acciones siempre visibles en el pie.
 - Editor de portada: estructura plegable a la izquierda, tienda real aislada al centro e inspector contextual a la derecha. Barra superior con estado del borrador, deshacer, rehacer, vista previa y publicación. Composiciones de banner preparadas (imagen a izquierda, derecha o arriba), sin posiciones libres. La vista móvil usa un ancho real de 360 px.
 
 Tienda:
@@ -272,3 +274,4 @@ Lo que este documento pide y el código todavía no tiene. Cada línea se borra 
 | 2026-10-10 | Lo elegido con texto bordó (en oscuro, fondo `#26272a`); barra de herramientas con borde normal; fila de tabla en rosa al pasar el mouse; contorno del botón amarillo `#111111` en oscuro; ofertas con borde bordó; precios en bordó; gráficos de Reportería en bordó, sin verde |
 | 2026-10-10 | Rediseño aprobado del editor de portada: estructura, tienda e inspector fijo, edición directa del borrador, deshacer/rehacer, composiciones preparadas y publicación confirmada. Excepción a los formularios de banner en ventana; el carrito sigue en ventana |
 | 2026-10-10 | Una plantilla por modelo: la tienda muestra su nombre, descripción y categoría; la nota interna no se publica. Plantillas y categorías se administran en Inventario (vista Plantillas), ya no en Catálogo |
+| 2026-10-10 | Rediseño aprobado de Plantillas: resúmenes públicos y columnas acotadas sin scroll lateral, opciones resumidas y productos vinculados con conteo de publicados. Ficha centrada por secciones, vista previa pública en vivo y pie de acciones fijo; notas internas fuera del listado y de la vista previa |

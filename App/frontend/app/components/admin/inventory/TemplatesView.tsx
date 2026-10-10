@@ -1,6 +1,3 @@
-// Vista «Plantillas» de Inventario: una plantilla por modelo, con lo que ve la
-// tienda (nombre, descripción, categoría) y sus variantes. También administra
-// las categorías.
 import { Delete02Icon, Edit02Icon } from "@hugeicons/core-free-icons";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useMemo, useState } from "react";
@@ -8,26 +5,25 @@ import { toast } from "sonner";
 
 import type { AdminTemplate } from "@shared/schemas";
 import { ToneDot } from "~/components/catalog/ToneDot";
+import { Chip } from "~/components/ui/chip";
 import { ConfirmDialog } from "~/components/ui/confirm-dialog";
 import { DataTable } from "~/components/ui/DataTable";
 import { serverErrorMessage } from "~/components/ui/form-feedback";
 import { HugeIcon } from "~/components/ui/icon";
 import { RowActionsMenu } from "~/components/ui/RowActionsMenu";
 import { Skeleton } from "~/components/ui/skeleton";
-import { useDeleteTemplateMutation, useGetCategoriesQuery, useGetTemplatesQuery } from "~/store/api/catalogAdminApi";
+import {
+  useDeleteTemplateMutation,
+  useGetCategoriesQuery,
+  useGetTemplatesQuery,
+} from "~/store/api/catalogAdminApi";
 import { TemplateFormDialog } from "./TemplateFormDialog";
 
 function variantsText(template: AdminTemplate): string {
   if (!template.axes.length) return "Sin variantes";
-  return template.axes.map((axis) => `${axis.label}: ${axis.options.join(", ")}`).join(" · ");
-}
-
-function productsText(template: AdminTemplate): string {
-  const total = template.products.length;
-  if (total === 0) return "Sin compras todavía";
-  const published = template.products.filter((p) => p.published).length;
-  if (total === 1) return published ? "Publicado" : "Sin publicar";
-  return `${total} productos · ${published} publicados`;
+  return template.axes
+    .map((axis) => `${axis.label}: ${axis.options.join(", ")}`)
+    .join(" · ");
 }
 
 export function TemplatesView({
@@ -45,61 +41,122 @@ export function TemplatesView({
   const [editing, setEditing] = useState<AdminTemplate | null>(null);
   const [toDelete, setToDelete] = useState<AdminTemplate | null>(null);
 
-  const categoryName = useMemo(() => new Map(categories.map((c) => [c.id, c.name])), [categories]);
+  const categoryName = useMemo(
+    () => new Map(categories.map((c) => [c.id, c.name])),
+    [categories]
+  );
 
   const columns = useMemo<ColumnDef<AdminTemplate>[]>(
     () => [
       {
         accessorKey: "name",
         header: "Modelo",
+        meta: { className: "w-[34%]" },
         cell: ({ row }) => (
-          <div className="min-w-0">
-            <p className="truncate font-semibold text-foreground">{row.original.name}</p>
-            {row.original.internalNote && <p className="truncate text-sm text-muted-foreground">{row.original.internalNote}</p>}
+          <div className="min-w-0 py-2">
+            <p
+              className="truncate font-semibold text-foreground"
+              title={row.original.name}
+            >
+              {row.original.name}
+            </p>
+            <p className="truncate text-xs text-muted-foreground">
+              {row.original.description.trim() || "Sin descripción"}
+            </p>
           </div>
         ),
       },
       {
         id: "category",
         header: "Categoría",
-        accessorFn: (t) => (t.categoryId ? categoryName.get(t.categoryId) ?? "" : ""),
+        meta: { className: "w-[18%]" },
+        accessorFn: (t) =>
+          t.categoryId ? categoryName.get(t.categoryId) ?? "" : "",
         cell: ({ row, getValue }) =>
           getValue() ? (
-            <span className="inline-flex items-center gap-1.5">
+            <Chip variant="category" className="max-w-full">
               <ToneDot toneKey={row.original.categoryId} />
-              {getValue() as string}
-            </span>
+              <span className="truncate" title={getValue() as string}>
+                {getValue() as string}
+              </span>
+            </Chip>
           ) : (
-            <span className="text-warning">Falta la categoría</span>
+            <Chip variant="status" tone="warning" className="whitespace-normal">
+              Falta categoría
+            </Chip>
           ),
       },
       {
         id: "variants",
-        header: "Variantes",
+        header: "Opciones del modelo",
+        meta: { className: "w-[20%]" },
         accessorFn: variantsText,
         enableSorting: false,
-        cell: ({ getValue }) => <span className="line-clamp-2 text-sm text-muted-foreground">{getValue() as string}</span>,
+        cell: ({ row, getValue }) => (
+          <div className="min-w-0 py-2" title={getValue() as string}>
+            <p className="truncate">
+              {row.original.axes.map((axis) => axis.label).join(" · ") ||
+                "Sin variantes"}
+            </p>
+            <p className="text-xs text-muted-foreground tabular-nums">
+              {row.original.axes.length
+                ? `${row.original.axes.length} ${
+                    row.original.axes.length === 1
+                      ? "tipo de opción"
+                      : "tipos de opción"
+                  }`
+                : "Una sola versión"}
+            </p>
+          </div>
+        ),
       },
       {
         id: "products",
-        header: "En la tienda",
-        accessorFn: productsText,
-        cell: ({ getValue }) => <span className="text-sm">{getValue() as string}</span>,
+        header: "Productos vinculados",
+        accessorFn: (template) => template.products.length,
+        meta: { align: "right", className: "w-[20%]" },
+        cell: ({ row, getValue }) => {
+          const published = row.original.products.filter(
+            (product) => product.published
+          ).length;
+          return (
+            <div className="py-2">
+              <p className="font-semibold tabular-nums">
+                {getValue() as number}
+              </p>
+              <p className="text-xs text-muted-foreground tabular-nums">
+                {row.original.products.length
+                  ? `${published} ${
+                      published === 1 ? "publicado" : "publicados"
+                    }`
+                  : "Sin productos"}
+              </p>
+            </div>
+          );
+        },
       },
       {
         id: "actions",
         header: "",
         enableSorting: false,
-        meta: { className: "w-[1%]" },
+        meta: { className: "w-[8%]" },
         cell: ({ row }) => (
           <div className="flex justify-end">
             <RowActionsMenu
               label={`Acciones de ${row.original.name}`}
               actions={[
-                { label: "Editar", icon: <HugeIcon icon={Edit02Icon} size={16} strokeWidth={2} />, onClick: () => setEditing(row.original) },
+                {
+                  label: "Editar",
+                  icon: (
+                    <HugeIcon icon={Edit02Icon} size={16} strokeWidth={2} />
+                  ),
+                  onClick: () => setEditing(row.original),
+                },
                 {
                   label: "Eliminar",
-                  icon: <HugeIcon icon={Delete02Icon} size={16} strokeWidth={2} />,
+                  icon: (
+                    <HugeIcon icon={Delete02Icon} size={16} strokeWidth={2} />
+                  ),
                   danger: true,
                   separatorBefore: true,
                   disabled: row.original.products.length > 0,
@@ -111,7 +168,7 @@ export function TemplatesView({
         ),
       },
     ],
-    [categoryName],
+    [categoryName]
   );
 
   async function confirmDelete() {
@@ -140,6 +197,8 @@ export function TemplatesView({
         tableId="inventario-plantillas"
         columns={columns}
         data={templates}
+        layout="fixed"
+        onRowClick={setEditing}
         hideSearch
         globalFilterValue={search}
         initialSorting={[{ id: "name", desc: false }]}
