@@ -19,7 +19,8 @@ import { costPurchaseOnArrival, round, type PurchaseCosting } from './finance';
 import { BadRequestError } from '../utils/httpError';
 import { fetchAllRows } from '../utils/fetchAllRows';
 import { isMissingColumn } from './orderPersistence';
-import { nameForVariant, nextPurchaseCodes, type CatalogLink } from './inventory';
+import { nameForVariant, nextPurchaseCodes, updatePurchase, type CatalogLink } from './inventory';
+import { dropCreatedProducts, resolveTemplateLink } from './templateProducts';
 import { isStorageUrl } from './storage';
 import type {
   AddPurchaseOrderLinesInput,
@@ -339,6 +340,8 @@ export interface PurchaseOrder {
   units: number;
   /** Suma de las líneas pedidas: costo + impuesto (USD). */
   linesTotalUsd: number;
+  /** Impuesto por unidad de la orden (USD); null si no tiene líneas o sus líneas difieren. */
+  taxUnit: number | null;
   status: PurchaseOrderStatus;
   missing: PurchaseOrderMissing[];
   /** Última fecha de llegada entre sus líneas recibidas. */
@@ -391,7 +394,9 @@ function sumLines(lines: OrderLineAgg[]) {
   let total = 0;
   let received = 0;
   let arrivalDate: string | null = null;
+  const taxes = new Set<number>();
   for (const line of lines) {
+    taxes.add(Number(line.impuesto_unit_usd ?? 0));
     const ordered = line.quantity_ordered ?? line.quantity;
     units += ordered;
     total += ordered * (Number(line.costo_china_usd ?? 0) + Number(line.impuesto_unit_usd ?? 0));
@@ -400,7 +405,8 @@ function sumLines(lines: OrderLineAgg[]) {
       if (line.arrival_date && (!arrivalDate || line.arrival_date > arrivalDate)) arrivalDate = line.arrival_date;
     }
   }
-  return { units, total, received, arrivalDate };
+  const taxUnit = taxes.size === 1 ? [...taxes][0]! : null;
+  return { units, total, received, arrivalDate, taxUnit };
 }
 
 /**
@@ -443,7 +449,7 @@ function buildOrders(rows: OrderRow[], lines: OrderLineAgg[]): PurchaseOrder[] {
 
   return rows.map((row) => {
     const orderLines = byOrder.get(row.id) ?? [];
-    const { units, total, received, arrivalDate } = sums.get(row.id)!;
+    const { units, total, received, arrivalDate, taxUnit } = sums.get(row.id)!;
     const supplierRaw = one(row.supplier);
     const invoice = row.invoice_id ? invoices.get(row.invoice_id) ?? null : null;
     const photos = toStringArray(row.package_photos);
@@ -472,6 +478,7 @@ function buildOrders(rows: OrderRow[], lines: OrderLineAgg[]): PurchaseOrder[] {
       receivedLineCount: received,
       units,
       linesTotalUsd: round(total, 2),
+      taxUnit,
       status,
       missing,
       arrivalDate,
@@ -554,27 +561,36 @@ interface PreparedLine {
 }
 
 /**
- * Valida y completa las líneas ANTES de crear nada: una línea del catálogo toma
- * el nombre que ya usan los lotes de esa variante (Ventas los agrupa por
- * nombre) y la categoría del producto.
+ * Completa las líneas antes de insertarlas: cada una se resuelve contra su
+ * plantilla (busca o crea, sin publicar, el producto del catálogo) y toma el
+ * nombre que ya usan los lotes de esa variante, porque Ventas los agrupa por
+ * nombre. Si algo falla, se borran los productos que se crearon acá.
  */
-async function prepareLines(lines: PurchaseOrderLineInput[]): Promise<PreparedLine[]> {
+async function prepareLines(
+  lines: PurchaseOrderLineInput[],
+  taxUnit: number,
+): Promise<{ prepared: PreparedLine[]; createdProductIds: string[] }> {
   const prepared: PreparedLine[] = [];
-  for (const line of lines) {
-    const link: CatalogLink | null = line.catalogItemId
-      ? { catalogItemId: line.catalogItemId, variantKey: line.variantKey ?? '' }
-      : null;
-    const fromCatalog = link ? await nameForVariant(link) : null;
-    prepared.push({
-      productName: fromCatalog?.productName ?? line.productName.trim(),
-      category: line.category || fromCatalog?.categoryId || null,
-      quantity: line.quantity,
-      costUnit: line.costUnit,
-      taxUnit: line.taxUnit,
-      link,
-    });
+  const createdProductIds: string[] = [];
+  try {
+    for (const line of lines) {
+      const { link, created } = await resolveTemplateLink(line);
+      if (created) createdProductIds.push(link.catalogItemId);
+      const named = await nameForVariant(link);
+      prepared.push({
+        productName: named.productName,
+        category: named.categoryId,
+        quantity: line.quantity,
+        costUnit: line.costUnit,
+        taxUnit,
+        link,
+      });
+    }
+  } catch (err) {
+    await dropCreatedProducts(createdProductIds);
+    throw err;
   }
-  return prepared;
+  return { prepared, createdProductIds };
 }
 
 /**
@@ -634,7 +650,21 @@ export async function createPurchaseOrder(input: NewPurchaseOrderInput, authorUi
   const orderNumber = normalizeOrderNumber(input.orderNumber);
   await assertOrderNumberFree(orderNumber);
   if (input.newInvoice) await assertInvoiceNumberFree(input.newInvoice.invoiceNumber);
-  const prepared = await prepareLines(input.lines);
+  const { prepared, createdProductIds } = await prepareLines(input.lines, input.taxUnit);
+  try {
+    return await insertOrder(input, orderNumber, prepared, authorUid);
+  } catch (err) {
+    await dropCreatedProducts(createdProductIds);
+    throw err;
+  }
+}
+
+async function insertOrder(
+  input: NewPurchaseOrderInput,
+  orderNumber: string,
+  prepared: PreparedLine[],
+  authorUid?: string,
+): Promise<PurchaseOrder> {
   const supplierId = await resolveSupplierId(input.supplierId, input.newSupplier);
   const invoiceId = await resolveInvoiceId(input.invoiceId, input.newInvoice, authorUid);
 
@@ -722,10 +752,21 @@ export async function updatePurchaseOrder(
     const { error: linesError } = await db.from('purchases').update(linePatch).eq('order_id', id);
     if (linesError) throw linesError;
   }
+  if (input.taxUnit !== undefined) await setOrderTax(id, input.taxUnit, authorUid);
 
   const updated = await getPurchaseOrder(id);
   await audit(id, 'update', authorUid, existing, updated);
   return updated;
+}
+
+/** Mismo impuesto en todas las líneas; las que ya llegaron recalculan su costo. */
+async function setOrderTax(orderId: string, taxUnit: number, authorUid?: string): Promise<void> {
+  const { data, error } = await db.from('purchases').select('id, impuesto_unit_usd').eq('order_id', orderId);
+  if (error) throw error;
+  for (const line of (data ?? []) as { id: string; impuesto_unit_usd: number | string | null }[]) {
+    if (Number(line.impuesto_unit_usd ?? 0) === taxUnit) continue;
+    await updatePurchase(line.id, { taxUnit }, authorUid, { fromOrder: true });
+  }
 }
 
 export async function addPurchaseOrderLines(
@@ -742,11 +783,18 @@ export async function addPurchaseOrderLines(
   if (error) throw error;
   if (!order) return null;
 
-  const prepared = await prepareLines(input.lines);
-  await insertLines(
-    { id: order.id as string, orderNumber: order.order_number as string, purchaseDate: order.purchase_date as string },
-    prepared,
-  );
+  const current = await getPurchaseOrder(id);
+  const taxUnit = current?.lineCount ? current.taxUnit ?? 0 : input.taxUnit ?? 0;
+  const { prepared, createdProductIds } = await prepareLines(input.lines, taxUnit);
+  try {
+    await insertLines(
+      { id: order.id as string, orderNumber: order.order_number as string, purchaseDate: order.purchase_date as string },
+      prepared,
+    );
+  } catch (err) {
+    await dropCreatedProducts(createdProductIds);
+    throw err;
+  }
   const updated = await getPurchaseOrder(id);
   await audit(id, 'add_lines', authorUid, null, { lines: input.lines });
   return updated;

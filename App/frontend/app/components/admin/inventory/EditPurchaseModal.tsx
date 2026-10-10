@@ -191,7 +191,18 @@ export function EditPurchaseModal({ purchase, onClose }: { purchase: Purchase | 
           </Field>
           <Field data-invalid={!!errors.taxUnit}>
             <FieldLabel htmlFor="edit-purchase-tax" required>Imp. unitario (USD)</FieldLabel>
-            <Input id="edit-purchase-tax" type="number" step="0.0001" min={0} aria-required {...register("taxUnit")} aria-invalid={!!errors.taxUnit} />
+            <Input
+              id="edit-purchase-tax"
+              type="number"
+              step="0.0001"
+              min={0}
+              aria-required
+              readOnly={inOrder}
+              className={inOrder ? "bg-muted text-muted-foreground" : undefined}
+              {...register("taxUnit")}
+              aria-invalid={!!errors.taxUnit}
+            />
+            {inOrder && <FieldDescription>Es el de toda la orden: se cambia en «Editar orden».</FieldDescription>}
             <FieldError errors={[errors.taxUnit]} />
           </Field>
 

@@ -25,12 +25,6 @@ export function variantKeysOf(product: AdminProduct): string[] {
   return axes.length ? buildCombinations(axes) : [""];
 }
 
-/** "KZ EDX Pro | Negro | Con micrófono": mismo formato que usan los nombres de lote. */
-export function lotNameFor(product: AdminProduct, variantKey: string): string {
-  const parts = variantKey ? variantKey.split(" / ").map((p) => p.trim()).filter(Boolean) : [];
-  return [product.name, ...parts].join(" | ");
-}
-
 export function CatalogVariantPicker({
   value,
   onChange,

@@ -37,6 +37,9 @@ export type CategoryInput = z.infer<typeof categoryInputSchema>;
 export const templateSchema = z.object({
   id: z.uuid(),
   name: z.string().nullable(),
+  description: z.string().nullable().optional(),
+  category_id: z.string().uuid().nullable().optional(),
+  category: z.object({ id: z.string(), name: z.string() }).nullable().optional(),
   axes: z.unknown(),
   specs: z.unknown(),
 });
@@ -283,10 +286,13 @@ export const templateAxisSchema = z.object({
 });
 export type TemplateAxis = z.infer<typeof templateAxisSchema>;
 
+// Una plantilla por modelo: nombre, descripción y categoría son los que muestra
+// la tienda. La nota interna nunca sale del panel.
 export const templateInputSchema = z.object({
-  name: z.string().min(2, 'El nombre de la plantilla es obligatorio.').max(120),
+  name: z.string().trim().min(2, 'Escribí el nombre del modelo.').max(120),
   description: z.string().max(3000).optional(),
-  categoryId: z.string().uuid().nullable().optional(),
+  internalNote: z.string().max(3000).optional(),
+  categoryId: z.string({ error: 'Elegí la categoría.' }).uuid('Elegí la categoría.'),
   // Techo de ejes: las combinaciones crecen como producto cartesiano, así que
   // unos pocos ejes ya generan cientos de filas en la tabla de mapeo.
   axes: z.array(templateAxisSchema).max(6, 'Máximo 6 ejes por plantilla.'),
@@ -298,10 +304,14 @@ export const adminTemplateSchema = z.object({
   id: z.uuid(),
   name: z.string(),
   description: z.string(),
+  internalNote: z.string(),
   categoryId: z.string().uuid().nullable(),
   axes: z.array(templateAxisSchema),
   specs: z.array(specRowSchema),
   updatedAt: z.string(),
+  // Productos del catálogo que la usan: uno en las plantillas nuevas, varios en
+  // las viejas compartidas (ahí la compra elige a cuál va).
+  products: z.array(z.object({ id: z.uuid(), name: z.string(), published: z.boolean() })),
 });
 export type AdminTemplate = z.infer<typeof adminTemplateSchema>;
 
@@ -1005,25 +1015,6 @@ export type FinancialConfig = z.infer<typeof financialConfigSchema>;
 // TS en server/services/inventory.ts, no acá: son datos derivados que arma el
 // servicio, no algo que un cliente mande y haya que validar en el borde.
 
-export const newPurchaseInputSchema = z.object({
-  purchaseDate: z.iso.date(),
-  lot: z.string().min(1, 'El lote es obligatorio.').max(40),
-  productName: z.string().min(1, 'El nombre del producto es obligatorio.').max(160),
-  category: z.string().min(1, 'La categoría es obligatoria.').max(80),
-  // >0: una compra de 0 unidades no tiene sentido y dividiría por cero en
-  // finance.ts al recibirla (doc 11 §1: costo unitario origen = total/cantidad).
-  quantity: z.number().int().positive('La cantidad debe ser mayor a 0.'),
-  costUnit: z.number().min(0),
-  taxUnit: z.number().min(0),
-  suggestedPrice: z.number().min(0).optional(),
-  // Producto y variante del catálogo (llave de `variant_mappings`, '' si el
-  // producto no tiene variantes). Sin ellos, compra de un producto que todavía
-  // no está en el catálogo.
-  catalogItemId: z.uuid().optional(),
-  variantKey: z.string().max(200).optional(),
-});
-export type NewPurchaseInput = z.infer<typeof newPurchaseInputSchema>;
-
 // Edición post-creación. Deliberadamente NO es un `Partial<Purchase>` real:
 // solo expone los campos de negocio editables a mano (insumos de costeo,
 // identificación del lote). `status`, `quantitySold`, `quantityReserved`,
@@ -1083,14 +1074,15 @@ export const purchaseInvoiceInputSchema = z
   });
 export type PurchaseInvoiceInput = z.infer<typeof purchaseInvoiceInputSchema>;
 
+// Cada línea es una variante de una plantilla. El nombre del lote y la
+// categoría salen de la plantilla; `catalogItemId` solo hace falta cuando una
+// plantilla vieja compartida tiene varios productos.
 export const purchaseOrderLineInputSchema = z.object({
-  productName: z.string().trim().min(1, 'El nombre del producto es obligatorio.').max(160),
-  category: z.string().min(1, 'La categoría es obligatoria.').max(80),
+  templateId: z.uuid('Elegí la plantilla.'),
+  variantKey: z.string().max(200).default(''),
+  catalogItemId: z.uuid().optional(),
   quantity: z.number().int().positive('La cantidad debe ser mayor a 0.').max(1_000_000),
   costUnit: z.number().min(0).max(1_000_000),
-  taxUnit: z.number().min(0).max(1_000_000),
-  catalogItemId: z.uuid().optional(),
-  variantKey: z.string().max(200).optional(),
 });
 export type PurchaseOrderLineInput = z.infer<typeof purchaseOrderLineInputSchema>;
 
@@ -1110,9 +1102,13 @@ const purchaseOrderHeaderFields = {
   notes: z.string().trim().max(1000).default(''),
 };
 
+// El impuesto por unidad es el mismo para toda la orden; se guarda en cada línea.
+const taxUnitSchema = z.number().min(0, 'Revisá el impuesto.').max(1_000_000);
+
 export const newPurchaseOrderInputSchema = z
   .object({
     ...purchaseOrderHeaderFields,
+    taxUnit: taxUnitSchema,
     lines: z.array(purchaseOrderLineInputSchema).min(1, 'Agregá al menos un producto.').max(100),
   })
   .refine((data) => Boolean(data.supplierId || data.newSupplier), {
@@ -1128,10 +1124,14 @@ export const updatePurchaseOrderInputSchema = z.object({
   // Sin default: un campo que no viene se conserva, no se vacía.
   packagePhotos: z.array(z.url().max(1000)).max(8).optional(),
   notes: z.string().trim().max(1000).optional(),
+  // Se aplica a todas sus líneas y recalcula el costo de las que ya llegaron.
+  taxUnit: taxUnitSchema.optional(),
 });
 export type UpdatePurchaseOrderInput = z.infer<typeof updatePurchaseOrderInputSchema>;
 
 export const addPurchaseOrderLinesInputSchema = z.object({
+  // Solo para una orden sin líneas; si ya tiene, se usa el impuesto de la orden.
+  taxUnit: taxUnitSchema.optional(),
   lines: z.array(purchaseOrderLineInputSchema).min(1, 'Agregá al menos un producto.').max(100),
 });
 export type AddPurchaseOrderLinesInput = z.infer<typeof addPurchaseOrderLinesInputSchema>;

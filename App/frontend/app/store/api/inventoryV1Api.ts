@@ -90,24 +90,26 @@ export interface PurchaseOrder {
   receivedLineCount: number;
   units: number;
   linesTotalUsd: number;
+  /** Impuesto por unidad de la orden (USD); null si no tiene líneas o difieren. */
+  taxUnit: number | null;
   status: PurchaseOrderStatus;
   missing: PurchaseOrderMissing[];
   arrivalDate: string | null;
 }
 
+/** Una variante de una plantilla. `catalogItemId` solo si la plantilla tiene varios productos. */
 export interface PurchaseOrderLinePayload {
-  productName: string;
-  category: string;
+  templateId: string;
+  variantKey: string;
+  catalogItemId?: string;
   quantity: number;
   costUnit: number;
-  taxUnit: number;
-  catalogItemId?: string;
-  variantKey?: string;
 }
 
 export interface PurchaseOrderHeaderPayload {
   orderNumber: string;
   purchaseDate: string;
+  taxUnit?: number;
   supplierId?: string | null;
   newSupplier?: SupplierPayload;
   invoiceId?: string | null;
@@ -116,7 +118,8 @@ export interface PurchaseOrderHeaderPayload {
   notes?: string;
 }
 
-export interface NewPurchaseOrderPayload extends PurchaseOrderHeaderPayload {
+export interface NewPurchaseOrderPayload extends Omit<PurchaseOrderHeaderPayload, "taxUnit"> {
+  taxUnit: number;
   lines: PurchaseOrderLinePayload[];
 }
 
@@ -187,20 +190,6 @@ export interface InventoryKpis {
   totalEnviosUsd: number;
 }
 
-export interface NewPurchase {
-  purchaseDate: string;
-  lot: string;
-  code?: string;
-  productName: string;
-  category: string;
-  quantity: number;
-  costUnit: number;
-  taxUnit: number;
-  suggestedPrice?: number;
-  catalogItemId?: string;
-  variantKey?: string;
-}
-
 export interface ArrivalPayload {
   arrivalDate: string;
   shippingUnit: number;
@@ -236,10 +225,6 @@ export const inventoryApi = baseApi.injectEndpoints({
     getInventoryKpis: build.query<InventoryKpis, string | void>({
       query: (period) => withPeriod("/inventory/kpis", period || undefined),
       providesTags: ["Purchase"],
-    }),
-    createPurchase: build.mutation<Purchase, NewPurchase>({
-      query: (body) => ({ url: "/inventory/purchases", method: "POST", body }),
-      invalidatesTags: ["Purchase"],
     }),
     reportArrival: build.mutation<{ ok: boolean }, { id: string; body: ArrivalPayload }>({
       query: ({ id, body }) => ({ url: `/inventory/purchases/${id}/arrival`, method: "PATCH", body }),
@@ -287,9 +272,10 @@ export const inventoryApi = baseApi.injectEndpoints({
       query: () => "/inventory/orders",
       providesTags: ["Purchase"],
     }),
+    // Registrar crea (sin publicar) los productos de plantillas nuevas en el catálogo.
     createPurchaseOrder: build.mutation<PurchaseOrder, NewPurchaseOrderPayload>({
       query: (body) => ({ url: "/inventory/orders", method: "POST", body }),
-      invalidatesTags: ["Purchase"],
+      invalidatesTags: ["Purchase", "Templates", "AdminCatalog"],
     }),
     updatePurchaseOrder: build.mutation<PurchaseOrder, { id: string; body: PurchaseOrderHeaderPayload }>({
       query: ({ id, body }) => ({ url: `/inventory/orders/${id}`, method: "PUT", body }),
@@ -299,9 +285,9 @@ export const inventoryApi = baseApi.injectEndpoints({
       query: (id) => ({ url: `/inventory/orders/${id}`, method: "DELETE" }),
       invalidatesTags: ["Purchase"],
     }),
-    addPurchaseOrderLines: build.mutation<PurchaseOrder, { id: string; lines: PurchaseOrderLinePayload[] }>({
-      query: ({ id, lines }) => ({ url: `/inventory/orders/${id}/lines`, method: "POST", body: { lines } }),
-      invalidatesTags: ["Purchase"],
+    addPurchaseOrderLines: build.mutation<PurchaseOrder, { id: string; lines: PurchaseOrderLinePayload[]; taxUnit?: number }>({
+      query: ({ id, lines, taxUnit }) => ({ url: `/inventory/orders/${id}/lines`, method: "POST", body: { lines, taxUnit } }),
+      invalidatesTags: ["Purchase", "Templates", "AdminCatalog"],
     }),
     simulateOrderReceipt: build.mutation<ReceiptPreview, { id: string; body: Omit<ReceiveOrderPayload, "arrivalDate"> }>({
       query: ({ id, body }) => ({ url: `/inventory/orders/${id}/simulate-receipt`, method: "POST", body }),
@@ -350,7 +336,6 @@ export const {
   useGetAvailableInventoryQuery,
   useGetIncomingInventoryQuery,
   useGetInventoryKpisQuery,
-  useCreatePurchaseMutation,
   useReportArrivalMutation,
   useSimulateCostMutation,
   useUpdatePurchaseMutation,

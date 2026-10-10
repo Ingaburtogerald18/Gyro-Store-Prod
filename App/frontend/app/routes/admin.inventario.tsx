@@ -1,34 +1,35 @@
-// Inventario: barra de herramientas, métricas y la lista (órdenes de compra o
-// productos en bodega), en bloques sueltos sobre el crema.
+// Inventario: barra de herramientas, métricas y la lista (órdenes de compra,
+// productos en bodega o plantillas), en bloques sueltos sobre el crema.
 import { useMemo, useState } from "react";
 import { useSearchParams } from "@remix-run/react";
-import { Add01Icon, ShoppingBag01Icon, WarehouseIcon } from "@hugeicons/core-free-icons";
+import { Add01Icon, DashboardSquare01Icon, ShoppingBag01Icon, Tag01Icon, WarehouseIcon } from "@hugeicons/core-free-icons";
 import type { MetaFunction } from "@remix-run/node";
 
 import { PurchaseMetrics, StockMetrics } from "~/components/admin/inventory/InventoryMetrics";
-import { PurchaseForm } from "~/components/admin/inventory/PurchaseForm";
 import { PurchaseOrderForm } from "~/components/admin/inventory/PurchaseOrderForm";
 import { PurchasesTable, type PurchaseStatusFilter } from "~/components/admin/inventory/PurchasesTable";
 import { CurrentInventoryTable } from "~/components/admin/inventory/CurrentInventoryTable";
 import { PurchaseCommandPalette } from "~/components/admin/inventory/PurchaseCommandPalette";
+import { TemplatesView } from "~/components/admin/inventory/TemplatesView";
+import { CategoriesDialog } from "~/components/admin/inventory/CategoriesDialog";
 import { Kbd, ToolbarSearch, ToolbarSelect, useShortcut } from "~/components/admin/workspace";
 import { PageHeader } from "~/components/layout/PageHeader";
 import { Button } from "~/components/ui/button";
 import { Toolbar } from "~/components/ui/toolbar";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "~/components/ui/dialog";
 import { HugeIcon } from "~/components/ui/icon";
 import { pageTitle } from "~/lib/brand";
-import { useGetPurchaseOrdersQuery, useGetPurchasesQuery } from "~/store/api/inventoryV1Api";
+import { useGetPurchasesQuery } from "~/store/api/inventoryV1Api";
 
 export const meta: MetaFunction = () => {
   return [{ title: pageTitle("Inventario", { admin: true }) }];
 };
 
-type View = "purchases" | "inventory";
+type View = "purchases" | "inventory" | "templates";
 
 const VIEWS: { value: View; label: string; icon: typeof ShoppingBag01Icon }[] = [
   { value: "purchases", label: "Compras", icon: ShoppingBag01Icon },
   { value: "inventory", label: "Stock actual", icon: WarehouseIcon },
+  { value: "templates", label: "Plantillas", icon: DashboardSquare01Icon },
 ];
 type StockFilter = "current" | "outOfStock";
 
@@ -60,17 +61,17 @@ function buildMonthOptions() {
 export default function AdminInventario() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [purchaseFormOpen, setPurchaseFormOpen] = useState(false);
+  const [templateFormOpen, setTemplateFormOpen] = useState(false);
+  const [categoriesOpen, setCategoriesOpen] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [purchaseStatus, setPurchaseStatus] = useState<PurchaseStatusFilter>("all");
   const monthOptions = useMemo(buildMonthOptions, []);
 
   const { data: purchases = [] } = useGetPurchasesQuery();
-  // Sin la migración 0024 no hay órdenes de Alibaba: se registran compras sueltas.
-  const { data: ordersData } = useGetPurchaseOrdersQuery();
-  const ordersEnabled = ordersData?.available === true;
 
-  const view: View = searchParams.get("tab") === "inventory" ? "inventory" : "purchases";
+  const tab = searchParams.get("tab");
+  const view: View = tab === "inventory" || tab === "templates" ? tab : "purchases";
   // `?type=migrated` de un enlace viejo cae a "current": ese módulo ya no existe.
   const stockFilter: StockFilter = searchParams.get("type") === "outOfStock" ? "outOfStock" : "current";
   const period = searchParams.get("period") || "all";
@@ -94,11 +95,14 @@ export default function AdminInventario() {
     );
   }
 
-  const goToView = (v: View) =>
-    v === "inventory" ? updateParams({ tab: "inventory", type: stockFilter }) : updateParams({ tab: null, type: null });
+  const goToView = (v: View) => {
+    if (v === "inventory") updateParams({ tab: "inventory", type: stockFilter });
+    else updateParams({ tab: v === "templates" ? "templates" : null, type: null });
+  };
 
-  // "N" abre Registrar compra ("/" y Esc los maneja ToolbarSearch).
-  useShortcut("n", () => setPurchaseFormOpen(true));
+  // "N" abre la acción principal de la vista ("/" y Esc los maneja ToolbarSearch).
+  const openPrimary = () => (view === "templates" ? setTemplateFormOpen(true) : setPurchaseFormOpen(true));
+  useShortcut("n", openPrimary);
 
   return (
     <div className="flex flex-col gap-5">
@@ -107,9 +111,9 @@ export default function AdminInventario() {
         title="Inventario"
         className="mb-0"
         actions={
-          <Button onClick={() => setPurchaseFormOpen(true)} className="gap-2">
+          <Button onClick={openPrimary} className="gap-2">
             <HugeIcon icon={Add01Icon} size={16} strokeWidth={2} aria-hidden />
-            Registrar compra
+            {view === "templates" ? "Crear plantilla" : "Registrar compra"}
             <Kbd>N</Kbd>
           </Button>
         }
@@ -125,7 +129,10 @@ export default function AdminInventario() {
                 type="button"
                 variant="outline"
                 aria-pressed={active}
-                onClick={() => goToView(v.value)}
+                onClick={() => {
+                  if (v.value !== view) setSearch("");
+                  goToView(v.value);
+                }}
                 className="gap-2 px-3.5"
               >
                 <HugeIcon icon={v.icon} size={16} strokeWidth={2} aria-hidden className="text-primary-2" />
@@ -137,7 +144,7 @@ export default function AdminInventario() {
         <ToolbarSearch
           value={search}
           onChange={setSearch}
-          placeholder="Buscar producto, código u orden"
+          placeholder={view === "templates" ? "Buscar modelo" : "Buscar producto, código u orden"}
         />
         {view === "purchases" && (
           <ToolbarSelect
@@ -147,14 +154,22 @@ export default function AdminInventario() {
             options={monthOptions}
           />
         )}
-        {view === "purchases" ? (
+        {view === "purchases" && (
           <ToolbarSelect label="Estado" value={purchaseStatus} onChange={setPurchaseStatus} options={PURCHASE_STATUS} />
-        ) : (
+        )}
+        {view === "inventory" && (
           <ToolbarSelect label="Estado" value={stockFilter} onChange={(v) => updateParams({ type: v })} options={STOCK_STATUS} />
+        )}
+        {view === "templates" && (
+          <Button variant="outline" onClick={() => setCategoriesOpen(true)} className="gap-2">
+            <HugeIcon icon={Tag01Icon} size={16} strokeWidth={2} aria-hidden className="text-primary-2" />
+            Categorías
+          </Button>
         )}
       </Toolbar>
 
-      {view === "purchases" ? <PurchaseMetrics period={effectivePeriod} /> : <StockMetrics />}
+      {view === "purchases" && <PurchaseMetrics period={effectivePeriod} />}
+      {view === "inventory" && <StockMetrics />}
 
       {view === "purchases" ? (
         <PurchasesTable
@@ -163,6 +178,8 @@ export default function AdminInventario() {
           status={purchaseStatus}
           onViewStock={() => goToView("inventory")}
         />
+      ) : view === "templates" ? (
+        <TemplatesView search={search} createOpen={templateFormOpen} onCreateOpenChange={setTemplateFormOpen} />
       ) : (
         <section aria-labelledby="inventory-stock-title" className="space-y-3">
           <h2 id="inventory-stock-title" className="font-heading text-xl font-bold tracking-tight text-foreground md:text-2xl">
@@ -176,18 +193,8 @@ export default function AdminInventario() {
         </section>
       )}
 
-      <Dialog open={purchaseFormOpen} onOpenChange={setPurchaseFormOpen}>
-        <DialogContent className="max-h-[90vh] w-full overflow-y-auto sm:max-w-4xl">
-          <DialogHeader>
-            <DialogTitle>{ordersEnabled ? "Registrar compra de Alibaba" : "Registrar compra en China"}</DialogTitle>
-          </DialogHeader>
-          {ordersEnabled ? (
-            <PurchaseOrderForm onDone={() => setPurchaseFormOpen(false)} />
-          ) : (
-            <PurchaseForm onDone={() => setPurchaseFormOpen(false)} />
-          )}
-        </DialogContent>
-      </Dialog>
+      <PurchaseOrderForm open={purchaseFormOpen} onOpenChange={setPurchaseFormOpen} />
+      <CategoriesDialog open={categoriesOpen} onOpenChange={setCategoriesOpen} />
 
       {/* Paleta de compras (Ctrl+K). */}
       <PurchaseCommandPalette

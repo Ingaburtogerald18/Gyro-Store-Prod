@@ -12,7 +12,6 @@ import { BadRequestError } from '../utils/httpError';
 import { isMissingColumn } from './orderPersistence';
 import { fetchAllRows } from '../utils/fetchAllRows';
 import type {
-  NewPurchaseInput,
   UpdatePurchaseInput,
   ArrivalInput,
 } from '../../shared/schemas';
@@ -452,46 +451,6 @@ export async function getInventoryKpis(period?: string): Promise<InventoryKpis> 
 // ── Escritura (purchases) ──
 // ============================================================================
 
-export async function createPurchase(input: NewPurchaseInput): Promise<Purchase> {
-  const [generatedCode] = await nextPurchaseCodes(1);
-
-  // Compra de un producto del catálogo: el nombre y la categoría salen de ahí,
-  // y el lote nace vinculado a su variante (la tienda lo ve sin pasos extra).
-  const link: CatalogLink | null = input.catalogItemId
-    ? { catalogItemId: input.catalogItemId, variantKey: input.variantKey ?? '' }
-    : null;
-  const fromCatalog = link ? await nameForVariant(link) : null;
-
-  const row = {
-    code: generatedCode,
-    lot: input.lot,
-    product_name: fromCatalog?.productName ?? input.productName,
-    category: input.category || fromCatalog?.categoryId || null,
-    purchase_date: input.purchaseDate,
-    quantity: input.quantity,
-    costo_china_usd: input.costUnit,
-    impuesto_unit_usd: input.taxUnit,
-    suggested_price: input.suggestedPrice ?? null,
-    status: 'china',
-  };
-
-  let { data, error } = link
-    ? await db
-        .from('purchases')
-        .insert({ ...row, catalog_item_id: link.catalogItemId, variant_key: link.variantKey })
-        .select(PURCHASE_COLUMNS_LINKED)
-        .single()
-    : await db.from('purchases').insert(row).select(PURCHASE_COLUMNS).single();
-  // Sin la migración 0022 el lote se guarda igual, con el nombre del catálogo,
-  // pero sin el vínculo por columna.
-  if (link && isMissingColumn(error)) {
-    ({ data, error } = await db.from('purchases').insert(row).select(PURCHASE_COLUMNS).single());
-  }
-
-  if (error) throw error;
-  return toPurchase(data as unknown as PurchaseRow);
-}
-
 /**
  * Vincula (o desvincula, con `null`) un lote existente a una variante del
  * catálogo. Requiere la migración 0022.
@@ -587,6 +546,7 @@ export async function updatePurchase(
   id: string,
   rawInput: UpdatePurchaseInput,
   authorUid?: string,
+  opts: { fromOrder?: boolean } = {},
 ): Promise<boolean> {
   let input = rawInput;
   const { data: existing, error: fetchError } = await db
@@ -620,6 +580,9 @@ export async function updatePurchase(
     }
     if (input.purchaseDate !== undefined && input.purchaseDate !== existing.purchase_date) {
       throw new BadRequestError('La fecha de compra se cambia desde la orden, no desde una línea.');
+    }
+    if (!opts.fromOrder && input.taxUnit !== undefined && Number(input.taxUnit) !== Number(existing.impuesto_unit_usd ?? 0)) {
+      throw new BadRequestError('El impuesto es el mismo para toda la orden: cambialo desde «Editar orden».');
     }
   }
 
@@ -781,11 +744,8 @@ export async function deletePurchase(id: string, authorUid: string): Promise<boo
 // ============================================================================
 // ── FIFO ──
 // ============================================================================
-// LIMITACIÓN CONOCIDA: `purchases` no tiene ningún link a catalog_items/SKU
-// (ni `NewPurchase` lo manda), así que el único campo que agrupa varios lotes
-// del "mismo producto" es `product_name` (texto libre) — dos compras con el
-// nombre tipeado distinto no se agrupan. Reemplazar por un id real de
-// producto en cuanto exista el vínculo con el catálogo (doc 09 ítem 54).
+// Agrupa los lotes por `product_name`: por eso las compras nuevas toman el
+// nombre que ya usan los lotes de su variante (nameForVariant).
 //
 // Tampoco hay una función de Postgres con locking real (`FOR UPDATE`) como
 // pide doc 09 ("TX SQL"): sin acceso a Supabase para probar una función

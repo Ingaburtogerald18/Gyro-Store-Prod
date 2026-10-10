@@ -1,19 +1,19 @@
-// Encabezado de una orden de compra de Alibaba: número, fecha, proveedor,
-// factura y fotos del empaque. Lo usan "Registrar compra" y "Editar orden".
+// Encabezado de una orden de compra de Alibaba: número, fecha, impuesto por
+// unidad, proveedor, factura y fotos del empaque. Lo usan "Registrar compra" y
+// "Editar orden".
 //
-// Las compras se cargan producto por producto y varios productos comparten
-// orden: en "Registrar compra" el número sugiere las órdenes ya registradas, y
-// si coincide con una, el resto del encabezado se reemplaza por `existingSlot`
-// (el producto se agrega a esa orden en vez de crear otra).
+// En "Registrar compra" el número sugiere las órdenes ya registradas, y si
+// coincide con una, el resto del encabezado se reemplaza por `existingSlot`
+// (los productos se agregan a esa orden en vez de crear otra).
 //
 // La factura no es de la orden sino de la compra: Alibaba puede partir un pago
 // en varias órdenes con UNA factura. Se carga una vez ("Factura nueva") y las
 // otras órdenes la eligen de la lista; su total se compara contra la suma de
 // todas las órdenes que cubre.
 //
-// Estado propio y plano (no react-hook-form): el proveedor y la factura pueden
-// ser uno guardado o uno nuevo, y el archivo de la factura se sube al elegirlo,
-// así que el formulario arma el payload a mano al guardar.
+// Componente controlado: el formulario que lo usa guarda el estado. El
+// proveedor y la factura pueden ser uno guardado o uno nuevo, y el archivo de
+// la factura se sube al elegirlo, así que el payload se arma al guardar.
 import { useMemo, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 
@@ -22,6 +22,7 @@ import { Combobox } from "~/components/ui/combobox";
 import { DatePicker } from "~/components/ui/date-picker";
 import { Field, FieldDescription, FieldError, FieldLabel } from "~/components/ui/field";
 import { Input } from "~/components/ui/input";
+import { MoneyInput } from "~/components/ui/money-input";
 import { NativeSelect, NativeSelectOption } from "~/components/ui/native-select";
 import { Spinner } from "~/components/ui/spinner";
 import { Textarea } from "~/components/ui/textarea";
@@ -81,6 +82,8 @@ function invoiceLabel(invoice: PurchaseInvoice): string {
 export interface OrderHeaderState {
   orderNumber: string;
   purchaseDate: string;
+  /** Impuesto por unidad (USD), el mismo para todos los productos de la orden. */
+  taxUnit: string;
   /** id de un proveedor guardado, NEW_SUPPLIER o "" (sin proveedor). */
   supplierChoice: string;
   newSupplier: { name: string; contact: string; storeUrl: string };
@@ -91,12 +94,13 @@ export interface OrderHeaderState {
   notes: string;
 }
 
-export type OrderHeaderErrors = Partial<Record<"orderNumber" | "purchaseDate" | "supplier" | "invoice", string>>;
+export type OrderHeaderErrors = Partial<Record<"orderNumber" | "purchaseDate" | "taxUnit" | "supplier" | "invoice", string>>;
 
 export function emptyOrderHeader(): OrderHeaderState {
   return {
     orderNumber: "",
     purchaseDate: "",
+    taxUnit: "",
     supplierChoice: "",
     newSupplier: { name: "", contact: "", storeUrl: "" },
     invoiceChoice: "",
@@ -110,6 +114,7 @@ export function orderHeaderFrom(order: PurchaseOrder): OrderHeaderState {
   return {
     orderNumber: order.orderNumber,
     purchaseDate: order.purchaseDate,
+    taxUnit: order.taxUnit == null ? "" : String(order.taxUnit),
     supplierChoice: order.supplier?.id ?? "",
     newSupplier: { name: "", contact: "", storeUrl: "" },
     invoiceChoice: order.invoice?.id ?? "",
@@ -123,6 +128,8 @@ export function validateOrderHeader(state: OrderHeaderState, { requireSupplier }
   const errors: OrderHeaderErrors = {};
   if (state.orderNumber.trim().length < 3) errors.orderNumber = "Escribí el número de orden de Alibaba.";
   if (!state.purchaseDate) errors.purchaseDate = "Elegí la fecha de compra.";
+  const tax = state.taxUnit.trim();
+  if (tax !== "" && !(Number(tax) >= 0)) errors.taxUnit = "Revisá el impuesto: un número desde 0.";
   if (state.supplierChoice === NEW_SUPPLIER && !state.newSupplier.name.trim()) {
     errors.supplier = "Escribí el nombre del proveedor.";
   } else if (requireSupplier && !state.supplierChoice) {
@@ -148,9 +155,11 @@ export async function orderHeaderPayload(state: OrderHeaderState): Promise<Purch
           },
         }
       : { supplierId: state.supplierChoice || null };
+  const tax = state.taxUnit.trim();
   return {
     orderNumber: state.orderNumber.trim(),
     purchaseDate: state.purchaseDate,
+    ...(tax === "" ? {} : { taxUnit: Number(tax) }),
     ...supplier,
     ...(state.invoiceChoice === NEW_INVOICE
       ? { newInvoice: invoicePayload(state.newInvoice) }
@@ -186,6 +195,7 @@ export function OrderHeaderFields({
   existingSlot,
   invoices = [],
   currentInvoiceId = null,
+  taxHelp = "El mismo para todos los productos de la orden. Vacío = sin impuesto.",
 }: {
   value: OrderHeaderState;
   onChange: (patch: Partial<OrderHeaderState>) => void;
@@ -207,6 +217,8 @@ export function OrderHeaderFields({
   invoices?: PurchaseInvoice[];
   /** La factura que la orden ya tiene (edición): su suma ya cuenta esta orden. */
   currentInvoiceId?: string | null;
+  /** Ayuda del impuesto: en la edición avisa que cambiarlo recalcula lo recibido. */
+  taxHelp?: string;
 }) {
   const optionsByNumber = useMemo(
     () => new Map((orderOptions ?? []).map((o) => [o.orderNumber, o])),
@@ -265,7 +277,7 @@ export function OrderHeaderFields({
         {existingOrder ? (
           <Field>
             <FieldLabel>Fecha de compra</FieldLabel>
-            <p className="flex h-9 items-center text-sm text-foreground">{formatLongDate(existingOrder.purchaseDate)}</p>
+            <p className="flex h-11 items-center text-sm text-foreground">{formatLongDate(existingOrder.purchaseDate)}</p>
           </Field>
         ) : (
           <Field data-invalid={!!errors.purchaseDate}>
@@ -277,6 +289,27 @@ export function OrderHeaderFields({
           </Field>
         )}
       </div>
+
+      {existingOrder && existingOrder.lineCount > 0 ? (
+        <Field>
+          <FieldLabel>Impuesto por unidad</FieldLabel>
+          <p className="flex h-11 items-center text-sm text-foreground">
+            {existingOrder.taxUnit == null ? "Distinto en cada producto" : formatUsd(existingOrder.taxUnit, 4)}
+          </p>
+          <FieldDescription>
+            {existingOrder.taxUnit == null
+              ? "Lo que agregues va sin impuesto hasta que lo unifiques en «Editar orden»."
+              : "El de la orden. Se cambia desde «Editar orden»."}
+          </FieldDescription>
+        </Field>
+      ) : (
+        <Field data-invalid={!!errors.taxUnit} className="sm:max-w-xs">
+          <FieldLabel htmlFor="order-tax">Impuesto por unidad</FieldLabel>
+          <MoneyInput id="order-tax" value={value.taxUnit} onChange={(taxUnit) => onChange({ taxUnit })} invalid={!!errors.taxUnit} placeholder="0" />
+          <FieldDescription>{taxHelp}</FieldDescription>
+          <FieldError errors={[errors.taxUnit ? { message: errors.taxUnit } : undefined]} />
+        </Field>
+      )}
 
       {existingOrder ? (
         existingSlot

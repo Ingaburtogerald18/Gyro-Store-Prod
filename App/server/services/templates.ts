@@ -1,26 +1,24 @@
-// Plantillas de producto: el "molde" reutilizable de una familia de artículos.
-//
-// Solo describe ejes de variante (Color, Conector, Capacidad…) y specs técnicas
-// base. NO tiene precio, imágenes ni stock — eso vive en el ítem de catálogo que
-// la referencia. Portado de `server/routes/templates.js` de v1.
-//
-// Varios productos comparten un mismo molde: por eso el nombre del molde
-// ("Plantilla Audífonos KZ") y el del producto ("KZ ZSN Pro X") son campos
-// distintos en tablas distintas.
+// Plantillas de producto: una por modelo (KZ EDX Pro, KZ Castor…). Nombre,
+// descripción y categoría son los que muestra la tienda; la nota interna no se
+// publica. Los ejes (Color, Micrófono…) arman las variantes y no hay precio,
+// fotos ni stock: eso vive en el producto del catálogo que la referencia.
 import { db } from '../supabase';
 import type { AdminTemplate, SpecRow, TemplateAxis, TemplateInput } from '../../shared/schemas';
 import { normalizeAxes, normalizeSpecs } from './catalogPresenter';
 
-const TEMPLATE_COLUMNS = 'id, name, description, category_id, axes, specs, updated_at';
+const TEMPLATE_COLUMNS =
+  'id, name, description, internal_note, category_id, axes, specs, updated_at, products:catalog_items(id, name, published)';
 
 interface TemplateRow {
   id: string;
   name: string | null;
   description: string | null;
+  internal_note: string | null;
   category_id: string | null;
   axes: unknown;
   specs: unknown;
   updated_at: string;
+  products: { id: string; name: string | null; published: boolean }[] | null;
 }
 
 function toAdminTemplate(row: TemplateRow): AdminTemplate {
@@ -28,10 +26,12 @@ function toAdminTemplate(row: TemplateRow): AdminTemplate {
     id: row.id,
     name: row.name ?? 'Sin nombre',
     description: row.description ?? '',
+    internalNote: row.internal_note ?? '',
     categoryId: row.category_id,
     axes: normalizeAxes(row.axes),
     specs: normalizeSpecs(row.specs),
     updatedAt: row.updated_at,
+    products: (row.products ?? []).map((p) => ({ id: p.id, name: p.name ?? row.name ?? 'Sin nombre', published: p.published })),
   };
 }
 
@@ -59,7 +59,8 @@ function toRow(input: TemplateInput) {
   return {
     name: input.name.trim(),
     description: input.description?.trim() ?? '',
-    category_id: input.categoryId ?? null,
+    internal_note: input.internalNote?.trim() ?? '',
+    category_id: input.categoryId,
     axes: cleanAxes(input.axes),
     specs: cleanSpecs(input.specs),
   };

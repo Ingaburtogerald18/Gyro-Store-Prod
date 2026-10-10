@@ -1,13 +1,18 @@
 // Diálogos sobre una orden ya registrada: completar o corregir sus datos
 // (también las órdenes viejas, que nacen sin proveedor, factura ni fotos) y
 // agregarle productos que faltaron al cargarla.
-import { useEffect, useMemo, useState } from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
+import { z } from "zod";
 
+import type { AdminTemplate } from "@shared/schemas";
 import { Button } from "~/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "~/components/ui/dialog";
-import { Spinner } from "~/components/ui/spinner";
-import { useGetAdminCatalogQuery } from "~/store/api/catalogAdminApi";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "~/components/ui/dialog";
+import { DiscardChangesDialog, fieldMessages, FormErrorBanner, serverErrorMessage } from "~/components/ui/form-feedback";
+import { formatUsd } from "~/lib/formatters";
+import { useGetCategoriesQuery, useGetTemplatesQuery } from "~/store/api/catalogAdminApi";
 import {
   useAddPurchaseOrderLinesMutation,
   useGetPurchaseOrdersQuery,
@@ -17,12 +22,12 @@ import {
   type PurchaseOrder,
 } from "~/store/api/inventoryV1Api";
 import {
+  emptyOrderHeader,
   invoicesFromOrders,
   orderHeaderFrom,
   orderHeaderPayload,
   OrderHeaderFields,
   validateOrderHeader,
-  type OrderHeaderErrors,
   type OrderHeaderState,
 } from "./OrderHeaderFields";
 import {
@@ -41,141 +46,228 @@ export const MISSING_LABELS: Record<PurchaseOrder["missing"][number], string> = 
   photos: "fotos del empaque",
 };
 
+const focusFirstError = (form: HTMLFormElement | null) =>
+  requestAnimationFrame(() => form?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus());
+
+const headerSchema = z.object({ header: z.custom<OrderHeaderState>() }).superRefine((values, ctx) => {
+  for (const [field, message] of Object.entries(validateOrderHeader(values.header, { requireSupplier: false })))
+    ctx.addIssue({ code: "custom", path: ["header", field], message });
+});
+
+function taxHelpFor(order: PurchaseOrder): string | undefined {
+  if (order.lineCount === 0) return undefined;
+  if (order.taxUnit == null)
+    return "Hoy cada producto tiene uno distinto. Si escribís uno, se aplica a todos y se recalcula el costo de lo que ya llegó.";
+  return "El mismo para todos los productos. Si lo cambiás, se recalcula el costo de lo que ya llegó.";
+}
+
 export function EditPurchaseOrderDialog({ order, onClose }: { order: PurchaseOrder | null; onClose: () => void }) {
   const [updateOrder] = useUpdatePurchaseOrderMutation();
   const { data: suppliers = [] } = useGetSuppliersQuery(undefined, { skip: !order });
   const { data: ordersData } = useGetPurchaseOrdersQuery(undefined, { skip: !order });
   const invoices = useMemo(() => invoicesFromOrders(ordersData?.orders ?? []), [ordersData]);
-  const [header, setHeader] = useState<OrderHeaderState | null>(null);
-  const [errors, setErrors] = useState<OrderHeaderErrors>({});
-  const [saving, setSaving] = useState(false);
+  const [serverError, setServerError] = useState<string | null>(null);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
+
+  const {
+    control,
+    handleSubmit,
+    reset,
+    getValues,
+    formState: { errors, isDirty, isSubmitting },
+  } = useForm<{ header: OrderHeaderState }>({ resolver: zodResolver(headerSchema), defaultValues: { header: emptyOrderHeader() } });
 
   useEffect(() => {
-    setHeader(order ? orderHeaderFrom(order) : null);
-    setErrors({});
-  }, [order]);
+    if (!order) return;
+    reset({ header: orderHeaderFrom(order) });
+    setServerError(null);
+  }, [order, reset]);
 
-  async function submit() {
-    if (!order || !header || saving) return;
-    const found = validateOrderHeader(header, { requireSupplier: false });
-    setErrors(found);
-    if (Object.keys(found).length) {
-      toast.error("Revisá los campos marcados en rojo.");
-      return;
-    }
-    setSaving(true);
+  function requestClose(next: boolean) {
+    if (next) return;
+    if (isDirty && !isSubmitting) setConfirmDiscard(true);
+    else onClose();
+  }
+
+  async function onSubmit({ header }: { header: OrderHeaderState }) {
+    if (!order) return;
+    setServerError(null);
     try {
-      const updated = await updateOrder({ id: order.id, body: await orderHeaderPayload(header) }).unwrap();
-      toast.success(
-        updated.missing.length
-          ? `Orden guardada. Todavía falta: ${updated.missing.map((m) => MISSING_LABELS[m]).join(", ")}.`
-          : "Orden guardada. Ya tiene todos sus datos.",
-      );
+      const body = await orderHeaderPayload(header);
+      // Vaciar el impuesto de una orden que tenía uno es dejarla sin impuesto.
+      if (body.taxUnit === undefined && order.taxUnit != null) body.taxUnit = 0;
+      const updated = await updateOrder({ id: order.id, body }).unwrap();
+      toast.success("Orden guardada", {
+        description: updated.missing.length
+          ? `Todavía falta: ${updated.missing.map((m) => MISSING_LABELS[m]).join(", ")}.`
+          : "Ya tiene todos sus datos.",
+      });
       onClose();
-    } catch (err: any) {
-      toast.error(err?.data?.error || err?.message || "No se pudo guardar la orden.");
-    } finally {
-      setSaving(false);
+    } catch (err) {
+      setServerError(serverErrorMessage(err, "No se pudo guardar la orden."));
     }
   }
 
   return (
-    <Dialog open={!!order} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-h-[90vh] w-full overflow-y-auto sm:max-w-3xl">
-        <DialogHeader>
-          <DialogTitle>Orden {order?.orderNumber}</DialogTitle>
-          {order && order.missing.length > 0 && (
-            <DialogDescription>
-              Falta: {order.missing.map((m) => MISSING_LABELS[m]).join(", ")}.
-            </DialogDescription>
-          )}
-        </DialogHeader>
-        {header && order && (
-          <OrderHeaderFields
-            value={header}
-            onChange={(patch) => setHeader((prev) => (prev ? { ...prev, ...patch } : prev))}
-            errors={errors}
-            suppliers={suppliers}
-            allowNoSupplier
-            numberProvisional={order.numberProvisional}
-            linesTotalUsd={order.linesTotalUsd}
-            invoices={invoices}
-            currentInvoiceId={order.invoice?.id ?? null}
-          />
-        )}
-        <div className="flex justify-end gap-2 border-t pt-4">
-          <Button type="button" variant="cancel" onClick={onClose}>
-            Cancelar
-          </Button>
-          <Button type="button" onClick={submit} disabled={saving}>
-            {saving && <Spinner className="mr-2" />}
-            Guardar orden
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
+    <>
+      <Dialog open={!!order} onOpenChange={requestClose}>
+        <DialogContent className="max-h-[90vh] w-full overflow-y-auto sm:max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>
+              {order?.missing.length ? "Completar datos de la orden" : "Editar orden"} {order?.orderNumber}
+            </DialogTitle>
+            {order && order.missing.length > 0 && (
+              <DialogDescription>Falta: {order.missing.map((m) => MISSING_LABELS[m]).join(", ")}.</DialogDescription>
+            )}
+          </DialogHeader>
+
+          <form ref={formRef} onSubmit={handleSubmit(onSubmit, () => focusFirstError(formRef.current))} className="flex flex-col gap-5" noValidate>
+            <FormErrorBanner message={serverError} />
+            {order && (
+              <Controller
+                control={control}
+                name="header"
+                render={({ field }) => (
+                  <OrderHeaderFields
+                    value={field.value}
+                    onChange={(patch) => field.onChange({ ...getValues("header"), ...patch })}
+                    errors={fieldMessages(errors.header)}
+                    suppliers={suppliers}
+                    allowNoSupplier
+                    numberProvisional={order.numberProvisional}
+                    linesTotalUsd={order.linesTotalUsd}
+                    invoices={invoices}
+                    currentInvoiceId={order.invoice?.id ?? null}
+                    taxHelp={taxHelpFor(order)}
+                  />
+                )}
+              />
+            )}
+            <DialogFooter className="border-t pt-4">
+              <Button type="button" variant="cancel" onClick={() => requestClose(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? "Guardando…" : "Guardar"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <DiscardChangesDialog open={confirmDiscard} onOpenChange={setConfirmDiscard} onDiscard={onClose} />
+    </>
   );
+}
+
+function orderTaxText(order: PurchaseOrder): string {
+  if (order.taxUnit == null) return order.lineCount ? "sin impuesto, porque sus productos tienen distintos" : "sin impuesto";
+  return order.taxUnit === 0 ? "sin impuesto" : `${formatUsd(order.taxUnit, 4)} de impuesto por unidad`;
+}
+
+function linesSchema(templates: AdminTemplate[]) {
+  return z.object({ lines: z.array(z.custom<OrderLineState>()) }).superRefine((values, ctx) => {
+    const lineErrors = validateOrderLines(values.lines, templates);
+    values.lines.forEach((line, index) => {
+      for (const [field, message] of Object.entries(lineErrors[line.key] ?? {}))
+        ctx.addIssue({ code: "custom", path: ["lines", index, field], message });
+    });
+  });
 }
 
 export function AddOrderLinesDialog({ order, onClose }: { order: PurchaseOrder | null; onClose: () => void }) {
   const [addLines] = useAddPurchaseOrderLinesMutation();
   const { data: purchases = [] } = useGetPurchasesQuery(undefined, { skip: !order });
-  const { data: catalog = [] } = useGetAdminCatalogQuery(undefined, { skip: !order });
-  const [lines, setLines] = useState<OrderLineState[]>(() => [emptyOrderLine()]);
-  const [errors, setErrors] = useState<OrderLineErrors>({});
-  const [saving, setSaving] = useState(false);
+  const { data: templates = [] } = useGetTemplatesQuery(undefined, { skip: !order });
+  const { data: categories = [] } = useGetCategoriesQuery(undefined, { skip: !order });
+  const [serverError, setServerError] = useState<string | null>(null);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
+
+  const resolver = useMemo(() => zodResolver(linesSchema(templates)), [templates]);
+  const {
+    control,
+    handleSubmit,
+    reset,
+    watch,
+    formState: { errors, isDirty, isSubmitting },
+  } = useForm<{ lines: OrderLineState[] }>({ resolver, defaultValues: { lines: [emptyOrderLine()] } });
 
   useEffect(() => {
-    if (order) {
-      setLines([emptyOrderLine()]);
-      setErrors({});
-    }
-  }, [order]);
+    if (!order) return;
+    reset({ lines: [emptyOrderLine()] });
+    setServerError(null);
+  }, [order, reset]);
 
-  async function submit() {
-    if (!order || saving) return;
-    const found = validateOrderLines(lines, catalog);
-    setErrors(found);
-    if (Object.keys(found).length) {
-      toast.error("Revisá los campos marcados en rojo.");
-      return;
-    }
-    setSaving(true);
+  const lines = watch("lines");
+  const lineErrors: OrderLineErrors = {};
+  lines.forEach((line, index) => {
+    const messages = fieldMessages(errors.lines?.[index]);
+    if (Object.keys(messages).length) lineErrors[line.key] = messages;
+  });
+  // El servidor usa el impuesto de la orden; si sus productos tienen distintos, lo nuevo va con 0.
+  const taxUnit = order?.taxUnit ?? 0;
+
+  function requestClose(next: boolean) {
+    if (next) return;
+    if (isDirty && !isSubmitting) setConfirmDiscard(true);
+    else onClose();
+  }
+
+  async function onSubmit(values: { lines: OrderLineState[] }) {
+    if (!order) return;
+    setServerError(null);
     try {
-      await addLines({ id: order.id, lines: orderLinesPayload(lines) }).unwrap();
-      toast.success(`Se ${lines.length === 1 ? "agregó 1 producto" : `agregaron ${lines.length} productos`} a la orden ${order.orderNumber}.`);
+      await addLines({ id: order.id, lines: orderLinesPayload(values.lines, templates) }).unwrap();
+      toast.success(values.lines.length === 1 ? "Producto agregado" : "Productos agregados", {
+        description: `Orden ${order.orderNumber}: ${values.lines.length === 1 ? "1 producto" : `${values.lines.length} productos`} en tránsito.`,
+      });
       onClose();
-    } catch (err: any) {
-      toast.error(err?.data?.error || "No se pudieron agregar los productos.");
-    } finally {
-      setSaving(false);
+    } catch (err) {
+      setServerError(serverErrorMessage(err, "No se pudieron agregar los productos."));
     }
   }
 
   return (
-    <Dialog open={!!order} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-h-[90vh] w-full overflow-y-auto sm:max-w-3xl">
-        <DialogHeader>
-          <DialogTitle>Agregar productos · Orden {order?.orderNumber}</DialogTitle>
-          <DialogDescription>Entran "En tránsito", con la fecha de la orden.</DialogDescription>
-        </DialogHeader>
-        <OrderLinesEditor
-          lines={lines}
-          onChange={setLines}
-          errors={errors}
-          purchases={purchases}
-          alreadyInOrder={order ? purchases.filter((p) => p.orderId === order.id) : []}
-        />
-        <div className="flex justify-end gap-2 border-t pt-4">
-          <Button type="button" variant="cancel" onClick={onClose}>
-            Cancelar
-          </Button>
-          <Button type="button" onClick={submit} disabled={saving}>
-            {saving && <Spinner className="mr-2" />}
-            Agregar a la orden
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
+    <>
+      <Dialog open={!!order} onOpenChange={requestClose}>
+        <DialogContent className="max-h-[90vh] w-full overflow-y-auto sm:max-w-5xl">
+          <DialogHeader>
+            <DialogTitle>Agregar productos a la orden {order?.orderNumber}</DialogTitle>
+            {order && <DialogDescription>Entran en tránsito, con la fecha de la orden y {orderTaxText(order)}.</DialogDescription>}
+          </DialogHeader>
+
+          <form ref={formRef} onSubmit={handleSubmit(onSubmit, () => focusFirstError(formRef.current))} className="flex flex-col gap-5" noValidate>
+            <FormErrorBanner message={serverError} />
+            <Controller
+              control={control}
+              name="lines"
+              render={({ field }) => (
+                <OrderLinesEditor
+                  lines={field.value}
+                  onChange={field.onChange}
+                  errors={lineErrors}
+                  templates={templates}
+                  categories={categories}
+                  taxUnit={taxUnit}
+                  alreadyInOrder={order ? purchases.filter((p) => p.orderId === order.id) : []}
+                />
+              )}
+            />
+            <DialogFooter className="border-t pt-4">
+              <Button type="button" variant="cancel" onClick={() => requestClose(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? "Guardando…" : "Agregar a la orden"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <DiscardChangesDialog open={confirmDiscard} onOpenChange={setConfirmDiscard} onDiscard={onClose} />
+    </>
   );
 }

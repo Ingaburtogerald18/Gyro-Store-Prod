@@ -12,7 +12,6 @@ import { asyncHandler } from '../utils/asyncHandler';
 import { requireAdmin } from '../middleware/auth';
 import { parseUuidParam } from '../utils/params';
 import {
-  newPurchaseInputSchema,
   updatePurchaseInputSchema,
   arrivalInputSchema,
   newPurchaseOrderInputSchema,
@@ -29,7 +28,6 @@ import {
   getAvailableInventory,
   getIncomingInventory,
   getInventoryKpis,
-  createPurchase,
   reportArrival,
   updatePurchase,
   revertPurchase,
@@ -102,14 +100,6 @@ router.get(
   '/kpis',
   asyncHandler(async (req, res) => {
     res.json(await getInventoryKpis(parsePeriod(req.query.period)));
-  }),
-);
-
-router.post(
-  '/purchases',
-  asyncHandler(async (req, res) => {
-    const data = newPurchaseInputSchema.parse(req.body);
-    res.status(201).json(await createPurchase(data));
   }),
 );
 

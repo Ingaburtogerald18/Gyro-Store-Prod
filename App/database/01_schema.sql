@@ -120,18 +120,20 @@ create table categories (
   updated_at  timestamptz not null default now()
 );
 
--- Molde reutilizable. `axes` es un ARRAY ORDENADO [{ key, label, options[],
--- isColor }]: el orden arma el nombre de la combinación ("Negro / Con
--- micrófono"), que es la llave de `catalog_items.variant_mappings`.
+-- Una plantilla por modelo (KZ EDX Pro): nombre, descripción y categoría son
+-- los que muestra la tienda. `axes` es un ARRAY ORDENADO [{ key, label,
+-- options[], isColor }]: el orden arma el nombre de la combinación ("Negro /
+-- Con micrófono"), que es la llave de `catalog_items.variant_mappings`.
 create table templates (
-  id           uuid primary key default gen_random_uuid(),
-  name         text,
-  description  text,
-  category_id  uuid references categories(id) on delete set null,
-  axes         jsonb default '[]',
-  specs        jsonb default '{}',
-  created_at   timestamptz not null default now(),
-  updated_at   timestamptz not null default now()
+  id             uuid primary key default gen_random_uuid(),
+  name           text,
+  description    text,                       -- la muestra la tienda
+  internal_note  text not null default '',   -- no se publica
+  category_id    uuid references categories(id) on delete set null,
+  axes           jsonb default '[]',
+  specs          jsonb default '{}',
+  created_at     timestamptz not null default now(),
+  updated_at     timestamptz not null default now()
 );
 
 create index templates_category_id_idx on templates (category_id);

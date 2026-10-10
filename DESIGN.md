@@ -200,7 +200,7 @@ Los dos:
 
 - Voseo en todo, también en el panel: «Elegí», «Registrá», «Escribí».
 - Botones con verbo. Títulos cortos, sin subtítulo que repita el título.
-- Mismas palabras en todo el proyecto: Orden de compra (no Lote), Producto, Variante, Pedido web, Venta, Catálogo, Tienda, Proveedor.
+- Mismas palabras en todo el proyecto: Orden de compra (no Lote), Plantilla (una por modelo), Producto, Variante, Pedido web, Venta, Catálogo, Tienda, Proveedor.
 - Nada en inglés si hay palabra en español.
 
 ## 12. Accesibilidad
@@ -271,3 +271,4 @@ Lo que este documento pide y el código todavía no tiene. Cada línea se borra 
 | 2026-10-10 | Orden de compra: «Recibir» y el menú ⋮ se juntan en un solo botón amarillo «Acciones» |
 | 2026-10-10 | Lo elegido con texto bordó (en oscuro, fondo `#26272a`); barra de herramientas con borde normal; fila de tabla en rosa al pasar el mouse; contorno del botón amarillo `#111111` en oscuro; ofertas con borde bordó; precios en bordó; gráficos de Reportería en bordó, sin verde |
 | 2026-10-10 | Rediseño aprobado del editor de portada: estructura, tienda e inspector fijo, edición directa del borrador, deshacer/rehacer, composiciones preparadas y publicación confirmada. Excepción a los formularios de banner en ventana; el carrito sigue en ventana |
+| 2026-10-10 | Una plantilla por modelo: la tienda muestra su nombre, descripción y categoría; la nota interna no se publica. Plantillas y categorías se administran en Inventario (vista Plantillas), ya no en Catálogo |

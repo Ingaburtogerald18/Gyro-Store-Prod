@@ -320,8 +320,10 @@ export function toCatalogDetail(
     }
   }
 
+  const description = item.template?.description?.trim();
   return {
     ...toCatalogProduct(item, stockByCode),
+    ...(description ? { description } : {}),
     // Solo las opciones que ESTE producto ofrece (`axis_options` recorta el
     // molde): una opción del molde que no se vende no es «agotada», no existe.
     axes: axes.map((axis) => ({
@@ -355,9 +357,9 @@ export function toCatalogProduct(
   return {
     id: item.id,
     name: item.template?.name ?? 'Producto',
-    // Ahora resolvemos la categoría desde el join embebido
-    category: item.category?.name ?? '',
-    categoryId: item.category_id,
+    // La categoría es la de la plantilla; las plantillas viejas sin categoría usan la del producto.
+    category: item.template?.category?.name ?? item.category?.name ?? '',
+    categoryId: item.template?.category_id ?? item.category_id,
     images,
     ...summary,
     specs: normalizeSpecs(item.template?.specs),
