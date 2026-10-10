@@ -1,4 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import { FormLayout, FormDialogContent, FormActions, FormBody } from '~/components/ui/form-layout';
+import { FormErrorBanner, serverErrorMessage } from '~/components/ui/form-feedback';
+import { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -26,7 +28,7 @@ import {
 } from '~/components/ui/select';
 import { DatePicker, toYmd, toLocalNoonIso } from '~/components/ui/date-picker';
 import { Spinner } from '~/components/ui/spinner';
-import { formatCordobas, errMsg } from '~/lib/formatters';
+import { formatCordobas } from '~/lib/formatters';
 import { cn } from '~/lib/utils';
 import {
   useCreateExpenseMutation,
@@ -101,6 +103,7 @@ export function ExpenseFormDialog({
   onSuccess?: () => void;
 }) {
   const isEdit = !!expense;
+  const [serverError, setServerError] = useState<string | null>(null);
   const [createExpense, { isLoading: creating }] = useCreateExpenseMutation();
   const [updateExpense, { isLoading: updating }] = useUpdateExpenseMutation();
   const [previewExpense, { isLoading: previewing }] = usePreviewExpenseMutation();
@@ -128,6 +131,7 @@ export function ExpenseFormDialog({
     if (open) {
       reset(valuesFor(expense, defaultPozo));
       setPending(null);
+      setServerError(null);
     }
   }, [open, expense, defaultPozo, reset]);
 
@@ -164,6 +168,7 @@ export function ExpenseFormDialog({
   });
 
   async function save(body: CreateExpensePayload) {
+    setServerError(null);
     try {
       if (expense) {
         await updateExpense({ id: expense.id, body }).unwrap();
@@ -175,7 +180,7 @@ export function ExpenseFormDialog({
       onOpenChange(false);
       onSuccess?.();
     } catch (err) {
-      toast.error(errMsg(err, isEdit ? 'No se pudo actualizar el gasto.' : 'No se pudo registrar el gasto.'));
+      setServerError(serverErrorMessage(err, isEdit ? 'No se pudo actualizar el gasto.' : 'No se pudo registrar el gasto.'));
     }
   }
 
@@ -219,6 +224,7 @@ export function ExpenseFormDialog({
           )}
 
           <DialogFooter>
+            <FormErrorBanner message={serverError} />
             <Button type="button" variant="outline" onClick={() => setPending(null)} disabled={isLoading}>
               Volver
             </Button>
@@ -234,152 +240,181 @@ export function ExpenseFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
-        <form onSubmit={onSubmit} noValidate className="space-y-5">
+      <FormDialogContent>
+        <FormLayout onSubmit={onSubmit} noValidate>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <HugeIcon icon={Coins01Icon} size={18} strokeWidth={2} className="text-primary-2" aria-hidden />
+              <HugeIcon
+                icon={Coins01Icon}
+                size={18}
+                strokeWidth={2}
+                className="text-primary-2"
+                aria-hidden
+              />
               {isEdit ? 'Editar gasto' : 'Registrar gasto'}
             </DialogTitle>
             <DialogDescription>
-              Se paga con su pozo. Si no alcanza, toma de la bolsa extra, de los otros pozos y, al final, de la ganancia.
+              Se paga con su pozo. Si no alcanza, toma de la bolsa extra, de los otros pozos y, al
+              final, de la ganancia.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4">
-            <Field>
-              <FieldLabel htmlFor="expense-pozo">Pozo</FieldLabel>
-              <Controller
-                control={control}
-                name="pozo"
-                render={({ field }) => (
-                  <Select value={field.value} onValueChange={field.onChange} disabled={isLoading}>
-                    <SelectTrigger id="expense-pozo" className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {POZO_OPTIONS.map((opt) => (
-                        <SelectItem key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-              {pozoHint && <FieldDescription>{pozoHint}</FieldDescription>}
-            </Field>
-
-            <Field>
-              <FieldLabel>Moneda</FieldLabel>
-              <Controller
-                control={control}
-                name="moneda"
-                render={({ field }) => (
-                  <div role="group" aria-label="Moneda" className="flex gap-2">
-                    {(['COR', 'USD'] as const).map((m) => (
-                      <Button
-                        key={m}
-                        type="button"
-                        variant="outline"
-                        aria-pressed={field.value === m}
-                        className="flex-1"
-                        onClick={() => field.onChange(m)}
-                        disabled={isLoading}
-                      >
-                        {m === 'COR' ? 'C$ Córdobas' : '$ Dólares'}
-                      </Button>
-                    ))}
-                  </div>
-                )}
-              />
-            </Field>
-
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Field data-invalid={!!errors.monto}>
-                <FieldLabel htmlFor="expense-monto" required>
-                  Monto ({moneda === 'USD' ? '$' : 'C$'})
-                </FieldLabel>
-                <Input
-                  id="expense-monto"
-                  type="number"
-                  step="0.01"
-                  min="0.01"
-                  inputMode="decimal"
-                  placeholder="0.00"
-                  aria-required
-                  aria-invalid={!!errors.monto}
-                  disabled={isLoading}
-                  {...register('monto')}
-                />
-                {moneda === 'USD' && numMonto > 0 && (
-                  <FieldDescription>
-                    ≈ {formatCordobas(montoEnCordobas, 'C$', 2)} (tasa {exchangeRate})
-                  </FieldDescription>
-                )}
-                <FieldError errors={[errors.monto]} />
-              </Field>
-
-              <Field data-invalid={!!errors.fecha}>
-                <div className="flex items-center justify-between">
-                  <FieldLabel htmlFor="expense-fecha" required>Fecha del gasto</FieldLabel>
-                  {isManualDate && (
-                    <span className="inline-flex items-center rounded-full border border-warning/20 bg-warning/10 px-1.5 text-2xs font-medium text-warning">
-                      Fecha cambiada
-                    </span>
-                  )}
-                </div>
+          <FormErrorBanner message={serverError} />
+          <FormBody>
+            <div className="space-y-4">
+              <Field>
+                <FieldLabel htmlFor="expense-pozo">Pozo</FieldLabel>
                 <Controller
                   control={control}
-                  name="fecha"
+                  name="pozo"
                   render={({ field }) => (
-                    <DatePicker id="expense-fecha" value={field.value} onChange={field.onChange} disabled={isLoading} disableFuture />
+                    <Select value={field.value} onValueChange={field.onChange} disabled={isLoading}>
+                      <SelectTrigger id="expense-pozo" className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {POZO_OPTIONS.map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   )}
                 />
-                <FieldError errors={[errors.fecha]} />
+                {pozoHint && <FieldDescription>{pozoHint}</FieldDescription>}
+              </Field>
+
+              <Field>
+                <FieldLabel>Moneda</FieldLabel>
+                <Controller
+                  control={control}
+                  name="moneda"
+                  render={({ field }) => (
+                    <div role="group" aria-label="Moneda" className="flex gap-2">
+                      {(['COR', 'USD'] as const).map((m) => (
+                        <Button
+                          key={m}
+                          type="button"
+                          variant="outline"
+                          aria-pressed={field.value === m}
+                          className="flex-1"
+                          onClick={() => field.onChange(m)}
+                          disabled={isLoading}
+                        >
+                          {m === 'COR' ? 'C$ Córdobas' : '$ Dólares'}
+                        </Button>
+                      ))}
+                    </div>
+                  )}
+                />
+              </Field>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <Field data-invalid={!!errors.monto}>
+                  <FieldLabel htmlFor="expense-monto" required>
+                    Monto ({moneda === 'USD' ? '$' : 'C$'})
+                  </FieldLabel>
+                  <Input
+                    id="expense-monto"
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    inputMode="decimal"
+                    placeholder="0.00"
+                    aria-required
+                    aria-invalid={!!errors.monto}
+                    disabled={isLoading}
+                    {...register('monto')}
+                  />
+                  {moneda === 'USD' && numMonto > 0 && (
+                    <FieldDescription>
+                      ≈ {formatCordobas(montoEnCordobas, 'C$', 2)} (tasa {exchangeRate})
+                    </FieldDescription>
+                  )}
+                  <FieldError errors={[errors.monto]} />
+                </Field>
+
+                <Field data-invalid={!!errors.fecha}>
+                  <div className="flex items-center justify-between">
+                    <FieldLabel htmlFor="expense-fecha" required>
+                      Fecha del gasto
+                    </FieldLabel>
+                    {isManualDate && (
+                      <span className="inline-flex items-center rounded-full border border-warning/20 bg-warning/10 px-1.5 text-2xs font-medium text-warning">
+                        Fecha cambiada
+                      </span>
+                    )}
+                  </div>
+                  <Controller
+                    control={control}
+                    name="fecha"
+                    render={({ field }) => (
+                      <DatePicker
+                        id="expense-fecha"
+                        value={field.value}
+                        onChange={field.onChange}
+                        disabled={isLoading}
+                        disableFuture
+                      />
+                    )}
+                  />
+                  <FieldError errors={[errors.fecha]} />
+                </Field>
+              </div>
+
+              <Field data-invalid={!!errors.category}>
+                <FieldLabel htmlFor="expense-category" required>
+                  Concepto
+                </FieldLabel>
+                <Input
+                  id="expense-category"
+                  placeholder={
+                    pozo === 'prestamos'
+                      ? 'Ej. Cuota préstamo Ficohsa'
+                      : 'Ej. Anuncios de Facebook, alquiler, reparación…'
+                  }
+                  maxLength={60}
+                  aria-required
+                  aria-invalid={!!errors.category}
+                  disabled={isLoading}
+                  {...register('category')}
+                />
+                <FieldError errors={[errors.category]} />
+              </Field>
+
+              <Field data-invalid={!!errors.description}>
+                <FieldLabel htmlFor="expense-description">Descripción (opcional)</FieldLabel>
+                <Textarea
+                  id="expense-description"
+                  placeholder="Proveedor, número de recibo u otro detalle"
+                  maxLength={200}
+                  rows={2}
+                  aria-invalid={!!errors.description}
+                  disabled={isLoading}
+                  {...register('description')}
+                />
+                <FieldError errors={[errors.description]} />
               </Field>
             </div>
+          </FormBody>
 
-            <Field data-invalid={!!errors.category}>
-              <FieldLabel htmlFor="expense-category" required>Concepto</FieldLabel>
-              <Input
-                id="expense-category"
-                placeholder={pozo === 'prestamos' ? 'Ej. Cuota préstamo Ficohsa' : 'Ej. Anuncios de Facebook, alquiler, reparación…'}
-                maxLength={60}
-                aria-required
-                aria-invalid={!!errors.category}
-                disabled={isLoading}
-                {...register('category')}
-              />
-              <FieldError errors={[errors.category]} />
-            </Field>
-
-            <Field data-invalid={!!errors.description}>
-              <FieldLabel htmlFor="expense-description">Descripción (opcional)</FieldLabel>
-              <Textarea
-                id="expense-description"
-                placeholder="Proveedor, número de recibo u otro detalle"
-                maxLength={200}
-                rows={2}
-                aria-invalid={!!errors.description}
-                disabled={isLoading}
-                {...register('description')}
-              />
-              <FieldError errors={[errors.description]} />
-            </Field>
-          </div>
-
-          <DialogFooter>
-            <Button type="button" variant="cancel" onClick={() => onOpenChange(false)} disabled={isLoading}>
+          <FormActions>
+            <Button
+              type="button"
+              variant="cancel"
+              onClick={() => onOpenChange(false)}
+              disabled={isLoading}
+            >
               Cancelar
             </Button>
             <Button type="submit" disabled={isLoading}>
               {isLoading && <Spinner className="mr-2" />}
-              {isEdit ? 'Guardar cambios' : 'Registrar gasto'}
+              {isLoading ? 'Guardando…' : isEdit ? 'Guardar cambios' : 'Registrar gasto'}
             </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
+          </FormActions>
+        </FormLayout>
+      </FormDialogContent>
     </Dialog>
   );
 }

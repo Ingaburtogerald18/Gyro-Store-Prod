@@ -54,7 +54,7 @@ export function CombosPanel() {
       }
       setIsOpen(false);
     } catch (error: any) {
-      toast.error(error?.data?.error || 'No se pudo guardar el combo.');
+      throw error;
     }
   }
 

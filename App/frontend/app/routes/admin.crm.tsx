@@ -1,15 +1,22 @@
+import { FormLayout, FormDialogContent, FormActions, FormBody } from '~/components/ui/form-layout';
+import { FormErrorBanner, serverErrorMessage } from '~/components/ui/form-feedback';
 // CRM y clientes (Fase CRM-A, doc 10): Agenda de seguimientos + directorio de
 // contactos con Ficha 360. El inbox/bot de WhatsApp (CRM-B/C) llega cuando se
 // conecte la Cloud API de Meta.
 import { HugeIcon } from '~/components/ui/icon';
-import { Add01Icon, Cancel01Icon, CheckmarkCircle02Icon, UserMultiple02Icon } from '@hugeicons/core-free-icons';
+import {
+  Add01Icon,
+  Cancel01Icon,
+  CheckmarkCircle02Icon,
+  UserMultiple02Icon,
+} from '@hugeicons/core-free-icons';
 import { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import type { MetaFunction } from '@remix-run/node';
 import { pageTitle } from '~/lib/brand';
-import { errMsg, formatLongDate } from '~/lib/formatters';
+import { formatLongDate } from '~/lib/formatters';
 import { toast } from 'sonner';
 
 import {
@@ -28,15 +35,15 @@ import { Button } from '~/components/ui/button';
 import { Input } from '~/components/ui/input';
 import { Badge } from '~/components/ui/badge';
 import { QueryState } from '~/components/ui/QueryState';
+import { StatusBadge } from '~/components/ui/StatusBadge';
+import { Dialog, DialogDescription, DialogHeader, DialogTitle } from '~/components/ui/dialog';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '~/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/components/ui/select';
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '~/components/ui/select';
 import {
   useCreateContactMutation,
   useGetContactsQuery,
@@ -109,8 +116,10 @@ export default function AdminCrm() {
 }
 
 function AgendaTab({ onOpen }: { onOpen: (id: string) => void }) {
-  const { data: followUps = [], isLoading, isError, refetch } = useGetFollowUpsQuery({ status: 'pending' });
+  const { data: pending = [], isLoading, isError, refetch } = useGetFollowUpsQuery({ status: 'pending' });
   const [updateFollowUp] = useUpdateFollowUpMutation();
+  // Los avisos de la tienda cuya variante ya llegó van primero: hay que escribirles.
+  const followUps = [...pending].sort((a, b) => Number(!!b.stockNotice?.arrived) - Number(!!a.stockNotice?.arrived));
 
   async function setStatus(id: string, status: 'completed' | 'cancelled') {
     try {
@@ -147,7 +156,12 @@ function AgendaTab({ onOpen }: { onOpen: (id: string) => void }) {
               <button className="min-w-0 flex-1 text-left" onClick={() => onOpen(f.contactId)}>
                 <div className="flex items-center gap-2">
                   <span className="truncate font-medium text-foreground">{f.contactName || f.contactPhone || 'Contacto'}</span>
-                  {overdue ? (
+                  {f.stockNotice ? (
+                    <StatusBadge
+                      status={f.stockNotice.arrived ? 'success' : 'neutral'}
+                      label={f.stockNotice.arrived ? 'Ya llegó, avisar' : 'Esperando que llegue'}
+                    />
+                  ) : overdue ? (
                     <Badge variant="outline" className="rounded-full border-destructive/30 bg-destructive/10 text-destructive">
                       Vencido · {formatLongDate(f.scheduledDate)}
                     </Badge>
@@ -249,6 +263,7 @@ function CreateContactDialog({
   onCreated: (id: string) => void;
 }) {
   const [createContact, { isLoading }] = useCreateContactMutation();
+  const [serverError, setServerError] = useState<string | null>(null);
   const {
     control,
     register,
@@ -258,70 +273,93 @@ function CreateContactDialog({
   } = useForm<ContactValues, unknown, ContactOutput>({ resolver: zodResolver(contactFormSchema), defaultValues: EMPTY_CONTACT });
 
   useEffect(() => {
-    if (open) reset(EMPTY_CONTACT);
+    if (open) { reset(EMPTY_CONTACT); setServerError(null); }
   }, [open, reset]);
 
   const onSubmit = handleSubmit(async (v) => {
+    setServerError(null);
     try {
       const contact = await createContact({ phone: v.phone, name: v.name, origin: v.origin }).unwrap();
       toast.success('Contacto creado.');
       onClose();
       onCreated(contact.id);
     } catch (error) {
-      toast.error(errMsg(error, 'No se pudo crear el contacto.'));
+      setServerError(serverErrorMessage(error, 'No se pudo crear el contacto.'));
     }
   });
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-md">
-        <form onSubmit={onSubmit} noValidate>
+      <FormDialogContent>
+        <FormLayout onSubmit={onSubmit} noValidate>
           <DialogHeader>
-            <DialogTitle>Nuevo contacto</DialogTitle>
-            <DialogDescription>El teléfono es la identidad del contacto. Si ya existe, se abre el que hay.</DialogDescription>
+            <DialogTitle>Crear contacto</DialogTitle>
+            <DialogDescription>
+              El teléfono es la identidad del contacto. Si ya existe, se abre el que hay.
+            </DialogDescription>
           </DialogHeader>
-          <div className="mt-4 grid gap-4">
-            <Field data-invalid={!!errors.phone}>
-              <FieldLabel htmlFor="crm-new-phone" required>Teléfono</FieldLabel>
-              <Input id="crm-new-phone" type="tel" inputMode="tel" placeholder="8888 8888" aria-required aria-invalid={!!errors.phone} {...register('phone')} />
-              <FieldError errors={[errors.phone]} />
-            </Field>
-            <Field data-invalid={!!errors.name}>
-              <FieldLabel htmlFor="crm-new-name">Nombre (opcional)</FieldLabel>
-              <Input id="crm-new-name" placeholder="Juan Pérez" aria-invalid={!!errors.name} {...register('name')} />
-              <FieldError errors={[errors.name]} />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="crm-new-origin">Origen</FieldLabel>
-              <Controller
-                control={control}
-                name="origin"
-                render={({ field }) => (
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <SelectTrigger id="crm-new-origin" className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {CONTACT_ORIGINS.map((o) => (
-                        <SelectItem key={o} value={o}>
-                          {CONTACT_ORIGIN_LABELS[o]}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-            </Field>
-          </div>
-          <DialogFooter className="mt-4">
-            <Button type="button" variant="cancel" onClick={onClose}>Cancelar</Button>
+          <FormErrorBanner message={serverError} />
+          <FormBody>
+            <div className="grid gap-4">
+              <Field data-invalid={!!errors.phone}>
+                <FieldLabel htmlFor="crm-new-phone" required>
+                  Teléfono
+                </FieldLabel>
+                <Input
+                  id="crm-new-phone"
+                  type="tel"
+                  inputMode="tel"
+                  placeholder="8888 8888"
+                  aria-required
+                  aria-invalid={!!errors.phone}
+                  {...register('phone')}
+                />
+                <FieldError errors={[errors.phone]} />
+              </Field>
+              <Field data-invalid={!!errors.name}>
+                <FieldLabel htmlFor="crm-new-name">Nombre (opcional)</FieldLabel>
+                <Input
+                  id="crm-new-name"
+                  placeholder="Juan Pérez"
+                  aria-invalid={!!errors.name}
+                  {...register('name')}
+                />
+                <FieldError errors={[errors.name]} />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="crm-new-origin">Origen</FieldLabel>
+                <Controller
+                  control={control}
+                  name="origin"
+                  render={({ field }) => (
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger id="crm-new-origin" className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {CONTACT_ORIGINS.map((o) => (
+                          <SelectItem key={o} value={o}>
+                            {CONTACT_ORIGIN_LABELS[o]}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+              </Field>
+            </div>
+          </FormBody>
+          <FormActions>
+            <Button type="button" variant="cancel" onClick={onClose}>
+              Cancelar
+            </Button>
             <Button type="submit" disabled={isLoading}>
               {isLoading && <Spinner className="mr-2" />}
               Crear contacto
             </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
+          </FormActions>
+        </FormLayout>
+      </FormDialogContent>
     </Dialog>
   );
 }

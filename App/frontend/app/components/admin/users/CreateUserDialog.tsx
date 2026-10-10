@@ -1,6 +1,7 @@
+import { FormLayout, FormDialogContent, FormActions, FormBody } from "~/components/ui/form-layout";
 // Diálogo "Agregar Empleado" (extraído de admin.usuarios.tsx). Autocontenido:
 // trae su propio trigger, estado del formulario y la mutation de creación.
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { HugeIcon } from "~/components/ui/icon";
 import { UserAdd01Icon } from "@hugeicons/core-free-icons";
 import { toast } from "sonner";
@@ -8,15 +9,14 @@ import { useCreateUserMutation, type AppRole } from "~/store/api/usersApi";
 import { Button } from "~/components/ui/button";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "~/components/ui/dialog";
 import { Input } from "~/components/ui/input";
-import { Field, FieldLabel } from "~/components/ui/field";
+import { Field, FieldLabel, FieldError } from "~/components/ui/field";
+import { FormErrorBanner, serverErrorMessage } from "~/components/ui/form-feedback";
 import {
   Select,
   SelectContent,
@@ -32,11 +32,16 @@ export function CreateUserDialog() {
   const [newName, setNewName] = useState("");
   const [newEmail, setNewEmail] = useState("");
   const [newRole, setNewRole] = useState<AppRole>("seller");
+  const [serverError, setServerError] = useState<string | null>(null);
+  const [emailError, setEmailError] = useState<string | null>(null);
+  useEffect(() => { if (open) { setServerError(null); setEmailError(null); } }, [open]);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
+    setServerError(null);
+    setEmailError(null);
     if (!newEmail.endsWith("@gyrostorenic.com")) {
-      toast.error("El correo debe pertenecer al dominio @gyrostorenic.com");
+      setEmailError("Usá un correo del dominio @gyrostorenic.com.");
       return;
     }
     try {
@@ -51,7 +56,7 @@ export function CreateUserDialog() {
       setNewEmail("");
       setNewRole("seller");
     } catch (error: any) {
-      toast.error(error?.data?.error || "No se pudo crear el usuario.");
+      setServerError(serverErrorMessage(error, "No se pudo crear el usuario."));
     }
   };
 
@@ -63,59 +68,81 @@ export function CreateUserDialog() {
           Agregar persona
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
-        <form onSubmit={handleCreate}>
+      <FormDialogContent>
+        <FormLayout onSubmit={handleCreate}>
           <DialogHeader>
             <DialogTitle>Agregar persona al equipo</DialogTitle>
             <DialogDescription>
-              Registra al empleado y asigna su rol. Podrá iniciar sesión con Microsoft Entra ID
-              y el sistema lo enlazará automáticamente.
+              Registrá a la persona y asigná su rol. Podrá iniciar sesión con Microsoft Entra ID y el
+              sistema lo enlazará automáticamente.
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <Field>
-              <FieldLabel htmlFor="create-name">Nombre</FieldLabel>
-              <Input
-                id="create-name"
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-                required
-              />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="create-email">Correo</FieldLabel>
-              <Input
-                id="create-email"
-                type="email"
-                value={newEmail}
-                onChange={(e) => setNewEmail(e.target.value)}
-                placeholder="usuario@gyrostorenic.com"
-                required
-              />
-            </Field>
-            <Field>
-              <FieldLabel>Rol Inicial</FieldLabel>
-              <Select value={newRole} onValueChange={(v) => setNewRole(v as AppRole)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccioná un rol" />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(ROLE_LABELS).map(([key, label]) => (
-                    <SelectItem key={key} value={key}>
-                      {label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
-          </div>
-          <DialogFooter>
-            <Button type="submit" disabled={isCreating} variant="default">
-              {isCreating ? "Creando..." : "Guardar Empleado"}
+          <FormErrorBanner message={serverError} />
+          <FormBody>
+            <div className="grid gap-4">
+              <Field>
+                <FieldLabel htmlFor="create-name" required>
+                  Nombre
+                </FieldLabel>
+                <Input
+                  id="create-name"
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  required
+                />
+              </Field>
+              <Field data-invalid={!!emailError}>
+                <FieldLabel htmlFor="create-email" required>
+                  Correo
+                </FieldLabel>
+                <Input
+                  id="create-email"
+                  type="email"
+                  value={newEmail}
+                  onChange={(e) => {
+                    setNewEmail(e.target.value);
+                    setEmailError(null);
+                  }}
+                  aria-invalid={!!emailError}
+                  placeholder="usuario@gyrostorenic.com"
+                  required
+                />
+                {emailError && <FieldError>{emailError}</FieldError>}
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="create-role" required>
+                  Rol inicial
+                </FieldLabel>
+                <Select value={newRole} onValueChange={(v) => setNewRole(v as AppRole)}>
+                  <SelectTrigger id="create-role" className="w-full">
+                    <SelectValue placeholder="Seleccioná un rol" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(ROLE_LABELS).map(([key, label]) => (
+                      <SelectItem key={key} value={key}>
+                        {label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+            </div>
+          </FormBody>
+          <FormActions>
+            <Button
+              type="button"
+              variant="cancel"
+              onClick={() => setOpen(false)}
+              disabled={isCreating}
+            >
+              Cancelar
             </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
+            <Button type="submit" disabled={isCreating} variant="default">
+              {isCreating ? "Guardando…" : "Agregar persona"}
+            </Button>
+          </FormActions>
+        </FormLayout>
+      </FormDialogContent>
     </Dialog>
   );
 }

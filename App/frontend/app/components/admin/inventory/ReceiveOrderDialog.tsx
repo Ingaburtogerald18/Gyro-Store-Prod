@@ -1,3 +1,11 @@
+import { FormErrorBanner, serverErrorMessage } from "~/components/ui/form-feedback";
+import {
+  FormDialogContent,
+  FormPanel,
+  FormBody,
+  FormActions,
+  FormSection,
+} from "~/components/ui/form-layout";
 // Recibir en Nicaragua. El envío se escribe TOTAL y se reparte entre las
 // unidades recibidas (decisión 2026-10-09; por peso/CBM queda para después).
 // Se marca qué productos llegaron y cuántos: lo que no llegó sigue en tránsito
@@ -11,9 +19,16 @@ import { Fragment, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "~/components/ui/button";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "~/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "~/components/ui/table";
 import { DatePicker } from "~/components/ui/date-picker";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "~/components/ui/dialog";
+import { Dialog, DialogDescription, DialogHeader, DialogTitle } from "~/components/ui/dialog";
 import { Field, FieldDescription, FieldError, FieldLabel } from "~/components/ui/field";
 import { HugeIcon } from "~/components/ui/icon";
 import { Input } from "~/components/ui/input";
@@ -63,6 +78,7 @@ export function ReceiveOrderDialog({
   onClose: () => void;
 }) {
   const [receive, { isLoading }] = useReceivePurchaseOrderMutation();
+  const [serverError, setServerError] = useState<string | null>(null);
   const [simulate] = useSimulateOrderReceiptMutation();
 
   const [extraIds, setExtraIds] = useState<string[]>([]);
@@ -182,6 +198,7 @@ export function ReceiveOrderDialog({
     setErrors(found);
     if (Object.keys(found).length) return;
 
+    setServerError(null);
     try {
       const result = await receive({
         id: order.id,
@@ -207,224 +224,268 @@ export function ReceiveOrderDialog({
       );
       onClose();
     } catch (err: any) {
-      toast.error(err?.data?.error || "No se pudo registrar la llegada.");
+      setServerError(serverErrorMessage(err, "No se pudo registrar la llegada."));
     }
   }
 
   const previewById = new Map((preview?.lines ?? []).map((l) => [l.purchaseId, l]));
   const multiple = shipment.length > 1;
 
+  useEffect(() => setServerError(null), [order]);
+
   return (
     <Dialog open={!!order} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-h-[90vh] w-full overflow-y-auto sm:max-w-4xl">
+      <FormDialogContent size="long">
         <DialogHeader>
-          <DialogTitle>{multiple ? `Recibir envío (${shipment.length} órdenes)` : `Recibir orden ${order?.orderNumber ?? ""}`}</DialogTitle>
+          <DialogTitle>
+            {multiple
+              ? `Recibir envío (${shipment.length} órdenes)`
+              : `Recibir orden ${order?.orderNumber ?? ""}`}
+          </DialogTitle>
           <DialogDescription>
             Marcá lo que llegó. Lo que no marques sigue en tránsito y lo recibís después.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid gap-3 sm:grid-cols-3">
-          <Field data-invalid={!!errors.arrivalDate}>
-            <FieldLabel htmlFor="receive-date" required>
-              Fecha de llegada a Nicaragua
-            </FieldLabel>
-            <DatePicker id="receive-date" value={arrivalDate} onChange={setArrivalDate} />
-            <FieldError errors={[errors.arrivalDate ? { message: errors.arrivalDate } : undefined]} />
-          </Field>
-          <Field data-invalid={!!errors.shippingTotal}>
-            <FieldLabel htmlFor="receive-shipping" required>
-              {multiple ? "Envío total de todo el envío (USD)" : "Envío total (USD)"}
-            </FieldLabel>
-            <Input
-              id="receive-shipping"
-              type="number"
-              step="0.01"
-              min={0}
-              value={shippingTotal}
-              onChange={(e) => setShippingTotal(e.target.value)}
-              aria-invalid={!!errors.shippingTotal}
-            />
-            <FieldDescription>
-              {shippingUnit != null
-                ? `${formatUsd(shippingValue)} ÷ ${totalUnits.toLocaleString("en-US")} u = ${formatUsd(shippingUnit, 4)} por unidad`
-                : "Se divide entre las unidades recibidas."}
-            </FieldDescription>
-            <FieldError errors={[errors.shippingTotal ? { message: errors.shippingTotal } : undefined]} />
-          </Field>
-          <Field data-invalid={!!errors.exchangeRate}>
-            <FieldLabel htmlFor="receive-rate">Tasa (C$ por USD)</FieldLabel>
-            <Input
-              id="receive-rate"
-              type="number"
-              step="0.0001"
-              min={0}
-              value={exchangeRate}
-              onChange={(e) => setExchangeRate(e.target.value)}
-              placeholder={preview ? String(preview.exchangeRate) : "La de Configuración"}
-              aria-invalid={!!errors.exchangeRate}
-            />
-            <FieldDescription>Vacía = la de Configuración. Queda fija en cada producto.</FieldDescription>
-            <FieldError errors={[errors.exchangeRate ? { message: errors.exchangeRate } : undefined]} />
-          </Field>
-        </div>
-
-        {(candidates.length > 0 || multiple) && (
-          <div className="space-y-2 rounded-2xl border border-border bg-muted/30 p-3">
-            <p className="text-sm font-medium text-foreground">Órdenes en este envío</p>
-            <div className="flex flex-wrap gap-2">
-              {shipment.map((o) => (
-                <span
-                  key={o.id}
-                  className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-2.5 py-1 text-xs text-foreground"
-                >
-                  {orderLabel(o)}
-                  {o.id !== order?.id && (
-                    <button
-                      type="button"
-                      className="text-muted-foreground hover:text-foreground"
-                      aria-label={`Quitar la orden ${o.orderNumber} de este envío`}
-                      onClick={() => setExtraIds((prev) => prev.filter((id) => id !== o.id))}
+        <FormPanel>
+          <FormErrorBanner message={serverError} />
+          <FormBody>
+            <FormSection title="Datos de recepción">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field data-invalid={!!errors.arrivalDate}>
+                  <FieldLabel htmlFor="receive-date" required>
+                    Fecha de llegada a Nicaragua
+                  </FieldLabel>
+                  <DatePicker id="receive-date" value={arrivalDate} onChange={setArrivalDate} />
+                  <FieldError
+                    errors={[errors.arrivalDate ? { message: errors.arrivalDate } : undefined]}
+                  />
+                </Field>
+                <Field data-invalid={!!errors.shippingTotal}>
+                  <FieldLabel htmlFor="receive-shipping" required>
+                    {multiple ? "Envío total de todo el envío (USD)" : "Envío total (USD)"}
+                  </FieldLabel>
+                  <Input
+                    id="receive-shipping"
+                    type="number"
+                    step="0.01"
+                    min={0}
+                    value={shippingTotal}
+                    onChange={(e) => setShippingTotal(e.target.value)}
+                    aria-invalid={!!errors.shippingTotal}
+                  />
+                  <FieldDescription>
+                    {shippingUnit != null
+                      ? `${formatUsd(shippingValue)} ÷ ${totalUnits.toLocaleString(
+                          "en-US",
+                        )} u = ${formatUsd(shippingUnit, 4)} por unidad`
+                      : "Se divide entre las unidades recibidas."}
+                  </FieldDescription>
+                  <FieldError
+                    errors={[errors.shippingTotal ? { message: errors.shippingTotal } : undefined]}
+                  />
+                </Field>
+                <Field data-invalid={!!errors.exchangeRate}>
+                  <FieldLabel htmlFor="receive-rate">Tasa (C$ por USD)</FieldLabel>
+                  <Input
+                    id="receive-rate"
+                    type="number"
+                    step="0.0001"
+                    min={0}
+                    value={exchangeRate}
+                    onChange={(e) => setExchangeRate(e.target.value)}
+                    placeholder={preview ? String(preview.exchangeRate) : "La de Configuración"}
+                    aria-invalid={!!errors.exchangeRate}
+                  />
+                  <FieldDescription>
+                    Vacía = la de Configuración. Queda fija en cada producto.
+                  </FieldDescription>
+                  <FieldError
+                    errors={[errors.exchangeRate ? { message: errors.exchangeRate } : undefined]}
+                  />
+                </Field>
+              </div>
+            </FormSection>
+            {(candidates.length > 0 || multiple) && (
+              <div className="space-y-2 rounded-2xl border border-border bg-muted/30 p-3">
+                <p className="text-sm font-medium text-foreground">Órdenes en este envío</p>
+                <div className="flex flex-wrap gap-2">
+                  {shipment.map((o) => (
+                    <span
+                      key={o.id}
+                      className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-2.5 py-1 text-xs text-foreground"
                     >
-                      <HugeIcon icon={Cancel01Icon} size={12} strokeWidth={2} />
-                    </button>
-                  )}
-                </span>
-              ))}
-            </div>
-            {candidates.length > 0 && (
-              <NativeSelect
-                aria-label="Sumar otra orden que llegó en este envío"
-                className="w-full sm:w-auto"
-                value=""
-                onChange={(e) => {
-                  const id = e.target.value;
-                  if (id) setExtraIds((prev) => [...prev, id]);
-                }}
-              >
-                <NativeSelectOption value="">+ Sumar otra orden que vino en este envío</NativeSelectOption>
-                {candidates.map((o) => (
-                  <NativeSelectOption key={o.id} value={o.id}>
-                    {orderLabel(o)} · {pendingOf.get(o.id)?.length ?? 0} en tránsito
-                  </NativeSelectOption>
-                ))}
-              </NativeSelect>
+                      {orderLabel(o)}
+                      {o.id !== order?.id && (
+                        <button
+                          type="button"
+                          className="text-muted-foreground hover:text-foreground"
+                          aria-label={`Quitar la orden ${o.orderNumber} de este envío`}
+                          onClick={() => setExtraIds((prev) => prev.filter((id) => id !== o.id))}
+                        >
+                          <HugeIcon icon={Cancel01Icon} size={12} strokeWidth={2} />
+                        </button>
+                      )}
+                    </span>
+                  ))}
+                </div>
+                {candidates.length > 0 && (
+                  <NativeSelect
+                    aria-label="Sumar otra orden que llegó en este envío"
+                    className="w-full sm:w-auto"
+                    value=""
+                    onChange={(e) => {
+                      const id = e.target.value;
+                      if (id) setExtraIds((prev) => [...prev, id]);
+                    }}
+                  >
+                    <NativeSelectOption value="">
+                      + Sumar otra orden que vino en este envío
+                    </NativeSelectOption>
+                    {candidates.map((o) => (
+                      <NativeSelectOption key={o.id} value={o.id}>
+                        {orderLabel(o)} · {pendingOf.get(o.id)?.length ?? 0} en tránsito
+                      </NativeSelectOption>
+                    ))}
+                  </NativeSelect>
+                )}
+              </div>
             )}
-          </div>
-        )}
 
-        <Table className="min-w-[720px] tabular-nums">
-            <TableHeader>
-              <tr>
-                <TableHead className="px-3 w-px">
-                  <span className="sr-only">Llegó</span>
-                </TableHead>
-                <TableHead className="px-3">Producto</TableHead>
-                <TableHead className="px-3 text-right">Pedido</TableHead>
-                <TableHead className="px-3">Recibido</TableHead>
-                <TableHead className="px-3 text-right">Costo final</TableHead>
-                <TableHead className="px-3">Precio de venta (C$)</TableHead>
-              </tr>
-            </TableHeader>
-            <TableBody>
-              {pending.length === 0 && (
-                <tr>
-                  <TableCell colSpan={6} className="h-auto py-8 text-center text-muted-foreground">
-                    Todos los productos de esta orden ya están en bodega.
-                  </TableCell>
-                </tr>
-              )}
-              {groups.map(({ order: o, lines }) => (
-                <Fragment key={o.id}>
-                  {multiple && (
-                    <tr className="border-b border-border bg-muted">
-                      <TableCell colSpan={6} className="h-auto py-1.5 text-xs font-medium text-muted-foreground">
-                        {orderLabel(o)} · {lines.length} en tránsito
+            <FormSection
+              title="Productos recibidos"
+              description="Marcá las unidades que llegaron y su precio de venta."
+            >
+              <Table className="min-w-[720px] tabular-nums">
+                <TableHeader>
+                  <tr>
+                    <TableHead className="px-3 w-px">
+                      <span className="sr-only">Llegó</span>
+                    </TableHead>
+                    <TableHead className="px-3">Producto</TableHead>
+                    <TableHead className="px-3 text-right">Pedido</TableHead>
+                    <TableHead className="px-3">Recibido</TableHead>
+                    <TableHead className="px-3 text-right">Costo final</TableHead>
+                    <TableHead className="px-3">Precio de venta (C$)</TableHead>
+                  </tr>
+                </TableHeader>
+                <TableBody>
+                  {pending.length === 0 && (
+                    <tr>
+                      <TableCell
+                        colSpan={6}
+                        className="h-auto py-8 text-center text-muted-foreground"
+                      >
+                        Todos los productos de esta orden ya están en bodega.
                       </TableCell>
                     </tr>
                   )}
-                  {lines.map((p) => {
-                    const row = rowOf(p);
-                    const { model, variant } = splitProductName(p.productName);
-                    const received = toNumber(row.received);
-                    const short = Number.isInteger(received) && received < p.quantity ? p.quantity - received : 0;
-                    const line = previewById.get(p.id);
-                    return (
-                      <TableRow key={p.id}>
-                        <TableCell className="px-3">
-                          <input
-                            type="checkbox"
-                            className="size-4 rounded-sm accent-primary"
-                            checked={row.selected}
-                            onChange={(e) => setRow(p, { selected: e.target.checked })}
-                            aria-label={`Llegó ${p.productName}`}
-                          />
-                        </TableCell>
-                        <TableCell className="px-3">
-                          <div className="flex flex-col">
-                            <span className="font-medium text-foreground">{model}</span>
-                            <span className="text-xs text-muted-foreground">
-                              {variant ? `${variant} · ` : ""}
-                              <span className="font-spec">{p.code}</span>
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="px-3 text-right">{p.quantity}</TableCell>
-                        <TableCell className="px-3">
-                          <Input
-                            type="number"
-                            min={1}
-                            className="h-9 w-24"
-                            disabled={!row.selected}
-                            value={row.received}
-                            onChange={(e) => setRow(p, { received: e.target.value })}
-                            aria-label={`Recibido de ${p.productName}`}
-                          />
-                          {row.selected && short > 0 && (
-                            <span className="mt-1 block text-2xs font-medium text-warning">Faltan {short}</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="px-3 text-right">
-                          {row.selected && line ? formatCordobas(line.costeFinal, "C$", 2) : "—"}
-                        </TableCell>
-                        <TableCell className="px-3">
-                          <Input
-                            type="number"
-                            step="0.01"
-                            min={0}
-                            className="h-9 w-28 font-semibold"
-                            disabled={!row.selected}
-                            value={row.salePrice}
-                            onChange={(e) => setRow(p, { salePrice: e.target.value, priceTouched: true })}
-                            aria-label={`Precio de venta de ${p.productName}`}
-                            aria-required
-                            aria-invalid={row.selected && !(toNumber(row.salePrice) > 0) && !!errors.lines}
-                          />
-                          {row.selected && line && (
-                            <span className="mt-1 block text-2xs text-muted-foreground">
-                              Sugerido {formatCordobas(line.precioSugerido, "C$", 2)}
-                            </span>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </Fragment>
-              ))}
-            </TableBody>
-        </Table>
-        {errors.lines && <FieldError errors={[{ message: errors.lines }]} />}
+                  {groups.map(({ order: o, lines }) => (
+                    <Fragment key={o.id}>
+                      {multiple && (
+                        <tr className="border-b border-border bg-muted">
+                          <TableCell
+                            colSpan={6}
+                            className="h-auto py-1.5 text-xs font-medium text-muted-foreground"
+                          >
+                            {orderLabel(o)} · {lines.length} en tránsito
+                          </TableCell>
+                        </tr>
+                      )}
+                      {lines.map((p) => {
+                        const row = rowOf(p);
+                        const { model, variant } = splitProductName(p.productName);
+                        const received = toNumber(row.received);
+                        const short =
+                          Number.isInteger(received) && received < p.quantity
+                            ? p.quantity - received
+                            : 0;
+                        const line = previewById.get(p.id);
+                        return (
+                          <TableRow key={p.id}>
+                            <TableCell className="px-3">
+                              <input
+                                type="checkbox"
+                                className="size-4 rounded-sm accent-primary"
+                                checked={row.selected}
+                                onChange={(e) => setRow(p, { selected: e.target.checked })}
+                                aria-label={`Llegó ${p.productName}`}
+                              />
+                            </TableCell>
+                            <TableCell className="px-3">
+                              <div className="flex flex-col">
+                                <span className="font-medium text-foreground">{model}</span>
+                                <span className="text-xs text-muted-foreground">
+                                  {variant ? `${variant} · ` : ""}
+                                  <span className="font-spec">{p.code}</span>
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="px-3 text-right">{p.quantity}</TableCell>
+                            <TableCell className="px-3">
+                              <Input
+                                type="number"
+                                min={1}
+                                className="h-9 w-24"
+                                disabled={!row.selected}
+                                value={row.received}
+                                onChange={(e) => setRow(p, { received: e.target.value })}
+                                aria-label={`Recibido de ${p.productName}`}
+                              />
+                              {row.selected && short > 0 && (
+                                <span className="mt-1 block text-2xs font-medium text-warning">
+                                  Faltan {short}
+                                </span>
+                              )}
+                            </TableCell>
+                            <TableCell className="px-3 text-right">
+                              {row.selected && line ? formatCordobas(line.costeFinal, "C$", 2) : "—"}
+                            </TableCell>
+                            <TableCell className="px-3">
+                              <Input
+                                type="number"
+                                step="0.01"
+                                min={0}
+                                className="h-9 w-28 font-semibold"
+                                disabled={!row.selected}
+                                value={row.salePrice}
+                                onChange={(e) =>
+                                  setRow(p, { salePrice: e.target.value, priceTouched: true })
+                                }
+                                aria-label={`Precio de venta de ${p.productName}`}
+                                aria-required
+                                aria-invalid={
+                                  row.selected && !(toNumber(row.salePrice) > 0) && !!errors.lines
+                                }
+                              />
+                              {row.selected && line && (
+                                <span className="mt-1 block text-2xs text-muted-foreground">
+                                  Sugerido {formatCordobas(line.precioSugerido, "C$", 2)}
+                                </span>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </Fragment>
+                  ))}
+                </TableBody>
+              </Table>
+              {errors.lines && <FieldError errors={[{ message: errors.lines }]} />}
+            </FormSection>
+          </FormBody>
 
-        <div className="flex justify-end gap-2 border-t pt-4">
-          <Button type="button" variant="cancel" onClick={onClose}>
-            Cancelar
-          </Button>
-          <Button type="button" onClick={submit} disabled={isLoading || pending.length === 0}>
-            {isLoading && <Spinner className="mr-2" />}
-            Confirmar llegada
-          </Button>
-        </div>
-      </DialogContent>
+          <FormActions>
+            <Button type="button" variant="cancel" onClick={onClose}>
+              Cancelar
+            </Button>
+            <Button type="button" onClick={submit} disabled={isLoading || pending.length === 0}>
+              {isLoading && <Spinner className="mr-2" />}
+              {isLoading ? "Guardando…" : "Confirmar llegada"}
+            </Button>
+          </FormActions>
+        </FormPanel>
+      </FormDialogContent>
     </Dialog>
   );
 }

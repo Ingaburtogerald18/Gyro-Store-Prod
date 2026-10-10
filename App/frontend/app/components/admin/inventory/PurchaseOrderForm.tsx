@@ -1,3 +1,10 @@
+import {
+  FormLayout,
+  FormDialogContent,
+  FormActions,
+  FormBody,
+  FormSection,
+} from "~/components/ui/form-layout";
 // Registrar una compra de Alibaba: la orden con todos sus productos de una vez.
 // Si el número ya está registrado, los productos se agregan a esa orden.
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -8,8 +15,13 @@ import { z } from "zod";
 
 import type { AdminTemplate } from "@shared/schemas";
 import { Button } from "~/components/ui/button";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "~/components/ui/dialog";
-import { DiscardChangesDialog, fieldMessages, FormErrorBanner, serverErrorMessage } from "~/components/ui/form-feedback";
+import { Dialog, DialogHeader, DialogTitle } from "~/components/ui/dialog";
+import {
+  DiscardChangesDialog,
+  fieldMessages,
+  FormErrorBanner,
+  serverErrorMessage,
+} from "~/components/ui/form-feedback";
 import { formatUsd, splitProductName } from "~/lib/formatters";
 import { useGetCategoriesQuery, useGetTemplatesQuery } from "~/store/api/catalogAdminApi";
 import {
@@ -162,78 +174,84 @@ export function PurchaseOrderForm({ open, onOpenChange }: { open: boolean; onOpe
   return (
     <>
       <Dialog open={open} onOpenChange={requestClose}>
-        <DialogContent className="max-h-[90vh] w-full overflow-y-auto sm:max-w-5xl">
+        <FormDialogContent size="long">
           <DialogHeader>
             <DialogTitle>Registrar compra</DialogTitle>
           </DialogHeader>
 
-          <form ref={formRef} onSubmit={handleSubmit(onSubmit, focusFirstError)} className="flex flex-col gap-6" noValidate>
+          <FormLayout ref={formRef} onSubmit={handleSubmit(onSubmit, focusFirstError)} noValidate>
             <FormErrorBanner message={serverError} />
 
-            <section className="flex flex-col gap-3">
-              <h3 className="border-b pb-2 text-sm font-semibold text-foreground">Orden</h3>
-              <Controller
-                control={control}
-                name="header"
-                render={({ field }) => (
-                  <OrderHeaderFields
-                    value={field.value}
-                    onChange={(patch) => field.onChange({ ...getValues("header"), ...patch })}
-                    errors={headerErrors}
-                    suppliers={suppliers}
-                    linesTotalUsd={linesTotal}
-                    orderOptions={registered}
-                    invoices={invoices}
-                    existingOrder={found}
-                    existingSlot={
-                      found && (
-                        <ExistingOrderSummary
-                          order={found}
-                          lines={existingLines}
-                          newLinesTotal={linesTotal}
-                          onChangeOrder={() => setValue("header", emptyOrderHeader(), { shouldDirty: true })}
-                        />
-                      )
-                    }
-                  />
-                )}
-              />
-            </section>
+            <FormBody>
+              <FormSection title="Orden">
+                <Controller
+                  control={control}
+                  name="header"
+                  render={({ field }) => (
+                    <OrderHeaderFields
+                      value={field.value}
+                      onChange={(patch) => field.onChange({ ...getValues("header"), ...patch })}
+                      errors={headerErrors}
+                      suppliers={suppliers}
+                      linesTotalUsd={linesTotal}
+                      orderOptions={registered}
+                      invoices={invoices}
+                      existingOrder={found}
+                      existingSlot={
+                        found && (
+                          <ExistingOrderSummary
+                            order={found}
+                            lines={existingLines}
+                            newLinesTotal={linesTotal}
+                            onChangeOrder={() =>
+                              setValue("header", emptyOrderHeader(), { shouldDirty: true })
+                            }
+                          />
+                        )
+                      }
+                    />
+                  )}
+                />
+              </FormSection>
 
-            <section className="flex flex-col gap-3">
-              <h3 className="border-b pb-2 text-sm font-semibold text-foreground">
-                {found ? "Productos que se agregan a la orden" : "Productos de la orden"}
-              </h3>
-              <Controller
-                control={control}
-                name="lines"
-                render={({ field }) => (
-                  <OrderLinesEditor
-                    lines={field.value}
-                    onChange={field.onChange}
-                    errors={lineErrors}
-                    templates={templates}
-                    categories={categories}
-                    taxUnit={taxUnit}
-                    alreadyInOrder={existingLines}
-                  />
-                )}
-              />
-            </section>
+              <FormSection
+                title={found ? "Productos que se agregan a la orden" : "Productos de la orden"}
+              >
+                <Controller
+                  control={control}
+                  name="lines"
+                  render={({ field }) => (
+                    <OrderLinesEditor
+                      lines={field.value}
+                      onChange={field.onChange}
+                      errors={lineErrors}
+                      templates={templates}
+                      categories={categories}
+                      taxUnit={taxUnit}
+                      alreadyInOrder={existingLines}
+                    />
+                  )}
+                />
+              </FormSection>
+            </FormBody>
 
-            <DialogFooter className="border-t pt-4">
+            <FormActions>
               <Button type="button" variant="cancel" onClick={() => requestClose(false)}>
                 Cancelar
               </Button>
               <Button type="submit" disabled={isSubmitting}>
                 {isSubmitting ? "Guardando…" : "Guardar"}
               </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
+            </FormActions>
+          </FormLayout>
+        </FormDialogContent>
       </Dialog>
 
-      <DiscardChangesDialog open={confirmDiscard} onOpenChange={setConfirmDiscard} onDiscard={() => onOpenChange(false)} />
+      <DiscardChangesDialog
+        open={confirmDiscard}
+        onOpenChange={setConfirmDiscard}
+        onDiscard={() => onOpenChange(false)}
+      />
     </>
   );
 }

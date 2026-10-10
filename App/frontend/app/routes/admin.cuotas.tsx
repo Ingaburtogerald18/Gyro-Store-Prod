@@ -1,3 +1,5 @@
+import { FormLayout, FormDialogContent, FormActions, FormBody } from '~/components/ui/form-layout';
+import { FormErrorBanner, serverErrorMessage } from '~/components/ui/form-feedback';
 // Portal de Cuotas (doc 09 ítem 67): crear plan sobre una venta aprobada,
 // registrar pagos, ver saldo, cancelar. Solo admin (mismo criterio que v1 y
 // que server/routes/installments.ts).
@@ -11,8 +13,13 @@
 // vinculada (server/services/installments.ts los agrega vía join). No hay
 // nextPaymentDate por cuota (no existe esa columna en v2): se muestra solo la
 // fecha de la primera cuota.
-import { HugeIcon } from "~/components/ui/icon";
-import { Add01Icon, ArrowDown01Icon, ArrowUp01Icon, CreditCardIcon } from "@hugeicons/core-free-icons";
+import { HugeIcon } from '~/components/ui/icon';
+import {
+  Add01Icon,
+  ArrowDown01Icon,
+  ArrowUp01Icon,
+  CreditCardIcon,
+} from '@hugeicons/core-free-icons';
 import { useMemo, useState, useEffect } from 'react';
 import type { MetaFunction } from '@remix-run/node';
 import { pageTitle } from '~/lib/brand';
@@ -32,7 +39,13 @@ import { Button } from '~/components/ui/button';
 import { Input } from '~/components/ui/input';
 import { Badge } from '~/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '~/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '~/components/ui/select';
 import { QueryState } from '~/components/ui/QueryState';
 import { errMsg, formatCordobas, withoutIds, formatLongDate } from '~/lib/formatters';
 import {
@@ -43,7 +56,7 @@ import {
   type InstallmentPlan,
 } from '~/store/api/installmentsApi';
 import { useGetSalesQuery, type SaleListItem } from '~/store/api/salesApi';
-import { Spinner } from "~/components/ui/spinner";
+import { Spinner } from '~/components/ui/spinner';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -85,6 +98,7 @@ const EMPTY_PAYMENT: PaymentValues = { amount: '', method: 'efectivo', note: '' 
 
 function PaymentDialog({ plan, onClose }: { plan: InstallmentPlan | null; onClose: () => void }) {
   const [registerPayment, { isLoading }] = useRegisterInstallmentPaymentMutation();
+  const [serverError, setServerError] = useState<string | null>(null);
   const {
     control,
     register,
@@ -94,7 +108,7 @@ function PaymentDialog({ plan, onClose }: { plan: InstallmentPlan | null; onClos
   } = useForm<PaymentValues, unknown, PaymentOutput>({ resolver: zodResolver(paymentFormSchema), defaultValues: EMPTY_PAYMENT });
 
   useEffect(() => {
-    if (plan) reset(EMPTY_PAYMENT);
+    if (plan) { reset(EMPTY_PAYMENT); setServerError(null); }
   }, [plan, reset]);
 
   const onSubmit = handleSubmit(async (v) => {
@@ -108,77 +122,95 @@ function PaymentDialog({ plan, onClose }: { plan: InstallmentPlan | null; onClos
       );
       onClose();
     } catch (err) {
-      toast.error(errMsg(err, 'No se pudo registrar el pago.'));
+      setServerError(serverErrorMessage(err, 'No se pudo registrar el pago.'));
     }
   });
 
   return (
     <Dialog open={!!plan} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent>
-        <form onSubmit={onSubmit} noValidate>
+      <FormDialogContent>
+        <FormLayout onSubmit={onSubmit} noValidate>
           <DialogHeader>
             <DialogTitle>Registrar pago{plan?.phone ? ` · ${plan.phone}` : ''}</DialogTitle>
           </DialogHeader>
-          {plan && (
-            <div className="mt-4 space-y-4">
-              <div className="space-y-1 rounded-2xl border border-border bg-muted p-3 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Total</span>
-                  <span className="font-semibold">{formatCordobas(plan.total)}</span>
+          <FormErrorBanner message={serverError} />
+          <FormBody>
+            {plan && (
+              <div className="space-y-4">
+                <div className="space-y-1 rounded-2xl border border-border bg-muted p-3 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Total</span>
+                    <span className="font-semibold">{formatCordobas(plan.total)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Pagado</span>
+                    <span className="font-semibold text-foreground">
+                      {formatCordobas(plan.amountPaid)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Pendiente</span>
+                    <span className="font-bold text-foreground">
+                      {formatCordobas(plan.amountPending)}
+                    </span>
+                  </div>
+                  <ProgressBar paid={plan.amountPaid} total={plan.total} />
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Pagado</span>
-                  <span className="font-semibold text-foreground">{formatCordobas(plan.amountPaid)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Pendiente</span>
-                  <span className="font-bold text-foreground">{formatCordobas(plan.amountPending)}</span>
-                </div>
-                <ProgressBar paid={plan.amountPaid} total={plan.total} />
-              </div>
 
-              <Field data-invalid={!!errors.amount}>
-                <FieldLabel htmlFor="pay-amount" required>Monto recibido (C$)</FieldLabel>
-                <Input id="pay-amount" type="number" min={0} step="0.01" inputMode="decimal" aria-required aria-invalid={!!errors.amount} {...register('amount')} />
-                <FieldError errors={[errors.amount]} />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="pay-method">Método de pago</FieldLabel>
-                <Controller
-                  control={control}
-                  name="method"
-                  render={({ field }) => (
-                    <Select value={field.value} onValueChange={field.onChange}>
-                      <SelectTrigger id="pay-method" className="w-full">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="efectivo">Efectivo</SelectItem>
-                        <SelectItem value="transferencia">Transferencia</SelectItem>
-                        <SelectItem value="tarjeta">Tarjeta</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-              </Field>
-              <Field data-invalid={!!errors.note}>
-                <FieldLabel htmlFor="pay-note">Notas (opcional)</FieldLabel>
-                <Input id="pay-note" aria-invalid={!!errors.note} {...register('note')} />
-                <FieldError errors={[errors.note]} />
-              </Field>
-            </div>
-          )}
-          <div className="mt-4 flex justify-end gap-2">
+                <Field data-invalid={!!errors.amount}>
+                  <FieldLabel htmlFor="pay-amount" required>
+                    Monto recibido (C$)
+                  </FieldLabel>
+                  <Input
+                    id="pay-amount"
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    inputMode="decimal"
+                    aria-required
+                    aria-invalid={!!errors.amount}
+                    {...register('amount')}
+                  />
+                  <FieldError errors={[errors.amount]} />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="pay-method">Método de pago</FieldLabel>
+                  <Controller
+                    control={control}
+                    name="method"
+                    render={({ field }) => (
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <SelectTrigger id="pay-method" className="w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="efectivo">Efectivo</SelectItem>
+                          <SelectItem value="transferencia">Transferencia</SelectItem>
+                          <SelectItem value="tarjeta">Tarjeta</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                </Field>
+                <Field data-invalid={!!errors.note}>
+                  <FieldLabel htmlFor="pay-note">Notas (opcional)</FieldLabel>
+                  <Input id="pay-note" aria-invalid={!!errors.note} {...register('note')} />
+                  <FieldError errors={[errors.note]} />
+                </Field>
+              </div>
+            )}
+          </FormBody>
+          <FormActions>
             <Button type="button" variant="cancel" onClick={onClose}>
               Cancelar
             </Button>
             <Button type="submit" disabled={isLoading}>
               {isLoading && <Spinner className="mr-2" />}
-              Registrar pago
+              {isLoading ? 'Guardando…' : 'Registrar pago'}
             </Button>
-          </div>
-        </form>
-      </DialogContent>
+          </FormActions>
+        </FormLayout>
+      </FormDialogContent>
     </Dialog>
   );
 }
@@ -290,6 +322,7 @@ const EMPTY_PLAN: PlanValues = { numCuotas: '2', firstDue: '' };
 
 function CreatePlanDialog({ sale, onClose }: { sale: SaleListItem | null; onClose: () => void }) {
   const [createPlan, { isLoading }] = useCreateInstallmentPlanMutation();
+  const [serverError, setServerError] = useState<string | null>(null);
   const {
     register,
     handleSubmit,
@@ -298,7 +331,7 @@ function CreatePlanDialog({ sale, onClose }: { sale: SaleListItem | null; onClos
   } = useForm<PlanValues, unknown, PlanOutput>({ resolver: zodResolver(planFormSchema), defaultValues: EMPTY_PLAN });
 
   useEffect(() => {
-    if (sale) reset(EMPTY_PLAN);
+    if (sale) { reset(EMPTY_PLAN); setServerError(null); }
   }, [sale, reset]);
 
   const onSubmit = handleSubmit(async (v) => {
@@ -308,53 +341,77 @@ function CreatePlanDialog({ sale, onClose }: { sale: SaleListItem | null; onClos
       toast.success('Plan de cuotas creado.');
       onClose();
     } catch (err) {
-      toast.error(errMsg(err, 'No se pudo crear el plan de cuotas.'));
+      setServerError(serverErrorMessage(err, 'No se pudo crear el plan de cuotas.'));
     }
   });
 
   return (
     <Dialog open={!!sale} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent>
-        <form onSubmit={onSubmit} noValidate>
+      <FormDialogContent>
+        <FormLayout onSubmit={onSubmit} noValidate>
           <DialogHeader>
-            <DialogTitle>Nuevo plan de cuotas</DialogTitle>
+            <DialogTitle>Crear plan de cuotas</DialogTitle>
           </DialogHeader>
-          {sale && (
-            <div className="mt-4 space-y-4">
-              <div className="rounded-2xl border border-border bg-muted p-3 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Cliente</span>
-                  <span className="font-medium text-foreground">{sale.phone ?? '—'}</span>
+          <FormErrorBanner message={serverError} />
+          <FormBody>
+            {sale && (
+              <div className="space-y-4">
+                <div className="rounded-2xl border border-border bg-muted p-3 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Cliente</span>
+                    <span className="font-medium text-foreground">{sale.phone ?? '—'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Total</span>
+                    <span className="font-semibold text-foreground">
+                      {formatCordobas(sale.total)}
+                    </span>
+                  </div>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Total</span>
-                  <span className="font-semibold text-foreground">{formatCordobas(sale.total)}</span>
-                </div>
+                <Field data-invalid={!!errors.numCuotas}>
+                  <FieldLabel htmlFor="plan-cuotas" required>
+                    Cantidad de cuotas
+                  </FieldLabel>
+                  <Input
+                    id="plan-cuotas"
+                    type="number"
+                    min={2}
+                    max={36}
+                    step={1}
+                    aria-required
+                    aria-invalid={!!errors.numCuotas}
+                    {...register('numCuotas')}
+                  />
+                  <FieldDescription>Entre 2 y 36.</FieldDescription>
+                  <FieldError errors={[errors.numCuotas]} />
+                </Field>
+                <Field data-invalid={!!errors.firstDue}>
+                  <FieldLabel htmlFor="plan-first" required>
+                    Fecha de la primera cuota
+                  </FieldLabel>
+                  <Input
+                    id="plan-first"
+                    type="date"
+                    aria-required
+                    aria-invalid={!!errors.firstDue}
+                    {...register('firstDue')}
+                  />
+                  <FieldError errors={[errors.firstDue]} />
+                </Field>
               </div>
-              <Field data-invalid={!!errors.numCuotas}>
-                <FieldLabel htmlFor="plan-cuotas" required>Cantidad de cuotas</FieldLabel>
-                <Input id="plan-cuotas" type="number" min={2} max={36} step={1} aria-required aria-invalid={!!errors.numCuotas} {...register('numCuotas')} />
-                <FieldDescription>Entre 2 y 36.</FieldDescription>
-                <FieldError errors={[errors.numCuotas]} />
-              </Field>
-              <Field data-invalid={!!errors.firstDue}>
-                <FieldLabel htmlFor="plan-first" required>Fecha de la primera cuota</FieldLabel>
-                <Input id="plan-first" type="date" aria-required aria-invalid={!!errors.firstDue} {...register('firstDue')} />
-                <FieldError errors={[errors.firstDue]} />
-              </Field>
-            </div>
-          )}
-          <div className="mt-4 flex justify-end gap-2">
+            )}
+          </FormBody>
+          <FormActions>
             <Button type="button" variant="cancel" onClick={onClose}>
               Cancelar
             </Button>
             <Button type="submit" disabled={isLoading}>
               {isLoading && <Spinner className="mr-2" />}
-              Crear plan
+              {isLoading ? 'Guardando…' : 'Crear plan'}
             </Button>
-          </div>
-        </form>
-      </DialogContent>
+          </FormActions>
+        </FormLayout>
+      </FormDialogContent>
     </Dialog>
   );
 }

@@ -1,3 +1,11 @@
+import {
+  FormDialogContent,
+  FormBody,
+  FormLayout,
+  FormActions,
+  FormSection,
+} from '~/components/ui/form-layout';
+import { FormErrorBanner, serverErrorMessage } from '~/components/ui/form-feedback';
 // Ficha 360 (doc 10 §1): un contacto con todo su historial en una pantalla —
 // compras (ventas reales + pedidos web), LTV, actividad y seguimientos. Permite
 // cambiar la etapa, agregar notas y agendar/cerrar seguimientos.
@@ -8,7 +16,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
-import { errMsg, formatShortDate } from '~/lib/formatters';
+import { formatShortDate } from '~/lib/formatters';
 
 import {
   CONTACT_ORIGIN_LABELS,
@@ -17,18 +25,18 @@ import {
   type ContactOrigin,
   type ContactStage,
 } from '@shared/schemas';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '~/components/ui/dialog';
+import { Dialog, DialogDescription, DialogHeader, DialogTitle } from '~/components/ui/dialog';
 import { Button } from '~/components/ui/button';
 import { Badge } from '~/components/ui/badge';
 import { Input } from '~/components/ui/input';
 import { Textarea } from '~/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '~/components/ui/select';
 import { Spinner } from '~/components/ui/spinner';
 import { Field, FieldError, FieldLabel } from '~/components/ui/field';
 import { formatCordobas } from '~/lib/formatters';
@@ -59,6 +67,7 @@ export function Contact360Dialog({ contactId, onClose }: { contactId: string | n
   const [updateFollowUp] = useUpdateFollowUpMutation();
 
   const [note, setNote] = useState('');
+  const [followUpError, setFollowUpError] = useState<string | null>(null);
   // Agendar seguimiento: react-hook-form + las reglas de followUpInputSchema.
   const {
     register: registerFu,
@@ -90,12 +99,13 @@ export function Contact360Dialog({ contactId, onClose }: { contactId: string | n
 
   const handleAddFollowUp = handleSubmitFu(async (v) => {
     if (!contactId) return;
+    setFollowUpError(null);
     try {
       await createFollowUp({ contactId, scheduledDate: v.scheduledDate, reason: v.reason }).unwrap();
       resetFu({ scheduledDate: '', reason: '' });
       toast.success('Seguimiento agendado.');
     } catch (err) {
-      toast.error(errMsg(err, 'No se pudo agendar el seguimiento.'));
+      setFollowUpError(serverErrorMessage(err, 'No se pudo agendar el seguimiento.'));
     }
   });
 
@@ -111,8 +121,8 @@ export function Contact360Dialog({ contactId, onClose }: { contactId: string | n
 
   return (
     <Dialog open={!!contactId} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="flex max-h-[90vh] w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl">
-        <DialogHeader className="shrink-0 border-b px-6 py-4 pr-14">
+      <FormDialogContent size="long">
+        <DialogHeader>
           <DialogTitle>{ficha?.contact.name || ficha?.contact.phone || 'Contacto'}</DialogTitle>
           <DialogDescription>Ficha 360: compras, actividad y seguimientos.</DialogDescription>
         </DialogHeader>
@@ -122,24 +132,37 @@ export function Contact360Dialog({ contactId, onClose }: { contactId: string | n
             <Spinner />
           </div>
         ) : isError || !ficha ? (
-          <div className="p-12 text-center text-sm text-muted-foreground">No se pudo cargar el contacto.</div>
+          <div className="p-12 text-center text-sm text-muted-foreground">
+            No se pudo cargar el contacto.
+          </div>
         ) : (
-          <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-6 py-6">
+          <FormBody>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1">
                 <p className="text-sm">
-                  <span className="text-muted-foreground">Teléfono:</span> {ficha.contact.phone || '—'}
+                  <span className="text-muted-foreground">Teléfono:</span>{' '}
+                  {ficha.contact.phone || '—'}
                 </p>
                 <p className="text-sm">
                   <span className="text-muted-foreground">Origen:</span>{' '}
-                  {CONTACT_ORIGIN_LABELS[ficha.contact.origin as ContactOrigin] ?? ficha.contact.origin}
+                  {CONTACT_ORIGIN_LABELS[ficha.contact.origin as ContactOrigin] ??
+                    ficha.contact.origin}
                 </p>
                 <p className="text-sm">
-                  <span className="text-muted-foreground">Alta:</span> {fmtDate(ficha.contact.createdAt)}
+                  <span className="text-muted-foreground">Alta:</span>{' '}
+                  {fmtDate(ficha.contact.createdAt)}
                 </p>
                 <div className="pt-1">
-                  <label htmlFor="contact360-stage" className="text-xs font-medium text-muted-foreground">Etapa</label>
-                  <Select value={ficha.contact.stage ?? ''} onValueChange={(v) => handleStage(v as ContactStage)}>
+                  <label
+                    htmlFor="contact360-stage"
+                    className="text-xs font-medium text-muted-foreground"
+                  >
+                    Etapa
+                  </label>
+                  <Select
+                    value={ficha.contact.stage ?? ''}
+                    onValueChange={(v) => handleStage(v as ContactStage)}
+                  >
                     <SelectTrigger id="contact360-stage" className="mt-1 w-full">
                       <SelectValue placeholder="Sin etapa" />
                     </SelectTrigger>
@@ -162,8 +185,7 @@ export function Contact360Dialog({ contactId, onClose }: { contactId: string | n
               </div>
             </div>
 
-            <section className="space-y-2">
-              <h3 className="border-b pb-1 text-sm font-semibold text-foreground">Compras e historial</h3>
+            <FormSection title="Compras e historial">
               {ficha.orders.length === 0 ? (
                 <p className="text-sm text-muted-foreground">Sin pedidos registrados.</p>
               ) : (
@@ -182,55 +204,93 @@ export function Contact360Dialog({ contactId, onClose }: { contactId: string | n
                   ))}
                 </ul>
               )}
-            </section>
+            </FormSection>
 
-            <section className="space-y-2">
-              <h3 className="border-b pb-1 text-sm font-semibold text-foreground">Seguimientos</h3>
+            <FormSection title="Seguimientos">
               {pendingFollowUps.length === 0 ? (
                 <p className="text-sm text-muted-foreground">Sin seguimientos pendientes.</p>
               ) : (
                 <ul className="space-y-2">
                   {pendingFollowUps.map((f) => (
-                    <li key={f.id} className="flex items-center justify-between rounded-xl border p-2.5 text-sm">
+                    <li
+                      key={f.id}
+                      className="flex items-center justify-between rounded-xl border p-2.5 text-sm"
+                    >
                       <span>
                         <span className="font-medium">{fmtDate(f.scheduledDate)}</span> — {f.reason}
                       </span>
                       <span className="flex shrink-0 gap-1">
-                        <Button size="icon" variant="ghost" aria-label="Completar" onClick={() => setFuStatus(f.id, 'completed')}>
-                          <HugeIcon icon={CheckmarkCircle02Icon} size={16} strokeWidth={2} className="text-primary" />
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          aria-label="Completar"
+                          onClick={() => setFuStatus(f.id, 'completed')}
+                        >
+                          <HugeIcon
+                            icon={CheckmarkCircle02Icon}
+                            size={16}
+                            strokeWidth={2}
+                            className="text-primary"
+                          />
                         </Button>
-                        <Button size="icon" variant="destructive" aria-label="Cancelar" onClick={() => setFuStatus(f.id, 'cancelled')}>
-                          <HugeIcon icon={Cancel01Icon} size={16} strokeWidth={2} className="text-destructive" />
+                        <Button
+                          size="icon"
+                          variant="destructive"
+                          aria-label="Cancelar"
+                          onClick={() => setFuStatus(f.id, 'cancelled')}
+                        >
+                          <HugeIcon
+                            icon={Cancel01Icon}
+                            size={16}
+                            strokeWidth={2}
+                            className="text-destructive"
+                          />
                         </Button>
                       </span>
                     </li>
                   ))}
                 </ul>
               )}
-              <form
-                onSubmit={handleAddFollowUp}
-                noValidate
-                className="flex flex-col gap-3 rounded-2xl border border-border bg-muted/30 p-3 sm:flex-row sm:items-start"
-              >
-                <Field className="flex-1" data-invalid={!!fuErrors.scheduledDate}>
-                  <FieldLabel htmlFor="contact360-fu-date" required>Fecha</FieldLabel>
-                  <Input id="contact360-fu-date" type="date" aria-required aria-invalid={!!fuErrors.scheduledDate} {...registerFu('scheduledDate')} />
-                  <FieldError errors={[fuErrors.scheduledDate]} />
-                </Field>
-                <Field className="flex-[2]" data-invalid={!!fuErrors.reason}>
-                  <FieldLabel htmlFor="contact360-fu-reason" required>Motivo</FieldLabel>
-                  <Input id="contact360-fu-reason" placeholder="Ej. Recordar cotización" aria-required aria-invalid={!!fuErrors.reason} {...registerFu('reason')} />
-                  <FieldError errors={[fuErrors.reason]} />
-                </Field>
-                <Button type="submit" disabled={creatingFu} className="sm:mt-6">
-                  {creatingFu && <Spinner className="mr-2" />}
-                  Agendar
-                </Button>
-              </form>
-            </section>
+              <FormLayout mode="page" onSubmit={handleAddFollowUp} noValidate>
+                <FormErrorBanner message={followUpError} />
+                <FormBody>
+                  <Field className="flex-1" data-invalid={!!fuErrors.scheduledDate}>
+                    <FieldLabel htmlFor="contact360-fu-date" required>
+                      Fecha
+                    </FieldLabel>
+                    <Input
+                      id="contact360-fu-date"
+                      type="date"
+                      aria-required
+                      aria-invalid={!!fuErrors.scheduledDate}
+                      {...registerFu('scheduledDate')}
+                    />
+                    <FieldError errors={[fuErrors.scheduledDate]} />
+                  </Field>
+                  <Field className="flex-[2]" data-invalid={!!fuErrors.reason}>
+                    <FieldLabel htmlFor="contact360-fu-reason" required>
+                      Motivo
+                    </FieldLabel>
+                    <Input
+                      id="contact360-fu-reason"
+                      placeholder="Ej. Recordar cotización"
+                      aria-required
+                      aria-invalid={!!fuErrors.reason}
+                      {...registerFu('reason')}
+                    />
+                    <FieldError errors={[fuErrors.reason]} />
+                  </Field>
+                </FormBody>
+                <FormActions>
+                  <Button type="submit" disabled={creatingFu}>
+                    {creatingFu && <Spinner className="mr-2" />}
+                    {creatingFu ? 'Guardando…' : 'Agendar seguimiento'}
+                  </Button>
+                </FormActions>
+              </FormLayout>
+            </FormSection>
 
-            <section className="space-y-2">
-              <h3 className="border-b pb-1 text-sm font-semibold text-foreground">Actividad</h3>
+            <FormSection title="Actividad">
               <div className="flex gap-2">
                 <Textarea
                   value={note}
@@ -239,7 +299,13 @@ export function Contact360Dialog({ contactId, onClose }: { contactId: string | n
                   placeholder="Agregar una nota…"
                   className="flex-1"
                 />
-                <Button type="button" aria-label="Agregar nota" onClick={handleAddNote} disabled={addingNote || !note.trim()}>
+                <Button
+                  type="button"
+                  aria-label="Agregar nota"
+                  variant="outline"
+                  onClick={handleAddNote}
+                  disabled={addingNote || !note.trim()}
+                >
                   <HugeIcon icon={Add01Icon} size={16} strokeWidth={2} />
                 </Button>
               </div>
@@ -258,10 +324,10 @@ export function Contact360Dialog({ contactId, onClose }: { contactId: string | n
                   ))}
                 </ul>
               )}
-            </section>
-          </div>
+            </FormSection>
+          </FormBody>
         )}
-      </DialogContent>
+      </FormDialogContent>
     </Dialog>
   );
 }

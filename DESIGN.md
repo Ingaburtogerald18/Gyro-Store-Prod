@@ -18,9 +18,9 @@ Los colores viven en `app/tailwind.css`, en el bloque de la paleta de marca. En 
 | Rosa | `--rose`, `--muted`, `--selection` | `#f4ded9` | `#222326` (`--selection`: `#26272a`) | Fondo de lo elegido, encabezado de tablas, ofertas, círculo detrás de las fotos |
 | Texto secundario | `--muted-foreground` | `#6e5a57` | `#a8a29e` | Etiquetas, ayudas, fechas |
 | Amarillo | `--action` | `#ffc20e` | `#ffc20e` | Acción principal. Texto tinta (`#111111` en oscuro) |
-| Bordó | `--bordo`, `--primary-2` | `#812c2c` | `#e8a09a` (rosa oscuro) | Selección, navegación, links, foco, precios, línea del header |
+| Bordó | `--bordo`, `--primary-2` | `#812c2c` | `#e8a09a` (rosa oscuro) | Selección, navegación, links, foco, precios, línea del header de la tienda |
 | Sombra del botón | `--sticker-shadow`, `--header-cart-shadow` | `#812c2c` | `#812c2c` | Sombra dura del botón principal y del carrito |
-| Teal del logo | `--logo`, `--success` | `#3dc5a9` | `#3dc5a9` | Logo, mascota y el punto de «Recibido», «Pagado», «Disponible» |
+| Teal del logo | `--logo`, `--success` | `#3dc5a9` | `#3dc5a9` | Logo, mascota, detalle del encabezado del panel y de formularios, punto de «Recibido», «Pagado», «Disponible» |
 | Header | `--header-background` | `#fffcf3` | `#141517` | Fondo del header |
 | Ofertas | `--promo` | rosa, texto bordó | `#3a2a2b`, texto rosa | Ofertas, con borde bordó de 1.5 px |
 | Borde | `--border` | tinta 16 % | blanco 10 % | Tarjetas y separadores |
@@ -35,7 +35,7 @@ Siempre:
 - Amarillo solo para la acción principal: una por pantalla, por ventana o por tarjeta.
 - Bordó para lo elegido y para dónde estás. En oscuro pasa a rosa oscuro, porque el bordó sobre negro es 2.1:1.
 - Rosa nunca separa solo (contra el crema es 1.3:1): las tarjetas llevan borde.
-- Teal solo en el logo, la mascota y el punto de éxito. Como texto no se lee (2:1): el texto de éxito va en tinta.
+- Teal en el logo, la mascota, una línea discreta de identidad en encabezados del panel y formularios, y el punto de éxito. Como texto no se lee (2:1): las etiquetas y el texto de éxito van en tinta.
 - Rojo solo para errores y eliminar, siempre con ícono o texto.
 - Los números van en color de texto. El color se reserva para estados.
 - Gráficos con colores de la marca, en este orden: bordó, amarillo, tinta, rosa oscuro, gris.
@@ -44,7 +44,7 @@ Nunca:
 - Valores sueltos en componentes (`#ffc20e`, `bg-yellow-400`, `rgb(...)`).
 - Un color que no esté en esta tabla.
 - Comunicar un estado solo con color: siempre con texto o ícono.
-- Verde en la interfaz fuera del logo, la mascota y el punto de éxito.
+- Verde fuera de los usos del teal definidos en esta tabla y de WhatsApp.
 
 ## 2. Tipografía
 
@@ -143,6 +143,9 @@ Nunca:
 ## 7. Formularios
 
 - Cortos (hasta 6 campos): ventana `max-w-xl`. Largos: ventana `max-w-5xl` con secciones. Configuración: en la página.
+- Diseño compartido en `components/ui/form-layout.tsx`: `FormDialogContent` con tamaño `short` o `long`, `FormLayout`, `FormBody`, `FormSection` y `FormActions`. `FormLayout mode="page"` para formularios dentro de una página; `FormPanel` para editores que guardan con callbacks. Cada formulario conserva sus campos, información, validación y acciones propias: se comparte la presentación.
+- En ventanas, encabezado y pie quedan visibles; solo el cuerpo se desplaza. Encabezado y pie en blanco (`--card`), cuerpo en crema (`--background`), con los equivalentes neutros del modo oscuro. Línea fina teal en el encabezado, sin usarla como estado ni como texto.
+- Secciones de formularios largos: tarjeta con borde, título `text-lg font-semibold`, ayuda `text-xs` y espacios de 20 px. Campos, etiquetas y acciones salen de los componentes compartidos, sin variantes locales de color o tamaño.
 - Título con verbo y objeto: «Registrar compra». Nunca «Nuevo» ni «Formulario».
 - Una columna. Dos solo para pares cortos (fecha y número, moneda y monto).
 - Cada campo con `Field`: etiqueta arriba siempre visible, asterisco si es obligatorio, ayuda debajo solo si hace falta, error debajo en rojo diciendo cómo arreglarlo.
@@ -275,3 +278,6 @@ Lo que este documento pide y el código todavía no tiene. Cada línea se borra 
 | 2026-10-10 | Lo elegido con texto bordó (en oscuro, fondo `#26272a`); barra de herramientas con borde normal; fila de tabla en rosa al pasar el mouse; contorno del botón amarillo `#111111` en oscuro; ofertas con borde bordó; precios en bordó; gráficos de Reportería en bordó, sin verde |
 | 2026-10-10 | Rediseño aprobado del editor de portada: estructura, tienda e inspector fijo, edición directa del borrador, deshacer/rehacer, composiciones preparadas y publicación confirmada. Excepción a los formularios de banner en ventana; el carrito sigue en ventana |
 | 2026-10-10 | Una plantilla por modelo: la tienda muestra su nombre, descripción y categoría; la nota interna no se publica. Plantillas y categorías se administran en Inventario (vista Plantillas), ya no en Catálogo |
+| 2026-10-10 | Rediseño aprobado de Plantillas: resúmenes públicos y columnas acotadas sin scroll lateral, opciones resumidas y productos vinculados con conteo de publicados. Ficha centrada por secciones, vista previa pública en vivo y pie de acciones fijo; notas internas fuera del listado y de la vista previa |
+| 2026-10-10 | El precio de la tienda es el de venta que se pone al recibir en bodega (el del lote más viejo con stock). Nuevo estado «Próximamente», sin precio; «Próximamente» y «Agotado» no se pueden pedir |
+| 2026-10-10 | Unificación aprobada de formularios: campos y botones compartidos de 44 px, amarillo para confirmar o guardar, bordó para foco y selección, cancelación neutra y componentes comunes de encabezado, secciones, cuerpo y pie fijo. Teal del logo como detalle discreto de identidad en el panel y los encabezados de formularios, con la paleta existente en claro y oscuro |

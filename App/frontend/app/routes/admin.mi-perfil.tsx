@@ -12,7 +12,9 @@
 // cambios» (`PATCH /api/me/profile`): una imagen que ya se ve en pantalla pero
 // que todavía no está guardada es una trampa, y al subirla ya se pagó el viaje al
 // servidor de todos modos.
-import { useEffect } from 'react';
+import { FormLayout, FormSection, FormActions } from '~/components/ui/form-layout';
+import { useEffect, useState } from 'react';
+import { FormErrorBanner, serverErrorMessage } from '~/components/ui/form-feedback';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import type { MetaFunction } from '@remix-run/node';
@@ -36,7 +38,7 @@ import { EMPTY_PROFILE_FORM, ROLE_LABELS } from '~/components/admin/users/consta
 import { PageHeader } from '~/components/layout/PageHeader';
 import { Badge } from '~/components/ui/badge';
 import { Button } from '~/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '~/components/ui/card';
+import { Card, CardContent } from '~/components/ui/card';
 import { Field, FieldError, FieldLabel } from '~/components/ui/field';
 import { Input } from '~/components/ui/input';
 import { QueryState } from '~/components/ui/QueryState';
@@ -44,6 +46,7 @@ import { QueryState } from '~/components/ui/QueryState';
 export const meta: MetaFunction = () => [{ title: pageTitle('Mi perfil', { admin: true }) }];
 
 export default function AdminMiPerfil() {
+  const [serverError, setServerError] = useState<string | null>(null);
   const { data: profile, isLoading, isError, refetch } = useGetMyProfileQuery();
   const [updateMyProfile, { isLoading: isSaving }] = useUpdateMyProfileMutation();
   const [uploadAvatar, { isLoading: isUploading }] = useUploadMyAvatarMutation();
@@ -76,6 +79,7 @@ export default function AdminMiPerfil() {
   }, [profile, reset]);
 
   const onSubmit = handleSubmit(async (values) => {
+    setServerError(null);
     try {
       await updateMyProfile({
         name: values.name,
@@ -88,7 +92,7 @@ export default function AdminMiPerfil() {
       // header queda con el nombre nuevo sin recargar la página.
       toast.success('Tus datos se guardaron.');
     } catch (error: any) {
-      toast.error(error?.data?.error || 'No se pudieron guardar tus datos.');
+      setServerError(serverErrorMessage(error, 'No se pudieron guardar tus datos.'));
     }
   });
 
@@ -162,70 +166,65 @@ export default function AdminMiPerfil() {
               </CardContent>
             </Card>
 
-          <Card className="rounded-2xl shadow-none">
-            <CardHeader className="border-b border-border pb-4">
-              <CardTitle className="text-base">Mis datos</CardTitle>
-              <CardDescription>
-                Estos datos los ve el equipo en Personal. La cuenta bancaria solo la ve un
-                administrador.
-              </CardDescription>
-            </CardHeader>
+            <FormLayout mode="page" onSubmit={onSubmit} noValidate>
+              <FormErrorBanner message={serverError} />
+              <FormSection
+                title="Mis datos"
+                description="Estos datos los ve el equipo en Personal. La cuenta bancaria solo la ve un administrador."
+              >
+                <div className="grid gap-4">
+                  <Field data-invalid={!!errors.name}>
+                    <FieldLabel htmlFor="mi-nombre" required>
+                      Nombre a mostrar
+                    </FieldLabel>
+                    <Input
+                      id="mi-nombre"
+                      aria-required
+                      aria-invalid={!!errors.name}
+                      {...register('name')}
+                    />
+                    <FieldError errors={[errors.name]} />
+                  </Field>
 
-            <CardContent className="grid gap-6 p-5">
-              <div className="grid gap-4 md:grid-cols-2">
-                <Field data-invalid={!!errors.name}>
-                  <FieldLabel htmlFor="mi-nombre" required>
-                    Nombre a mostrar
-                  </FieldLabel>
-                  <Input
-                    id="mi-nombre"
-                    aria-required
-                    aria-invalid={!!errors.name}
-                    {...register('name')}
+                  <Field data-invalid={!!errors.personal_email}>
+                    <FieldLabel htmlFor="mi-correo-personal">Correo personal</FieldLabel>
+                    <Input
+                      id="mi-correo-personal"
+                      type="email"
+                      placeholder="usuario@gmail.com"
+                      aria-invalid={!!errors.personal_email}
+                      {...register('personal_email')}
+                    />
+                    <FieldError errors={[errors.personal_email]} />
+                  </Field>
+
+                  <Field data-invalid={!!errors.phone}>
+                    <FieldLabel htmlFor="mi-telefono">Número de teléfono</FieldLabel>
+                    <Input
+                      id="mi-telefono"
+                      placeholder="+505 0000 0000"
+                      aria-invalid={!!errors.phone}
+                      {...register('phone')}
+                    />
+                    <FieldError errors={[errors.phone]} />
+                  </Field>
+                </div>
+                <ProfileBankFields form={form} idPrefix="mi" legend="Mi cuenta bancaria (pagos)" />
+              </FormSection>
+
+              <FormActions>
+                <Button type="submit" disabled={isSaving}>
+                  <HugeIcon
+                    icon={RefreshIcon}
+                    size={16}
+                    strokeWidth={2}
+                    className={`mr-2 ${isSaving ? 'animate-spin' : ''}`}
+                    aria-hidden
                   />
-                  <FieldError errors={[errors.name]} />
-                </Field>
-
-                <Field data-invalid={!!errors.personal_email}>
-                  <FieldLabel htmlFor="mi-correo-personal">Correo personal</FieldLabel>
-                  <Input
-                    id="mi-correo-personal"
-                    type="email"
-                    placeholder="usuario@gmail.com"
-                    aria-invalid={!!errors.personal_email}
-                    {...register('personal_email')}
-                  />
-                  <FieldError errors={[errors.personal_email]} />
-                </Field>
-
-                <Field data-invalid={!!errors.phone}>
-                  <FieldLabel htmlFor="mi-telefono">Número de teléfono</FieldLabel>
-                  <Input
-                    id="mi-telefono"
-                    placeholder="+505 0000 0000"
-                    aria-invalid={!!errors.phone}
-                    {...register('phone')}
-                  />
-                  <FieldError errors={[errors.phone]} />
-                </Field>
-
-              </div>
-              <ProfileBankFields form={form} idPrefix="mi" legend="Mi cuenta bancaria (pagos)" />
-            </CardContent>
-
-            <CardFooter className="justify-end border-t border-border pt-4">
-              <Button className="h-9 rounded-xl" onClick={onSubmit} disabled={isSaving}>
-                <HugeIcon
-                  icon={RefreshIcon}
-                  size={16}
-                  strokeWidth={2}
-                  className={`mr-2 ${isSaving ? 'animate-spin' : ''}`}
-                  aria-hidden
-                />
-                {isSaving ? 'Guardando...' : 'Guardar cambios'}
-              </Button>
-            </CardFooter>
-          </Card>
+                  {isSaving ? 'Guardando…' : 'Guardar cambios'}
+                </Button>
+              </FormActions>
+            </FormLayout>
           </div>
         )}
       </QueryState>

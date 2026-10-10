@@ -1,3 +1,4 @@
+import { FormLayout, FormDialogContent, FormActions, FormBody } from "~/components/ui/form-layout";
 // Diálogos sobre una orden ya registrada: completar o corregir sus datos
 // (también las órdenes viejas, que nacen sin proveedor, factura ni fotos) y
 // agregarle productos que faltaron al cargarla.
@@ -9,8 +10,13 @@ import { z } from "zod";
 
 import type { AdminTemplate } from "@shared/schemas";
 import { Button } from "~/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "~/components/ui/dialog";
-import { DiscardChangesDialog, fieldMessages, FormErrorBanner, serverErrorMessage } from "~/components/ui/form-feedback";
+import { Dialog, DialogDescription, DialogHeader, DialogTitle } from "~/components/ui/dialog";
+import {
+  DiscardChangesDialog,
+  fieldMessages,
+  FormErrorBanner,
+  serverErrorMessage,
+} from "~/components/ui/form-feedback";
 import { formatUsd } from "~/lib/formatters";
 import { useGetCategoriesQuery, useGetTemplatesQuery } from "~/store/api/catalogAdminApi";
 import {
@@ -112,51 +118,64 @@ export function EditPurchaseOrderDialog({ order, onClose }: { order: PurchaseOrd
   return (
     <>
       <Dialog open={!!order} onOpenChange={requestClose}>
-        <DialogContent className="max-h-[90vh] w-full overflow-y-auto sm:max-w-3xl">
+        <FormDialogContent size="long">
           <DialogHeader>
             <DialogTitle>
-              {order?.missing.length ? "Completar datos de la orden" : "Editar orden"} {order?.orderNumber}
+              {order?.missing.length ? "Completar datos de la orden" : "Editar orden"}{" "}
+              {order?.orderNumber}
             </DialogTitle>
             {order && order.missing.length > 0 && (
-              <DialogDescription>Falta: {order.missing.map((m) => MISSING_LABELS[m]).join(", ")}.</DialogDescription>
+              <DialogDescription>
+                Falta: {order.missing.map((m) => MISSING_LABELS[m]).join(", ")}.
+              </DialogDescription>
             )}
           </DialogHeader>
 
-          <form ref={formRef} onSubmit={handleSubmit(onSubmit, () => focusFirstError(formRef.current))} className="flex flex-col gap-5" noValidate>
+          <FormLayout
+            ref={formRef}
+            onSubmit={handleSubmit(onSubmit, () => focusFirstError(formRef.current))}
+            noValidate
+          >
             <FormErrorBanner message={serverError} />
-            {order && (
-              <Controller
-                control={control}
-                name="header"
-                render={({ field }) => (
-                  <OrderHeaderFields
-                    value={field.value}
-                    onChange={(patch) => field.onChange({ ...getValues("header"), ...patch })}
-                    errors={fieldMessages(errors.header)}
-                    suppliers={suppliers}
-                    allowNoSupplier
-                    numberProvisional={order.numberProvisional}
-                    linesTotalUsd={order.linesTotalUsd}
-                    invoices={invoices}
-                    currentInvoiceId={order.invoice?.id ?? null}
-                    taxHelp={taxHelpFor(order)}
-                  />
-                )}
-              />
-            )}
-            <DialogFooter className="border-t pt-4">
+            <FormBody>
+              {order && (
+                <Controller
+                  control={control}
+                  name="header"
+                  render={({ field }) => (
+                    <OrderHeaderFields
+                      value={field.value}
+                      onChange={(patch) => field.onChange({ ...getValues("header"), ...patch })}
+                      errors={fieldMessages(errors.header)}
+                      suppliers={suppliers}
+                      allowNoSupplier
+                      numberProvisional={order.numberProvisional}
+                      linesTotalUsd={order.linesTotalUsd}
+                      invoices={invoices}
+                      currentInvoiceId={order.invoice?.id ?? null}
+                      taxHelp={taxHelpFor(order)}
+                    />
+                  )}
+                />
+              )}
+            </FormBody>
+            <FormActions>
               <Button type="button" variant="cancel" onClick={() => requestClose(false)}>
                 Cancelar
               </Button>
               <Button type="submit" disabled={isSubmitting}>
                 {isSubmitting ? "Guardando…" : "Guardar"}
               </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
+            </FormActions>
+          </FormLayout>
+        </FormDialogContent>
       </Dialog>
 
-      <DiscardChangesDialog open={confirmDiscard} onOpenChange={setConfirmDiscard} onDiscard={onClose} />
+      <DiscardChangesDialog
+        open={confirmDiscard}
+        onOpenChange={setConfirmDiscard}
+        onDiscard={onClose}
+      />
     </>
   );
 }
@@ -232,42 +251,56 @@ export function AddOrderLinesDialog({ order, onClose }: { order: PurchaseOrder |
   return (
     <>
       <Dialog open={!!order} onOpenChange={requestClose}>
-        <DialogContent className="max-h-[90vh] w-full overflow-y-auto sm:max-w-5xl">
+        <FormDialogContent size="long">
           <DialogHeader>
             <DialogTitle>Agregar productos a la orden {order?.orderNumber}</DialogTitle>
-            {order && <DialogDescription>Entran en tránsito, con la fecha de la orden y {orderTaxText(order)}.</DialogDescription>}
+            {order && (
+              <DialogDescription>
+                Entran en tránsito, con la fecha de la orden y {orderTaxText(order)}.
+              </DialogDescription>
+            )}
           </DialogHeader>
 
-          <form ref={formRef} onSubmit={handleSubmit(onSubmit, () => focusFirstError(formRef.current))} className="flex flex-col gap-5" noValidate>
+          <FormLayout
+            ref={formRef}
+            onSubmit={handleSubmit(onSubmit, () => focusFirstError(formRef.current))}
+            noValidate
+          >
             <FormErrorBanner message={serverError} />
-            <Controller
-              control={control}
-              name="lines"
-              render={({ field }) => (
-                <OrderLinesEditor
-                  lines={field.value}
-                  onChange={field.onChange}
-                  errors={lineErrors}
-                  templates={templates}
-                  categories={categories}
-                  taxUnit={taxUnit}
-                  alreadyInOrder={order ? purchases.filter((p) => p.orderId === order.id) : []}
-                />
-              )}
-            />
-            <DialogFooter className="border-t pt-4">
+            <FormBody>
+              <Controller
+                control={control}
+                name="lines"
+                render={({ field }) => (
+                  <OrderLinesEditor
+                    lines={field.value}
+                    onChange={field.onChange}
+                    errors={lineErrors}
+                    templates={templates}
+                    categories={categories}
+                    taxUnit={taxUnit}
+                    alreadyInOrder={order ? purchases.filter((p) => p.orderId === order.id) : []}
+                  />
+                )}
+              />
+            </FormBody>
+            <FormActions>
               <Button type="button" variant="cancel" onClick={() => requestClose(false)}>
                 Cancelar
               </Button>
               <Button type="submit" disabled={isSubmitting}>
                 {isSubmitting ? "Guardando…" : "Agregar a la orden"}
               </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
+            </FormActions>
+          </FormLayout>
+        </FormDialogContent>
       </Dialog>
 
-      <DiscardChangesDialog open={confirmDiscard} onOpenChange={setConfirmDiscard} onDiscard={onClose} />
+      <DiscardChangesDialog
+        open={confirmDiscard}
+        onOpenChange={setConfirmDiscard}
+        onDiscard={onClose}
+      />
     </>
   );
 }

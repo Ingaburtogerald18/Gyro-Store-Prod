@@ -1,15 +1,31 @@
+import { FormErrorBanner, serverErrorMessage } from "~/components/ui/form-feedback";
+import {
+  FormLayout,
+  FormDialogContent,
+  FormActions,
+  FormBody,
+  FormSection,
+} from "~/components/ui/form-layout";
 // Modal para editar los datos base de una compra en tránsito (China).
 import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "~/components/ui/dialog";
+import { Dialog, DialogHeader, DialogTitle } from "~/components/ui/dialog";
 import { Button } from "~/components/ui/button";
 import { Field, FieldDescription, FieldError, FieldLabel } from "~/components/ui/field";
-import { purchaseFormSchema, type PurchaseFormInput, type PurchaseFormValues } from "~/lib/validators";
+import {
+  purchaseFormSchema,
+  type PurchaseFormInput,
+  type PurchaseFormValues,
+} from "~/lib/validators";
 import { useUpdatePurchaseMutation, type Purchase } from "~/store/api/inventoryV1Api";
 import { useGetAdminCatalogQuery, useGetCategoriesQuery } from "~/store/api/catalogAdminApi";
-import { CatalogVariantPicker, isCatalogLinkComplete, type CatalogLinkValue } from "./CatalogVariantPicker";
+import {
+  CatalogVariantPicker,
+  isCatalogLinkComplete,
+  type CatalogLinkValue,
+} from "./CatalogVariantPicker";
 import { Input } from "~/components/ui/input";
 import { NativeSelect, NativeSelectOption } from "~/components/ui/native-select";
 import { formatUsd } from "~/lib/formatters";
@@ -18,6 +34,7 @@ import { DatePicker } from "~/components/ui/date-picker";
 
 export function EditPurchaseModal({ purchase, onClose }: { purchase: Purchase | null; onClose: () => void }) {
   const [updatePurchase, { isLoading }] = useUpdatePurchaseMutation();
+  const [serverError, setServerError] = useState<string | null>(null);
   const { data: categories = [] } = useGetCategoriesQuery();
   const { data: catalog = [] } = useGetAdminCatalogQuery();
   // Vínculo con el catálogo. Cambiarlo hace que la tienda vea (o deje de ver)
@@ -70,6 +87,7 @@ export function EditPurchaseModal({ purchase, onClose }: { purchase: Purchase | 
     const linkChanged =
       (link?.catalogItemId ?? null) !== (purchase.catalogItemId ?? null) ||
       (link?.variantKey ?? null) !== (purchase.catalogItemId ? purchase.variantKey ?? "" : null);
+    setServerError(null);
     try {
       await updatePurchase({
         id: purchase.id,
@@ -81,158 +99,217 @@ export function EditPurchaseModal({ purchase, onClose }: { purchase: Purchase | 
       toast.success("Compra modificada correctamente.");
       onClose();
     } catch (err: any) {
-      toast.error(err?.data?.error || "No se pudo actualizar la compra.");
+      setServerError(serverErrorMessage(err, "No se pudo actualizar la compra."));
     }
   }
 
+  useEffect(() => setServerError(null), [purchase]);
+
   return (
     <Dialog open={!!purchase} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[600px]">
+      <FormDialogContent size="long">
         <DialogHeader>
           <DialogTitle>Editar compra · {purchase?.code ?? ""}</DialogTitle>
         </DialogHeader>
-      <form onSubmit={handleSubmit(onSubmit)} autoComplete="off" className="space-y-5">
+        <FormLayout onSubmit={handleSubmit(onSubmit)} autoComplete="off">
+          <FormErrorBanner message={serverError} />
 
-        {/* ── Bloque 1: Datos del ítem ── */}
-        <div className="grid gap-3 sm:grid-cols-2">
-          {/* Fila 1: Fecha + Lote */}
-          <Field data-invalid={!!errors.purchaseDate}>
-            <FieldLabel htmlFor="edit-purchase-date" required>Fecha de compra</FieldLabel>
-          <Controller
-            control={control}
-            name="purchaseDate"
-            render={({ field }) => (
-              <DatePicker
-                id="edit-purchase-date"
-                value={field.value}
-                onChange={field.onChange}
-                disabled={inOrder}
-              />
-            )}
-          />
-            <FieldError errors={[errors.purchaseDate]} />
-          </Field>
-          <Field data-invalid={!!errors.lot}>
-            <FieldLabel htmlFor="edit-purchase-lot" required>{inOrder ? "Orden" : "Lote"}</FieldLabel>
-            {/* readOnly y no disabled: un campo disabled llega vacío al validar. */}
-            <Input
-              id="edit-purchase-lot"
-              aria-required
-              readOnly={inOrder}
-              className={inOrder ? "bg-muted text-muted-foreground" : undefined}
-              {...register("lot")}
-              aria-invalid={!!errors.lot}
-            />
-            {inOrder && <FieldDescription>El número y la fecha se cambian desde la orden.</FieldDescription>}
-            <FieldError errors={[errors.lot]} />
-          </Field>
+          {/* ── Bloque 1: Datos del ítem ── */}
+          <FormBody>
+            <FormSection title="Datos del producto">
+              <div className="grid gap-4 sm:grid-cols-2">
+                {/* Fila 1: Fecha + Lote */}
+                <Field data-invalid={!!errors.purchaseDate}>
+                  <FieldLabel htmlFor="edit-purchase-date" required>
+                    Fecha de compra
+                  </FieldLabel>
+                  <Controller
+                    control={control}
+                    name="purchaseDate"
+                    render={({ field }) => (
+                      <DatePicker
+                        id="edit-purchase-date"
+                        value={field.value}
+                        onChange={field.onChange}
+                        disabled={inOrder}
+                      />
+                    )}
+                  />
+                  <FieldError errors={[errors.purchaseDate]} />
+                </Field>
+                <Field data-invalid={!!errors.lot}>
+                  <FieldLabel htmlFor="edit-purchase-lot" required>
+                    {inOrder ? "Orden" : "Lote"}
+                  </FieldLabel>
+                  {/* readOnly y no disabled: un campo disabled llega vacío al validar. */}
+                  <Input
+                    id="edit-purchase-lot"
+                    aria-required
+                    readOnly={inOrder}
+                    className={inOrder ? "bg-muted text-muted-foreground" : undefined}
+                    {...register("lot")}
+                    aria-invalid={!!errors.lot}
+                  />
+                  {inOrder && (
+                    <FieldDescription>
+                      El número y la fecha se cambian desde la orden.
+                    </FieldDescription>
+                  )}
+                  <FieldError errors={[errors.lot]} />
+                </Field>
 
-          {/* Vínculo con el catálogo: al vincular, el nombre pasa a ser el de
-              los otros lotes de esa variante (lo pone el servidor). */}
-          <div className="sm:col-span-2">
-            <CatalogVariantPicker idPrefix="edit-purchase" value={link} onChange={(next) => setLink(next)} />
-          </div>
+                {/* Vínculo con el catálogo: al vincular, el nombre pasa a ser el de
+                  los otros lotes de esa variante (lo pone el servidor). */}
+                <div className="sm:col-span-2">
+                  <CatalogVariantPicker
+                    idPrefix="edit-purchase"
+                    value={link}
+                    onChange={(next) => setLink(next)}
+                  />
+                </div>
 
-          {/* Fila 3: Nombre — ancho completo */}
-          <Field className="sm:col-span-2" data-invalid={!!errors.productName}>
-            <FieldLabel htmlFor="edit-purchase-name" required>Nombre del producto</FieldLabel>
-            <Input id="edit-purchase-name" aria-required {...register("productName")} aria-invalid={!!errors.productName} />
-            <FieldError errors={[errors.productName]} />
-          </Field>
-          
-          {/* Fila 4: Categoría.
-              Era un <Input> de texto libre: se podía guardar cualquier cadena,
-              y la tabla —que resuelve el valor contra la lista de categorías—
-              la mostraba cruda, sin nombre. Ahora es la MISMA lista que en el
-              alta: las categorías de Catálogo.
+                {/* Fila 3: Nombre — ancho completo */}
+                <Field className="sm:col-span-2" data-invalid={!!errors.productName}>
+                  <FieldLabel htmlFor="edit-purchase-name" required>
+                    Nombre del producto
+                  </FieldLabel>
+                  <Input
+                    id="edit-purchase-name"
+                    aria-required
+                    {...register("productName")}
+                    aria-invalid={!!errors.productName}
+                  />
+                  <FieldError errors={[errors.productName]} />
+                </Field>
 
-              `legacyCategory` cubre las compras viejas que quedaron con una
-              categoría que ya no existe en la lista: sin esa opción el select
-              no podría representar su valor y lo borraría en silencio al
-              guardar cualquier otro campo. */}
-          <Field data-invalid={!!errors.category}>
-            <FieldLabel htmlFor="edit-purchase-category" required>Categoría</FieldLabel>
-            <NativeSelect
-              id="edit-purchase-category"
-              className="w-full"
-              aria-required
-              aria-invalid={!!errors.category}
-              {...register("category")}
-            >
-              <NativeSelectOption value="" disabled>
-                {categories.length === 0 ? 'No hay categorías creadas' : 'Seleccioná una categoría'}
-              </NativeSelectOption>
-              {legacyCategory && (
-                <NativeSelectOption value={legacyCategory}>
-                  {legacyCategory} (categoría anterior)
-                </NativeSelectOption>
-              )}
-              {categories.map((c) => (
-                <NativeSelectOption key={c.id} value={c.id}>
-                  {c.name}
-                </NativeSelectOption>
-              ))}
-            </NativeSelect>
-            <FieldError errors={[errors.category]} />
-          </Field>
-        </div>
+                {/* Fila 4: Categoría.
+                  Era un <Input> de texto libre: se podía guardar cualquier cadena,
+                  y la tabla —que resuelve el valor contra la lista de categorías—
+                  la mostraba cruda, sin nombre. Ahora es la MISMA lista que en el
+                  alta: las categorías de Catálogo.
 
-        {/* ── Bloque 2: Datos financieros ── */}
-        <div className="grid gap-3 sm:grid-cols-3">
-          <Field data-invalid={!!errors.quantity}>
-            <FieldLabel htmlFor="edit-purchase-qty" required>Cantidad</FieldLabel>
-            <Input id="edit-purchase-qty" type="number" min={1} aria-required {...register("quantity")} aria-invalid={!!errors.quantity} />
-            <FieldError errors={[errors.quantity]} />
-          </Field>
-          <Field data-invalid={!!errors.costUnit}>
-            <FieldLabel htmlFor="edit-purchase-cost" required>Precio base (USD)</FieldLabel>
-            <Input id="edit-purchase-cost" type="number" step="0.01" min={0} aria-required {...register("costUnit")} aria-invalid={!!errors.costUnit} />
-            <FieldError errors={[errors.costUnit]} />
-          </Field>
-          <Field data-invalid={!!errors.taxUnit}>
-            <FieldLabel htmlFor="edit-purchase-tax" required>Imp. unitario (USD)</FieldLabel>
-            <Input
-              id="edit-purchase-tax"
-              type="number"
-              step="0.0001"
-              min={0}
-              aria-required
-              readOnly={inOrder}
-              className={inOrder ? "bg-muted text-muted-foreground" : undefined}
-              {...register("taxUnit")}
-              aria-invalid={!!errors.taxUnit}
-            />
-            {inOrder && <FieldDescription>Es el de toda la orden: se cambia en «Editar orden».</FieldDescription>}
-            <FieldError errors={[errors.taxUnit]} />
-          </Field>
+                  `legacyCategory` cubre las compras viejas que quedaron con una
+                  categoría que ya no existe en la lista: sin esa opción el select
+                  no podría representar su valor y lo borraría en silencio al
+                  guardar cualquier otro campo. */}
+                <Field data-invalid={!!errors.category}>
+                  <FieldLabel htmlFor="edit-purchase-category" required>
+                    Categoría
+                  </FieldLabel>
+                  <NativeSelect
+                    id="edit-purchase-category"
+                    className="w-full"
+                    aria-required
+                    aria-invalid={!!errors.category}
+                    {...register("category")}
+                  >
+                    <NativeSelectOption value="" disabled>
+                      {categories.length === 0
+                        ? "No hay categorías creadas"
+                        : "Seleccioná una categoría"}
+                    </NativeSelectOption>
+                    {legacyCategory && (
+                      <NativeSelectOption value={legacyCategory}>
+                        {legacyCategory} (categoría anterior)
+                      </NativeSelectOption>
+                    )}
+                    {categories.map((c) => (
+                      <NativeSelectOption key={c.id} value={c.id}>
+                        {c.name}
+                      </NativeSelectOption>
+                    ))}
+                  </NativeSelect>
+                  <FieldError errors={[errors.category]} />
+                </Field>
+              </div>
+            </FormSection>
+            <FormSection title="Costos y cantidades">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field data-invalid={!!errors.quantity}>
+                  <FieldLabel htmlFor="edit-purchase-qty" required>
+                    Cantidad
+                  </FieldLabel>
+                  <Input
+                    id="edit-purchase-qty"
+                    type="number"
+                    min={1}
+                    aria-required
+                    {...register("quantity")}
+                    aria-invalid={!!errors.quantity}
+                  />
+                  <FieldError errors={[errors.quantity]} />
+                </Field>
+                <Field data-invalid={!!errors.costUnit}>
+                  <FieldLabel htmlFor="edit-purchase-cost" required>
+                    Precio base (USD)
+                  </FieldLabel>
+                  <Input
+                    id="edit-purchase-cost"
+                    type="number"
+                    step="0.01"
+                    min={0}
+                    aria-required
+                    {...register("costUnit")}
+                    aria-invalid={!!errors.costUnit}
+                  />
+                  <FieldError errors={[errors.costUnit]} />
+                </Field>
+                <Field data-invalid={!!errors.taxUnit}>
+                  <FieldLabel htmlFor="edit-purchase-tax" required>
+                    Imp. unitario (USD)
+                  </FieldLabel>
+                  <Input
+                    id="edit-purchase-tax"
+                    type="number"
+                    step="0.0001"
+                    min={0}
+                    aria-required
+                    readOnly={inOrder}
+                    className={inOrder ? "bg-muted text-muted-foreground" : undefined}
+                    {...register("taxUnit")}
+                    aria-invalid={!!errors.taxUnit}
+                  />
+                  {inOrder && (
+                    <FieldDescription>
+                      Es el de toda la orden: se cambia en «Editar orden».
+                    </FieldDescription>
+                  )}
+                  <FieldError errors={[errors.taxUnit]} />
+                </Field>
 
-          {/* Tarjeta de totales estilo ticket */}
-          <div className="col-span-3 flex flex-col gap-2 rounded-xl border border-primary/20 bg-primary/5 p-4">
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Subtotal (Base × Cantidad)</span>
-              <span className="font-medium text-foreground">{formatUsd(subtotal)}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Total de Impuestos (Imp × Cantidad)</span>
-              <span className="font-medium text-foreground">+{formatUsd(totalTax, 4)}</span>
-            </div>
-            <div className="my-1 border-t border-primary/10" />
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider text-primary-2">Total Final</span>
-              <span className="font-heading text-xl font-bold text-primary-2">{formatUsd(totalFinal)}</span>
-            </div>
-          </div>
-        </div>
+                {/* Tarjeta de totales estilo ticket */}
+                <div className="flex flex-col gap-2 rounded-xl border bg-background p-4 sm:col-span-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Subtotal (Base × Cantidad)</span>
+                    <span className="font-medium text-foreground">{formatUsd(subtotal)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Total de Impuestos (Imp × Cantidad)</span>
+                    <span className="font-medium text-foreground">+{formatUsd(totalTax, 4)}</span>
+                  </div>
+                  <div className="my-1 border-t border-primary/10" />
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-muted-foreground">Total final</span>
+                    <span className="font-heading text-xl font-bold tabular-nums text-foreground">
+                      {formatUsd(totalFinal)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </FormSection>
+          </FormBody>
 
-        <div className="flex justify-end gap-2 border-t pt-4">
-          <Button variant="cancel" size="sm" onClick={onClose} type="button">Cancelar</Button>
-          <Button type="submit" size="sm" disabled={isLoading}>
-        {isLoading && <Spinner className="mr-2" />}
-        Guardar cambios
-      </Button>
-        </div>
-      </form>
-      </DialogContent>
+          <FormActions>
+            <Button variant="cancel" onClick={onClose} type="button">
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={isLoading}>
+              {isLoading && <Spinner className="mr-2" />}
+              {isLoading ? "Guardando…" : "Guardar cambios"}
+            </Button>
+          </FormActions>
+        </FormLayout>
+      </FormDialogContent>
     </Dialog>
   );
 }

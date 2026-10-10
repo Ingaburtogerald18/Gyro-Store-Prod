@@ -1,9 +1,12 @@
 import {
-  Add01Icon,
-  Cancel01Icon,
-  Delete02Icon,
-} from "@hugeicons/core-free-icons";
-import { useEffect, useState, type ReactNode } from "react";
+  FormLayout,
+  FormDialogContent,
+  FormActions,
+  FormBody,
+  FormSection,
+} from "~/components/ui/form-layout";
+import { Add01Icon, Cancel01Icon, Delete02Icon } from "@hugeicons/core-free-icons";
+import { useEffect, useState } from "react";
 import {
   Controller,
   useFieldArray,
@@ -23,14 +26,7 @@ import {
   type TemplateInput,
 } from "@shared/schemas";
 import { Button } from "~/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "~/components/ui/dialog";
+import { Dialog, DialogDescription, DialogHeader, DialogTitle } from "~/components/ui/dialog";
 import { Field, FieldError, FieldLabel } from "~/components/ui/field";
 import {
   DiscardChangesDialog,
@@ -50,10 +46,7 @@ import { Switch } from "~/components/ui/switch";
 import { Textarea } from "~/components/ui/textarea";
 import { ToneDot } from "~/components/catalog/ToneDot";
 import { cn } from "~/lib/utils";
-import {
-  useCreateTemplateMutation,
-  useUpdateTemplateMutation,
-} from "~/store/api/catalogAdminApi";
+import { useCreateTemplateMutation, useUpdateTemplateMutation } from "~/store/api/catalogAdminApi";
 import { TemplatePreview } from "./TemplatePreview";
 
 type TemplateFormValues = z.input<typeof templateInputSchema>;
@@ -150,35 +143,29 @@ export function TemplateFormDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={requestClose}>
-        <DialogContent className="flex max-h-[90vh] w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-5xl">
-          <DialogHeader className="shrink-0 border-b px-6 py-5 pr-16">
+        <FormDialogContent size="long">
+          <DialogHeader>
             <DialogTitle className="text-lg font-semibold">
               {template ? "Editar plantilla" : "Crear plantilla"}
             </DialogTitle>
             <DialogDescription>
-              Una plantilla por modelo. Sus productos vinculados usan esta
-              información.
+              Una plantilla por modelo. Sus productos vinculados usan esta información.
             </DialogDescription>
           </DialogHeader>
 
           {/* Se abre dentro de «Registrar compra»: el submit no debe llegar a ese formulario. */}
-          <form
+          <FormLayout
             onSubmit={(e) => {
               e.stopPropagation();
               return handleSubmit(onSubmit)(e);
             }}
-            className="flex min-h-0 flex-col"
             noValidate
           >
-            {serverError && (
-              <div className="shrink-0 border-b bg-card px-6 py-3">
-                <FormErrorBanner message={serverError} />
-              </div>
-            )}
-            <div className="min-h-0 overflow-y-auto bg-background p-6">
+            <FormErrorBanner message={serverError} />
+            <FormBody>
               <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_19rem]">
                 <div className="min-w-0 space-y-5">
-                  <TemplateSection
+                  <FormSection
                     title="Información pública"
                     description="Nombre, categoría y descripción que ve el cliente."
                   >
@@ -203,10 +190,7 @@ export function TemplateFormDialog({
                         control={control}
                         name="categoryId"
                         render={({ field }) => (
-                          <Select
-                            value={field.value || undefined}
-                            onValueChange={field.onChange}
-                          >
+                          <Select value={field.value || undefined} onValueChange={field.onChange}>
                             <SelectTrigger
                               ref={field.ref}
                               onBlur={field.onBlur}
@@ -243,9 +227,9 @@ export function TemplateFormDialog({
                       />
                       <FieldError errors={[errors.description]} />
                     </Field>
-                  </TemplateSection>
+                  </FormSection>
 
-                  <TemplateSection
+                  <FormSection
                     title="Opciones del modelo"
                     description="Lo que cambia entre variantes, como color o micrófono."
                     action={
@@ -262,21 +246,15 @@ export function TemplateFormDialog({
                           })
                         }
                       >
-                        <HugeIcon
-                          icon={Add01Icon}
-                          size={16}
-                          strokeWidth={2}
-                          aria-hidden
-                        />
+                        <HugeIcon icon={Add01Icon} size={16} strokeWidth={2} aria-hidden />
                         Agregar opción
                       </Button>
                     }
                   >
                     {inUse && (
                       <p className="rounded-xl border border-warning/30 bg-warning/5 p-3 text-xs text-foreground">
-                        Ya hay compras de este modelo: cambiar el nombre de una
-                        opción la deja sin sus compras en la tienda. Para algo
-                        nuevo, agregá una opción.
+                        Ya hay compras de este modelo: cambiar el nombre de una opción la deja sin sus
+                        compras en la tienda. Para algo nuevo, agregá una opción.
                       </p>
                     )}
                     <FieldError errors={[errors.axes]} />
@@ -308,40 +286,21 @@ export function TemplateFormDialog({
                                 aria-invalid={!!errors.axes?.[axisIndex]?.label}
                                 {...register(`axes.${axisIndex}.label`)}
                               />
-                              <FieldError
-                                errors={[errors.axes?.[axisIndex]?.label]}
-                              />
+                              <FieldError errors={[errors.axes?.[axisIndex]?.label]} />
                             </Field>
                             <Button
                               type="button"
                               variant="ghost"
                               size="icon"
-                              aria-label={`Quitar tipo de opción ${
-                                axisIndex + 1
-                              }`}
+                              aria-label={`Quitar tipo de opción ${axisIndex + 1}`}
                               onClick={() => axes.remove(axisIndex)}
                             >
-                              <HugeIcon
-                                icon={Delete02Icon}
-                                size={16}
-                                strokeWidth={2}
-                                aria-hidden
-                              />
+                              <HugeIcon icon={Delete02Icon} size={16} strokeWidth={2} aria-hidden />
                             </Button>
                           </div>
-                          <AxisOptionsField
-                            control={control}
-                            axisIndex={axisIndex}
-                            errors={errors}
-                          />
-                          <Field
-                            orientation="horizontal"
-                            className="justify-between"
-                          >
-                            <FieldLabel
-                              htmlFor={`axis-color-${axis.id}`}
-                              className="font-normal"
-                            >
+                          <AxisOptionsField control={control} axisIndex={axisIndex} errors={errors} />
+                          <Field orientation="horizontal" className="justify-between">
+                            <FieldLabel htmlFor={`axis-color-${axis.id}`} className="font-normal">
                               Es el color: cada opción lleva sus fotos
                             </FieldLabel>
                             <Controller
@@ -359,9 +318,9 @@ export function TemplateFormDialog({
                         </div>
                       ))
                     )}
-                  </TemplateSection>
+                  </FormSection>
 
-                  <TemplateSection
+                  <FormSection
                     title="Ficha técnica"
                     description="Especificaciones que comparten todas las variantes."
                     action={
@@ -371,12 +330,7 @@ export function TemplateFormDialog({
                         disabled={specs.fields.length >= 30}
                         onClick={() => specs.append({ label: "", value: "" })}
                       >
-                        <HugeIcon
-                          icon={Add01Icon}
-                          size={16}
-                          strokeWidth={2}
-                          aria-hidden
-                        />
+                        <HugeIcon icon={Add01Icon} size={16} strokeWidth={2} aria-hidden />
                         Agregar especificación
                       </Button>
                     }
@@ -384,40 +338,31 @@ export function TemplateFormDialog({
                     <FieldError errors={[errors.specs]} />
                     {specs.fields.length === 0 && (
                       <p className="text-sm text-muted-foreground">
-                        Sin especificaciones. Podés agregar datos como driver,
-                        conexión o material.
+                        Sin especificaciones. Podés agregar datos como driver, conexión o material.
                       </p>
                     )}
                     {specs.fields.map((spec, index) => (
                       <div key={spec.id} className="flex items-start gap-2">
                         <div className="grid min-w-0 flex-1 grid-cols-2 gap-3">
                           <Field data-invalid={!!errors.specs?.[index]?.label}>
-                            <FieldLabel htmlFor={`spec-label-${spec.id}`}>
-                              Dato
-                            </FieldLabel>
+                            <FieldLabel htmlFor={`spec-label-${spec.id}`}>Dato</FieldLabel>
                             <Input
                               id={`spec-label-${spec.id}`}
                               placeholder="Ej. Driver"
                               aria-invalid={!!errors.specs?.[index]?.label}
                               {...register(`specs.${index}.label`)}
                             />
-                            <FieldError
-                              errors={[errors.specs?.[index]?.label]}
-                            />
+                            <FieldError errors={[errors.specs?.[index]?.label]} />
                           </Field>
                           <Field data-invalid={!!errors.specs?.[index]?.value}>
-                            <FieldLabel htmlFor={`spec-value-${spec.id}`}>
-                              Valor
-                            </FieldLabel>
+                            <FieldLabel htmlFor={`spec-value-${spec.id}`}>Valor</FieldLabel>
                             <Input
                               id={`spec-value-${spec.id}`}
                               placeholder="Ej. 10 mm"
                               aria-invalid={!!errors.specs?.[index]?.value}
                               {...register(`specs.${index}.value`)}
                             />
-                            <FieldError
-                              errors={[errors.specs?.[index]?.value]}
-                            />
+                            <FieldError errors={[errors.specs?.[index]?.value]} />
                           </Field>
                         </div>
                         <Button
@@ -428,25 +373,18 @@ export function TemplateFormDialog({
                           aria-label={`Quitar especificación ${index + 1}`}
                           onClick={() => specs.remove(index)}
                         >
-                          <HugeIcon
-                            icon={Delete02Icon}
-                            size={16}
-                            strokeWidth={2}
-                            aria-hidden
-                          />
+                          <HugeIcon icon={Delete02Icon} size={16} strokeWidth={2} aria-hidden />
                         </Button>
                       </div>
                     ))}
-                  </TemplateSection>
+                  </FormSection>
 
-                  <TemplateSection
+                  <FormSection
                     title="Notas internas"
                     description="Información privada para el equipo; no se publica."
                   >
                     <Field data-invalid={!!errors.internalNote}>
-                      <FieldLabel htmlFor="template-note">
-                        Nota interna
-                      </FieldLabel>
+                      <FieldLabel htmlFor="template-note">Nota interna</FieldLabel>
                       <Textarea
                         id="template-note"
                         rows={3}
@@ -456,13 +394,13 @@ export function TemplateFormDialog({
                       />
                       <FieldError errors={[errors.internalNote]} />
                     </Field>
-                  </TemplateSection>
+                  </FormSection>
                 </div>
                 <TemplatePreview control={control} categories={categories} />
               </div>
-            </div>
+            </FormBody>
 
-            <DialogFooter className="shrink-0 border-t bg-card px-6 py-4">
+            <FormActions>
               <Button
                 type="button"
                 variant="cancel"
@@ -472,15 +410,11 @@ export function TemplateFormDialog({
                 Cancelar
               </Button>
               <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting
-                  ? "Guardando…"
-                  : template
-                  ? "Guardar cambios"
-                  : "Crear plantilla"}
+                {isSubmitting ? "Guardando…" : template ? "Guardar cambios" : "Crear plantilla"}
               </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
+            </FormActions>
+          </FormLayout>
+        </FormDialogContent>
       </Dialog>
       <DiscardChangesDialog
         open={confirmDiscard}
@@ -491,30 +425,6 @@ export function TemplateFormDialog({
   );
 }
 
-function TemplateSection({
-  title,
-  description,
-  action,
-  children,
-}: {
-  title: string;
-  description: string;
-  action?: ReactNode;
-  children: ReactNode;
-}) {
-  return (
-    <section className="overflow-hidden rounded-2xl border bg-card">
-      <div className="flex flex-wrap items-start justify-between gap-3 border-b p-5">
-        <div className="min-w-0 flex-1">
-          <h3 className="text-lg font-semibold">{title}</h3>
-          <p className="mt-1 text-xs text-muted-foreground">{description}</p>
-        </div>
-        {action}
-      </div>
-      <div className="flex flex-col gap-4 p-5">{children}</div>
-    </section>
-  );
-}
 
 // `options` tiene strings: se controla el array entero porque useFieldArray necesita objetos.
 function AxisOptionsField({

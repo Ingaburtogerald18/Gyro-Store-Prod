@@ -1,3 +1,4 @@
+import { FormLayout, FormDialogContent, FormActions, FormBody } from "~/components/ui/form-layout";
 // Categorías de la tienda: cada plantilla pertenece a una. Se administran desde
 // la vista Plantillas.
 import { Add01Icon, Delete02Icon, Edit02Icon } from "@hugeicons/core-free-icons";
@@ -11,9 +12,19 @@ import type { Category } from "@shared/schemas";
 import { ToneDot } from "~/components/catalog/ToneDot";
 import { Button } from "~/components/ui/button";
 import { ConfirmDialog } from "~/components/ui/confirm-dialog";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "~/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "~/components/ui/dialog";
 import { Field, FieldDescription, FieldError, FieldLabel } from "~/components/ui/field";
-import { DiscardChangesDialog, FormErrorBanner, serverErrorMessage } from "~/components/ui/form-feedback";
+import {
+  DiscardChangesDialog,
+  FormErrorBanner,
+  serverErrorMessage,
+} from "~/components/ui/form-feedback";
 import { HugeIcon } from "~/components/ui/icon";
 import { Input } from "~/components/ui/input";
 import {
@@ -171,55 +182,69 @@ function CategoryFormDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={requestClose}>
-        <DialogContent className="w-full sm:max-w-xl">
+        <FormDialogContent>
           <DialogHeader>
             <DialogTitle>{category ? "Editar categoría" : "Crear categoría"}</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4" noValidate>
+          <FormLayout onSubmit={handleSubmit(onSubmit)} noValidate>
             <FormErrorBanner message={serverError} />
-            <Field data-invalid={!!errors.name}>
-              <FieldLabel htmlFor="category-name" required>
-                Nombre
-              </FieldLabel>
-              <Input
-                id="category-name"
-                placeholder="Ej. Audífonos in-ear"
-                aria-required
-                aria-invalid={!!errors.name}
-                {...nameField}
-                onChange={(e) => {
-                  nameField.onChange(e);
-                  // La dirección sigue al nombre mientras nadie la haya tocado a mano.
-                  if (!category && !getFieldState("slug").isDirty) setValue("slug", slugify(e.target.value));
-                }}
-              />
-              <FieldError errors={[errors.name]} />
-            </Field>
-            <Field data-invalid={!!errors.slug}>
-              <FieldLabel htmlFor="category-slug" required>
-                Dirección en la tienda
-              </FieldLabel>
-              <Input id="category-slug" aria-required aria-invalid={!!errors.slug} {...register("slug")} />
-              <FieldDescription>Va en el enlace de la categoría. Solo minúsculas, números y guiones.</FieldDescription>
-              <FieldError errors={[errors.slug]} />
-            </Field>
-            <Field data-invalid={!!errors.icon}>
-              <FieldLabel htmlFor="category-icon">Ícono</FieldLabel>
-              <Input id="category-icon" maxLength={16} {...register("icon")} />
-              <FieldError errors={[errors.icon]} />
-            </Field>
-            <DialogFooter>
+            <FormBody>
+              <Field data-invalid={!!errors.name}>
+                <FieldLabel htmlFor="category-name" required>
+                  Nombre
+                </FieldLabel>
+                <Input
+                  id="category-name"
+                  placeholder="Ej. Audífonos in-ear"
+                  aria-required
+                  aria-invalid={!!errors.name}
+                  {...nameField}
+                  onChange={(e) => {
+                    nameField.onChange(e);
+                    // La dirección sigue al nombre mientras nadie la haya tocado a mano.
+                    if (!category && !getFieldState("slug").isDirty)
+                      setValue("slug", slugify(e.target.value));
+                  }}
+                />
+                <FieldError errors={[errors.name]} />
+              </Field>
+              <Field data-invalid={!!errors.slug}>
+                <FieldLabel htmlFor="category-slug" required>
+                  Dirección en la tienda
+                </FieldLabel>
+                <Input
+                  id="category-slug"
+                  aria-required
+                  aria-invalid={!!errors.slug}
+                  {...register("slug")}
+                />
+                <FieldDescription>
+                  Va en el enlace de la categoría. Solo minúsculas, números y guiones.
+                </FieldDescription>
+                <FieldError errors={[errors.slug]} />
+              </Field>
+              <Field data-invalid={!!errors.icon}>
+                <FieldLabel htmlFor="category-icon">Ícono</FieldLabel>
+                <Input id="category-icon" maxLength={16} {...register("icon")} />
+                <FieldError errors={[errors.icon]} />
+              </Field>
+            </FormBody>
+            <FormActions>
               <Button type="button" variant="cancel" onClick={() => requestClose(false)}>
                 Cancelar
               </Button>
               <Button type="submit" disabled={isSubmitting}>
                 {isSubmitting ? "Guardando…" : category ? "Guardar cambios" : "Crear categoría"}
               </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
+            </FormActions>
+          </FormLayout>
+        </FormDialogContent>
       </Dialog>
-      <DiscardChangesDialog open={confirmDiscard} onOpenChange={setConfirmDiscard} onDiscard={() => onOpenChange(false)} />
+      <DiscardChangesDialog
+        open={confirmDiscard}
+        onOpenChange={setConfirmDiscard}
+        onDiscard={() => onOpenChange(false)}
+      />
     </>
   );
 }

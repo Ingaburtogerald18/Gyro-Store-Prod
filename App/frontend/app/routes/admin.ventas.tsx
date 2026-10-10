@@ -1,3 +1,4 @@
+import { FormDialogContent } from '~/components/ui/form-layout';
 // Portal de Ventas (doc 09 ítem 65): cotizador + registro + aprobar/rechazar
 // (admin) + listado scoped por rol (lo scopea el backend, no el frontend).
 //
@@ -13,8 +14,8 @@
 // propia venta (ver server/services/sales.ts). Un producto no puede repetirse
 // en dos líneas (mismo límite del backend, evita la lógica de "distribuir
 // reservas" de v1).
-import { HugeIcon } from "~/components/ui/icon";
-import { Add01Icon, CheckmarkCircle02Icon } from "@hugeicons/core-free-icons";
+import { HugeIcon } from '~/components/ui/icon';
+import { Add01Icon, CheckmarkCircle02Icon } from '@hugeicons/core-free-icons';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from '@remix-run/react';
 import type { MetaFunction } from '@remix-run/node';
@@ -31,7 +32,13 @@ import { Label } from '~/components/ui/label';
 import { DataTable } from '~/components/ui/DataTable';
 import { QueryState } from '~/components/ui/QueryState';
 import { SkeletonCard } from '~/components/ui/skeletons';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '~/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '~/components/ui/dialog';
 import { StatusBadge } from '~/components/ui/StatusBadge';
 import type { FilterSelectOption } from '~/components/ui/FilterSelect';
 import { SALE_STATUS, statusMeta } from '~/lib/status';
@@ -48,7 +55,7 @@ import {
 } from '~/components/admin/workspace';
 import { useAppSelector } from '~/store/hooks';
 import { selectIsAdmin } from '~/store/slices/authSlice';
-import { errMsg, formatCordobas, formatLongDate } from "~/lib/formatters";
+import { errMsg, formatCordobas, formatLongDate } from '~/lib/formatters';
 import {
   useApproveSaleMutation,
   useGetSalesQuery,
@@ -56,7 +63,7 @@ import {
   type SaleListItem,
   type SaleWithItems,
 } from '~/store/api/salesApi';
-import { Spinner } from "~/components/ui/spinner";
+import { Spinner } from '~/components/ui/spinner';
 // `SaleEditor` son 22 KB que hoy se descargaban al abrir Ventas aunque nadie
 // registrara nada. Con `lazy` el chunk viaja recién al abrir el diálogo — y
 // para entonces el usuario ya decidió esperar.
@@ -66,7 +73,10 @@ const SaleEditor = lazy(() =>
 import { SellerPerformance } from '~/components/admin/sales/SellerPerformance';
 import { SaleDetailDrawer } from '~/components/admin/sales/SaleDetailDrawer';
 import { InvoiceCodeCell } from '~/components/admin/invoices/InvoiceCodeCell';
-import { SellerPayoutSummaryDialog, type PayoutSummaryTarget } from '~/components/admin/sales/SellerPayoutSummaryDialog';
+import {
+  SellerPayoutSummaryDialog,
+  type PayoutSummaryTarget,
+} from '~/components/admin/sales/SellerPayoutSummaryDialog';
 import { PayCommissionsDialog } from '~/components/admin/sales/PayCommissionsDialog';
 import { CommissionPaymentsDialog } from '~/components/admin/sales/CommissionPaymentsDialog';
 
@@ -468,30 +478,34 @@ export default function AdminVentas() {
         className="mb-0"
         actions={
           <div className="flex flex-wrap gap-2">
-          {isAdmin && (
-            <>
-              <Button variant="outline" onClick={() => setHistoryOpen(true)} className="h-9 rounded-xl">
-                Historial de pagos
-              </Button>
-              <Button variant="outline" onClick={() => setPayFor('')} className="h-9 rounded-xl">
-                Pagar comisiones
-              </Button>
-            </>
-          )}
-          <Button onClick={() => setIsEditorOpen(true)} className="h-9 gap-2 rounded-xl">
-            <HugeIcon icon={Add01Icon} size={16} strokeWidth={2} aria-hidden />
-            Registrar venta
-            <Kbd>N</Kbd>
-          </Button>
+            {isAdmin && (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => setHistoryOpen(true)}
+                  className="h-9 rounded-xl"
+                >
+                  Historial de pagos
+                </Button>
+                <Button variant="outline" onClick={() => setPayFor('')} className="h-9 rounded-xl">
+                  Pagar comisiones
+                </Button>
+              </>
+            )}
+            <Button onClick={() => setIsEditorOpen(true)} className="h-9 gap-2 rounded-xl">
+              <HugeIcon icon={Add01Icon} size={16} strokeWidth={2} aria-hidden />
+              Registrar venta
+              <Kbd>N</Kbd>
+            </Button>
           </div>
         }
       />
 
       {/* El editor sirve para registrar (sin `sale`) y para editar (con `sale`,
-          disparado desde el detalle). El header queda fijo y el cuerpo scrollea. */}
+              disparado desde el detalle). El header queda fijo y el cuerpo scrollea. */}
       <Dialog open={isEditorOpen || !!editingSale} onOpenChange={(open) => !open && closeEditor()}>
-        <DialogContent className="flex max-h-[90vh] w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl lg:max-w-3xl">
-          <DialogHeader className="shrink-0 border-b border-border px-5 py-4 pr-14">
+        <FormDialogContent size="long">
+          <DialogHeader>
             <DialogTitle>{editingSale ? 'Editar venta' : 'Registrar venta'}</DialogTitle>
             <DialogDescription>
               {editingSale
@@ -500,20 +514,20 @@ export default function AdminVentas() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+          <div className="flex min-h-0 flex-1 flex-col">
             {/* El fallback tiene la ALTURA aproximada del editor: con un spinner
-                chico el panel se abriría casi vacío y saltaría al llegar el
-                chunk. */}
+                    chico el panel se abriría casi vacío y saltaría al llegar el
+                    chunk. */}
             <Suspense fallback={<SkeletonCard lines={8} className="border-none" />}>
-              <SaleEditor sale={editingSale} onDone={closeEditor} />
+              <SaleEditor sale={editingSale} onDone={closeEditor} onCancel={closeEditor} />
             </Suspense>
           </div>
-        </DialogContent>
+        </FormDialogContent>
       </Dialog>
 
       {/* El vendedor no tiene Dashboard en su nav, así que su reportería propia
-          vive acá. Al admin no se le muestra: ya la tiene completa (y de todo
-          el equipo) en /admin. */}
+              vive acá. Al admin no se le muestra: ya la tiene completa (y de todo
+              el equipo) en /admin. */}
       {!isAdmin && <SellerPerformance />}
 
       <Workspace>
@@ -524,23 +538,34 @@ export default function AdminVentas() {
             onChange={setStatusFilter}
             options={STATUS_TABS}
           />
-          <ToolbarSearch value={search} onChange={setSearch} placeholder="Buscar vendedor o factura" />
-          <ToolbarSelect label="Vendedor" value={sellerFilter} onChange={setSellerFilter} options={sellerOptions} />
+          <ToolbarSearch
+            value={search}
+            onChange={setSearch}
+            placeholder="Buscar vendedor o factura"
+          />
+          <ToolbarSelect
+            label="Vendedor"
+            value={sellerFilter}
+            onChange={setSellerFilter}
+            options={sellerOptions}
+          />
         </WorkspaceToolbar>
 
         {/* Resumen de dinero de lo que se está VIENDO (estado + vendedor), no
-            del total sin filtrar. La cantidad de ventas va como dato del
-            importe para que la franja quepa en cuatro. */}
+                del total sin filtrar. La cantidad de ventas va como dato del
+                importe para que la franja quepa en cuatro. */}
         <MetricStrip columns={statusFilter === 'rejected' || !isAdmin ? 2 : 4}>
           <Metric
             label="Importe"
             value={formatCordobas(
               filteredSales.reduce((sum, s) => sum + Math.max(0, s.total - (s.deliveryFee ?? 0)), 0),
             )}
-            sub={`${filteredSales.length} ${filteredSales.length === 1 ? 'venta' : 'ventas'} · sin delivery`}
+            sub={`${filteredSales.length} ${
+              filteredSales.length === 1 ? 'venta' : 'ventas'
+            } · sin delivery`}
           />
           {/* Una venta rechazada no genera comisión ni ganancia real: mostrarlas
-              en esa pestaña sería plata que nunca se movió. */}
+                  en esa pestaña sería plata que nunca se movió. */}
           {statusFilter !== 'rejected' && (
             <Metric
               label={comisionLabel}
@@ -548,7 +573,7 @@ export default function AdminVentas() {
             />
           )}
           {/* Fondo de empresa y ganancia de tienda: datos sensibles, solo admin
-              (el backend tampoco los manda a un vendedor común). */}
+                  (el backend tampoco los manda a un vendedor común). */}
           {statusFilter !== 'rejected' && isAdmin && (
             <Metric
               label="Fondo empresa"
@@ -558,66 +583,73 @@ export default function AdminVentas() {
           {statusFilter !== 'rejected' && isAdmin && (
             <Metric
               label="Ganancia tienda"
-              value={formatCordobas(filteredSales.reduce((sum, s) => sum + (s.totalGananciaTienda ?? 0), 0))}
+              value={formatCordobas(
+                filteredSales.reduce((sum, s) => sum + (s.totalGananciaTienda ?? 0), 0),
+              )}
             />
           )}
         </MetricStrip>
 
         <div className="space-y-3">
-        {/* Barra de acciones masivas: solo aparece con algo seleccionado
-            (que a su vez solo es posible en Pendientes, para admin). */}
-        {canBulkSelect && selectedIds.size > 0 && (
-          <div className="flex items-center justify-between rounded-2xl border border-primary-2/30 bg-primary-2/5 px-4 py-2.5">
-            <span className="text-sm font-medium text-foreground">
-              {selectedIds.size} venta{selectedIds.size === 1 ? '' : 's'} seleccionada{selectedIds.size === 1 ? '' : 's'}
-            </span>
-            <div className="flex gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                className="border-destructive/40 text-destructive hover:bg-destructive/10"
-                onClick={() => setRejectFor(sales.filter((s) => selectedIds.has(s.id)))}
-              >
-                Rechazar seleccionadas
-              </Button>
-              <Button size="sm" onClick={handleBulkApprove} disabled={bulkApproving}>
-                {bulkApproving && <Spinner className="mr-2" />}
-                Aprobar seleccionadas
-              </Button>
+          {/* Barra de acciones masivas: solo aparece con algo seleccionado
+                (que a su vez solo es posible en Pendientes, para admin). */}
+          {canBulkSelect && selectedIds.size > 0 && (
+            <div className="flex items-center justify-between rounded-2xl border border-primary-2/30 bg-primary-2/5 px-4 py-2.5">
+              <span className="text-sm font-medium text-foreground">
+                {selectedIds.size} venta{selectedIds.size === 1 ? '' : 's'} seleccionada
+                {selectedIds.size === 1 ? '' : 's'}
+              </span>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="border-destructive/40 text-destructive hover:bg-destructive/10"
+                  onClick={() => setRejectFor(sales.filter((s) => selectedIds.has(s.id)))}
+                >
+                  Rechazar seleccionadas
+                </Button>
+                <Button size="sm" onClick={handleBulkApprove} disabled={bulkApproving}>
+                  {bulkApproving && <Spinner className="mr-2" />}
+                  Aprobar seleccionadas
+                </Button>
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Sin `<Card>` envolvente: `DataTable` ya trae su borde y su fondo, así
-            que envolverla daba doble borde y una sombra de más sobre el
-            contenido más importante de la pantalla. La tabla va directo en el
-            flujo, a ancho completo. */}
-        {/* `isLoading` (primera vez) → esqueleto; `isFetching` (refetch)
-            → los datos que ya estaban, atenuados. Cambiar de pestaña no
-            debería vaciar la tabla. */}
-        <QueryState
-          loading={loadingSales}
-          fetching={fetchingSales}
-          error={salesError}
-          onRetry={refetchSales}
-          shape="table"
-        >
-          <DataTable
-            tableId="ventas"
-            columns={columns}
-            data={filteredSales}
-            hideSearch
-            globalFilterValue={search}
-            onGlobalFilterChange={setSearch}
-            exportFilename="ventas"
-            emptyText="No hay ventas en este estado."
-            onRowClick={(row) => openSale(row.id)}
-            selectedRowIds={canBulkSelect ? selectedIds : undefined}
-            onToggleRow={canBulkSelect ? toggleSelect : undefined}
-            onSelectAll={canBulkSelect ? handleSelectAll : undefined}
-            allSelected={canBulkSelect && filteredSales.length > 0 && filteredSales.every((s) => selectedIds.has(s.id))}
-          />
-        </QueryState>
+          {/* Sin `<Card>` envolvente: `DataTable` ya trae su borde y su fondo, así
+                que envolverla daba doble borde y una sombra de más sobre el
+                contenido más importante de la pantalla. La tabla va directo en el
+                flujo, a ancho completo. */}
+          {/* `isLoading` (primera vez) → esqueleto; `isFetching` (refetch)
+                → los datos que ya estaban, atenuados. Cambiar de pestaña no
+                debería vaciar la tabla. */}
+          <QueryState
+            loading={loadingSales}
+            fetching={fetchingSales}
+            error={salesError}
+            onRetry={refetchSales}
+            shape="table"
+          >
+            <DataTable
+              tableId="ventas"
+              columns={columns}
+              data={filteredSales}
+              hideSearch
+              globalFilterValue={search}
+              onGlobalFilterChange={setSearch}
+              exportFilename="ventas"
+              emptyText="No hay ventas en este estado."
+              onRowClick={(row) => openSale(row.id)}
+              selectedRowIds={canBulkSelect ? selectedIds : undefined}
+              onToggleRow={canBulkSelect ? toggleSelect : undefined}
+              onSelectAll={canBulkSelect ? handleSelectAll : undefined}
+              allSelected={
+                canBulkSelect &&
+                filteredSales.length > 0 &&
+                filteredSales.every((s) => selectedIds.has(s.id))
+              }
+            />
+          </QueryState>
         </div>
       </Workspace>
 
@@ -644,15 +676,23 @@ export default function AdminVentas() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {rejectFor && rejectFor.length > 1 ? `Rechazar ${rejectFor.length} ventas` : 'Rechazar venta'}
+              {rejectFor && rejectFor.length > 1
+                ? `Rechazar ${rejectFor.length} ventas`
+                : 'Rechazar venta'}
             </DialogTitle>
             {rejectFor && rejectFor.length > 1 && (
-              <DialogDescription>El mismo motivo se aplica a las {rejectFor.length} ventas seleccionadas.</DialogDescription>
+              <DialogDescription>
+                El mismo motivo se aplica a las {rejectFor.length} ventas seleccionadas.
+              </DialogDescription>
             )}
           </DialogHeader>
           <div className="space-y-3">
             <Label>Motivo (obligatorio)</Label>
-            <Input value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} placeholder="¿Por qué se rechaza?" />
+            <Input
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              placeholder="¿Por qué se rechaza?"
+            />
           </div>
           <div className="mt-4 flex justify-end gap-2">
             <Button variant="cancel" onClick={() => setRejectFor(null)}>
@@ -685,7 +725,6 @@ export default function AdminVentas() {
           <CommissionPaymentsDialog open={historyOpen} onClose={() => setHistoryOpen(false)} />
         </>
       )}
-
     </div>
   );
 }

@@ -1,12 +1,12 @@
-import { HugeIcon } from "~/components/ui/icon";
-import { Add01Icon, Search01Icon, Tag01Icon } from "@hugeicons/core-free-icons";
+import { HugeIcon } from '~/components/ui/icon';
+import { Add01Icon, Search01Icon, Tag01Icon } from '@hugeicons/core-free-icons';
 import { lazy, Suspense, useMemo, useState } from 'react';
 import type { MetaFunction } from '@remix-run/node';
 import { pageTitle } from '~/lib/brand';
-import { 
-  useGetAdminCatalogQuery, 
-  useCreateAdminProductMutation, 
-  useUpdateAdminProductMutation, 
+import {
+  useGetAdminCatalogQuery,
+  useCreateAdminProductMutation,
+  useUpdateAdminProductMutation,
   useDeleteAdminProductMutation,
   useReorderAdminCatalogMutation,
   useGetCategoriesQuery,
@@ -46,7 +46,7 @@ export default function AdminCatalogo() {
   const [updateProduct, { isLoading: isUpdating }] = useUpdateAdminProductMutation();
   const [deleteProduct] = useDeleteAdminProductMutation();
   const [reorderCatalog] = useReorderAdminCatalogMutation();
-  
+
   const { data: categories = [] } = useGetCategoriesQuery();
 
   const [activeTab, setActiveTab] = useState("catalog");
@@ -82,7 +82,7 @@ export default function AdminCatalogo() {
       }
       setIsDialogOpen(false);
     } catch (error: any) {
-      toast.error(error?.data?.error || 'No se pudo guardar el producto.');
+      throw error;
     }
   };
 

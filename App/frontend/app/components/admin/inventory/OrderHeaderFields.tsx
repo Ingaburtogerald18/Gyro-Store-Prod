@@ -584,9 +584,9 @@ function InvoiceEditor({ invoice, onDone }: { invoice: PurchaseInvoice; onDone: 
       />
       {error && <FieldError errors={[{ message: error }]} />}
       <div className="flex justify-end">
-        <Button type="button" size="sm" onClick={save} disabled={isLoading}>
+        <Button type="button" variant="outline" onClick={save} disabled={isLoading}>
           {isLoading && <Spinner className="mr-2" />}
-          Guardar factura
+          {isLoading ? "Guardando…" : "Guardar factura"}
         </Button>
       </div>
     </div>

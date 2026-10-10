@@ -25,7 +25,7 @@ export function fieldMessages(node: unknown): Record<string, string> {
 export function FormErrorBanner({ message }: { message: string | null }) {
   if (!message) return null;
   return (
-    <div role="alert" className="flex items-start gap-2 rounded-xl border border-destructive/40 bg-destructive/10 px-3 py-2.5 text-sm text-foreground">
+    <div role="alert" data-slot="form-error" className="flex items-start gap-2 rounded-xl border border-destructive/40 bg-destructive/10 px-3 py-2.5 text-sm text-foreground">
       <HugeIcon icon={Alert02Icon} size={16} strokeWidth={2} aria-hidden className="mt-0.5 shrink-0 text-destructive" />
       <span>{message}</span>
     </div>

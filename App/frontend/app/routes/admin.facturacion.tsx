@@ -1,5 +1,12 @@
-import { HugeIcon } from "~/components/ui/icon";
-import { Delete02Icon, Edit02Icon, PlusSignIcon, Time02Icon, ViewIcon } from "@hugeicons/core-free-icons";
+import { FormDialogContent } from '~/components/ui/form-layout';
+import { HugeIcon } from '~/components/ui/icon';
+import {
+  Delete02Icon,
+  Edit02Icon,
+  PlusSignIcon,
+  Time02Icon,
+  ViewIcon,
+} from '@hugeicons/core-free-icons';
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from '@remix-run/react';
 import type { MetaFunction } from '@remix-run/node';
@@ -21,13 +28,19 @@ import {
   WorkspaceToolbar,
   useShortcut,
 } from '~/components/admin/workspace';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '~/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '~/components/ui/dialog';
 import { Input } from '~/components/ui/input';
 import { Label } from '~/components/ui/label';
 import { Spinner } from '~/components/ui/spinner';
 import { SkeletonCard } from '~/components/ui/skeletons';
 import { RowActionsMenu } from '~/components/ui/RowActionsMenu';
-import { errMsg, formatCordobas, formatLongDate } from "~/lib/formatters";
+import { errMsg, formatCordobas, formatLongDate } from '~/lib/formatters';
 import {
   useDeleteInvoiceMutation,
   useGetInvoicesQuery,
@@ -146,7 +159,7 @@ export default function AdminFacturacion() {
         cell: ({ row }) => {
           const date = new Date(row.original.createdAt);
           const diffMinutes = Math.floor((Date.now() - date.getTime()) / 60000);
-          
+
           let display = '';
           if (diffMinutes < 60) display = `Hace ${diffMinutes} min`;
           else if (diffMinutes < 1440) display = `Hace ${Math.floor(diffMinutes / 60)} h`;
@@ -340,25 +353,32 @@ export default function AdminFacturacion() {
               { value: 'void', label: 'Canceladas' },
             ]}
           />
-          <ToolbarSearch value={search} onChange={setSearch} placeholder="Buscar número, cliente o vendedor" />
+          <ToolbarSearch
+            value={search}
+            onChange={setSearch}
+            placeholder="Buscar número, cliente o vendedor"
+          />
         </WorkspaceToolbar>
 
         <MetricStrip columns={3}>
           <Metric
             label="Pendientes de vincular"
             value={unlinkedInvoices.length}
-            sub={<span className={unlinkedInvoices.length > 0 ? 'font-medium text-warning' : undefined}>{formatCordobas(unlinkedInvoices.reduce((acc, i) => acc + (i.total ?? 0), 0))} sin venta registrada</span>}
+            sub={
+              <span className={unlinkedInvoices.length > 0 ? 'font-medium text-warning' : undefined}>
+                {formatCordobas(unlinkedInvoices.reduce((acc, i) => acc + (i.total ?? 0), 0))} sin
+                venta registrada
+              </span>
+            }
           />
           <Metric
             label="Vinculadas"
             value={linkedInvoices.length}
-            sub={`${formatCordobas(linkedInvoices.reduce((acc, i) => acc + (i.total ?? 0), 0))} facturado`}
+            sub={`${formatCordobas(
+              linkedInvoices.reduce((acc, i) => acc + (i.total ?? 0), 0),
+            )} facturado`}
           />
-          <Metric
-            label="Canceladas"
-            value={voidInvoices.length}
-            sub="Conservan su número"
-          />
+          <Metric label="Canceladas" value={voidInvoices.length} sub="Conservan su número" />
         </MetricStrip>
 
         <div>
@@ -390,12 +410,13 @@ export default function AdminFacturacion() {
             </QueryState>
           )}
           {/* Canceladas: se ofrecen siempre en el selector, aunque estén vacías:
-              si aparecieran solo cuando hay, nadie sabría dónde fue a parar
-              una factura cancelada. */}
+                  si aparecieran solo cuando hay, nadie sabría dónde fue a parar
+                  una factura cancelada. */}
           {view === 'void' && (
             <QueryState loading={loadingVoid} error={voidError} shape="table">
               <p className="mb-3 text-xs text-muted-foreground">
-                Conservan su número: el correlativo no retrocede, así que descartarlas deja ese número retirado para siempre.
+                Conservan su número: el correlativo no retrocede, así que descartarlas deja ese número
+                retirado para siempre.
               </p>
               <DataTable
                 columns={voidColumns}
@@ -415,8 +436,8 @@ export default function AdminFacturacion() {
       <InvoiceEditDialog invoice={editInvoice} onClose={() => setEditInvoice(null)} />
 
       {/* Confirmación de las dos acciones destructivas. Cancelar pide motivo
-          (queda guardado en la factura); descartar no, porque no queda nada
-          donde escribirlo. */}
+              (queda guardado en la factura); descartar no, porque no queda nada
+              donde escribirlo. */}
       <Dialog open={!!confirm} onOpenChange={(open) => !open && setConfirm(null)}>
         <DialogContent>
           <DialogHeader>
@@ -426,9 +447,8 @@ export default function AdminFacturacion() {
             <DialogDescription>
               {confirm?.mode === 'void' ? (
                 <>
-                  {confirm?.invoice.invoiceCode} pasa a Canceladas. Conserva su número y
-                  su motivo. Si solo hay que corregir un dato, usá <strong>Editar</strong> en vez
-                  de cancelar.
+                  {confirm?.invoice.invoiceCode} pasa a Canceladas. Conserva su número y su motivo. Si
+                  solo hay que corregir un dato, usá <strong>Editar</strong> en vez de cancelar.
                 </>
               ) : (
                 <>
@@ -464,22 +484,23 @@ export default function AdminFacturacion() {
       </Dialog>
 
       {/* Drawer y no modal: el formulario es largo y un `Dialog` con
-          `max-h-[90vh] overflow-y-auto` mete un scroll interno que compite con
-          el de la página. Acá el header queda fijo, el cuerpo scrollea solo, y
-          el listado de facturas se sigue viendo detrás — que es el contexto que
-          el cajero necesita para saber en qué número va. */}
+              `max-h-[90vh] overflow-y-auto` mete un scroll interno que compite con
+              el de la página. Acá el header queda fijo, el cuerpo scrollea solo, y
+              el listado de facturas se sigue viendo detrás — que es el contexto que
+              el cajero necesita para saber en qué número va. */}
       <Dialog open={isCreating} onOpenChange={setIsCreating}>
-        <DialogContent className="flex max-h-[90vh] w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl lg:max-w-3xl">
-          <DialogHeader className="shrink-0 border-b border-border px-5 py-4 pr-14">
-            <DialogTitle>Nueva factura (POS)</DialogTitle>
+        <FormDialogContent size="long">
+          <DialogHeader>
+            <DialogTitle>Emitir factura</DialogTitle>
             <DialogDescription>
               Se emite el ticket y después se vincula al registrar la venta.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+          <div className="flex min-h-0 flex-1 flex-col">
             <Suspense fallback={<SkeletonCard lines={8} className="border-none" />}>
               <InvoiceEditor
+                onCancel={() => setIsCreating(false)}
                 onCreated={(id) => {
                   setIsCreating(false);
                   setPrintInvoiceId(id);
@@ -487,7 +508,7 @@ export default function AdminFacturacion() {
               />
             </Suspense>
           </div>
-        </DialogContent>
+        </FormDialogContent>
       </Dialog>
     </div>
   );

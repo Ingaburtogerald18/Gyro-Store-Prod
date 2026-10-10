@@ -2,12 +2,13 @@
 
 import { HugeIcon } from "~/components/ui/icon";
 import { Cancel01Icon } from "@hugeicons/core-free-icons";
-import * as React from "react"
-import { Dialog as DialogPrimitive } from "radix-ui"
+import * as React from "react";
+import { Dialog as DialogPrimitive } from "radix-ui";
 
-import { cn } from "~/lib/utils"
-import { Button } from "~/components/ui/button"
+import { cn } from "~/lib/utils";
+import { Button } from "~/components/ui/button";
 
+const DialogLayoutContext = React.createContext<"default" | "form">("default")
 
 function Dialog({
   ...props
@@ -27,7 +28,7 @@ function Dialog({
 // Es el mismo motivo por el que `button.tsx` ya lo tenía.
 //
 // NOTA: Se usan arrow functions en forwardRef (no function declarations nombradas)
-// para compatibilidad con esbuild — la sintaxis `forwardRef(function Foo(...))` 
+// para compatibilidad con esbuild — la sintaxis `forwardRef(function Foo(...))`
 // genera "Expected ) but found function" en versiones antiguas de esbuild/Vite.
 const DialogTrigger = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Trigger>,
@@ -71,13 +72,15 @@ const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & {
     showCloseButton?: boolean
+    layout?: "default" | "form"
   }
->(({ className, children, showCloseButton = true, ...props }, ref) => (
+>(({ className, children, showCloseButton = true, layout = "default", ...props }, ref) => (
   <DialogPortal>
     <DialogOverlay />
     <DialogPrimitive.Content
       ref={ref}
       data-slot="dialog-content"
+      data-layout={layout}
       onInteractOutside={(e) => {
         const target = e.target as Element;
         if (target?.closest('[data-radix-popper-content-wrapper]') || target?.closest('[data-radix-portal]')) {
@@ -86,11 +89,12 @@ const DialogContent = React.forwardRef<
       }}
       className={cn(
         "fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-6 rounded-2xl bg-popover p-6 text-sm text-popover-foreground shadow-xl ring-1 ring-foreground/5 duration-100 outline-none sm:max-w-md dark:ring-foreground/10 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+        layout === "form" && "flex max-h-[90dvh] flex-col gap-0 overflow-hidden p-0",
         className
       )}
       {...props}
     >
-      {children}
+      <DialogLayoutContext.Provider value={layout}>{children}</DialogLayoutContext.Provider>
       {showCloseButton && (
         <DialogPrimitive.Close data-slot="dialog-close" asChild>
           <Button
@@ -109,10 +113,11 @@ const DialogContent = React.forwardRef<
 DialogContent.displayName = "DialogContent"
 
 function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
+  const layout = React.useContext(DialogLayoutContext)
   return (
     <div
       data-slot="dialog-header"
-      className={cn("flex flex-col gap-1.5", className)}
+      className={cn("flex flex-col gap-1.5", layout === "form" && "shrink-0 border-b bg-card px-6 py-5 pr-16", className)}
       {...props}
     />
   )
@@ -127,11 +132,13 @@ function DialogFooter({
 }: React.ComponentProps<"div"> & {
   showCloseButton?: boolean
 }) {
+  const layout = React.useContext(DialogLayoutContext)
   return (
     <div
       data-slot="dialog-footer"
       className={cn(
         "flex flex-col-reverse gap-2 sm:flex-row sm:justify-end",
+        layout === "form" && "shrink-0 border-t bg-card px-6 py-4",
         className
       )}
       {...props}
@@ -154,7 +161,7 @@ const DialogTitle = React.forwardRef<
     ref={ref}
     data-slot="dialog-title"
     className={cn(
-      "font-heading text-base leading-none font-medium",
+      "font-heading text-lg leading-snug font-semibold",
       className
     )}
     {...props}

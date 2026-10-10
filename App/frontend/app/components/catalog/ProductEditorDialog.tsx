@@ -1,3 +1,11 @@
+import {
+  FormLayout,
+  FormDialogContent,
+  FormActions,
+  FormBody,
+  FormSection,
+} from '~/components/ui/form-layout';
+import { FormErrorBanner, serverErrorMessage } from '~/components/ui/form-feedback';
 // Editor de producto: la columna ancha define el producto (nombre, fotos,
 // variantes) y la angosta lo clasifica y publica.
 //
@@ -24,13 +32,7 @@ import { Button } from '~/components/ui/button';
 // lo que cambió es el contenedor. Un formulario de este largo dentro de un
 // modal de 5xl tapa el catálogo que se está editando — y editar un producto es
 // justo cuando conviene seguir viendo los demás.
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '~/components/ui/dialog';
+import { Dialog, DialogDescription, DialogHeader, DialogTitle } from '~/components/ui/dialog';
 import {
   Field,
   FieldContent,
@@ -39,7 +41,13 @@ import {
   FieldLabel,
 } from '~/components/ui/field';
 import { Input } from '~/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '~/components/ui/select';
 import { Spinner } from '~/components/ui/spinner';
 import { Switch } from '~/components/ui/switch';
 import { Textarea } from '~/components/ui/textarea';
@@ -187,11 +195,13 @@ export function ProductEditorDialog({
   // no espera al re-render); el state solo maneja el spinner/disabled.
   const submittingRef = useRef(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   // Prefill al abrir. Se depende de `product` y no de `open` a secas para que
   // reabrir el mismo producto tras cancelar no arrastre lo que se había tipeado.
   useEffect(() => {
     if (!open) return;
+    setFormError(null);
     reset(
       product
         ? {
@@ -315,7 +325,7 @@ export function ProductEditorDialog({
    */
   function onInvalid(formErrors: typeof errors) {
     const first = firstErrorMessage(formErrors);
-    toast.error(first ?? 'Revisá los campos marcados en rojo.');
+    setFormError(first ?? 'Revisá los campos marcados en rojo.');
   }
 
   // Se llama desde el `onClick` del botón Y desde el `onSubmit` del form (para
@@ -324,6 +334,7 @@ export function ProductEditorDialog({
   const submitForm = (e?: { preventDefault?: () => void }) => {
     e?.preventDefault?.();
     if (submittingRef.current) return;
+    setFormError(null);
     void handleSubmit(onSubmit, onInvalid)();
   };
 
@@ -358,10 +369,7 @@ export function ProductEditorDialog({
       const processedValues = await processPendingUploads(values, 'catalog');
       await onSave(processedValues);
     } catch (err) {
-      console.error("No se pudieron subir las imágenes", err);
-      // El componente padre podría mostrar un toast si lanzamos el error,
-      // pero para estar seguros podemos disparar un alert o toast acá.
-      toast.error('No se pudieron subir las fotos. Revisá tu conexión y probá de nuevo.');
+      setFormError(serverErrorMessage(err, 'No se pudo guardar el producto o subir sus fotos. Probá de nuevo.'));
     } finally {
       // Se libera SIEMPRE: si el guardado falla, el usuario tiene que poder
       // reintentar sin cerrar y reabrir el diálogo.
@@ -373,10 +381,10 @@ export function ProductEditorDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       {/* El cuerpo scrollea solo y el pie con «Guardar» queda siempre a la vista. */}
-      <DialogContent className="flex max-h-[90vh] w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl lg:max-w-3xl">
-        <DialogHeader className="shrink-0 border-b border-border px-6 py-4 pr-14">
+      <FormDialogContent size="long">
+        <DialogHeader>
           <DialogTitle className="text-lg">
-            {product ? 'Editar producto' : 'Nuevo producto'}
+            {product ? 'Editar producto' : 'Crear producto'}
           </DialogTitle>
           <DialogDescription>
             El precio de venta se define en cada variante, junto con el lote de bodega que la surte.
@@ -384,11 +392,14 @@ export function ProductEditorDialog({
         </DialogHeader>
 
         {/* El form se conserva para que Enter en un campo también envíe. */}
-        <form onSubmit={submitForm} className="flex min-h-0 flex-1 flex-col">
-          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
-            <div className="mx-auto w-full max-w-3xl space-y-10">
-              
-              <FormSection title="1. Organización" hint="Elegí la plantilla primero para que el producto se autocomplete.">
+        <FormLayout onSubmit={submitForm}>
+          <FormErrorBanner message={formError} />
+          <FormBody>
+            <div className="space-y-5">
+              <FormSection
+                title="1. Organización"
+                description="Elegí la plantilla primero para que el producto se autocomplete."
+              >
                 <div className="grid gap-6 sm:grid-cols-2">
                   <Field data-invalid={!!errors.categoryId}>
                     <FieldLabel htmlFor="product-category">Categoría</FieldLabel>
@@ -518,7 +529,7 @@ export function ProductEditorDialog({
               {template && (template.axes?.length ?? 0) > 0 && (
                 <FormSection
                   title="3. Opciones que ofrece"
-                  hint="Lo apagado no existe para el cliente."
+                  description="Lo apagado no existe para el cliente."
                 >
                   <div className="space-y-4">
                     {template.axes.map((axis) => {
@@ -551,8 +562,8 @@ export function ProductEditorDialog({
 
               <FormSection
                 title="4. Variantes y bodega"
-                hint="El precio va acá. El stock se lee de los lotes vinculados, en vivo."
-                aside={
+                description="El precio va acá. El stock se lee de los lotes vinculados, en vivo."
+                action={
                   template && combos.length > 0 ? (
                     <span className="text-xs tabular-nums text-muted-foreground">
                       {mappedCount}/{combos.length} vinculadas
@@ -585,11 +596,11 @@ export function ProductEditorDialog({
               </FormSection>
 
               <FormSection
-                title={activeColorOptions.length > 0 ? "5. Fotos por Variante (Color)" : "5. Fotos"}
-                hint={
+                title={activeColorOptions.length > 0 ? '5. Fotos por Variante (Color)' : '5. Fotos'}
+                description={
                   activeColorOptions.length > 0
-                    ? "Seleccioná un color y subí sus fotos. La primera de cada color es la portada."
-                    : "La primera es la portada. Tamaño recomendado: 1080x1080px. Puedes arrastrarlas para reordenar."
+                    ? 'Seleccioná un color y subí sus fotos. La primera de cada color es la portada.'
+                    : 'La primera es la portada. Tamaño recomendado: 1080x1080px. Puedes arrastrarlas para reordenar.'
                 }
               >
                 {activeColorOptions.length > 0 ? (
@@ -645,7 +656,10 @@ export function ProductEditorDialog({
                 )}
               </FormSection>
 
-              <FormSection title="6. Estado y Publicación" hint="Configura la visibilidad del producto en la tienda.">
+              <FormSection
+                title="6. Estado y Publicación"
+                description="Configura la visibilidad del producto en la tienda."
+              >
                 <div className="space-y-4 rounded-2xl border border-border bg-muted/20 p-5">
                   <Controller
                     control={control}
@@ -707,24 +721,28 @@ export function ProductEditorDialog({
                 </div>
               </FormSection>
             </div>
-          </div>
+          </FormBody>
 
-          <footer className="flex shrink-0 items-center justify-end gap-2 border-t px-6 py-4">
+          <FormActions>
             <Button type="button" variant="cancel" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
             {/* `onClick` directo y NO `type="submit"`: el envío nativo del form
-                dentro del diálogo de Radix no llegaba a dispararse (clic sin
-                efecto, sin error ni petición). `handleSubmit(...)` devuelve una
-                función que se puede llamar a mano, así que no dependemos del
-                evento submit. Es el mismo patrón que ya usa UserDetailDialog. */}
+                    dentro del diálogo de Radix no llegaba a dispararse (clic sin
+                    efecto, sin error ni petición). `handleSubmit(...)` devuelve una
+                    función que se puede llamar a mano, así que no dependemos del
+                    evento submit. Es el mismo patrón que ya usa UserDetailDialog. */}
             <Button type="button" onClick={submitForm} disabled={isSaving || isSubmitting}>
               {(isSaving || isSubmitting) && <Spinner className="mr-2" />}
-              {product ? 'Guardar cambios' : 'Crear producto'}
+              {isSaving || isSubmitting
+                ? 'Guardando…'
+                : product
+                ? 'Guardar cambios'
+                : 'Crear producto'}
             </Button>
-          </footer>
-        </form>
-      </DialogContent>
+          </FormActions>
+        </FormLayout>
+      </FormDialogContent>
     </Dialog>
   );
 }
@@ -776,31 +794,6 @@ function OptionToggle({
   );
 }
 
-// Encabezado de sección con línea fina: separa sin repetir marcos.
-function FormSection({
-  title,
-  hint,
-  aside,
-  children,
-}: {
-  title: string;
-  hint?: string;
-  aside?: React.ReactNode;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="space-y-3">
-      <div className="flex items-baseline justify-between gap-3 border-b pb-2">
-        <div className="min-w-0">
-          <h3 className="text-sm font-semibold text-foreground">{title}</h3>
-          {hint && <p className="mt-0.5 text-xs text-muted-foreground">{hint}</p>}
-        </div>
-        {aside}
-      </div>
-      {children}
-    </section>
-  );
-}
 
 function ToggleRow({
   id,
