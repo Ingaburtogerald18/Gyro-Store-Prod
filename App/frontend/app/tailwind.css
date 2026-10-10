@@ -66,6 +66,8 @@
   --color-success: var(--success);
   --color-warning: var(--warning);
   --color-info: var(--info);
+  --color-table-edge: var(--table-edge);
+  --color-table-groove: var(--table-groove);
 
   /* Acentos de las StatCard. */
   --color-tone-indigo: var(--tone-indigo);
@@ -82,6 +84,8 @@
   --radius-xl: calc(var(--radius) + 4px);
   --radius-card: 0.75rem;
   --radius-pill: 9999px;
+
+  --shadow-table: var(--table-lift);
 
   /* Apuntan a variables porque `@theme inline` copia el valor en cada utilidad. */
   --font-sans: var(--area-font-sans);
@@ -223,6 +227,14 @@ html[data-area='admin'],
   --sticker-shadow: var(--bordo);
   --radius: 0.625rem;
 
+  /* Relieve de las tablas: contorno, línea grabada (raya y brillo), sombreado de fila y sombra. */
+  --table-edge: rgb(42 29 29 / 26%);
+  --table-groove: rgb(42 29 29 / 20%);
+  --table-shine: rgb(255 255 255 / 95%);
+  --table-shade: rgb(42 29 29 / 5.5%);
+  --table-head-shade: rgb(42 29 29 / 10%);
+  --table-lift: 0 1px 2px rgb(42 29 29 / 8%), 0 8px 18px -6px rgb(42 29 29 / 16%);
+
   /* Gráficos: bordó, amarillo, tinta, rosa oscuro, gris. */
   --chart-1: var(--bordo);
   --chart-2: #ffc20e;
@@ -308,6 +320,14 @@ html[data-theme='dark'] .store-palette {
   --whatsapp: #2ed264;
   --whatsapp-foreground: #0e0f10;
   --whatsapp-hover: #5ade86;
+
+  /* Sobre negro la sombra casi no se ve: lo que marca cada fila es la raya negra con brillo. */
+  --table-edge: rgb(255 255 255 / 20%);
+  --table-groove: rgb(0 0 0 / 75%);
+  --table-shine: rgb(255 255 255 / 7%);
+  --table-shade: rgb(0 0 0 / 22%);
+  --table-head-shade: rgb(0 0 0 / 45%);
+  --table-lift: 0 1px 2px rgb(0 0 0 / 50%), 0 10px 22px -8px rgb(0 0 0 / 70%);
 
   /* Mismo orden que en claro, en tonos que se leen sobre #18191b. */
   --chart-1: #e8a09a;
@@ -441,6 +461,17 @@ html[data-area='store'] .store-header .store-cart-button:active {
 }
 :is(html[data-area='store'], html[data-area='admin'], .store-preview) [data-slot='button'][aria-pressed='true']:hover {
   background-color: color-mix(in srgb, var(--primary-2) 8%, var(--selection));
+}
+
+/* Relieve de las filas: se oscurecen apenas hacia abajo y llevan un brillo arriba, que junto
+   con la raya del borde forma la línea grabada. La primera recibe la sombra del encabezado. */
+[data-slot='table-body'] > [data-slot='table-row'] > [data-slot='table-cell'] {
+  background-image: linear-gradient(to bottom, transparent 50%, var(--table-shade));
+  box-shadow: inset 0 1px 0 var(--table-shine);
+}
+[data-slot='table-body'] > [data-slot='table-row']:first-child > [data-slot='table-cell'] {
+  background-image: linear-gradient(to bottom, var(--table-head-shade), transparent 10px),
+    linear-gradient(to bottom, transparent 50%, var(--table-shade));
 }
 
 /* El buscador del navbar mantiene el contraste propio del header en cada tema. */

@@ -8,6 +8,7 @@ import { Add01Icon, InboxIcon } from "@hugeicons/core-free-icons";
 import { Kbd, Metric, MetricStrip, SegmentedControl, ToolbarSearch, ToolbarSelect, Workspace, WorkspaceToolbar } from "~/components/admin/workspace";
 import { PageHeader } from "~/components/layout/PageHeader";
 import { Button } from "~/components/ui/button";
+import { CodeCell } from "~/components/ui/cells";
 import { Chip } from "~/components/ui/chip";
 import { DataTable } from "~/components/ui/DataTable";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "~/components/ui/empty";
@@ -80,7 +81,7 @@ const COLUMNS: ColumnDef<SampleRow, unknown>[] = [
   {
     accessorKey: "code",
     header: "Código",
-    cell: (c) => <span className="font-mono text-xs text-muted-foreground">{c.getValue<string>()}</span>,
+    cell: (c) => <CodeCell value={c.getValue<string>()} />,
   },
   {
     accessorKey: "product",

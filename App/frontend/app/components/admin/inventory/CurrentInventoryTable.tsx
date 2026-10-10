@@ -103,7 +103,7 @@ export function CurrentInventoryTable({
             // Ancho mínimo: con 12 columnas el nombre se partía palabra por palabra.
             <div className="flex min-w-36 flex-col">
               <span className="font-semibold text-foreground">{model}</span>
-              {variant && <span className="text-xs text-muted-foreground">{variant}</span>}
+              {variant && <span className="text-sm text-muted-foreground">{variant}</span>}
             </div>
           );
         },

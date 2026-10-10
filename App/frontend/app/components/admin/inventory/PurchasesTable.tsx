@@ -24,6 +24,7 @@ import { HugeIcon } from "~/components/ui/icon";
 import { Button } from "~/components/ui/button";
 import { Chip, chipVariants } from "~/components/ui/chip";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "~/components/ui/table";
+import { CodeCell } from "~/components/ui/cells";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "~/components/ui/dialog";
 import { RowActionsMenu } from "~/components/ui/RowActionsMenu";
 import { Skeleton } from "~/components/ui/skeleton";
@@ -303,12 +304,12 @@ export function PurchasesTable({
               details: (
                 <Table
                   aria-label={`Productos de ${lot.lot}`}
-                  containerClassName="rounded-none border-0"
-                  className="min-w-[780px] table-fixed tabular-nums"
+                  embedded
+                  className="min-w-[800px] table-fixed tabular-nums"
                 >
                     <caption className="sr-only">Productos de {lot.order ? 'la orden' : 'lote'} {lot.lot}. Importes en dólares estadounidenses.</caption>
                     <colgroup>
-                      <col className="w-[120px]" />
+                      <col className="w-[140px]" />
                       <col />
                       <col className="w-[156px]" />
                       <col className="w-[132px]" />
@@ -331,17 +332,17 @@ export function PurchasesTable({
                         const tone = toneOf(p);
                         return (
                           <TableRow key={p.id}>
-                            <TableCell className="whitespace-nowrap font-mono text-xs text-muted-foreground">{p.code || 'Sin código'}</TableCell>
+                            <TableCell><CodeCell value={p.code || 'Sin código'} /></TableCell>
                             <TableCell className="min-w-0">
                               <div className="flex flex-col gap-0.5 break-words">
                                 <span className="font-semibold text-foreground">{model}</span>
-                                {variant && <span className="text-xs text-muted-foreground">{variant}</span>}
+                                {variant && <span className="text-sm text-muted-foreground">{variant}</span>}
                               </div>
                             </TableCell>
                             <TableCell className="text-right">
                               <div className="flex flex-col items-end" title={`Base ${formatUsd(p.costUnit, 4)} + impuesto ${formatUsd(p.taxUnit, 4)}`}>
                                 <span className="font-medium text-foreground">{formatUsd(p.priceUnit)}</span>
-                                <span className="text-2xs text-muted-foreground">
+                                <span className="text-xs text-muted-foreground">
                                   {formatUsd(p.costUnit)} + {formatUsd(p.taxUnit)} imp.
                                 </span>
                               </div>
@@ -349,11 +350,11 @@ export function PurchasesTable({
                             <TableCell className="text-right">
                               <div className="flex flex-col items-end">
                                 <span className="font-heading font-extrabold text-foreground">{formatUsd(p.total)}</span>
-                                <span className="text-2xs text-muted-foreground">
+                                <span className="text-xs text-muted-foreground">
                                   {p.quantity.toLocaleString('es-NI')} {p.quantity === 1 ? 'unidad' : 'unidades'}
                                 </span>
                                 {p.quantityOrdered != null && p.quantityOrdered !== p.quantity && (
-                                  <span className="text-2xs text-warning">de {p.quantityOrdered} pedidas</span>
+                                  <span className="text-xs text-warning">de {p.quantityOrdered} pedidas</span>
                                 )}
                               </div>
                             </TableCell>

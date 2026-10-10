@@ -57,7 +57,7 @@ export function OrderAccordion({
 function OrderDisclosure({ panel, open, toggle }: { panel: OrderPanel; open: boolean; toggle: () => void }) {
   const id = useId();
   return (
-    <section className="overflow-clip rounded-2xl border border-border bg-card transition-colors duration-150 data-[expanded=true]:border-primary-2/45" data-expanded={open} aria-label={panel.label}>
+    <section className="overflow-clip rounded-2xl border border-border bg-card transition-colors duration-150 data-[expanded=true]:border-primary-2/80 data-[expanded=true]:shadow-table" data-expanded={open} aria-label={panel.label}>
       <h3>
         <button
           type="button"
@@ -75,7 +75,7 @@ function OrderDisclosure({ panel, open, toggle }: { panel: OrderPanel; open: boo
         </button>
       </h3>
       {panel.toolbar && <div className="border-t border-border px-4 py-3 sm:px-5">{panel.toolbar}</div>}
-      <div id={`${id}-details`} role="region" aria-labelledby={`${id}-trigger`} hidden={!open} className="border-t border-border focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring">
+      <div id={`${id}-details`} role="region" aria-labelledby={`${id}-trigger`} hidden={!open} className="border-t border-table-edge focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring">
         {open && panel.details}
       </div>
     </section>

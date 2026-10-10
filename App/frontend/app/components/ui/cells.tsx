@@ -35,9 +35,9 @@ export function MoneyCell({
   );
 }
 
-/** Código de producto (mono, discreto). */
+/** Código de producto: mono y en tinta, se lee como un dato más. */
 export function CodeCell({ value }: { value?: string | null }) {
-  return <span className="font-spec text-xs whitespace-nowrap text-muted-foreground">{value || "—"}</span>;
+  return <span className="font-spec text-sm font-medium whitespace-nowrap text-foreground">{value || "—"}</span>;
 }
 
 /** 

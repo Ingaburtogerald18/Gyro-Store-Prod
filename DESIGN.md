@@ -25,6 +25,7 @@ Los colores viven en `app/tailwind.css`, en el bloque de la paleta de marca. En 
 | Ofertas | `--promo` | rosa, texto bordó | `#3a2a2b`, texto rosa | Ofertas |
 | Borde | `--border` | tinta 16 % | blanco 10 % | Tarjetas y separadores |
 | Borde de campo | `--input` | tinta 48 % | blanco 34 % | Campos, selects, botones con borde |
+| Relieve de tablas | `--table-edge`, `--table-groove`, `--table-shine`, `--table-shade`, `--table-lift` | tinta 26 %, tinta 20 %, blanco 95 %, tinta 5.5 % | blanco 20 %, negro 75 %, blanco 7 %, negro 22 % | Contorno, línea grabada, sombreado de fila y sombra de las tablas |
 | Error | `--destructive` | `#d92d20` | `#f04438` | Errores y eliminar |
 | Advertencia | `--warning` | `#915c08` | `#d99a2b` | Datos por completar, bajo margen |
 | Información | `--info` | `#036eae` | `#3ba6f5` | Avisos neutros, en tránsito |
@@ -81,7 +82,7 @@ Nunca:
 | Esquinas de paneles grandes de la tienda | 24 px (`rounded-3xl`) |
 | Redondo completo | Solo puntos de estado, contadores y botones de ícono de la galería |
 | Bordes | 1 px. 2 px solo en la opción elegida y en el botón principal |
-| Sombras | Ninguna en tarjetas, tablas y campos. Dura (3 px) en el botón principal. Suave solo en menús y ventanas flotantes |
+| Sombras | Ninguna en tarjetas y campos. Tablas con relieve (sección 6). Dura (3 px) en el botón principal. Suave solo en menús y ventanas flotantes |
 | Espacios | Múltiplos de 4 px. Panel: 20 px entre bloques (`gap-5`). Tienda: 24 a 32 px. Dentro de una tarjeta: 16 o 20 px |
 
 Siempre:
@@ -123,14 +124,16 @@ Nunca:
 
 - Se usa tabla siempre que se comparan registros por columnas. Tarjetas solo para productos con foto y para órdenes de compra.
 - Piezas: `components/ui/table.tsx` para el aspecto y `DataTable` para buscar, ordenar y paginar.
-- Contenedor blanco, borde de 1 px, 16 px de esquina, sin sombra.
-- Encabezado con fondo rosa, `text-xs font-semibold text-muted-foreground`, sin mayúsculas. Las columnas ordenables muestran la flecha.
-- Filas de 52 px (40 px en modo compacto), `text-sm`. Al pasar el mouse, bordó al 5 %.
+- Contenedor blanco, borde de 1 px (`--table-edge`), 16 px de esquina y sombra `shadow-table`, que la levanta del fondo.
+- Dentro de una tarjeta, la tabla va con `embedded` (sin borde ni sombra) y la tarjeta pone el contorno; la orden de compra abierta lleva borde bordó al 80 % y `shadow-table`.
+- Encabezado con fondo rosa, `text-xs font-semibold` en tinta, sin mayúsculas. Proyecta una sombra corta sobre la primera fila. Las columnas ordenables muestran la flecha.
+- Filas de 52 px (40 px en modo compacto), `text-sm`, con relieve: cada fila se oscurece apenas hacia abajo y la línea entre filas va grabada (raya `--table-groove` con el brillo `--table-shine` debajo). Al pasar el mouse, bordó al 7 %.
 - Columnas en este orden: código, descripción, números, estado, acciones.
-- Código en `font-mono` gris. Producto: nombre en semibold y la variante debajo en `text-xs` gris.
+- Código con `CodeCell`: mono de 14 px, peso medio, en tinta. Producto: nombre en semibold y la variante debajo en `text-sm` gris.
+- Un dato de apoyo debajo de un número (impuesto, unidades) va en `text-xs` gris.
 - Números a la derecha. La moneda va en el encabezado si toda la columna es de una moneda.
 - Totales en la última fila, en negrita, fijos abajo.
-- Estado: punto de color y texto en tinta.
+- Estado: punto de color y texto en tinta, a `text-sm`.
 - Acciones al final, en un menú ⋮. Como mucho una acción visible por fila, con borde.
 - Cabe en 1280 px sin scroll lateral. Si no cabe, las columnas secundarias se ocultan y se activan desde «Columnas».
 - 25 filas por página. Abajo a la derecha: «1–25 de 230».
@@ -261,3 +264,4 @@ Lo que este documento pide y el código todavía no tiene. Cada línea se borra 
 | 2026-10-10 | Cancelar y Cerrar pasan a gris con borde; el rojo queda para eliminar y errores |
 | 2026-10-10 | Sombra del botón principal y del carrito en bordó, en claro y en oscuro |
 | 2026-10-10 | Ofertas en rosa con texto bordó; línea del header en bordó; encabezado de tablas en rosa |
+| 2026-10-10 | Tablas con relieve: contorno marcado, línea grabada entre filas, sombra bajo el encabezado y tabla levantada del fondo. Código, variante y estado a 14 px; código y encabezado en tinta |

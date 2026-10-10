@@ -8,13 +8,19 @@ function Table({
   className,
   containerClassName,
   density = "normal",
+  embedded = false,
   ...props
-}: React.ComponentProps<"table"> & { containerClassName?: string; density?: Density }) {
+}: React.ComponentProps<"table"> & { containerClassName?: string; density?: Density; embedded?: boolean }) {
   return (
     <div
       data-slot="table-container"
       data-density={density}
-      className={cn("group/table relative w-full overflow-x-auto rounded-2xl border border-border bg-card", containerClassName)}
+      className={cn(
+        "group/table relative w-full overflow-x-auto bg-card",
+        // Dentro de una tarjeta, el contorno y la sombra los pone la tarjeta.
+        embedded ? "rounded-none border-0" : "rounded-2xl border border-table-edge shadow-table",
+        containerClassName
+      )}
     >
       <table data-slot="table" className={cn("w-full caption-bottom text-sm", className)} {...props} />
     </div>
@@ -22,7 +28,7 @@ function Table({
 }
 
 function TableHeader({ className, ...props }: React.ComponentProps<"thead">) {
-  return <thead data-slot="table-header" className={cn("border-b border-border bg-muted text-left", className)} {...props} />
+  return <thead data-slot="table-header" className={cn("border-b border-table-groove bg-muted text-left", className)} {...props} />
 }
 
 function TableBody({ className, ...props }: React.ComponentProps<"tbody">) {
@@ -33,7 +39,7 @@ function TableFooter({ className, ...props }: React.ComponentProps<"tfoot">) {
   return (
     <tfoot
       data-slot="table-footer"
-      className={cn("sticky bottom-0 z-10 border-t border-border bg-background font-bold", className)}
+      className={cn("sticky bottom-0 z-10 border-t border-table-groove bg-background font-bold", className)}
       {...props}
     />
   )
@@ -44,7 +50,7 @@ function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
     <tr
       data-slot="table-row"
       className={cn(
-        "border-b border-border/60 transition-colors hover:bg-primary-2/5 data-[state=selected]:bg-primary-2/10",
+        "border-b border-table-groove transition-colors hover:bg-primary-2/7 data-[state=selected]:bg-primary-2/10",
         className
       )}
       {...props}
@@ -56,7 +62,7 @@ function TableHead({ className, ...props }: React.ComponentProps<"th">) {
   return (
     <th
       data-slot="table-head"
-      className={cn("h-11 px-4 text-left align-middle text-xs font-semibold whitespace-nowrap text-muted-foreground", className)}
+      className={cn("h-11 px-4 text-left align-middle text-xs font-semibold whitespace-nowrap text-foreground", className)}
       {...props}
     />
   )
@@ -66,7 +72,7 @@ function TableCell({ className, ...props }: React.ComponentProps<"td">) {
   return (
     <td
       data-slot="table-cell"
-      className={cn("h-13 px-4 align-middle group-data-[density=compact]/table:h-10", className)}
+      className={cn("h-13 px-4 align-middle group-data-[density=compact]/table:h-10 [&_[data-slot=chip][data-variant=status]]:text-sm", className)}
       {...props}
     />
   )

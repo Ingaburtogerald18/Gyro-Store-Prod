@@ -160,7 +160,7 @@ export function ExpenseHistoryTable({
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-border bg-card">
-        <Table containerClassName="rounded-none border-0">
+        <Table embedded>
             <TableHeader>
               <tr>
                 <TableHead>Fecha</TableHead>

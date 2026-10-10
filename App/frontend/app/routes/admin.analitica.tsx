@@ -189,7 +189,7 @@ function SearchTable({
   highlightZero?: boolean;
 }) {
   return (
-    <Table containerClassName="rounded-none border-0">
+    <Table embedded>
       <TableHeader>
         <tr>
           <TableHead>Búsqueda</TableHead>
