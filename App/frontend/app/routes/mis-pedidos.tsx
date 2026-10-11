@@ -1,3 +1,5 @@
+import { FormLayout, FormBody, FormActions } from '~/components/ui/form-layout';
+import { FormErrorBanner, serverErrorMessage } from '~/components/ui/form-feedback';
 // «Mis pedidos» sin cuenta: los pedidos hechos (o abiertos por link) desde este
 // navegador, más un buscador por número de pedido + teléfono para quien cambió
 // de celular o borró el navegador.
@@ -9,7 +11,7 @@ import type { LoaderFunctionArgs, MetaFunction } from '@remix-run/node';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { toast } from 'sonner';
+
 import { trackPublicOrderSchema } from '@shared/schemas';
 
 import { pageTitle } from '~/lib/brand';
@@ -19,7 +21,7 @@ import { Field, FieldError, FieldLabel } from '~/components/ui/field';
 import { Input } from '~/components/ui/input';
 import { Skeleton } from '~/components/ui/skeleton';
 import { StatusBadge } from '~/components/ui/StatusBadge';
-import { errMsg, formatCordobas, formatLongDate } from '~/lib/formatters';
+import { formatCordobas, formatLongDate } from '~/lib/formatters';
 import { PUBLIC_ORDER_STATUS, publicOrderStatusLabel, statusMeta } from '~/lib/status';
 import { loadOrders, type SavedOrder } from '~/lib/orderHistory';
 import { useStoreConfig } from '~/hooks/useStoreConfig';
@@ -120,6 +122,7 @@ function OrderRow({ saved }: { saved: SavedOrder }) {
 }
 
 function TrackOrder() {
+  const [serverError, setServerError] = useState<string | null>(null);
   const navigate = useNavigate();
   const [track, { isLoading }] = useTrackPublicOrderMutation();
   const {
@@ -129,12 +132,13 @@ function TrackOrder() {
   } = useForm<TrackForm>({ resolver: zodResolver(trackPublicOrderSchema), defaultValues: { code: '', phone: '' } });
 
   async function onSubmit(values: TrackForm) {
+    setServerError(null);
     try {
       // El resolver ya validó; el servidor vuelve a normalizar con el mismo schema.
       const { id } = await track(values as z.output<typeof trackPublicOrderSchema>).unwrap();
       navigate(`/pedido/${id}`);
     } catch (err) {
-      toast.error(errMsg(err, 'No encontramos un pedido con esos datos.'));
+      setServerError(serverErrorMessage(err, 'No encontramos un pedido con esos datos.'));
     }
   }
 
@@ -142,23 +146,35 @@ function TrackOrder() {
     <section className="mt-10 rounded-xl border bg-card p-5">
       <h2 className="font-heading text-lg font-bold text-foreground">Buscar un pedido</h2>
       <p className="mt-1 text-sm text-muted-foreground">
-        El número de pedido aparece en la confirmación y en tu mensaje de WhatsApp (por ejemplo, #A1B2C3D4).
+        El número de pedido aparece en la confirmación y en tu mensaje de WhatsApp (por ejemplo,
+        #A1B2C3D4).
       </p>
-      <form onSubmit={handleSubmit(onSubmit)} className="mt-4 grid gap-4 sm:grid-cols-2">
-        <Field>
-          <FieldLabel htmlFor="track-code">Número de pedido</FieldLabel>
-          <Input id="track-code" placeholder="#A1B2C3D4" autoComplete="off" {...register('code')} />
-          <FieldError errors={[errors.code]} />
-        </Field>
-        <Field>
-          <FieldLabel htmlFor="track-phone">Teléfono con el que compraste</FieldLabel>
-          <Input id="track-phone" type="tel" inputMode="tel" placeholder="8888 8888" {...register('phone')} />
-          <FieldError errors={[errors.phone]} />
-        </Field>
-        <Button type="submit" disabled={isLoading} className="sm:col-span-2">
-          {isLoading ? 'Buscando…' : 'Buscar pedido'}
-        </Button>
-      </form>
+      <FormLayout className="mt-4" mode="page" onSubmit={handleSubmit(onSubmit)}>
+        <FormErrorBanner message={serverError} />
+        <FormBody>
+          <Field>
+            <FieldLabel htmlFor="track-code">Número de pedido</FieldLabel>
+            <Input id="track-code" placeholder="#A1B2C3D4" autoComplete="off" {...register('code')} />
+            <FieldError errors={[errors.code]} />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="track-phone">Teléfono con el que compraste</FieldLabel>
+            <Input
+              id="track-phone"
+              type="tel"
+              inputMode="tel"
+              placeholder="8888 8888"
+              {...register('phone')}
+            />
+            <FieldError errors={[errors.phone]} />
+          </Field>
+        </FormBody>
+        <FormActions>
+          <Button type="submit" disabled={isLoading} className="w-full sm:w-auto">
+            {isLoading ? 'Buscando…' : 'Buscar pedido'}
+          </Button>
+        </FormActions>
+      </FormLayout>
     </section>
   );
 }

@@ -1,5 +1,5 @@
 import type { IconSvgElement } from "@hugeicons/react";
-import { Analytics01Icon, Coupon01Icon, CreditCardIcon, DashboardSquare01Icon, File01Icon, Package01Icon, PackageIcon, Settings02Icon, ShoppingBag01Icon, ShoppingCart02Icon, Store01Icon, UserMultiple02Icon, UserSettings01Icon } from "@hugeicons/core-free-icons";
+import { Analytics01Icon, Coupon01Icon, CreditCardIcon, DashboardSquare01Icon, File01Icon, PackageIcon, Settings02Icon, ShoppingBag01Icon, ShoppingCart02Icon, Store01Icon, UserMultiple02Icon, UserSettings01Icon } from "@hugeicons/core-free-icons";
 export interface NavItem {
   name: string;
   to: string;
@@ -30,7 +30,6 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     label: 'Tienda',
     items: [
-      { name: 'Catálogo', to: '/admin/catalogo', icon: Package01Icon },
       { name: 'Facturación', to: '/admin/facturacion', icon: File01Icon },
       { name: 'Códigos de descuento', to: '/admin/codigos-descuento', icon: Coupon01Icon },
     ],
@@ -52,7 +51,9 @@ export function allowedNavGroups(isAdmin: boolean, role: string | null) {
     ...group,
     items: group.items.filter((item) => {
       if (item.name === 'Mis Facturas') return role === 'seller';
-      return isAdmin || ['Ventas', 'Pedidos web', 'Personal', 'Catálogo', 'CRM y clientes'].includes(item.name);
+      // El vendedor ve Inventario solo en Stock actual, sin costos.
+      if (item.name === 'Inventario') return isAdmin || role === 'seller';
+      return isAdmin || ['Ventas', 'Pedidos web', 'Personal', 'CRM y clientes'].includes(item.name);
     }),
   })).filter((group) => group.items.length > 0);
 }

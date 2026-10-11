@@ -79,6 +79,7 @@ export function useConfigSection<T extends FieldValues>({
 }: ConfigSectionOptions<T>) {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
+  const [saveError, setSaveError] = useState<string | null>(null);
   const dispatch = useAppDispatch();
 
   const form = useForm<T>({ resolver, defaultValues });
@@ -108,6 +109,7 @@ export function useConfigSection<T extends FieldValues>({
 
   const load = useCallback(async () => {
     setLoadError('');
+    setSaveError(null);
     setLoading(true);
     try {
       const res = await fetch(loadUrl, { headers: await authHeaders() });
@@ -129,6 +131,7 @@ export function useConfigSection<T extends FieldValues>({
   }, [load]);
 
   const submit = handleSubmit(async (values) => {
+    setSaveError(null);
     try {
       if (processBeforeSaveRef.current) {
         values = await processBeforeSaveRef.current(values);
@@ -153,9 +156,9 @@ export function useConfigSection<T extends FieldValues>({
       onSavedRef.current?.();
       toast.success(successMessage);
     } catch (err) {
-      toast.error((err as Error).message || saveErrorMessage);
+      setSaveError((err as Error).message || saveErrorMessage);
     }
   });
 
-  return { form, loading, loadError, submit, retry: load };
+  return { form, loading, loadError, saveError, submit, retry: load };
 }

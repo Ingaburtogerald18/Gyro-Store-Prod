@@ -6,7 +6,7 @@
 // `env(safe-area-inset-bottom)` para no quedar bajo la barra del navegador.
 import { motion, useReducedMotion } from 'framer-motion';
 import { HugeIcon } from '~/components/ui/icon';
-import { ShoppingCart02Icon } from '@hugeicons/core-free-icons';
+import { Notification03Icon, ShoppingCart02Icon } from '@hugeicons/core-free-icons';
 import { WhatsappIcon } from '~/components/ui/whatsapp-icon';
 
 import { Button } from '~/components/ui/button';
@@ -17,6 +17,7 @@ export function MobileBuyBar({
   price,
   mode = 'add',
   onAdd,
+  onNotify,
   onWhatsApp,
   addLabel,
   buyActionsId,
@@ -24,10 +25,11 @@ export function MobileBuyBar({
   name: string;
   /** Ya formateado: el formato del dinero vive en lib/formatters. */
   price: string;
-  /** 'consult': agotado o sin stock verificable — la acción es consultar. */
-  mode?: 'add' | 'consult';
+  /** 'consult': sin stock verificable — la acción es consultar. 'notify': agotado o en camino — pedir aviso. */
+  mode?: 'add' | 'consult' | 'notify';
   /** Agregar; si falta elegir opciones, lleva al selector y lo explica. */
   onAdd: () => void;
+  onNotify?: () => void;
   onWhatsApp: () => void;
   addLabel: string;
   buyActionsId?: string;
@@ -53,7 +55,24 @@ export function MobileBuyBar({
           <p className="font-heading text-lg font-extrabold tracking-tight text-foreground tabular-nums">{price}</p>
         </div>
 
-        {mode === 'consult' ? (
+        {mode === 'notify' ? (
+          <>
+            <Button
+              variant="whatsappOutline"
+              size="icon"
+              onClick={onWhatsApp}
+              aria-label={`Consultar por ${name} por WhatsApp`}
+              className="size-12 shrink-0"
+              tabIndex={hidden ? -1 : undefined}
+            >
+              <WhatsappIcon className="size-[18px]" />
+            </Button>
+            <Button onClick={onNotify} className="h-12 shrink-0 px-5 text-base" tabIndex={hidden ? -1 : undefined}>
+              <HugeIcon icon={Notification03Icon} size={18} strokeWidth={2} aria-hidden />
+              Avisame
+            </Button>
+          </>
+        ) : mode === 'consult' ? (
           <Button
             variant="whatsapp"
             onClick={onWhatsApp}

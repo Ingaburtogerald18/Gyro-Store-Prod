@@ -40,6 +40,7 @@ import {
   useGetPurchaseOrdersQuery,
   useGetPurchasesQuery,
   type Purchase,
+  type PurchaseInvoice,
   type PurchaseOrder,
 } from "~/store/api/inventoryV1Api";
 import { canSharePhotoFiles, downloadOrderPhotos, shareOrderPhotos } from "~/lib/purchaseOrderPhotos";
@@ -49,6 +50,7 @@ import { EditArrivalModal } from "./EditArrivalModal";
 import { AddOrderLinesDialog, EditPurchaseOrderDialog, MISSING_LABELS } from "./PurchaseOrderDialogs";
 import { OrderAccordion } from "./OrderAccordion";
 import { ReceiveOrderDialog } from "./ReceiveOrderDialog";
+import { InvoiceViewerDialog, PackagePhotosDialog } from "./OrderFileViewers";
 
 export type PurchaseStatusFilter = "all" | "transit" | "received" | "late" | "incomplete";
 
@@ -130,6 +132,8 @@ export function PurchasesTable({
   const [editOrderFor, setEditOrderFor] = useState<PurchaseOrder | null>(null);
   const [addLinesFor, setAddLinesFor] = useState<PurchaseOrder | null>(null);
   const [photosBusy, setPhotosBusy] = useState<string | null>(null);
+  const [photosFor, setPhotosFor] = useState<PurchaseOrder | null>(null);
+  const [invoiceFor, setInvoiceFor] = useState<PurchaseInvoice | null>(null);
   const [arrivalFor, setArrivalFor] = useState<Purchase | null>(null);
   const [editFor, setEditFor] = useState<Purchase | null>(null);
   const [editArrivalFor, setEditArrivalFor] = useState<Purchase | null>(null);
@@ -299,6 +303,8 @@ export function PurchasesTable({
                 onEdit={() => setEditOrderFor(lot.order)}
                 onAddLines={() => setAddLinesFor(lot.order)}
                 onPhotos={(mode) => handlePhotos(lot.order!, mode)}
+                onViewPhotos={() => setPhotosFor(lot.order)}
+                onViewInvoice={() => setInvoiceFor(lot.order!.invoice)}
                 onDelete={() => handleDeleteOrder(lot.order!)}
               /> : null,
               details: (
@@ -311,6 +317,7 @@ export function PurchasesTable({
                     <colgroup>
                       <col className="w-[140px]" />
                       <col />
+                      <col className="w-28" />
                       <col className="w-[156px]" />
                       <col className="w-[132px]" />
                       <col className="w-[132px]" />
@@ -320,6 +327,7 @@ export function PurchasesTable({
                       <tr>
                         <TableHead scope="col">Código</TableHead>
                         <TableHead scope="col">Producto</TableHead>
+                        <TableHead scope="col" className="text-right">Cantidad</TableHead>
                         <TableHead scope="col" className="text-right">Costo unit. USD</TableHead>
                         <TableHead scope="col" className="text-right">Total USD</TableHead>
                         <TableHead scope="col">Estado</TableHead>
@@ -340,6 +348,14 @@ export function PurchasesTable({
                               </div>
                             </TableCell>
                             <TableCell className="text-right">
+                              <div className="flex flex-col items-end">
+                                <span className="font-medium text-foreground">{p.quantity.toLocaleString('es-NI')}</span>
+                                {p.quantityOrdered != null && p.quantityOrdered !== p.quantity && (
+                                  <span className="text-xs text-warning">de {p.quantityOrdered.toLocaleString('es-NI')} pedidas</span>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-right">
                               <div className="flex flex-col items-end" title={`Base ${formatUsd(p.costUnit, 4)} + impuesto ${formatUsd(p.taxUnit, 4)}`}>
                                 <span className="font-medium text-foreground">{formatUsd(p.priceUnit)}</span>
                                 <span className="text-xs text-muted-foreground">
@@ -348,15 +364,7 @@ export function PurchasesTable({
                               </div>
                             </TableCell>
                             <TableCell className="text-right">
-                              <div className="flex flex-col items-end">
-                                <span className="font-heading font-extrabold text-foreground">{formatUsd(p.total)}</span>
-                                <span className="text-xs text-muted-foreground">
-                                  {p.quantity.toLocaleString('es-NI')} {p.quantity === 1 ? 'unidad' : 'unidades'}
-                                </span>
-                                {p.quantityOrdered != null && p.quantityOrdered !== p.quantity && (
-                                  <span className="text-xs text-warning">de {p.quantityOrdered} pedidas</span>
-                                )}
-                              </div>
+                              <span className="font-heading font-extrabold text-foreground">{formatUsd(p.total)}</span>
                             </TableCell>
                             <TableCell>
                               <StatusPill tone={tone} />
@@ -389,8 +397,9 @@ export function PurchasesTable({
                     <TableFooter className="static">
                       <tr>
                         <th scope="row" colSpan={2} className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">
-                          Subtotal mostrado · {lot.items.length} productos · {lot.items.reduce((sum, item) => sum + (item.quantity ?? 0), 0).toLocaleString('es-NI')} unidades
+                          Subtotal mostrado · {lot.items.length} productos
                         </th>
+                        <td className="px-4 py-3 text-right font-semibold text-foreground">{lot.items.reduce((sum, item) => sum + (item.quantity ?? 0), 0).toLocaleString('es-NI')}</td>
                         <td />
                         <td className="px-4 py-3 text-right font-heading font-extrabold text-foreground">{formatUsd(lot.items.reduce((sum, item) => sum + (item.total ?? 0), 0))}</td>
                         <td colSpan={2} />
@@ -411,6 +420,8 @@ export function PurchasesTable({
         </>
       )}
 
+      <InvoiceViewerDialog invoice={invoiceFor} onOpenChange={(open) => !open && setInvoiceFor(null)} />
+      <PackagePhotosDialog order={photosFor} onOpenChange={(open) => !open && setPhotosFor(null)} />
       <ReceiveOrderDialog
         order={receiveFor}
         orders={ordersData?.orders ?? []}
@@ -455,6 +466,8 @@ function OrderHeader({
   onEdit,
   onAddLines,
   onPhotos,
+  onViewPhotos,
+  onViewInvoice,
   onDelete,
 }: {
   order: PurchaseOrder;
@@ -463,6 +476,8 @@ function OrderHeader({
   onEdit: () => void;
   onAddLines: () => void;
   onPhotos: (mode: "download" | "share") => void;
+  onViewPhotos: () => void;
+  onViewInvoice: () => void;
   onDelete: () => void;
 }) {
   const hasPending = order.status === "transit" || order.status === "partial";
@@ -495,10 +510,9 @@ function OrderHeader({
         </Chip>
       )}
       {order.invoice?.fileUrl && (
-        <a
-          href={order.invoice.fileUrl}
-          target="_blank"
-          rel="noreferrer"
+        <button
+          type="button"
+          onClick={onViewInvoice}
           title={
             order.invoice.orders.length > 1
               ? `Compartida con ${order.invoice.orders.filter((o) => o.id !== order.id).map((o) => o.orderNumber).join(", ")}`
@@ -508,29 +522,28 @@ function OrderHeader({
         >
           <HugeIcon icon={Invoice01Icon} size={14} strokeWidth={2} aria-hidden className="text-primary-2" />
           {order.invoice.orders.length > 1 ? `Factura (${order.invoice.orders.length} órdenes)` : "Factura"}
-        </a>
+        </button>
       )}
       {photos > 0 && (
-        <span className="inline-flex min-h-9 items-center gap-1.5 text-xs text-muted-foreground">
+        <button
+          type="button"
+          onClick={onViewPhotos}
+          className="inline-flex min-h-9 items-center gap-1.5 rounded-xl px-1 text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
           <HugeIcon icon={Image01Icon} size={14} strokeWidth={2} aria-hidden />
           {photos} {photos === 1 ? "foto" : "fotos"}
           {photosBusy && <Spinner className="size-3" />}
-        </span>
+        </button>
       )}
       <span className="ml-auto flex items-center gap-3">
-        {hasPending && (
-          <Button className="gap-1.5" onClick={onReceive}>
-            <HugeIcon icon={PackageReceiveIcon} size={16} strokeWidth={2} aria-hidden />
-            Recibir
-          </Button>
-        )}
         <RowActionsMenu
+          trigger="button"
           label={`Acciones de la orden ${order.orderNumber}`}
-          className="inline-flex size-11 items-center justify-center rounded-xl border border-input bg-card text-foreground hover:border-primary-2"
           actions={[
             hasPending && { group: "Orden", label: "Recibir en Nicaragua", icon: <HugeIcon icon={PackageReceiveIcon} size={16} strokeWidth={2} />, onClick: onReceive },
             { group: "Orden", label: order.missing.length ? "Completar datos" : "Editar orden", icon: <HugeIcon icon={Edit02Icon} size={16} strokeWidth={2} />, onClick: onEdit },
             { group: "Orden", label: "Agregar productos", icon: <HugeIcon icon={Add01Icon} size={16} strokeWidth={2} />, onClick: onAddLines },
+            photos > 0 && { group: "Fotos del empaque", label: "Ver fotos", icon: <HugeIcon icon={Image01Icon} size={16} strokeWidth={2} />, onClick: onViewPhotos },
             photos > 0 && { group: "Fotos del empaque", label: "Descargar fotos", icon: <HugeIcon icon={Download01Icon} size={16} strokeWidth={2} />, onClick: () => onPhotos("download") },
             photos > 0 && canSharePhotoFiles() && { group: "Fotos del empaque", label: "Compartir fotos", icon: <HugeIcon icon={Share01Icon} size={16} strokeWidth={2} />, onClick: () => onPhotos("share") },
             order.lineCount === 0 && { label: "Eliminar orden", icon: <HugeIcon icon={Delete02Icon} size={16} strokeWidth={2} />, danger: true, separatorBefore: true, onClick: onDelete },

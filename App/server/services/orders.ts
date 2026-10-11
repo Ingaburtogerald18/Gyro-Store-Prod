@@ -7,7 +7,8 @@ import { findOrCreateOrderContact } from './crm';
 import { ingestEvents } from './analytics';
 import { collectMappedCodes, normalizeImages, toCatalogDetail } from './catalogPresenter';
 import { listPublishedCatalogByIds } from './catalog';
-import { getAvailableByCodes } from './inventory';
+import { getLotsByCodes } from './inventory';
+import { getActiveOffers } from './offers';
 import { resolveOrderLines, type ResolvedComboInfo } from './orderLines';
 import { isMissingColumn, persistOrder, restoreOrderAttempt, type OrderAttemptStore } from './orderPersistence';
 import { createAttemptRegistry, OrderAttemptConflict, orderRequestHash } from './orderIdempotency';
@@ -172,8 +173,8 @@ export function recoverPublicOrder(key: string): Promise<CreatedPublicOrder | nu
 
 async function loadDetails(ids: string[]): Promise<Map<string, CatalogDetail>> {
   const rows = await listPublishedCatalogByIds(ids);
-  const stockByCode = await getAvailableByCodes(rows.flatMap(collectMappedCodes));
-  return new Map(rows.map((row) => [row.id, toCatalogDetail(row, stockByCode)]));
+  const [lots, offers] = await Promise.all([getLotsByCodes(rows.flatMap(collectMappedCodes)), getActiveOffers()]);
+  return new Map(rows.map((row) => [row.id, toCatalogDetail(row, lots, offers.get(row.id))]));
 }
 
 async function createPublicOrderOnce(input: PublicOrderInput, key: string, hash: string): Promise<CreatedPublicOrder> {

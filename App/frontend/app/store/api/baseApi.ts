@@ -28,7 +28,6 @@ export const baseApi = createApi({
     'Config',
     'Landing',
     'Catalog',
-    'AdminCatalog',
     'Combos',
     'Orders',
     'Me',

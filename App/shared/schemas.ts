@@ -37,6 +37,9 @@ export type CategoryInput = z.infer<typeof categoryInputSchema>;
 export const templateSchema = z.object({
   id: z.uuid(),
   name: z.string().nullable(),
+  description: z.string().nullable().optional(),
+  category_id: z.string().uuid().nullable().optional(),
+  category: z.object({ id: z.string(), name: z.string() }).nullable().optional(),
   axes: z.unknown(),
   specs: z.unknown(),
 });
@@ -102,11 +105,13 @@ export const specRowSchema = z.object({
 });
 
 // Disponibilidad cualitativa: lo único que el cliente ve del inventario.
-//   · available → hay unidades en los lotes vinculados.
-//   · sold_out  → la variante está vinculada a bodega y no quedan unidades.
-//   · unknown   → no hay vínculo con bodega: el stock no se conoce. Se ofrece
-//                 «Consultar disponibilidad» por WhatsApp, nunca como compra.
-export const AVAILABILITY = ['available', 'sold_out', 'unknown'] as const;
+//   · available   → hay unidades en los lotes vinculados.
+//   · coming_soon → sin unidades en bodega y con una compra en camino. Sin precio
+//                   y no se puede pedir.
+//   · sold_out    → la variante está vinculada a bodega y no quedan unidades.
+//   · unknown     → no hay vínculo con bodega (o no tiene precio): se ofrece
+//                   «Consultar disponibilidad» por WhatsApp, nunca como compra.
+export const AVAILABILITY = ['available', 'coming_soon', 'sold_out', 'unknown'] as const;
 export const availabilitySchema = z.enum(AVAILABILITY);
 export type Availability = z.infer<typeof availabilitySchema>;
 
@@ -119,7 +124,8 @@ export const catalogProductSchema = z.object({
   categoryId: z.string().uuid().nullable().optional(),
   images: z.array(z.string()),
   // Precio que muestra la tarjeta: el menor de las variantes comprables (o de
-  // todas, si ninguna lo es). Con `priceFrom` se presenta como «Desde …».
+  // todas, si ninguna lo es). Con `priceFrom` se presenta como «Desde …». Es 0
+  // en «Próximamente», que no muestra precio.
   price: z.number(),
   // Precio «antes» SOLO cuando todas las variantes comparten el mismo precio y
   // la misma rebaja: una tarjeta no muestra la rebaja del modelo entero si
@@ -145,6 +151,8 @@ export const catalogProductSchema = z.object({
   // inventar una variante «Estándar».
   singleVariant: z.string().optional(),
   templateId: z.string().nullable(),
+  // Solo en la vista previa del modo edición: la tienda real nunca lo manda.
+  unpublished: z.boolean().optional(),
 });
 
 // Eje de variante ya resuelto (ej. { key: 'color', options: ['negro', ...] }).
@@ -169,7 +177,7 @@ export const catalogAxisSchema = z.object({
 export const catalogVariantSchema = z.object({
   variantName: z.string(),
   axisValues: z.array(z.string()),
-  // Precio vigente de ESTA combinación (promoción incluida).
+  // Precio vigente de ESTA combinación (promoción incluida); 0 en «Próximamente».
   price: z.number(),
   // Precio regular cuando la combinación tiene promoción.
   compareAtPrice: z.number().optional(),
@@ -283,10 +291,13 @@ export const templateAxisSchema = z.object({
 });
 export type TemplateAxis = z.infer<typeof templateAxisSchema>;
 
+// Una plantilla por modelo: nombre, descripción y categoría son los que muestra
+// la tienda. La nota interna nunca sale del panel.
 export const templateInputSchema = z.object({
-  name: z.string().min(2, 'El nombre de la plantilla es obligatorio.').max(120),
+  name: z.string().trim().min(2, 'Escribí el nombre del modelo.').max(120),
   description: z.string().max(3000).optional(),
-  categoryId: z.string().uuid().nullable().optional(),
+  internalNote: z.string().max(3000).optional(),
+  categoryId: z.string({ error: 'Elegí la categoría.' }).uuid('Elegí la categoría.'),
   // Techo de ejes: las combinaciones crecen como producto cartesiano, así que
   // unos pocos ejes ya generan cientos de filas en la tabla de mapeo.
   axes: z.array(templateAxisSchema).max(6, 'Máximo 6 ejes por plantilla.'),
@@ -298,10 +309,14 @@ export const adminTemplateSchema = z.object({
   id: z.uuid(),
   name: z.string(),
   description: z.string(),
+  internalNote: z.string(),
   categoryId: z.string().uuid().nullable(),
   axes: z.array(templateAxisSchema),
   specs: z.array(specRowSchema),
   updatedAt: z.string(),
+  // Productos del catálogo que la usan: uno en las plantillas nuevas, varios en
+  // las viejas compartidas (ahí la compra elige a cuál va).
+  products: z.array(z.object({ id: z.uuid(), name: z.string(), published: z.boolean() })),
 });
 export type AdminTemplate = z.infer<typeof adminTemplateSchema>;
 
@@ -420,6 +435,8 @@ export const heroSlideSchema = z.object({
   actionType: z.enum(['modal', 'link', 'social']),
   actionTarget: z.string().max(2048),
   locked: z.boolean().optional(),
+  layout: z.enum(['left', 'right', 'top']).optional(),
+  visible: z.boolean().optional(),
 });
 
 // Techo de diapositivas: el hero es una vitrina, no un carrusel infinito.
@@ -483,6 +500,111 @@ export function categoryMode(mode: CategoryMode | undefined, ids: string[] | und
 }
 
 // ============================================================================
+// ── SCHEMAS DEL DOMINIO: MODO EDICIÓN (borrador compartido y bloqueo) ──
+// ============================================================================
+
+// Solo URLs ya subidas: una foto en cola (blob:) no sirve en otro navegador.
+const draftImagesSchema = z
+  .array(z.string().max(2048).regex(/^https?:\/\//, 'Hay una foto que no terminó de subir.'))
+  .max(8, 'Máximo 8 imágenes por producto.');
+
+// Lo que el borrador cambia de cada producto; lo que falta queda como está publicado.
+export const draftProductChangeSchema = z.object({
+  images: draftImagesSchema.optional(),
+  imagesByColor: z.record(z.string().max(200), draftImagesSchema).optional(),
+  published: z.boolean().optional(),
+});
+
+export const draftComboChangeSchema = z.object({
+  images: draftImagesSchema.optional(),
+  published: z.boolean().optional(),
+});
+
+export const storeDraftProductsSchema = z.object({
+  items: z.record(z.uuid(), draftProductChangeSchema).default({}),
+  combos: z.record(z.uuid(), draftComboChangeSchema).default({}),
+  /** Orden de los productos en la tienda; sin esto, el publicado. */
+  order: z.array(z.uuid()).max(5000).optional(),
+});
+
+export type DraftProductChange = z.infer<typeof draftProductChangeSchema>;
+export type DraftComboChange = z.infer<typeof draftComboChangeSchema>;
+export type StoreDraftProducts = z.infer<typeof storeDraftProductsSchema>;
+
+export const editorSessionSchema = z.object({ session: z.uuid() });
+
+/** `landing: null` = la portada no cambia respecto de la publicada. */
+export const storeDraftInputSchema = editorSessionSchema.extend({
+  landing: landingConfigSchema.nullable(),
+  products: storeDraftProductsSchema,
+});
+
+export const editorHeartbeatSchema = editorSessionSchema.extend({ active: z.boolean() });
+
+// Al cerrar la pestaña se libera con lo último que faltaba guardar.
+export const editorReleaseSchema = editorSessionSchema.extend({
+  draft: storeDraftInputSchema.omit({ session: true }).optional(),
+});
+
+export const storePublishInputSchema = editorSessionSchema.extend({
+  landing: landingConfigSchema,
+  products: storeDraftProductsSchema,
+});
+
+export type StoreDraftInput = z.infer<typeof storeDraftInputSchema>;
+export type StorePublishInput = z.infer<typeof storePublishInputSchema>;
+
+export interface StoreDraft {
+  landing: LandingConfig | null;
+  products: StoreDraftProducts;
+  changedAt: string | null;
+  changedBy: string | null;
+}
+
+export interface EditorLockHolder {
+  name: string;
+  since: string;
+}
+
+/** Respuesta al entrar al modo edición. */
+export interface EditorEntry {
+  draft: StoreDraft | null;
+  published: LandingConfig;
+}
+
+export const restoreVersionSchema = editorSessionSchema.extend({
+  /** El admin confirmó descartar el borrador sin publicar. */
+  discardDraft: z.boolean(),
+});
+
+/** Una de las últimas 5 publicaciones. */
+export interface StoreVersion {
+  id: string;
+  publishedAt: string;
+  publishedBy: string | null;
+  /** Qué cambió respecto de la anterior. */
+  summary: string[];
+  /** La que muestra la tienda ahora. */
+  current: boolean;
+}
+
+/** Producto tal como está publicado, para la sección Productos del modo edición. */
+export interface EditorProduct {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  templateId: string | null;
+  published: boolean;
+  images: string[];
+  imagesByColor: Record<string, string[]>;
+  /** Colores que ofrece; vacío si la plantilla no tiene eje de color. */
+  colors: string[];
+  /** La tarjeta de la tienda con lo publicado: precio, estado y fotos. */
+  card: CatalogProduct;
+}
+
+// ============================================================================
 // ── SCHEMAS DEL DOMINIO: COMBOS ──
 // ============================================================================
 
@@ -490,7 +612,7 @@ export function categoryMode(mode: CategoryMode | undefined, ids: string[] | und
 // un snapshot para mostrar el contenido sin re-pedir el catálogo. El precio del
 // combo es PLANO (lo fija el admin), NO se calcula de acá.
 export const comboItemSchema = z.object({
-  catalogItemId: z.string().uuid(),
+  catalogItemId: z.string().uuid('Elegí el producto.'),
   name: z.string().min(1).max(120),
   quantity: z.number().int().min(1).max(999),
 });
@@ -508,20 +630,20 @@ export const comboSchema = z.object({
 });
 
 // ── Combos (ADMIN) ──
-// Entrada del editor del panel (POST/PUT /api/admin/combos, requireAdmin). El
-// precio es el del PAQUETE; el servicio lo mapea a las columnas snake_case.
+// Entrada de la vista Combos de Inventario (POST/PUT /api/admin/combos). El
+// precio es el del PAQUETE. Las fotos y si se muestra van en el modo edición.
 export const adminComboInputSchema = z.object({
-  name: z.string().min(2, 'El nombre es obligatorio.').max(120),
-  price: z.number().min(0, 'El precio no puede ser negativo.').max(9_999_999),
-  images: z.array(z.string().max(2048)).max(8, 'Máximo 8 imágenes por combo.'),
-  items: z.array(comboItemSchema).max(30, 'Máximo 30 artículos por combo.'),
-  published: z.boolean(),
-  sortOrder: z.number().int().min(0).max(9999),
+  name: z.string().trim().min(2, 'Escribí el nombre del combo.').max(120),
+  price: z.number().positive('Escribí el precio del combo.').max(9_999_999),
+  items: z.array(comboItemSchema).min(1, 'Agregá al menos un producto.').max(30, 'Máximo 30 productos por combo.'),
 });
 export type AdminComboInput = z.infer<typeof adminComboInputSchema>;
 
 export const adminComboSchema = adminComboInputSchema.extend({
   id: z.uuid(),
+  images: z.array(z.string()),
+  published: z.boolean(),
+  sortOrder: z.number().int(),
   updatedAt: z.string(),
 });
 export type AdminCombo = z.infer<typeof adminComboSchema>;
@@ -533,13 +655,15 @@ export type AdminCombo = z.infer<typeof adminComboSchema>;
 // WhatsApp es CRM-B/C y depende de Meta — NO entra acá. Las tablas ya existen
 // (migración 0001): contacts, contact_activities, follow_ups.
 
-export const CONTACT_ORIGINS = ['fb_ads', 'organic', 'whatsapp_link', 'referral', 'other'] as const;
+// 'store' = pidió «Avisame cuando haya» en la tienda (migración 0028).
+export const CONTACT_ORIGINS = ['fb_ads', 'organic', 'whatsapp_link', 'referral', 'store', 'other'] as const;
 export type ContactOrigin = (typeof CONTACT_ORIGINS)[number];
 export const CONTACT_ORIGIN_LABELS: Record<ContactOrigin, string> = {
   fb_ads: 'Anuncio FB/IG',
   organic: 'Orgánico',
   whatsapp_link: 'Link WhatsApp',
   referral: 'Referido',
+  store: 'Tienda',
   other: 'Otro',
 };
 
@@ -608,6 +732,8 @@ export const followUpSchema = z.object({
   // Enriquecidos para la agenda (JOIN con el contacto).
   contactName: z.string().nullable().optional(),
   contactPhone: z.string().nullable().optional(),
+  // Aviso de la tienda: `arrived` cuando su variante ya tiene stock («Ya llegó, avisar»).
+  stockNotice: z.object({ label: z.string(), arrived: z.boolean() }).nullable().optional(),
 });
 export type FollowUp = z.infer<typeof followUpSchema>;
 
@@ -896,6 +1022,7 @@ export const ORDER_ISSUE_REASONS = [
   'variant_required', // falta elegir opciones (carrito viejo sin variante)
   'invalid_variant',  // la variante guardada ya no existe en el producto
   'sold_out',         // la variante se agotó
+  'coming_soon',      // la variante viene en camino: todavía no se puede pedir
   'unknown_stock',    // la variante no tiene stock verificable
   'insufficient',     // pide más unidades de las disponibles
   'price_changed',    // el precio cambió desde que se agregó
@@ -1003,25 +1130,6 @@ export type FinancialConfig = z.infer<typeof financialConfigSchema>;
 // TS en server/services/inventory.ts, no acá: son datos derivados que arma el
 // servicio, no algo que un cliente mande y haya que validar en el borde.
 
-export const newPurchaseInputSchema = z.object({
-  purchaseDate: z.iso.date(),
-  lot: z.string().min(1, 'El lote es obligatorio.').max(40),
-  productName: z.string().min(1, 'El nombre del producto es obligatorio.').max(160),
-  category: z.string().min(1, 'La categoría es obligatoria.').max(80),
-  // >0: una compra de 0 unidades no tiene sentido y dividiría por cero en
-  // finance.ts al recibirla (doc 11 §1: costo unitario origen = total/cantidad).
-  quantity: z.number().int().positive('La cantidad debe ser mayor a 0.'),
-  costUnit: z.number().min(0),
-  taxUnit: z.number().min(0),
-  suggestedPrice: z.number().min(0).optional(),
-  // Producto y variante del catálogo (llave de `variant_mappings`, '' si el
-  // producto no tiene variantes). Sin ellos, compra de un producto que todavía
-  // no está en el catálogo.
-  catalogItemId: z.uuid().optional(),
-  variantKey: z.string().max(200).optional(),
-});
-export type NewPurchaseInput = z.infer<typeof newPurchaseInputSchema>;
-
 // Edición post-creación. Deliberadamente NO es un `Partial<Purchase>` real:
 // solo expone los campos de negocio editables a mano (insumos de costeo,
 // identificación del lote). `status`, `quantitySold`, `quantityReserved`,
@@ -1041,13 +1149,17 @@ export const updatePurchaseInputSchema = z.object({
   // null = desvincular del catálogo.
   catalogItemId: z.uuid().nullable().optional(),
   variantKey: z.string().max(200).optional(),
+  // Vincular a una variante de plantilla: el servidor busca (o crea, sin
+  // publicar) su producto. `catalogItemId` elige cuál en una plantilla vieja compartida.
+  templateId: z.uuid().optional(),
 });
 export type UpdatePurchaseInput = z.infer<typeof updatePurchaseInputSchema>;
 
 export const arrivalInputSchema = z.object({
   arrivalDate: z.iso.date(),
   shippingUnit: z.number().min(0),
-  suggestedPrice: z.number().min(0).optional(),
+  // Precio de venta del lote (C$): es el único precio que usa la tienda.
+  suggestedPrice: z.number().positive('Escribí el precio de venta.'),
   // Tasa C$/USD que se congela en el lote. Opcional: sin ella se usa la de
   // Configuración (el modal la precarga con esa misma).
   exchangeRate: z.number().positive().max(1000).optional(),
@@ -1081,14 +1193,15 @@ export const purchaseInvoiceInputSchema = z
   });
 export type PurchaseInvoiceInput = z.infer<typeof purchaseInvoiceInputSchema>;
 
+// Cada línea es una variante de una plantilla. El nombre del lote y la
+// categoría salen de la plantilla; `catalogItemId` solo hace falta cuando una
+// plantilla vieja compartida tiene varios productos.
 export const purchaseOrderLineInputSchema = z.object({
-  productName: z.string().trim().min(1, 'El nombre del producto es obligatorio.').max(160),
-  category: z.string().min(1, 'La categoría es obligatoria.').max(80),
+  templateId: z.uuid('Elegí la plantilla.'),
+  variantKey: z.string().max(200).default(''),
+  catalogItemId: z.uuid().optional(),
   quantity: z.number().int().positive('La cantidad debe ser mayor a 0.').max(1_000_000),
   costUnit: z.number().min(0).max(1_000_000),
-  taxUnit: z.number().min(0).max(1_000_000),
-  catalogItemId: z.uuid().optional(),
-  variantKey: z.string().max(200).optional(),
 });
 export type PurchaseOrderLineInput = z.infer<typeof purchaseOrderLineInputSchema>;
 
@@ -1108,9 +1221,13 @@ const purchaseOrderHeaderFields = {
   notes: z.string().trim().max(1000).default(''),
 };
 
+// El impuesto por unidad es el mismo para toda la orden; se guarda en cada línea.
+const taxUnitSchema = z.number().min(0, 'Revisá el impuesto.').max(1_000_000);
+
 export const newPurchaseOrderInputSchema = z
   .object({
     ...purchaseOrderHeaderFields,
+    taxUnit: taxUnitSchema,
     lines: z.array(purchaseOrderLineInputSchema).min(1, 'Agregá al menos un producto.').max(100),
   })
   .refine((data) => Boolean(data.supplierId || data.newSupplier), {
@@ -1126,10 +1243,14 @@ export const updatePurchaseOrderInputSchema = z.object({
   // Sin default: un campo que no viene se conserva, no se vacía.
   packagePhotos: z.array(z.url().max(1000)).max(8).optional(),
   notes: z.string().trim().max(1000).optional(),
+  // Se aplica a todas sus líneas y recalcula el costo de las que ya llegaron.
+  taxUnit: taxUnitSchema.optional(),
 });
 export type UpdatePurchaseOrderInput = z.infer<typeof updatePurchaseOrderInputSchema>;
 
 export const addPurchaseOrderLinesInputSchema = z.object({
+  // Solo para una orden sin líneas; si ya tiene, se usa el impuesto de la orden.
+  taxUnit: taxUnitSchema.optional(),
   lines: z.array(purchaseOrderLineInputSchema).min(1, 'Agregá al menos un producto.').max(100),
 });
 export type AddPurchaseOrderLinesInput = z.infer<typeof addPurchaseOrderLinesInputSchema>;
@@ -1139,27 +1260,41 @@ export type AddPurchaseOrderLinesInput = z.infer<typeof addPurchaseOrderLinesInp
 // Las líneas que no se mandan siguen en tránsito: así se recibe por partes.
 // Un mismo envío del agente suele traer varias órdenes: `extraOrderIds` suma
 // las otras órdenes que llegaron juntas, y el envío se reparte entre todas.
+const receiptLineFields = {
+  purchaseId: z.uuid(),
+  receivedQuantity: z.number().int().positive('Lo recibido debe ser mayor a 0.').max(1_000_000),
+};
+const receiptLines = <T extends z.ZodType>(salePrice: T) =>
+  z
+    .array(z.object({ ...receiptLineFields, salePrice }))
+    .min(1, 'Elegí al menos un producto recibido.')
+    .max(100);
+
 export const receivePurchaseOrderInputSchema = z.object({
   arrivalDate: z.iso.date(),
   extraOrderIds: z.array(z.uuid()).max(30).optional(),
   exchangeRate: z.number().positive().max(1000).optional(),
   shippingTotalUsd: z.number().min(0).max(10_000_000),
-  lines: z
-    .array(
-      z.object({
-        purchaseId: z.uuid(),
-        receivedQuantity: z.number().int().positive('Lo recibido debe ser mayor a 0.').max(1_000_000),
-        // Precio de venta del lote (C$). Sin él, el sugerido.
-        salePrice: z.number().min(0).max(10_000_000).optional(),
-      }),
-    )
-    .min(1, 'Elegí al menos un producto recibido.')
-    .max(100),
+  // Precio de venta del lote (C$): es el único precio que usa la tienda.
+  lines: receiptLines(z.number().positive('Escribí el precio de venta.').max(10_000_000)),
 });
 export type ReceivePurchaseOrderInput = z.infer<typeof receivePurchaseOrderInputSchema>;
 
-export const simulatePurchaseOrderReceiptInputSchema = receivePurchaseOrderInputSchema.omit({ arrivalDate: true });
+// La simulación calcula el precio sugerido, así que todavía no lo pide.
+export const simulatePurchaseOrderReceiptInputSchema = receivePurchaseOrderInputSchema
+  .omit({ arrivalDate: true, lines: true })
+  .extend({ lines: receiptLines(z.number().min(0).max(10_000_000).optional()) });
 export type SimulatePurchaseOrderReceiptInput = z.infer<typeof simulatePurchaseOrderReceiptInputSchema>;
+
+// ── Ofertas por color (migración 0027) ──
+// Una por producto y color ('' si el producto no tiene colores). Solo la ve la tienda.
+export const colorOfferInputSchema = z.object({
+  catalogItemId: z.uuid(),
+  color: z.string().max(200),
+  price: z.number().positive('Escribí el precio de oferta.').max(10_000_000),
+  endsAt: z.iso.datetime({ offset: true, error: 'Elegí cuándo vence la oferta.' }),
+});
+export type ColorOfferInput = z.infer<typeof colorOfferInputSchema>;
 
 // ============================================================================
 // ── SCHEMAS DEL DOMINIO: VENTAS (ADMIN/SELLER) ──
@@ -1405,6 +1540,25 @@ export const publicContactInputSchema = z.object({
   message: z.string().min(1, 'Escribí tu mensaje.').max(1000, 'Máximo 1000 caracteres.'),
 });
 export type PublicContactInput = z.infer<typeof publicContactInputSchema>;
+
+// WhatsApp de Nicaragua: 8 dígitos de celular (5, 7 u 8 al inicio), con o sin +505.
+// Se guarda sin el código de país, como lo escriben los pedidos web.
+export const nicaraguaWhatsappSchema = z
+  .string()
+  .trim()
+  .max(24, 'El teléfono es demasiado largo.')
+  .transform((v) => v.replace(/[\s().-]/g, '').replace(/^\+?505(?=\d{8}$)/, ''))
+  .pipe(z.string().regex(/^[578]\d{7}$/, 'Escribí un WhatsApp de Nicaragua: 8 dígitos que empiezan con 5, 7 u 8.'));
+
+// «Avisame cuando haya» (migración 0028): el producto y la variante los pone la ficha.
+export const stockNoticeInputSchema = z.object({
+  name: z.string().trim().min(2, 'Escribí tu nombre.').max(80),
+  phone: nicaraguaWhatsappSchema,
+  catalogItemId: z.uuid(),
+  variantName: z.string().max(200),
+});
+export type StockNoticeInput = z.input<typeof stockNoticeInputSchema>;
+export type StockNotice = z.output<typeof stockNoticeInputSchema>;
 
 // ============================================================================
 // ── GASTOS OPERATIVOS Y POZOS (Reportería y Presupuestos) ──

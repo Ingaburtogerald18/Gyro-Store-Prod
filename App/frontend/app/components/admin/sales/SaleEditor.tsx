@@ -1,3 +1,4 @@
+import { FormSection, FormPanel, FormBody, FormActions } from '~/components/ui/form-layout';
 // Editor de venta: el vendedor arma N líneas y ve la cotización EN VIVO
 // (comisión, y para admin el desglose de costos). Portado de `SaleEditor` de v1.
 //
@@ -5,19 +6,26 @@
 // server/services/sales.ts): foto de recibo, admin registrando a nombre de otro
 // vendedor, fecha de venta manual, inventario migrado (modos M1/M2) y cuotas.
 import { HugeIcon } from '~/components/ui/icon';
-import { Alert02Icon, Calendar03Icon, CheckmarkCircle01Icon, PackageIcon, UserIcon } from '@hugeicons/core-free-icons';
+import { Alert02Icon, CheckmarkCircle01Icon } from '@hugeicons/core-free-icons';
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import React from 'react';
 
 import { Button } from '~/components/ui/button';
+import { FormErrorBanner, serverErrorMessage } from '~/components/ui/form-feedback';
 import { DatePicker, toYmd, toLocalNoonIso } from '~/components/ui/date-picker';
 import { Field, FieldDescription, FieldError, FieldLabel } from '~/components/ui/field';
 import { Input } from '~/components/ui/input';
 import { Spinner } from '~/components/ui/spinner';
 import { Switch } from '~/components/ui/switch';
 import { Textarea } from '~/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '~/components/ui/select';
 import { errMsg, formatCordobas } from '~/lib/formatters';
 import {
   useGetSellableProductsQuery,
@@ -41,10 +49,12 @@ import { QuoteSummary } from './QuoteSummary';
 export function SaleEditor({
   sale,
   onDone,
+  onCancel,
 }: {
   /** Venta a editar. Sin esto, el editor registra una venta nueva. */
   sale?: SaleWithItems | null;
   onDone?: () => void;
+  onCancel?: () => void;
 } = {}) {
   const isEdit = !!sale;
   const isAdmin = useAppSelector(selectIsAdmin);
@@ -68,7 +78,7 @@ export function SaleEditor({
         }))
       : [newEditorLine()],
   );
-  
+
   const initialHasCustomer = !!sale?.customerName || !!sale?.phone;
   const [includeCustomer, setIncludeCustomer] = useState(initialHasCustomer);
   const [customerName, setCustomerName] = useState(sale?.customerName ?? '');
@@ -76,6 +86,7 @@ export function SaleEditor({
   const [editReason, setEditReason] = useState('');
   const [result, setResult] = useState<QuoteResult | null>(null);
   const [errorMsg, setErrorMsg] = useState('');
+  const [serverError, setServerError] = useState<string | null>(null);
 
   const isGlobalAdmin = useAppSelector(selectIsGlobalAdmin);
   const [invoiceNumber, setInvoiceNumber] = useState('');
@@ -307,6 +318,7 @@ export function SaleEditor({
   }
 
   async function handleSubmit() {
+    setServerError(null);
     if (disabledReason) return;
 
     try {
@@ -358,285 +370,322 @@ export function SaleEditor({
       resetEditor();
       onDone?.();
     } catch (err) {
-      toast.error(
-        errMsg(err, isEdit ? 'No se pudo actualizar la venta.' : 'No se pudo registrar la venta.'),
-      );
+      setServerError(serverErrorMessage(err, isEdit ? 'No se pudo actualizar la venta.' : 'No se pudo registrar la venta.'));
     }
   }
 
   const busy = registering || updating;
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1.6fr_1fr] lg:items-start">
-      {/* ── Columna izquierda: datos + productos ── */}
-      <div className="space-y-4">
-        <section className="space-y-3 rounded-2xl border bg-card p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <HugeIcon icon={UserIcon} size={16} strokeWidth={2} className="text-primary-2" aria-hidden />
-              <h3 className="text-sm font-semibold text-foreground">Datos del cliente</h3>
-            </div>
-            <Switch
-              id="include-customer"
-              checked={includeCustomer}
-              onCheckedChange={setIncludeCustomer}
-              disabled={busy}
-              aria-label="Incluir información del cliente"
-            />
-          </div>
-          
-          {includeCustomer && (
-            <div className="grid gap-4 pt-3 sm:grid-cols-2">
-              <Field>
-                <FieldLabel htmlFor="sale-customer-name">Nombre</FieldLabel>
-                <Input
-                  id="sale-customer-name"
-                  value={customerName}
-                  onChange={(e) => setCustomerName(e.target.value)}
-                  placeholder="Juan Pérez"
-                  disabled={busy}
-                />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="sale-phone">Teléfono</FieldLabel>
-                <Input
-                  id="sale-phone"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="8888 8888"
-                  disabled={busy}
-                />
-              </Field>
-            </div>
-          )}
-        </section>
-
-        {!isEdit && (
-          <section className="space-y-3 rounded-2xl border bg-card p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <HugeIcon icon={Alert02Icon} size={16} strokeWidth={2} className="text-primary-2" aria-hidden />
-                <h3 className="text-sm font-semibold text-foreground">Factura (Ticket)</h3>
-              </div>
-              {isGlobalAdmin && (
-                <Switch
-                  id="use-invoice"
-                  checked={useInvoice}
-                  onCheckedChange={setUseInvoice}
-                  disabled={busy}
-                />
-              )}
-            </div>
-            
-            {useInvoice && (
-              <div className="pt-2">
-                <Field>
-                  <FieldLabel htmlFor="invoice-number">Código de Factura del Ticket</FieldLabel>
-                  <div className="flex gap-2">
-                    <Input
-                      id="invoice-number"
-                      value={invoiceNumber}
-                      onChange={(e) => {
-                        setInvoiceNumber(e.target.value.toUpperCase());
-                        // Tocar el código invalida la verificación anterior:
-                        // sin esto, las líneas quedarían "bloqueadas" mostrando
-                        // los productos de OTRA factura mientras el campo ya
-                        // dice un código distinto.
-                        setLinkedInvoice(null);
-                      }}
-                      placeholder="Ej. GS-PR-12"
-                      disabled={busy}
-                      className="max-w-[200px] uppercase"
-                    />
-                    <Button 
-                      type="button" 
-                      variant="outline" 
-                      onClick={handleLookupInvoice} 
-                      disabled={!invoiceNumber || lookupLoading}
-                    >
-                      {lookupLoading ? <Spinner /> : 'Verificar'}
-                    </Button>
-                  </div>
-                  <FieldDescription>
-                    Registrar esta venta enlazará la factura al sistema de inventario automáticamente. No es necesario añadir los productos abajo si la factura ya los tiene (el sistema los copiará de la factura).
-                  </FieldDescription>
-                </Field>
-              </div>
-            )}
-          </section>
-        )}
-
-        {isAdmin && (
-          <section className="space-y-3 rounded-2xl border bg-card p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <HugeIcon icon={UserIcon} size={16} strokeWidth={2} className="text-primary-2" aria-hidden />
-                <h3 className="text-sm font-semibold text-foreground">Asignar vendedor</h3>
-              </div>
-              {!invoiceSeller && (
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-muted-foreground select-none">Registrado en el sistema</span>
+    <FormPanel>
+      <FormErrorBanner message={serverError} />
+      <FormBody>
+        <div className="grid gap-5 lg:grid-cols-[1.6fr_1fr] lg:items-start">
+          {/* ── Columna izquierda: datos + productos ── */}
+          <div className="space-y-4">
+            <FormSection
+              title="Datos del cliente"
+              action={
+                <>
                   <Switch
-                    id="is-registered-seller"
-                    checked={isRegisteredSeller}
-                    onCheckedChange={setIsRegisteredSeller}
+                    id="include-customer"
+                    checked={includeCustomer}
+                    onCheckedChange={setIncludeCustomer}
                     disabled={busy}
-                    aria-label="Vendedor registrado en el sistema"
+                    aria-label="Incluir información del cliente"
                   />
+                </>
+              }
+            >
+              {includeCustomer && (
+                <div className="grid gap-4 pt-3 sm:grid-cols-2">
+                  <Field>
+                    <FieldLabel htmlFor="sale-customer-name">Nombre</FieldLabel>
+                    <Input
+                      id="sale-customer-name"
+                      value={customerName}
+                      onChange={(e) => setCustomerName(e.target.value)}
+                      placeholder="Juan Pérez"
+                      disabled={busy}
+                    />
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="sale-phone">Teléfono</FieldLabel>
+                    <Input
+                      id="sale-phone"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      placeholder="8888 8888"
+                      disabled={busy}
+                    />
+                  </Field>
                 </div>
               )}
-            </div>
+            </FormSection>
 
-            {invoiceSeller ? (
-              <p className="flex items-start gap-1.5 rounded-xl border border-primary-2/30 bg-primary-2/10 px-3 py-2 text-xs text-primary-2">
-                <HugeIcon icon={Alert02Icon} size={14} strokeWidth={2} className="mt-px shrink-0" aria-hidden />
-                <span>
-                  Esta venta queda a nombre de{' '}
-                  <strong className="font-semibold">{invoiceSeller.sellerName ?? 'el vendedor de la factura'}</strong>,
-                  que es a quien Caja le emitió la factura {invoiceSeller.invoiceCode} — no de quien la registra.
-                  Si el ticket quedó mal asignado, registrá la venta y corregí el vendedor editándola.
-                </span>
-              </p>
-            ) : (
-              <div className="pt-3">
-                {isRegisteredSeller ? (
-                  <Field>
-                    <FieldLabel htmlFor="sale-seller-id" className="sr-only">Seleccionar vendedor</FieldLabel>
-                    <Select value={selectedSellerId} onValueChange={setSelectedSellerId} disabled={busy}>
-                      <SelectTrigger id="sale-seller-id">
-                        <SelectValue placeholder="Usuario actual (por defecto)" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">Usuario actual (por defecto)</SelectItem>
-                        {users.map((u) => (
-                          <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </Field>
-                ) : (
-                  <Field>
-                    <FieldLabel htmlFor="sale-external-seller" className="sr-only">Nombre del vendedor</FieldLabel>
-                    <Input
-                      id="sale-external-seller"
-                      value={externalSellerName}
-                      onChange={(e) => setExternalSellerName(e.target.value)}
-                      placeholder="Nombre del vendedor esporádico..."
-                      disabled={busy}
-                    />
-                  </Field>
+            {!isEdit && (
+              <FormSection
+                title="Factura (Ticket)"
+                action={
+                  <>
+                    {isGlobalAdmin && (
+                      <Switch
+                        id="use-invoice"
+                        checked={useInvoice}
+                        onCheckedChange={setUseInvoice}
+                        disabled={busy}
+                      />
+                    )}
+                  </>
+                }
+              >
+                {useInvoice && (
+                  <div className="pt-2">
+                    <Field>
+                      <FieldLabel htmlFor="invoice-number">Código de Factura del Ticket</FieldLabel>
+                      <div className="flex gap-2">
+                        <Input
+                          id="invoice-number"
+                          value={invoiceNumber}
+                          onChange={(e) => {
+                            setInvoiceNumber(e.target.value.toUpperCase());
+                            // Tocar el código invalida la verificación anterior:
+                            // sin esto, las líneas quedarían "bloqueadas" mostrando
+                            // los productos de OTRA factura mientras el campo ya
+                            // dice un código distinto.
+                            setLinkedInvoice(null);
+                          }}
+                          placeholder="Ej. GS-PR-12"
+                          disabled={busy}
+                          className="max-w-[200px] uppercase"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={handleLookupInvoice}
+                          disabled={!invoiceNumber || lookupLoading}
+                        >
+                          {lookupLoading ? <Spinner /> : 'Verificar'}
+                        </Button>
+                      </div>
+                      <FieldDescription>
+                        Registrar esta venta enlazará la factura al sistema de inventario
+                        automáticamente. No es necesario añadir los productos abajo si la factura ya
+                        los tiene (el sistema los copiará de la factura).
+                      </FieldDescription>
+                    </Field>
+                  </div>
                 )}
+              </FormSection>
+            )}
+
+            {isAdmin && (
+              <FormSection
+                title="Asignar vendedor"
+                action={
+                  <>
+                    {!invoiceSeller && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground select-none">
+                          Registrado en el sistema
+                        </span>
+                        <Switch
+                          id="is-registered-seller"
+                          checked={isRegisteredSeller}
+                          onCheckedChange={setIsRegisteredSeller}
+                          disabled={busy}
+                          aria-label="Vendedor registrado en el sistema"
+                        />
+                      </div>
+                    )}
+                  </>
+                }
+              >
+                {invoiceSeller ? (
+                  <p className="flex items-start gap-1.5 rounded-xl border border-primary-2/30 bg-primary-2/10 px-3 py-2 text-xs text-primary-2">
+                    <HugeIcon
+                      icon={Alert02Icon}
+                      size={14}
+                      strokeWidth={2}
+                      className="mt-px shrink-0"
+                      aria-hidden
+                    />
+                    <span>
+                      Esta venta queda a nombre de{' '}
+                      <strong className="font-semibold">
+                        {invoiceSeller.sellerName ?? 'el vendedor de la factura'}
+                      </strong>
+                      , que es a quien Caja le emitió la factura {invoiceSeller.invoiceCode} — no de
+                      quien la registra. Si el ticket quedó mal asignado, registrá la venta y corregí
+                      el vendedor editándola.
+                    </span>
+                  </p>
+                ) : (
+                  <div className="pt-3">
+                    {isRegisteredSeller ? (
+                      <Field>
+                        <FieldLabel htmlFor="sale-seller-id" className="sr-only">
+                          Seleccionar vendedor
+                        </FieldLabel>
+                        <Select
+                          value={selectedSellerId}
+                          onValueChange={setSelectedSellerId}
+                          disabled={busy}
+                        >
+                          <SelectTrigger id="sale-seller-id">
+                            <SelectValue placeholder="Usuario actual (por defecto)" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">Usuario actual (por defecto)</SelectItem>
+                            {users.map((u) => (
+                              <SelectItem key={u.id} value={u.id}>
+                                {u.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </Field>
+                    ) : (
+                      <Field>
+                        <FieldLabel htmlFor="sale-external-seller" className="sr-only">
+                          Nombre del vendedor
+                        </FieldLabel>
+                        <Input
+                          id="sale-external-seller"
+                          value={externalSellerName}
+                          onChange={(e) => setExternalSellerName(e.target.value)}
+                          placeholder="Nombre del vendedor esporádico..."
+                          disabled={busy}
+                        />
+                      </Field>
+                    )}
+                  </div>
+                )}
+              </FormSection>
+            )}
+
+            {/* Fecha de venta */}
+            <FormSection
+              title="Fecha de venta"
+              action={
+                <>
+                  {isManualDate && (
+                    <span className="inline-flex items-center rounded-full bg-warning/10 px-2.5 py-0.5 text-xs font-medium text-warning border border-warning/20">
+                      Fecha manual
+                    </span>
+                  )}
+                </>
+              }
+            >
+              <div className="pt-1">
+                <DatePicker
+                  id="sale-date"
+                  value={saleDate}
+                  onChange={(val) => setSaleDate(val)}
+                  disabled={busy}
+                  disableFuture
+                  className="max-w-xs"
+                />
               </div>
-            )}
-          </section>
-        )}
+            </FormSection>
 
-        {/* Fecha de venta */}
-        <section className="space-y-3 rounded-2xl border bg-card p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <HugeIcon icon={Calendar03Icon} size={16} strokeWidth={2} className="text-primary-2" aria-hidden />
-              <h3 className="text-sm font-semibold text-foreground">Fecha de venta</h3>
-            </div>
-            {isManualDate && (
-              <span className="inline-flex items-center rounded-full bg-warning/10 px-2.5 py-0.5 text-xs font-medium text-warning border border-warning/20">
-                Fecha manual
-              </span>
-            )}
+            <FormSection
+              title="Productos"
+              action={
+                <>
+                  <span className="nums ml-auto rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                    {lines.length}
+                  </span>
+                </>
+              }
+            >
+              {linesLocked && (
+                <p className="flex items-start gap-1.5 rounded-xl border border-primary-2/30 bg-primary-2/10 px-3 py-2 text-xs text-primary-2">
+                  <HugeIcon
+                    icon={Alert02Icon}
+                    size={14}
+                    strokeWidth={2}
+                    className="mt-px shrink-0"
+                    aria-hidden
+                  />
+                  Estos productos vienen de la factura {linkedInvoice?.invoiceCode} ya verificada — no
+                  se pueden editar acá (evita que la venta quede distinta de lo que dice el ticket).
+                  Para cambiarlos, corregí la factura en Facturación o borrá el código de arriba.
+                </p>
+              )}
+
+              <SaleLinesTable
+                lines={lines}
+                products={productsForUi}
+                duplicateNames={duplicateNames}
+                onChange={setLines}
+                onAddLine={linesLocked ? undefined : () => setLines((ls) => [...ls, newEditorLine()])}
+                disabled={busy || linesLocked}
+              />
+            </FormSection>
           </div>
-          <div className="pt-1">
-            <DatePicker
-              id="sale-date"
-              value={saleDate}
-              onChange={(val) => setSaleDate(val)}
-              disabled={busy}
-              disableFuture
-              className="max-w-xs"
+
+          {/* ── Columna derecha: resumen sticky + acciones ── */}
+          <div className="space-y-4 lg:sticky lg:top-4 lg:self-start">
+            <QuoteSummary
+              result={result}
+              loading={quoting}
+              errorMsg={errorMsg}
+              invoice={linkedInvoice}
             />
-          </div>
-        </section>
 
-        <section className="space-y-3 rounded-2xl border bg-card p-4">
-          <div className="flex items-center gap-2">
-            <HugeIcon icon={PackageIcon} size={16} strokeWidth={2} className="text-primary-2" aria-hidden />
-            <h3 className="text-sm font-semibold text-foreground">Productos</h3>
-            <span className="nums ml-auto rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-              {lines.length}
-            </span>
-          </div>
-
-          {linesLocked && (
-            <p className="flex items-start gap-1.5 rounded-xl border border-primary-2/30 bg-primary-2/10 px-3 py-2 text-xs text-primary-2">
-              <HugeIcon icon={Alert02Icon} size={14} strokeWidth={2} className="mt-px shrink-0" aria-hidden />
-              Estos productos vienen de la factura {linkedInvoice?.invoiceCode} ya verificada — no se
-              pueden editar acá (evita que la venta quede distinta de lo que dice el ticket). Para
-              cambiarlos, corregí la factura en Facturación o borrá el código de arriba.
-            </p>
-          )}
-
-          <SaleLinesTable
-            lines={lines}
-            products={productsForUi}
-            duplicateNames={duplicateNames}
-            onChange={setLines}
-            onAddLine={linesLocked ? undefined : () => setLines((ls) => [...ls, newEditorLine()])}
-            disabled={busy || linesLocked}
-          />
-        </section>
-      </div>
-
-      {/* ── Columna derecha: resumen sticky + acciones ── */}
-      <div className="space-y-4 lg:sticky lg:top-4 lg:self-start">
-        <QuoteSummary result={result} loading={quoting} errorMsg={errorMsg} invoice={linkedInvoice} />
-
-        {isEdit && sale?.status !== 'pending_approval' && (
-          <Field
-            className="rounded-2xl border bg-card p-4"
-            data-invalid={!editReason.trim()}
-          >
-            <FieldLabel htmlFor="edit-reason" required>
-              Motivo de la edición
-            </FieldLabel>
-            <Textarea
-              id="edit-reason"
-              rows={2}
-              value={editReason}
-              onChange={(e) => setEditReason(e.target.value)}
-              placeholder="Explicá por qué se edita esta venta ya procesada…"
-              aria-required
-              aria-invalid={!editReason.trim()}
-              disabled={busy}
-            />
-            <FieldError>
-              {!editReason.trim() ? 'El backend rechaza la edición sin motivo.' : undefined}
-            </FieldError>
-          </Field>
-        )}
-
-        <div className="flex flex-col gap-2">
-          <Button
-            type="button"
-            onClick={handleSubmit}
-            disabled={busy || !!disabledReason || !!errorMsg}
-            className="w-full py-5 text-sm font-bold"
-          >
-            {busy ? (
-              <Spinner className="mr-2" />
-            ) : (
-              <HugeIcon icon={CheckmarkCircle01Icon} size={16} strokeWidth={2} className="mr-2" aria-hidden />
+            {isEdit && sale?.status !== 'pending_approval' && (
+              <Field className="rounded-2xl border bg-card p-4" data-invalid={!editReason.trim()}>
+                <FieldLabel htmlFor="edit-reason" required>
+                  Motivo de la edición
+                </FieldLabel>
+                <Textarea
+                  id="edit-reason"
+                  rows={2}
+                  value={editReason}
+                  onChange={(e) => setEditReason(e.target.value)}
+                  placeholder="Explicá por qué se edita esta venta ya procesada…"
+                  aria-required
+                  aria-invalid={!editReason.trim()}
+                  disabled={busy}
+                />
+                <FieldError>
+                  {!editReason.trim() ? 'El backend rechaza la edición sin motivo.' : undefined}
+                </FieldError>
+              </Field>
             )}
-            {isEdit ? 'Guardar cambios' : 'Registrar venta'} ·{' '}
-            <span className="nums ml-1">{formatCordobas(displayTotal)}</span>
-          </Button>
 
-          {disabledReason && (
-            <p className="flex items-start gap-1.5 text-xs text-warning">
-              <HugeIcon icon={Alert02Icon} size={14} strokeWidth={2} className="mt-px shrink-0" aria-hidden />
-              {disabledReason}
-            </p>
-          )}
+            {disabledReason && (
+              <p className="flex items-start gap-1.5 text-xs text-warning">
+                <HugeIcon
+                  icon={Alert02Icon}
+                  size={14}
+                  strokeWidth={2}
+                  className="mt-px shrink-0"
+                  aria-hidden
+                />
+                {disabledReason}
+              </p>
+            )}
+          </div>
         </div>
-      </div>
-    </div>
+      </FormBody>
+      <FormActions>
+        {onCancel && (
+          <Button type="button" variant="cancel" onClick={onCancel} disabled={busy}>
+            Cancelar
+          </Button>
+        )}
+        <Button
+          type="button"
+          onClick={handleSubmit}
+          disabled={busy || !!disabledReason || !!errorMsg}
+        >
+          {busy && <Spinner className="mr-2" />}
+          {busy ? 'Guardando…' : isEdit ? 'Guardar cambios' : 'Registrar venta'} ·{' '}
+          <span className="tabular-nums">{formatCordobas(displayTotal)}</span>
+        </Button>
+      </FormActions>
+    </FormPanel>
   );
 }

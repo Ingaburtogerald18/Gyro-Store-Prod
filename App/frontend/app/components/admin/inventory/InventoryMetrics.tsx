@@ -64,11 +64,11 @@ export function PurchaseMetrics({ period = "all" }: { period?: string }) {
   );
 }
 
-/** Stock actual: la foto de lo que hay hoy en bodega. */
-export function StockMetrics({ period = "all" }: { period?: string }) {
+/** Stock actual: la foto de lo que hay hoy en bodega. Sin `showCosts`, solo unidades. */
+export function StockMetrics({ period = "all", showCosts = true }: { period?: string; showCosts?: boolean }) {
   const { data: rows = [], isLoading } = useGetCurrentInventoryQuery(period);
 
-  if (isLoading) return <MetricStripSkeleton />;
+  if (isLoading) return <MetricStripSkeleton count={showCosts ? 4 : 2} />;
 
   const available = rows.reduce((acc, r) => acc + (r.available || 0), 0);
   const shippingUsd = rows.reduce((acc, r) => acc + (r.shippingUnitUsd || 0) * (r.available || 0), 0);
@@ -80,14 +80,14 @@ export function StockMetrics({ period = "all" }: { period?: string }) {
   const outOfStock = stockByProduct.size - inStock;
 
   return (
-    <MetricStrip>
+    <MetricStrip columns={showCosts ? 4 : 2}>
       <Metric
         label="Unidades disponibles"
         value={fmtInt(available)}
         sub={`${fmtInt(inStock)} ${inStock === 1 ? "producto" : "productos"} con stock`}
       />
-      <Metric label="Valor en bodega" value={formatUsd(valueUsd)} sub={cordobasFromUsd(valueUsd)} />
-      <Metric label="Costo de envío" value={formatUsd(shippingUsd)} sub="Incluido en el valor en bodega" />
+      {showCosts && <Metric label="Valor en bodega" value={formatUsd(valueUsd)} sub={cordobasFromUsd(valueUsd)} />}
+      {showCosts && <Metric label="Costo de envío" value={formatUsd(shippingUsd)} sub="Incluido en el valor en bodega" />}
       <Metric
         label="Productos agotados"
         value={fmtInt(outOfStock)}

@@ -11,12 +11,12 @@ import { formatCordobas, formatNumber } from '~/lib/formatters';
 import { useGetSalesTrendQuery } from '~/store/api/reportsApi';
 import type { PeriodRange } from './period';
 
-// Vendido y ganancia son ingresos: los dos en emerald. Se
+// Vendido y ganancia son ingresos: los dos en bordó. Se
 // distinguen por forma e intensidad: barras suaves para lo vendido, línea
 // llena para la ganancia.
 const dailyChartConfig = {
-  total_vendido: { label: 'Vendido', color: 'var(--color-tone-emerald)' },
-  ganancia: { label: 'Ganancia tienda', color: 'var(--color-tone-emerald)' },
+  total_vendido: { label: 'Vendido', color: 'var(--color-primary-2)' },
+  ganancia: { label: 'Ganancia tienda', color: 'var(--color-primary-2)' },
 } satisfies ChartConfig;
 
 function compactAxis(value: number): string {
@@ -131,13 +131,13 @@ export function SalesDailyTrendChart({
 
         <dl className="flex flex-wrap items-center gap-x-5 gap-y-1 text-xs">
           <div className="flex items-center gap-1.5 text-muted-foreground">
-            <span aria-hidden className="inline-block size-2.5 rounded-sm bg-tone-emerald/45" />
+            <span aria-hidden className="inline-block size-2.5 rounded-sm bg-primary-2/45" />
             <dt>Vendido</dt>
             <dd className="nums font-display font-semibold text-foreground">{fmt(stats.total)}</dd>
           </div>
           {showGanancia && (
             <div className="flex items-center gap-1.5 text-muted-foreground">
-              <span aria-hidden className="inline-block h-0.5 w-3 rounded-full bg-tone-emerald" />
+              <span aria-hidden className="inline-block h-0.5 w-3 rounded-full bg-primary-2" />
               <dt>Ganancia tienda</dt>
             </div>
           )}
@@ -178,7 +178,7 @@ export function SalesDailyTrendChart({
               {dailyPoints.map((entry) => (
                 <Cell
                   key={`cell-${entry.day}`}
-                  fill="var(--color-tone-emerald)"
+                  fill="var(--color-primary-2)"
                   fillOpacity={entry.hasSales ? 0.45 : 0}
                 />
               ))}
@@ -188,10 +188,10 @@ export function SalesDailyTrendChart({
               <Line
                 type="monotone"
                 dataKey="ganancia"
-                stroke="var(--color-tone-emerald)"
+                stroke="var(--color-primary-2)"
                 strokeWidth={2.25}
                 dot={false}
-                activeDot={{ r: 4, strokeWidth: 0, fill: 'var(--color-tone-emerald)' }}
+                activeDot={{ r: 4, strokeWidth: 0, fill: 'var(--color-primary-2)' }}
                 isAnimationActive={!reduce}
                 animationDuration={700}
               />

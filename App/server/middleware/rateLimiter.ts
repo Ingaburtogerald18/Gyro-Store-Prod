@@ -46,6 +46,16 @@ export const contactLimiter: RateLimitRequestHandler = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+// «Avisame cuando haya» (POST /api/stock-notices): también escribe en el CRM.
+// Un cliente real pide uno o dos avisos; 5 cada 15 minutos alcanza.
+export const stockNoticeLimiter: RateLimitRequestHandler = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  message: { error: 'Recibimos varios avisos desde esta conexión. Esperá unos minutos e intentá de nuevo.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 // Rastreo de pedido por número + teléfono (POST /api/orders/public/track). Es
 // una búsqueda anónima: sin un límite propio, un script podría probar números
 // de pedido contra un teléfono. 10 intentos cada 15 minutos sobran para alguien

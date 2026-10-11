@@ -1,17 +1,25 @@
+import { FormDialogContent, FormPanel, FormBody, FormActions } from "~/components/ui/form-layout";
 // Ajuste de stock de un lote: merma (defecto, rotura, pérdida) o corrección de
 // conteo, siempre con motivo. Cada ajuste queda en el historial del lote
 // (`stock_movements`, migración 0023), junto con las devoluciones de ventas.
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "~/components/ui/dialog";
+import { Dialog, DialogDescription, DialogHeader, DialogTitle } from "~/components/ui/dialog";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Textarea } from "~/components/ui/textarea";
 import { Field, FieldLabel } from "~/components/ui/field";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/ui/select";
+import { FormErrorBanner, serverErrorMessage } from "~/components/ui/form-feedback";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "~/components/ui/select";
 import { Spinner } from "~/components/ui/spinner";
-import { errMsg, formatCordobas, formatLongDate } from "~/lib/formatters";
+import { formatCordobas, formatLongDate } from "~/lib/formatters";
 import {
   useAdjustStockMutation,
   useGetStockMovementsQuery,
@@ -34,6 +42,7 @@ export function StockAdjustDialog({ lot, onClose }: { lot: InventoryRow | null; 
   const [kind, setKind] = useState<AdjustKind>("write_off");
   const [quantity, setQuantity] = useState("1");
   const [reason, setReason] = useState("");
+  const [serverError, setServerError] = useState<string | null>(null);
 
   const qty = Number(quantity);
   const validQty = Number.isInteger(qty) && qty > 0;
@@ -44,103 +53,127 @@ export function StockAdjustDialog({ lot, onClose }: { lot: InventoryRow | null; 
     setKind("write_off");
     setQuantity("1");
     setReason("");
+    setServerError(null);
     onClose();
   }
 
   async function submit() {
     if (!lot || disabled) return;
+    setServerError(null);
     try {
       const res = await adjust({ id: lot.id, body: { kind, quantity: qty, reason: reason.trim() } }).unwrap();
       toast.success(`Lote ${lot.code}: quedan ${res.available} unidad(es) disponibles.`);
       close();
     } catch (err) {
-      toast.error(errMsg(err, "No se pudo ajustar el stock."));
+      setServerError(serverErrorMessage(err, "No se pudo ajustar el stock."));
     }
   }
 
   return (
     <Dialog open={!!lot} onOpenChange={(open) => !open && !isLoading && close()}>
-      <DialogContent className="sm:max-w-md">
+      <FormDialogContent>
         <DialogHeader>
           <DialogTitle>Ajustar stock</DialogTitle>
           <DialogDescription>
-            {lot?.productName} · <span className="font-spec">{lot?.code}</span> · {lot?.available ?? 0} disponible(s)
+            {lot?.productName} · <span className="font-spec">{lot?.code}</span> ·{" "}
+            {lot?.available ?? 0} disponible(s)
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-3">
-          <Field>
-            <FieldLabel htmlFor="adjust-kind">Tipo</FieldLabel>
-            <Select value={kind} onValueChange={(v) => setKind(v as AdjustKind)} disabled={isLoading}>
-              <SelectTrigger id="adjust-kind">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="write_off">Merma (defecto, rotura, pérdida)</SelectItem>
-                <SelectItem value="adjust_out">Salida por conteo</SelectItem>
-                <SelectItem value="adjust_in">Entrada por conteo</SelectItem>
-              </SelectContent>
-            </Select>
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="adjust-qty">Cantidad</FieldLabel>
-            <Input
-              id="adjust-qty"
-              type="number"
-              min={1}
-              step={1}
-              value={quantity}
-              onChange={(e) => setQuantity(e.target.value)}
-              disabled={isLoading}
-            />
-            {exceeds && <p className="text-xs text-destructive">Solo hay {lot?.available ?? 0} disponible(s) para sacar.</p>}
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="adjust-reason">Motivo</FieldLabel>
-            <Textarea
-              id="adjust-reason"
-              rows={2}
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              placeholder="Ej. Llegó con el cable roto."
-              disabled={isLoading}
-            />
-          </Field>
-          <Button className="w-full" onClick={submit} disabled={disabled}>
-            {isLoading && <Spinner className="mr-2" />}
-            Guardar ajuste
-          </Button>
-        </div>
+        <FormPanel>
+          <FormErrorBanner message={serverError} />
+          <FormBody>
+            <div className="space-y-3">
+              <Field>
+                <FieldLabel htmlFor="adjust-kind">Tipo</FieldLabel>
+                <Select
+                  value={kind}
+                  onValueChange={(v) => setKind(v as AdjustKind)}
+                  disabled={isLoading}
+                >
+                  <SelectTrigger id="adjust-kind">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="write_off">Merma (defecto, rotura, pérdida)</SelectItem>
+                    <SelectItem value="adjust_out">Salida por conteo</SelectItem>
+                    <SelectItem value="adjust_in">Entrada por conteo</SelectItem>
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="adjust-qty">Cantidad</FieldLabel>
+                <Input
+                  id="adjust-qty"
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={quantity}
+                  onChange={(e) => setQuantity(e.target.value)}
+                  disabled={isLoading}
+                />
+                {exceeds && (
+                  <p className="text-xs text-destructive">
+                    Solo hay {lot?.available ?? 0} disponible(s) para sacar.
+                  </p>
+                )}
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="adjust-reason">Motivo</FieldLabel>
+                <Textarea
+                  id="adjust-reason"
+                  rows={2}
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  placeholder="Ej. Llegó con el cable roto."
+                  disabled={isLoading}
+                />
+              </Field>
+            </div>
 
-        <div className="mt-2 space-y-2 border-t pt-3">
-          <p className="text-2xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Historial del lote</p>
-          {isFetching && movements.length === 0 ? (
-            <p className="text-xs text-muted-foreground">Cargando…</p>
-          ) : movements.length === 0 ? (
-            <p className="text-xs text-muted-foreground">Sin ajustes ni devoluciones.</p>
-          ) : (
-            <ul className="max-h-48 space-y-1.5 overflow-y-auto text-xs">
-              {movements.map((m) => (
-                <li key={m.id} className="flex justify-between gap-3">
-                  <span className="min-w-0">
-                    <span className="text-foreground">
-                      {KIND_LABEL[m.kind]} · {m.kind === "adjust_in" || m.kind === "return_to_stock" ? "+" : "−"}
-                      {m.quantity}
-                    </span>
-                    <span className="block truncate text-muted-foreground">{m.reason}</span>
-                  </span>
-                  <span className="shrink-0 text-right text-muted-foreground">
-                    {formatLongDate(m.createdAt)}
-                    {m.kind === "write_off" && m.unitCostCs != null && (
-                      <span className="block">{formatCordobas(m.unitCostCs * m.quantity)}</span>
-                    )}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </DialogContent>
+            <div className="mt-2 space-y-2 border-t pt-3">
+              <p className="text-2xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                Historial del lote
+              </p>
+              {isFetching && movements.length === 0 ? (
+                <p className="text-xs text-muted-foreground">Cargando…</p>
+              ) : movements.length === 0 ? (
+                <p className="text-xs text-muted-foreground">Sin ajustes ni devoluciones.</p>
+              ) : (
+                <ul className="max-h-48 space-y-1.5 overflow-y-auto text-xs">
+                  {movements.map((m) => (
+                    <li key={m.id} className="flex justify-between gap-3">
+                      <span className="min-w-0">
+                        <span className="text-foreground">
+                          {KIND_LABEL[m.kind]} ·{" "}
+                          {m.kind === "adjust_in" || m.kind === "return_to_stock" ? "+" : "−"}
+                          {m.quantity}
+                        </span>
+                        <span className="block truncate text-muted-foreground">{m.reason}</span>
+                      </span>
+                      <span className="shrink-0 text-right text-muted-foreground">
+                        {formatLongDate(m.createdAt)}
+                        {m.kind === "write_off" && m.unitCostCs != null && (
+                          <span className="block">{formatCordobas(m.unitCostCs * m.quantity)}</span>
+                        )}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </FormBody>
+          <FormActions>
+            <Button type="button" variant="cancel" onClick={close} disabled={isLoading}>
+              Cancelar
+            </Button>
+            <Button type="button" onClick={submit} disabled={disabled}>
+              {isLoading && <Spinner className="mr-2" />}
+              {isLoading ? "Guardando…" : "Guardar ajuste"}
+            </Button>
+          </FormActions>
+        </FormPanel>
+      </FormDialogContent>
     </Dialog>
   );
 }

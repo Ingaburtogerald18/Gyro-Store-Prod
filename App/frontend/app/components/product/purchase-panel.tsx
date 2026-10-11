@@ -38,6 +38,8 @@ export function addLabel(state: PurchaseState, { short = false } = {}) {
       return 'Elegí otra combinación';
     case 'sold_out':
       return 'Agotado';
+    case 'coming_soon':
+      return 'Próximamente';
     case 'unknown':
       return 'Consultar disponibilidad';
     case 'ready':
@@ -84,8 +86,14 @@ export function PurchaseStatus({
       <StockIndicator availability={availability} />
       {state.kind === 'sold_out' && (
         <p className="text-sm text-muted-foreground">
-          Esta opción está agotada. Podés consultar por WhatsApp cuándo vuelve
-          {canClear && onClear ? ' o elegir otra.' : '.'}
+          Esta opción está agotada. Pedí que te avisemos cuando vuelva
+          {canClear && onClear ? ' o elegí otra.' : '.'}
+        </p>
+      )}
+      {state.kind === 'coming_soon' && (
+        <p className="text-sm text-muted-foreground">
+          Esta opción viene en camino y todavía no se puede pedir. Pedí que te avisemos cuando llegue
+          {canClear && onClear ? ' o elegí otra.' : '.'}
         </p>
       )}
       {state.kind === 'unknown' && (

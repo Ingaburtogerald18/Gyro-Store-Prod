@@ -23,8 +23,9 @@ import {
 import { Skeleton } from '~/components/ui/skeleton';
 import { VariantPicker } from '~/components/product/variant-picker';
 import { PurchaseStatus, addLabel, cartItemFor } from '~/components/product/purchase-panel';
+import { StockNoticeDialog } from '~/components/product/stock-notice-dialog';
 import { WhatsappIcon } from '~/components/ui/whatsapp-icon';
-import { autoSelection, purchaseState, variantLabel, type VariantSelection } from '~/lib/purchase';
+import { autoSelection, isConsultOnly, purchaseState, variantLabel, type VariantSelection } from '~/lib/purchase';
 import { useGetCatalogDetailQuery } from '~/store/api/storefrontApi';
 import { useStoreConfig } from '~/hooks/useStoreConfig';
 import { useAppDispatch } from '~/store/hooks';
@@ -47,6 +48,7 @@ export function QuickAddSheet({
   const { data: detail, isLoading, isFetching, isError, refetch } = useGetCatalogDetailQuery(product.id, { skip: !open });
   const [touched, setTouched] = useState<VariantSelection | null>(null);
   const [showMissing, setShowMissing] = useState(false);
+  const [noticeOpen, setNoticeOpen] = useState(false);
 
   const axes = useMemo(() => detail?.axes ?? [], [detail?.axes]);
   const variants = useMemo(() => detail?.variants ?? [], [detail?.variants]);
@@ -89,11 +91,12 @@ export function QuickAddSheet({
   function handleConsult() {
     const url = typeof window !== 'undefined' ? window.location.origin + productUrl : '';
     const label = variantLabel(axes, selection);
-    const message = productWhatsappMessage({ kind: state.kind === 'sold_out' || state.kind === 'unknown' ? 'availability' : 'info', name: product.name, variant: label || undefined, url });
+    const message = productWhatsappMessage({ kind: isConsultOnly(state.kind) ? 'availability' : 'info', name: product.name, variant: label || undefined, url });
     window.open(buildWhatsappUrl(config?.whatsapp ?? '', message), '_blank', 'noopener,noreferrer');
   }
 
-  const consultable = state.kind === 'sold_out' || state.kind === 'unknown';
+  const consultable = isConsultOnly(state.kind);
+  const notifyVariant = state.kind === 'sold_out' || state.kind === 'coming_soon' ? state.variant : null;
 
   return (
     <Sheet open={open} onOpenChange={close}>
@@ -110,11 +113,15 @@ export function QuickAddSheet({
             <div className="min-w-0 flex-1">
               <SheetTitle className="line-clamp-2 text-left text-base">{product.name}</SheetTitle>
               <SheetDescription className="text-left">
-                <span className="font-heading text-lg font-extrabold tracking-tight text-foreground tabular-nums">
-                  {!variant && product.priceFrom ? 'Desde ' : ''}
-                  {formatCordobas(price, config?.currency)}
-                </span>
-                {variant?.compareAtPrice && (
+                {state.kind === 'coming_soon' ? (
+                  <span className="text-sm font-semibold text-foreground">Próximamente</span>
+                ) : (
+                  <span className="font-heading text-lg font-extrabold tracking-tight text-foreground tabular-nums">
+                    {!variant && product.priceFrom ? 'Desde ' : ''}
+                    {formatCordobas(price, config?.currency)}
+                  </span>
+                )}
+                {state.kind !== 'coming_soon' && variant?.compareAtPrice && (
                   <span className="ml-2 text-sm text-muted-foreground line-through tabular-nums">
                     {formatCordobas(variant.compareAtPrice, config?.currency)}
                   </span>
@@ -156,7 +163,17 @@ export function QuickAddSheet({
         </div>
 
         <SheetFooter className="gap-2 pb-[max(1rem,env(safe-area-inset-bottom))]">
-          {consultable ? (
+          {notifyVariant ? (
+            <>
+              <Button onClick={() => setNoticeOpen(true)} className="h-12 w-full text-base">
+                Avisame cuando haya
+              </Button>
+              <Button variant="whatsappOutline" onClick={handleConsult} className="h-12 w-full text-base">
+                <WhatsappIcon aria-hidden className="size-4" />
+                Consultar por WhatsApp
+              </Button>
+            </>
+          ) : consultable ? (
             <Button variant="whatsapp" onClick={handleConsult} className="h-12 w-full text-base">
               <WhatsappIcon aria-hidden className="size-4" />
               Consultar por WhatsApp
@@ -178,6 +195,16 @@ export function QuickAddSheet({
           </Button>
         </SheetFooter>
       </SheetContent>
+      {notifyVariant && (
+        <StockNoticeDialog
+          open={noticeOpen}
+          onOpenChange={setNoticeOpen}
+          catalogItemId={product.id}
+          productName={product.name}
+          variantName={notifyVariant.variantName}
+          comingSoon={notifyVariant.availability === 'coming_soon'}
+        />
+      )}
     </Sheet>
   );
 }

@@ -8,3 +8,7 @@ export class BadRequestError extends Error {
 export class NotFoundError extends Error {
   status = 404;
 }
+
+export class ConflictError extends Error {
+  status = 409;
+}

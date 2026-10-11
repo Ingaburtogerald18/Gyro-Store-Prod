@@ -1,3 +1,4 @@
+import { FormLayout, FormActions, FormBody } from "~/components/ui/form-layout";
 // Pestaña "Recursos" de Configuración: subida de logos/favicon a R2 (extraída de
 // admin.configuracion.tsx). Maneja su propia carga/guardado contra
 // /api/admin/config/images y limpia los uploads huérfanos de la sesión.
@@ -7,6 +8,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { queueFile, processPendingUploads } from "~/lib/uploadQueue";
 import { Field, FieldError, FieldLabel } from "~/components/ui/field";
+import { FormErrorBanner } from "~/components/ui/form-feedback";
 import { Input } from "~/components/ui/input";
 import { Button } from "~/components/ui/button";
 import { Spinner } from "~/components/ui/spinner";
@@ -28,7 +30,7 @@ const EMPTY_IMAGES: ImageResources = {
 };
 
 export function ImagesConfig() {
-  const { form, loading, loadError, submit, retry } = useConfigSection<ImageResources>({
+  const { form, loading, loadError, saveError, submit, retry } = useConfigSection<ImageResources>({
     loadUrl: '/api/admin/config/images',
     resolver: zodResolver(imageResourcesSchema),
     defaultValues: EMPTY_IMAGES,
@@ -141,42 +143,82 @@ export function ImagesConfig() {
         error={!!loadError}
         errorMessage={loadError}
         onRetry={retry}
-        loadingFallback={<div className="flex py-12 justify-center"><BrandLoader text="Cargando recursos..." /></div>}
+        loadingFallback={
+          <div className="flex py-12 justify-center">
+            <BrandLoader text="Cargando recursos..." />
+          </div>
+        }
       >
-      <form onSubmit={submit} className="space-y-6">
-        <div className="grid gap-6 md:grid-cols-2">
-          {renderUploadBox("Logo estático", "Cabeceras y web. Recomendado: 512x512px (PNG transparente)", "logoStatic")}
-          {renderUploadBox("Logo animado", "Animación principal. Recomendado: 512x512px (WebM/GIF)", "logoAnimated")}
-          {renderUploadBox("Favicon", "Ícono de la pestaña. Recomendado: 32x32px o 64x64px (PNG/ICO)", "favicon")}
-          {renderUploadBox("Logo del ticket", "Impresoras térmicas. Recomendado: 300x300px o similar (Blanco y Negro puro)", "posLogo")}
-          {renderUploadBox("Inicio de sesión", "Ilustración del acceso de colaboradores. Vacía: se usa el logo estático. Recomendado: 600x600px (PNG sin fondo)", "loginImage")}
-        </div>
+        <FormLayout mode="page" onSubmit={submit}>
+          <FormErrorBanner message={saveError} />
+          <FormBody>
+            <div className="grid gap-6 md:grid-cols-2">
+              {renderUploadBox(
+                "Logo estático",
+                "Cabeceras y web. Recomendado: 512x512px (PNG transparente)",
+                "logoStatic",
+              )}
+              {renderUploadBox(
+                "Logo animado",
+                "Animación principal. Recomendado: 512x512px (WebM/GIF)",
+                "logoAnimated",
+              )}
+              {renderUploadBox(
+                "Favicon",
+                "Ícono de la pestaña. Recomendado: 32x32px o 64x64px (PNG/ICO)",
+                "favicon",
+              )}
+              {renderUploadBox(
+                "Logo del ticket",
+                "Impresoras térmicas. Recomendado: 300x300px o similar (Blanco y Negro puro)",
+                "posLogo",
+              )}
+              {renderUploadBox(
+                "Inicio de sesión",
+                "Ilustración del acceso de colaboradores. Vacía: se usa el logo estático. Recomendado: 600x600px (PNG sin fondo)",
+                "loginImage",
+              )}
+            </div>
 
-        {/* Imágenes del carrito. Qué texto las acompaña y dónde aparece cada una
-            se decide en la tienda, en modo edición → "Editar carrito". */}
-        <div className="space-y-1 pt-2">
-          <h3 className="text-sm font-semibold">Carrito</h3>
-          <p className="text-xs text-muted-foreground">
-            Se eligen y combinan con sus textos desde la tienda, en modo edición → «Editar carrito».
-          </p>
-        </div>
-        <div className="grid gap-6 md:grid-cols-3">
-          {renderUploadBox("Carrito vacío", "Ilustración cuando no hay productos. Recomendado: 480x480px (PNG sin fondo)", "cartEmpty")}
-          {renderUploadBox("Banner del carrito", "Promo arriba de los productos. Recomendado: 800x300px", "cartBanner")}
-          {renderUploadBox("Pedido recibido", "Pantalla de confirmación. Recomendado: 480x480px (PNG sin fondo)", "orderSuccess")}
-        </div>
+            {/* Imágenes del carrito. Qué texto las acompaña y dónde aparece cada una
+                se decide en la tienda, en modo edición → "Editar carrito". */}
+            <div className="space-y-1 pt-2">
+              <h3 className="text-sm font-semibold">Carrito</h3>
+              <p className="text-xs text-muted-foreground">
+                Se eligen y combinan con sus textos desde la tienda, en modo edición → «Editar
+                carrito».
+              </p>
+            </div>
+            <div className="grid gap-6 md:grid-cols-3">
+              {renderUploadBox(
+                "Carrito vacío",
+                "Ilustración cuando no hay productos. Recomendado: 480x480px (PNG sin fondo)",
+                "cartEmpty",
+              )}
+              {renderUploadBox(
+                "Banner del carrito",
+                "Promo arriba de los productos. Recomendado: 800x300px",
+                "cartBanner",
+              )}
+              {renderUploadBox(
+                "Pedido recibido",
+                "Pantalla de confirmación. Recomendado: 480x480px (PNG sin fondo)",
+                "orderSuccess",
+              )}
+            </div>
+          </FormBody>
 
-        <div className="flex justify-end pt-2">
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? (
-              <Spinner className="mr-2" />
-            ) : (
-              <HugeIcon icon={FloppyDiskIcon} size={16} strokeWidth={2} className="mr-2" />
-            )}
-            Guardar Imágenes
-          </Button>
-        </div>
-      </form>
+          <FormActions>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? (
+                <Spinner className="mr-2" />
+              ) : (
+                <HugeIcon icon={FloppyDiskIcon} size={16} strokeWidth={2} className="mr-2" />
+              )}
+              {isSubmitting ? "Guardando…" : "Guardar imágenes"}
+            </Button>
+          </FormActions>
+        </FormLayout>
       </QueryState>
     </Section>
   );

@@ -18,7 +18,7 @@
 import { HugeIcon } from "~/components/ui/icon";
 import { ArrowDown01Icon, ArrowLeft01Icon, ArrowRight01Icon, ArrowRight02Icon, PauseIcon, PlayIcon } from "@hugeicons/core-free-icons";
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useNavigate } from '@remix-run/react';
+import { useNavigate, useSearchParams } from '@remix-run/react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 
 import { type LandingConfig } from '@shared/schemas';
@@ -40,6 +40,7 @@ const EMPTY_LANDING: LandingConfig = { headerCategories: [], heroSlides: [] };
 
 export function Hero({ initialLanding }: { initialLanding?: LandingConfig | null }) {
   const navigate = useNavigate();
+  const [params] = useSearchParams();
   const reduce = useReducedMotion();
   const [activeIndex, setActiveIndex] = useState(0);
   // Manual hasta que la persona pida reproducir.
@@ -55,12 +56,12 @@ export function Hero({ initialLanding }: { initialLanding?: LandingConfig | null
   
   const isAdmin = useAppSelector(selectIsAdmin);
   const editMode = useAppSelector(selectEditMode);
-  const editing = isAdmin && editMode;
+  const editing = (isAdmin || params.get('landing-preview') === '1') && editMode;
   const draftLanding = useAppSelector(selectDraftLandingConfig);
   const selectedSlideId = useAppSelector(selectActiveHeroSlideId);
   
   const landing = editing && draftLanding ? draftLanding : (landingData ?? initialLanding ?? EMPTY_LANDING);
-  const slides = landing.heroSlides;
+  const slides = landing.heroSlides.filter(slide => slide.visible !== false || (editing && slide.id === selectedSlideId));
 
   const config = useStoreConfig();
   // Redes del slide con acción "social": solo las que tienen link cargado.
@@ -118,6 +119,7 @@ export function Hero({ initialLanding }: { initialLanding?: LandingConfig | null
 
   // Sin slides configurados: no romper la home, simplemente no pintar el hero.
   if (!activeSlide) return null;
+  if (activeSlide.visible === false) return <section data-landing-section="banners" data-landing-slide={activeSlide.id} className="mx-auto max-w-7xl p-8"><div className="rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground">Este banner está oculto. Podés volver a mostrarlo desde «Diseño».</div></section>;
 
   function handlePrimaryAction() {
     const target = activeSlide.actionTarget || '/#catalogo';
@@ -137,13 +139,13 @@ export function Hero({ initialLanding }: { initialLanding?: LandingConfig | null
   }
 
   return (
-    <section ref={sectionRef} data-landing-section="banners" aria-roledescription="carrusel" aria-label="Novedades de la tienda" className="mx-auto w-full max-w-7xl px-4 pt-3 pb-2 sm:pt-5">
+    <section ref={sectionRef} data-landing-section="banners" data-landing-slide={activeSlide.id} aria-roledescription="carrusel" aria-label="Novedades de la tienda" className="mx-auto w-full max-w-7xl px-4 pt-3 pb-2 sm:pt-5">
       <div className="relative w-full overflow-hidden rounded-3xl border border-border bg-card">
         {/* Altura contenida: el catálogo tiene que asomar antes. min-h y no h
             fija para que un título largo no se salga de la tarjeta. */}
-        <div className="flex min-h-[300px] flex-col items-stretch md:min-h-[360px] md:flex-row">
+        <div className={cn('flex min-h-[300px] flex-col items-stretch md:min-h-[360px]', activeSlide.layout !== 'top' && 'md:flex-row')}>
           {/* ── Media ── */}
-          <div className="relative flex h-[150px] w-full items-center justify-center overflow-hidden border-b border-border bg-card sm:h-[240px] md:h-auto md:w-1/2 md:border-r md:border-b-0">
+          <div data-landing-element="image" role={editing ? 'button' : undefined} tabIndex={editing ? 0 : undefined} aria-label={editing ? 'Editar imagen del banner' : undefined} className={cn('relative flex h-[150px] w-full items-center justify-center overflow-hidden border-b border-border bg-card sm:h-[240px]', activeSlide.layout === 'top' ? 'md:h-80' : 'md:h-auto md:w-1/2 md:border-b-0', activeSlide.layout === 'right' ? 'md:order-2 md:border-l' : activeSlide.layout !== 'top' && 'md:border-r')}>
             <SlideMedia
               key={activeSlide.id}
               slide={activeSlide}
@@ -157,24 +159,24 @@ export function Hero({ initialLanding }: { initialLanding?: LandingConfig | null
           </div>
 
           {/* ── Texto ── */}
-          <div className="relative z-10 flex w-full flex-col justify-center p-5 text-left sm:p-8 md:w-1/2 md:px-10 md:py-10">
+          <div className={cn('relative z-10 flex w-full flex-col justify-center p-5 text-left sm:p-8 md:px-10 md:py-10', activeSlide.layout !== 'top' && 'md:w-1/2')}>
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeSlide.id}
-                initial={reduce || !animateEntry ? false : { opacity: 0, x: 16 }}
+                initial={reduce || editing || !animateEntry ? false : { opacity: 0, x: 16 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={reduce ? { opacity: 0 } : { opacity: 0, x: -16 }}
-                transition={{ duration: reduce ? 0.01 : 0.35, ease: [0.16, 1, 0.3, 1] }}
+                transition={{ duration: reduce || editing ? 0 : 0.35, ease: [0.16, 1, 0.3, 1] }}
                 className="space-y-3 sm:space-y-4"
               >
                 {/* Título y mensaje en HTML (no dentro de la imagen): se leen,
                     se traducen y escalan en cualquier pantalla. */}
-                <h1 className="font-heading text-3xl leading-[1.08] font-extrabold tracking-tight text-balance text-foreground lg:text-5xl">
+                <h1 data-landing-element="title" role={editing ? 'button' : undefined} tabIndex={editing ? 0 : undefined} className="font-heading text-3xl leading-[1.08] font-extrabold tracking-tight text-balance text-foreground lg:text-5xl">
                   {activeSlide.title}
                 </h1>
 
                 {activeSlide.description && (
-                  <p className="line-clamp-3 max-w-lg text-sm leading-relaxed text-muted-foreground sm:line-clamp-none sm:text-base">
+                  <p data-landing-element="description" role={editing ? 'button' : undefined} tabIndex={editing ? 0 : undefined} className="line-clamp-3 max-w-lg text-sm leading-relaxed text-muted-foreground sm:line-clamp-none sm:text-base">
                     {activeSlide.description}
                   </p>
                 )}
@@ -186,7 +188,7 @@ export function Hero({ initialLanding }: { initialLanding?: LandingConfig | null
                     // Acción "redes sociales": menú con las redes configuradas.
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button className="h-12 justify-center px-5 text-sm sm:text-base">
+                        <Button data-landing-element="button" className="h-12 justify-center px-5 text-sm sm:text-base">
                           {activeSlide.buttonText || 'Seguinos'}
                           <HugeIcon icon={ArrowDown01Icon} size={16} strokeWidth={2} aria-hidden className="shrink-0" />
                         </Button>
@@ -203,7 +205,7 @@ export function Hero({ initialLanding }: { initialLanding?: LandingConfig | null
                       </DropdownMenuContent>
                     </DropdownMenu>
                   ) : (
-                    <Button onClick={handlePrimaryAction} className="group/cta h-12 justify-center px-5 text-sm sm:text-base">
+                    <Button data-landing-element="button" onClick={handlePrimaryAction} className="group/cta h-12 justify-center px-5 text-sm sm:text-base">
                       {activeSlide.buttonText || 'Ver catálogo'}
                       <HugeIcon icon={ArrowRight02Icon} size={16} strokeWidth={2} aria-hidden className="shrink-0 transition-transform duration-200 group-hover/cta:translate-x-0.5 motion-reduce:transition-none" />
                     </Button>

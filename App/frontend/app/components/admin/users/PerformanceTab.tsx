@@ -41,7 +41,7 @@ export function PerformanceTab({ userId }: { userId: string }) {
           />
           <StatCard
             label="Aprobadas"
-            color="emerald"
+            color="neutral"
             countTo={data.approvedUnpaid.comision}
             format={(n) => formatCordobas(n, "C$", 2)}
             sub={`${data.approvedUnpaid.count} ventas`}

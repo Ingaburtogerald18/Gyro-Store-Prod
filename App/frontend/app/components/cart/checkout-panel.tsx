@@ -1,6 +1,7 @@
+import { FormLayout, FormActions, FormBody } from '~/components/ui/form-layout';
 // Checkout dentro del panel del carrito. El servidor recalcula y valida antes de
 // abrir WhatsApp; si algo cambió, el pedido no se crea y se muestra por línea.
-import { HugeIcon } from "~/components/ui/icon";
+import { HugeIcon } from '~/components/ui/icon';
 import {
   ArrowLeft02Icon,
   CheckmarkCircle02Icon,
@@ -8,7 +9,7 @@ import {
   PackageIcon,
   Store01Icon,
   TruckIcon,
-} from "@hugeicons/core-free-icons";
+} from '@hugeicons/core-free-icons';
 import { useEffect, useId, useRef, useState } from 'react';
 import { Link } from '@remix-run/react';
 import { useForm } from 'react-hook-form';
@@ -32,8 +33,15 @@ import { saveOrder } from '~/lib/orderHistory';
 import { getAnalyticsSessionId, trackCheckoutStart } from '~/lib/analytics.client';
 import { STORE_POLICIES } from '~/lib/storePolicies';
 import { lineCeiling, variantText } from '~/lib/cart';
-import { useCreatePublicOrderMutation, useRecoverPublicOrderMutation, type CreatedPublicOrder } from '~/store/api/storefrontApi';
-import { useValidateDiscountCodeMutation, type DiscountCodeValidation } from '~/store/api/discountCodesApi';
+import {
+  useCreatePublicOrderMutation,
+  useRecoverPublicOrderMutation,
+  type CreatedPublicOrder,
+} from '~/store/api/storefrontApi';
+import {
+  useValidateDiscountCodeMutation,
+  type DiscountCodeValidation,
+} from '~/store/api/discountCodesApi';
 import { useAppDispatch, useAppSelector } from '~/store/hooks';
 import {
   clearCartIfUnchanged,
@@ -45,10 +53,21 @@ import {
   toOrderItems,
 } from '~/store/slices/cartSlice';
 import type { CartItem } from '~/types/cart';
-import { cn } from "~/lib/utils"
-import { formatCordobas, getProductUrl } from "~/lib/formatters";
-import { checkoutCleared, checkoutExtrasChanged, checkoutFieldsChanged, EMPTY_CHECKOUT_FIELDS, selectCheckoutDraft } from '~/store/slices/checkoutSlice';
-import { clearCheckoutAttempt, matchesAttemptItems, newCheckoutAttemptKey, saveCheckoutAttempt } from '~/lib/checkoutAttempt';
+import { cn } from '~/lib/utils';
+import { formatCordobas, getProductUrl } from '~/lib/formatters';
+import {
+  checkoutCleared,
+  checkoutExtrasChanged,
+  checkoutFieldsChanged,
+  EMPTY_CHECKOUT_FIELDS,
+  selectCheckoutDraft,
+} from '~/store/slices/checkoutSlice';
+import {
+  clearCheckoutAttempt,
+  matchesAttemptItems,
+  newCheckoutAttemptKey,
+  saveCheckoutAttempt,
+} from '~/lib/checkoutAttempt';
 import { toast } from 'sonner';
 
 // El formulario DERIVA del contrato: mismos campos y mismos
@@ -76,6 +95,7 @@ const ISSUE_TEXT: Record<OrderIssue['reason'], string> = {
   variant_required: 'Falta elegir sus opciones.',
   invalid_variant: 'La opción guardada ya no existe. Elegí otra.',
   sold_out: 'Se agotó esta opción.',
+  coming_soon: 'Viene en camino: todavía no se puede pedir.',
   unknown_stock: 'No tenemos confirmada su disponibilidad.',
   insufficient: 'No hay tantas unidades disponibles.',
   price_changed: 'Cambió el precio.',
@@ -285,8 +305,8 @@ export function CheckoutPanel({
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex min-h-0 flex-1 flex-col">
-      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain p-4">
+    <FormLayout onSubmit={handleSubmit(onSubmit)} noValidate>
+      <FormBody>
         <Button type="button" variant="ghost" onClick={onBack} className="-ml-2 h-11 px-2 text-sm">
           <HugeIcon icon={ArrowLeft02Icon} size={18} strokeWidth={2} aria-hidden />
           Volver al carrito
@@ -294,193 +314,256 @@ export function CheckoutPanel({
 
         {issues.length > 0 && renderIssues()}
         {pending && (
-          <p role="status" className="rounded-xl border border-primary-2/30 bg-primary-2/5 p-3 text-sm">
-            {recovering ? 'Comprobando el pedido anterior…' : 'Este intento está pendiente de confirmación. Reintentamos con los mismos datos para evitar duplicados.'}
+          <p
+            role="status"
+            className="rounded-xl border border-primary-2/30 bg-primary-2/5 p-3 text-sm"
+          >
+            {recovering
+              ? 'Comprobando el pedido anterior…'
+              : 'Este intento está pendiente de confirmación. Reintentamos con los mismos datos para evitar duplicados.'}
           </p>
         )}
-        <fieldset disabled={isLoading || recovering || Boolean(pending)} className="min-w-0 space-y-4">
-
-        <Field data-invalid={Boolean(errors.customerName)}>
-          <FieldLabel htmlFor={`${ids}-name`} required>Nombre</FieldLabel>
-          <Input
-            id={`${ids}-name`}
-            autoComplete="name"
-            placeholder="Tu nombre"
-            aria-required
-            aria-invalid={Boolean(errors.customerName)}
-            className={FIELD}
-            {...register('customerName')}
-          />
-          <FieldError errors={[errors.customerName]} />
-        </Field>
-
-        <Field data-invalid={Boolean(errors.phone)}>
-          <FieldLabel htmlFor={`${ids}-phone`} required>Teléfono (WhatsApp)</FieldLabel>
-          <Input
-            id={`${ids}-phone`}
-            type="tel"
-            inputMode="tel"
-            autoComplete="tel"
-            placeholder="8888 8888"
-            aria-required
-            aria-invalid={Boolean(errors.phone)}
-            className={FIELD}
-            {...register('phone')}
-          />
-          <FieldError errors={[errors.phone]} />
-        </Field>
-
-        <fieldset className="space-y-2">
-          <legend className="mb-2 text-sm font-medium text-foreground">¿Cómo lo recibís?</legend>
-          <div className="grid grid-cols-2 gap-2">
-            {(
-              [
-                { value: 'retiro', label: 'Retiro en tienda', icon: Store01Icon },
-                { value: 'envio', label: 'Envío', icon: TruckIcon },
-              ] as const
-            ).map(({ value, label, icon }) => (
-              <label
-                key={value}
-                className={cn(
-                  'flex min-h-14 cursor-pointer items-center justify-center gap-2 rounded-xl border-2 p-3 text-center text-sm font-medium transition-colors focus-within:ring-2 focus-within:ring-ring',
-                  deliveryMethod === value
-                    ? 'border-primary-2 bg-primary-2/10 font-semibold text-foreground'
-                    : 'border-border text-muted-foreground hover:border-primary-2/50 hover:text-foreground',
-                )}
-              >
-                <input type="radio" value={value} className="sr-only" {...register('deliveryMethod')} />
-                <HugeIcon icon={icon} size={18} strokeWidth={2} aria-hidden />
-                {label}
-              </label>
-            ))}
-          </div>
-        </fieldset>
-
-        {deliveryMethod === 'retiro' && config?.address && (
-          <p className="flex items-start gap-2 rounded-xl bg-muted/60 p-3 text-sm text-muted-foreground">
-            <HugeIcon icon={Store01Icon} size={16} strokeWidth={2} aria-hidden className="mt-0.5 shrink-0" />
-            <span>
-              Retirás en <span className="font-medium text-foreground">{config.address}</span>.
-              {config.locationUrl && (
-                <>
-                  {' '}
-                  <a href={config.locationUrl} target="_blank" rel="noreferrer" className="font-medium text-primary-2 underline underline-offset-4">
-                    Ver en el mapa
-                  </a>
-                </>
-              )}
-            </span>
-          </p>
-        )}
-
-        {deliveryMethod === 'envio' && (
-          <Field data-invalid={Boolean(errors.address)}>
-            <FieldLabel htmlFor={`${ids}-address`}>Dirección</FieldLabel>
-            <Textarea
-              id={`${ids}-address`}
-              rows={2}
-              placeholder="Ciudad, barrio, calle y referencias"
-              aria-invalid={Boolean(errors.address)}
-              className="min-h-20 rounded-xl text-base md:text-base"
-              {...register('address')}
+        <fieldset
+          disabled={isLoading || recovering || Boolean(pending)}
+          className="min-w-0 space-y-4"
+        >
+          <Field data-invalid={Boolean(errors.customerName)}>
+            <FieldLabel htmlFor={`${ids}-name`} required>
+              Nombre
+            </FieldLabel>
+            <Input
+              id={`${ids}-name`}
+              autoComplete="name"
+              placeholder="Tu nombre"
+              aria-required
+              aria-invalid={Boolean(errors.customerName)}
+              className={FIELD}
+              {...register('customerName')}
             />
-            <FieldError errors={[errors.address]} />
-            <input type="hidden" {...register('locationUrl')} />
-            <Button
-              type="button"
-              variant="outline"
-              onClick={captureLocation}
-              disabled={geoLoading}
-              className="h-12 w-full justify-center gap-2"
-            >
-              <HugeIcon icon={Location01Icon} size={18} strokeWidth={2} aria-hidden />
-              {locationUrl ? 'Ubicación agregada · tocá para actualizar' : geoLoading ? 'Obteniendo ubicación…' : 'Compartir mi ubicación'}
-            </Button>
-            <p className="text-xs leading-relaxed text-muted-foreground">
-              {STORE_POLICIES.managua.title}: {STORE_POLICIES.managua.text.toLowerCase()} {STORE_POLICIES.outside.title}: {STORE_POLICIES.outside.text.toLowerCase()}
-            </p>
+            <FieldError errors={[errors.customerName]} />
           </Field>
-        )}
 
-        {/* Nota y código: plegados, pero sus valores se conservan al cerrar. */}
-        <div className="space-y-3">
-          <Disclosure open={noteOpen} onToggle={() => setNoteOpen((v) => !v)} label="Agregar una nota" controls={`${ids}-note-box`} />
-          <div id={`${ids}-note-box`} hidden={!noteOpen}>
-            <Field>
-              <FieldLabel htmlFor={`${ids}-note`}>Nota (opcional)</FieldLabel>
-              <Textarea id={`${ids}-note`} rows={2} placeholder="¿Algo que debamos saber?" className="rounded-xl text-base md:text-base" {...register('note')} />
-            </Field>
-          </div>
+          <Field data-invalid={Boolean(errors.phone)}>
+            <FieldLabel htmlFor={`${ids}-phone`} required>
+              Teléfono (WhatsApp)
+            </FieldLabel>
+            <Input
+              id={`${ids}-phone`}
+              type="tel"
+              inputMode="tel"
+              autoComplete="tel"
+              placeholder="8888 8888"
+              aria-required
+              aria-invalid={Boolean(errors.phone)}
+              className={FIELD}
+              {...register('phone')}
+            />
+            <FieldError errors={[errors.phone]} />
+          </Field>
 
-          <Disclosure
-            open={couponOpen || Boolean(appliedCode)}
-            onToggle={() => setCouponOpen((v) => !v)}
-            label="¿Tenés un código de descuento?"
-            controls={`${ids}-coupon-box`}
-            disabled={Boolean(appliedCode)}
-          />
-          <div id={`${ids}-coupon-box`} hidden={!(couponOpen || appliedCode)}>
-            <Field data-invalid={Boolean(codeError)}>
-              <FieldLabel htmlFor={`${ids}-code`}>Código de descuento</FieldLabel>
-              {appliedCode ? (
-                <div className="flex min-h-12 items-center justify-between gap-2 rounded-xl border border-primary-2/40 bg-primary-2/10 px-3">
-                  <span className="text-sm font-semibold text-foreground">
-                    {appliedCode.code}{' '}
-                    <span className="font-normal text-muted-foreground">
-                      ({appliedCode.type === 'percent' ? `${appliedCode.value}%` : formatCordobas(appliedCode.value, currency)})
-                    </span>
-                  </span>
-                  <Button type="button" variant="ghost" onClick={removeCode} className="h-11 px-3">
-                    Quitar
-                  </Button>
-                </div>
-              ) : (
-                <div className="flex gap-2">
-                  <Input
-                    id={`${ids}-code`}
-                    value={codeInput}
-                    onChange={(e) => {
-                      setCodeInput(e.target.value.toUpperCase());
-                      setCodeError('');
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        void applyCode();
-                      }
-                    }}
-                    aria-invalid={Boolean(codeError)}
-                    aria-describedby={codeError ? `${ids}-code-error` : undefined}
-                    placeholder="GS-DC-123"
-                    autoComplete="off"
-                    className={cn(FIELD, 'uppercase')}
-                    maxLength={30}
+          <fieldset className="space-y-2">
+            <legend className="mb-2 text-sm font-medium text-foreground">¿Cómo lo recibís?</legend>
+            <div className="grid grid-cols-2 gap-2">
+              {(
+                [
+                  { value: 'retiro', label: 'Retiro en tienda', icon: Store01Icon },
+                  { value: 'envio', label: 'Envío', icon: TruckIcon },
+                ] as const
+              ).map(({ value, label, icon }) => (
+                <label
+                  key={value}
+                  className={cn(
+                    'flex min-h-14 cursor-pointer items-center justify-center gap-2 rounded-xl border-2 p-3 text-center text-sm font-medium transition-colors focus-within:ring-2 focus-within:ring-ring',
+                    deliveryMethod === value
+                      ? 'border-primary-2 bg-primary-2/10 font-semibold text-foreground'
+                      : 'border-border text-muted-foreground hover:border-primary-2/50 hover:text-foreground',
+                  )}
+                >
+                  <input
+                    type="radio"
+                    value={value}
+                    className="sr-only"
+                    {...register('deliveryMethod')}
                   />
-                  <Button type="button" variant="outline" onClick={() => void applyCode()} disabled={validatingCode || !codeInput.trim()} className="h-12 px-4">
-                    {validatingCode ? 'Validando…' : 'Aplicar'}
-                  </Button>
-                </div>
-              )}
-              {codeError && (
-                <p id={`${ids}-code-error`} role="alert" className="text-sm text-destructive">{codeError}</p>
-              )}
-            </Field>
-          </div>
-        </div>
+                  <HugeIcon icon={icon} size={18} strokeWidth={2} aria-hidden />
+                  {label}
+                </label>
+              ))}
+            </div>
+          </fieldset>
 
+          {deliveryMethod === 'retiro' && config?.address && (
+            <p className="flex items-start gap-2 rounded-xl bg-muted/60 p-3 text-sm text-muted-foreground">
+              <HugeIcon
+                icon={Store01Icon}
+                size={16}
+                strokeWidth={2}
+                aria-hidden
+                className="mt-0.5 shrink-0"
+              />
+              <span>
+                Retirás en <span className="font-medium text-foreground">{config.address}</span>.
+                {config.locationUrl && (
+                  <>
+                    {' '}
+                    <a
+                      href={config.locationUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="font-medium text-primary-2 underline underline-offset-4"
+                    >
+                      Ver en el mapa
+                    </a>
+                  </>
+                )}
+              </span>
+            </p>
+          )}
+
+          {deliveryMethod === 'envio' && (
+            <Field data-invalid={Boolean(errors.address)}>
+              <FieldLabel htmlFor={`${ids}-address`}>Dirección</FieldLabel>
+              <Textarea
+                id={`${ids}-address`}
+                rows={2}
+                placeholder="Ciudad, barrio, calle y referencias"
+                aria-invalid={Boolean(errors.address)}
+                className="min-h-20 rounded-xl text-base md:text-base"
+                {...register('address')}
+              />
+              <FieldError errors={[errors.address]} />
+              <input type="hidden" {...register('locationUrl')} />
+              <Button
+                type="button"
+                variant="outline"
+                onClick={captureLocation}
+                disabled={geoLoading}
+                className="h-12 w-full justify-center gap-2"
+              >
+                <HugeIcon icon={Location01Icon} size={18} strokeWidth={2} aria-hidden />
+                {locationUrl
+                  ? 'Ubicación agregada · tocá para actualizar'
+                  : geoLoading
+                  ? 'Obteniendo ubicación…'
+                  : 'Compartir mi ubicación'}
+              </Button>
+              <p className="text-xs leading-relaxed text-muted-foreground">
+                {STORE_POLICIES.managua.title}: {STORE_POLICIES.managua.text.toLowerCase()}{' '}
+                {STORE_POLICIES.outside.title}: {STORE_POLICIES.outside.text.toLowerCase()}
+              </p>
+            </Field>
+          )}
+
+          {/* Nota y código: plegados, pero sus valores se conservan al cerrar. */}
+          <div className="space-y-3">
+            <Disclosure
+              open={noteOpen}
+              onToggle={() => setNoteOpen((v) => !v)}
+              label="Agregar una nota"
+              controls={`${ids}-note-box`}
+            />
+            <div id={`${ids}-note-box`} hidden={!noteOpen}>
+              <Field>
+                <FieldLabel htmlFor={`${ids}-note`}>Nota (opcional)</FieldLabel>
+                <Textarea
+                  id={`${ids}-note`}
+                  rows={2}
+                  placeholder="¿Algo que debamos saber?"
+                  className="rounded-xl text-base md:text-base"
+                  {...register('note')}
+                />
+              </Field>
+            </div>
+
+            <Disclosure
+              open={couponOpen || Boolean(appliedCode)}
+              onToggle={() => setCouponOpen((v) => !v)}
+              label="¿Tenés un código de descuento?"
+              controls={`${ids}-coupon-box`}
+              disabled={Boolean(appliedCode)}
+            />
+            <div id={`${ids}-coupon-box`} hidden={!(couponOpen || appliedCode)}>
+              <Field data-invalid={Boolean(codeError)}>
+                <FieldLabel htmlFor={`${ids}-code`}>Código de descuento</FieldLabel>
+                {appliedCode ? (
+                  <div className="flex min-h-12 items-center justify-between gap-2 rounded-xl border border-primary-2/40 bg-primary-2/10 px-3">
+                    <span className="text-sm font-semibold text-foreground">
+                      {appliedCode.code}{' '}
+                      <span className="font-normal text-muted-foreground">
+                        (
+                        {appliedCode.type === 'percent'
+                          ? `${appliedCode.value}%`
+                          : formatCordobas(appliedCode.value, currency)}
+                        )
+                      </span>
+                    </span>
+                    <Button type="button" variant="ghost" onClick={removeCode} className="h-11 px-3">
+                      Quitar
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex gap-2">
+                    <Input
+                      id={`${ids}-code`}
+                      value={codeInput}
+                      onChange={(e) => {
+                        setCodeInput(e.target.value.toUpperCase());
+                        setCodeError('');
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          void applyCode();
+                        }
+                      }}
+                      aria-invalid={Boolean(codeError)}
+                      aria-describedby={codeError ? `${ids}-code-error` : undefined}
+                      placeholder="GS-DC-123"
+                      autoComplete="off"
+                      className={cn(FIELD, 'uppercase')}
+                      maxLength={30}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => void applyCode()}
+                      disabled={validatingCode || !codeInput.trim()}
+                      className="h-12 px-4"
+                    >
+                      {validatingCode ? 'Validando…' : 'Aplicar'}
+                    </Button>
+                  </div>
+                )}
+                {codeError && (
+                  <p id={`${ids}-code-error`} role="alert" className="text-sm text-destructive">
+                    {codeError}
+                  </p>
+                )}
+              </Field>
+            </div>
+          </div>
         </fieldset>
 
         {/* Resumen compacto: líneas con variante y cantidades. */}
-        <section aria-labelledby={`${ids}-summary`} className="space-y-2 rounded-xl border border-border p-3">
-          <h3 id={`${ids}-summary`} className="text-sm font-semibold text-foreground">Resumen</h3>
+        <section
+          aria-labelledby={`${ids}-summary`}
+          className="space-y-2 rounded-xl border border-border p-3"
+        >
+          <h3 id={`${ids}-summary`} className="text-sm font-semibold text-foreground">
+            Resumen
+          </h3>
           <ul className="space-y-1.5">
             {items.map((item) => (
               <li key={lineKey(item)} className="flex items-start justify-between gap-3 text-sm">
                 <span className="min-w-0 text-muted-foreground">
-                  <span className="text-foreground">{item.quantity}× {item.name}</span>
+                  <span className="text-foreground">
+                    {item.quantity}× {item.name}
+                  </span>
                   {variantText(item) && <span className="block text-xs">{variantText(item)}</span>}
                 </span>
-                <span className="shrink-0 tabular-nums text-foreground">{formatCordobas(item.price * item.quantity, currency)}</span>
+                <span className="shrink-0 tabular-nums text-foreground">
+                  {formatCordobas(item.price * item.quantity, currency)}
+                </span>
               </li>
             ))}
           </ul>
@@ -506,29 +589,45 @@ export function CheckoutPanel({
               <span className="tabular-nums">{formatCordobas(totalWithDiscount, currency)}</span>
             </div>
           </div>
-          <p className="text-xs text-muted-foreground">Pagás en efectivo o por transferencia al coordinar el pedido.</p>
+          <p className="text-xs text-muted-foreground">
+            Pagás en efectivo o por transferencia al coordinar el pedido.
+          </p>
         </section>
 
         {submitError && (
-          <p role="alert" className="rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+          <p
+            role="alert"
+            className="rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive"
+          >
             {submitError}
           </p>
         )}
-      </div>
+      </FormBody>
 
-      <footer className="shrink-0 border-t border-border p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
-        <Button type={pending ? 'button' : 'submit'} variant="whatsapp"
+      <FormActions className="pb-[max(1rem,env(safe-area-inset-bottom))]">
+        <Button
+          type={pending ? 'button' : 'submit'}
+          variant="whatsapp"
           onClick={pending ? () => void sendAttempt(pending) : undefined}
           disabled={isLoading || recovering || issues.length > 0}
-          className="min-h-12 h-auto w-full whitespace-normal py-3 text-sm leading-snug sm:text-base">
+          className="min-h-12 h-auto w-full whitespace-normal py-3 text-sm leading-snug sm:text-base"
+        >
           <WhatsappIcon className="size-4" />
-          {recovering ? 'Comprobando pedido…' : isLoading ? 'Registrando pedido…' : pending ? 'Reintentar el mismo pedido' : 'Registrar y abrir WhatsApp'}
+          {recovering
+            ? 'Comprobando pedido…'
+            : isLoading
+            ? 'Registrando pedido…'
+            : pending
+            ? 'Reintentar el mismo pedido'
+            : 'Registrar y abrir WhatsApp'}
         </Button>
         {issues.length > 0 && (
-          <p className="mt-2 text-center text-xs text-muted-foreground">Revisá los cambios de arriba para continuar.</p>
+          <p className="mt-2 text-center text-xs text-muted-foreground">
+            Revisá los cambios de arriba para continuar.
+          </p>
         )}
-      </footer>
-    </form>
+      </FormActions>
+    </FormLayout>
   );
 
   /**

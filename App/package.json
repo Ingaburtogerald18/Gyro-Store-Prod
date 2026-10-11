@@ -13,7 +13,7 @@
     "spo:status": "tsx scripts/spo-drain.ts --status",
     "spo:drain": "tsx scripts/spo-drain.ts",
     "spo:pdf": "tsx scripts/spo-comprobante.ts",
-    "test": "tsx --test tests/analytics.test.ts tests/pagination.test.ts tests/orders.test.ts tests/orderTransaction.test.ts",
+    "test": "tsx --test tests/analytics.test.ts tests/pagination.test.ts tests/orders.test.ts tests/orderTransaction.test.ts tests/variantMappings.test.ts tests/migration0026.test.ts tests/templateVariants.test.ts",
     "checkout:check": "tsx scripts/check-public-checkout.mts"
   },
   "engines": {

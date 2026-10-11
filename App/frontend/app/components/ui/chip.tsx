@@ -11,7 +11,7 @@ const chipVariants = cva(
       variant: {
         status: "text-foreground",
         filter:
-          "min-h-9 max-w-full rounded-xl border border-primary-2/45 bg-primary-2/10 px-3 text-foreground transition-colors",
+          "min-h-9 max-w-full rounded-xl border-2 border-primary-2 bg-selection px-3 font-semibold text-selection-foreground transition-colors",
         count:
           "h-5 min-w-5 justify-center rounded-full border border-ink bg-action px-1.5 text-2xs font-semibold tabular-nums text-action-foreground",
         category: "h-6 rounded-xl bg-muted px-2 text-foreground",
@@ -52,7 +52,7 @@ function Chip({ className, variant, tone = "neutral", onRemove, removeLabel, chi
         aria-label={removeLabel}
         className={cn(
           chipVariants({ variant }),
-          "hover:border-primary-2 hover:bg-primary-2/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          "hover:bg-primary-2/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
           className
         )}
       >

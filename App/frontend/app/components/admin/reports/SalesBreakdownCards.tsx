@@ -2,7 +2,7 @@
 // (origen, facturación, código de descuento, forma de cobro y método de pago),
 // con su leyenda debajo. Así se comparan los cortes de un vistazo.
 //
-// Todo es "ventas": un solo tono (emerald) en distinta intensidad, no un color
+// Todo es "ventas": un solo tono (bordó) en distinta intensidad, no un color
 // por grupo. Cada grupo llega del backend como
 // {key, count, total}; acá solo se traduce la clave.
 //
@@ -89,7 +89,7 @@ function CutRow({ cut, groups, animKey }: { cut: Cut; groups: BreakdownGroup[]; 
               <div
                 key={g.key}
                 title={`${KEY_LABELS[g.key] ?? g.key}: ${fmt(g.total)}`}
-                className={cn('h-full bg-tone-emerald', SHADES[Math.min(i, SHADES.length - 1)], i > 0 && 'border-l-2 border-card')}
+                className={cn('h-full bg-primary-2', SHADES[Math.min(i, SHADES.length - 1)], i > 0 && 'border-l-2 border-card')}
                 style={{ width: `${total > 0 ? (g.total / total) * 100 : 0}%` }}
               />
             ))}
@@ -97,7 +97,7 @@ function CutRow({ cut, groups, animKey }: { cut: Cut; groups: BreakdownGroup[]; 
           <ul className="flex flex-wrap gap-x-5 gap-y-1 text-xs">
             {sorted.map((g, i) => (
               <li key={g.key} className="flex items-center gap-1.5">
-                <span aria-hidden className={cn('size-2.5 rounded-sm bg-tone-emerald', SHADES[Math.min(i, SHADES.length - 1)])} />
+                <span aria-hidden className={cn('size-2.5 rounded-sm bg-primary-2', SHADES[Math.min(i, SHADES.length - 1)])} />
                 <span className="text-muted-foreground">{KEY_LABELS[g.key] ?? g.key}</span>
                 <span className="nums font-medium text-foreground">{fmt(g.total)}</span>
                 <span className="nums text-muted-foreground">

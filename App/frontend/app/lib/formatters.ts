@@ -82,6 +82,18 @@ export function formatLongDate(value: string | null | undefined): string {
     .replace('.', '');
 }
 
+/** Fecha y hora en Nicaragua ("12 oct 2026, 11:59 p. m."), se mire desde donde se mire. */
+export function formatNicaraguaDateTime(iso: string | null | undefined): string {
+  if (!iso) return '—';
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '—';
+  const timeZone = 'America/Managua';
+  const day = date
+    .toLocaleDateString('es-NI', { day: 'numeric', month: 'short', year: 'numeric', timeZone })
+    .replace('.', '');
+  return `${day}, ${date.toLocaleTimeString('es-NI', { hour: 'numeric', minute: '2-digit', timeZone })}`;
+}
+
 /**
  * "KZ EDX Pro | Jack 3.5mm | Mic | Turquesa" → { model: "KZ EDX Pro",
  * variant: "Jack 3.5mm · Mic · Turquesa" }. Solo para MOSTRAR: el nombre

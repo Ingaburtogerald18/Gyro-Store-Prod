@@ -19,7 +19,7 @@ const badgeVariants = cva(
           "hover:bg-muted hover:text-muted-foreground dark:hover:bg-muted/50",
         link: "text-primary underline-offset-4 hover:underline",
         // Etiqueta de promoción: sale del token --promo, no de un hex crudo.
-        promo: "bg-promo text-promo-foreground [a]:hover:bg-promo/80",
+        promo: "border-[1.5px] border-primary-2 bg-promo text-promo-foreground [a]:hover:bg-promo/80",
       },
     },
     defaultVariants: {

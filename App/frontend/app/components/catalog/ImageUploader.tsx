@@ -1,17 +1,35 @@
 // Galería de fotos del producto: zona de arrastre + grilla de miniaturas.
 //
-// La PRIMERA foto es la portada — es la que sale en la tarjeta del catálogo
-// (`SortableCatalogGrid` pinta `images[0]`). Por eso se puede promover cualquier
-// miniatura a portada en vez de obligar a re-subir en otro orden.
+// La PRIMERA foto es la portada de la tarjeta en la tienda. Por eso se puede
+// promover cualquier miniatura a portada en vez de obligar a re-subir en otro orden.
 //
 // Sube contra `POST /api/upload`, que optimiza a WebP y nombra por hash del
 // contenido: re-subir la misma foto devuelve la misma URL en vez de duplicarla.
 import { HugeIcon } from '~/components/ui/icon';
-import { Cancel01Icon, CloudUploadIcon, StarIcon, DragDropVerticalIcon } from '@hugeicons/core-free-icons';
+import {
+  Cancel01Icon,
+  CloudUploadIcon,
+  StarIcon,
+  DragDropVerticalIcon,
+} from '@hugeicons/core-free-icons';
 import { useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { DndContext, closestCenter, useSensor, useSensors, PointerSensor } from '@dnd-kit/core';
-import { SortableContext, arrayMove, rectSortingStrategy, useSortable } from '@dnd-kit/sortable';
+import {
+  DndContext,
+  closestCenter,
+  useSensor,
+  useSensors,
+  PointerSensor,
+  KeyboardSensor,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  arrayMove,
+  rectSortingStrategy,
+  useSortable,
+  sortableKeyboardCoordinates,
+} from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
 import { Button } from '~/components/ui/button';
@@ -22,16 +40,22 @@ import { cn } from '~/lib/utils';
 // poder avisar ANTES de subir y no perder el viaje a R2.
 const MAX_IMAGES = 8;
 
-import { queueFile } from '~/lib/uploadQueue';
+import { queueFile, uploadOne } from '~/lib/uploadQueue';
 
 export function ImageUploader({
   images,
   onChange,
   disabled,
+  folder,
+  onBusy,
 }: {
   images: string[];
   onChange: (images: string[]) => void;
   disabled?: boolean;
+  /** Sube en el momento a esa carpeta (borrador del modo edición); sin esto, al guardar. */
+  folder?: string;
+  /** Avisa mientras sube, para no publicar con fotos a medio subir. */
+  onBusy?: (busy: boolean) => void;
 }) {
   const [isDragging, setIsDragging] = useState(false);
   const [uploading, setUploading] = useState(0);
@@ -41,7 +65,7 @@ export function ImageUploader({
   const isFull = remaining <= 0;
 
   async function handleFiles(fileList: FileList | null) {
-    if (!fileList?.length) return;
+    if (!fileList?.length || disabled || uploading || isFull) return;
 
     const picked = Array.from(fileList).filter((f) => f.type.startsWith('image/'));
     if (picked.length === 0) {
@@ -57,8 +81,11 @@ export function ImageUploader({
     }
 
     setUploading(accepted.length);
+    onBusy?.(true);
     try {
-      const urls = accepted.map(queueFile);
+      const urls = folder
+        ? await Promise.all(accepted.map((file) => uploadOne(file, folder)))
+        : accepted.map(queueFile);
       // Se deduplica: subir dos veces la misma foto devuelve la misma URL (el
       // backend nombra por hash), y repetirla en la galería no aporta nada.
       onChange([...new Set([...images, ...urls])]);
@@ -66,6 +93,7 @@ export function ImageUploader({
       toast.error(err instanceof Error ? err.message : 'No se pudieron subir las fotos.');
     } finally {
       setUploading(0);
+      onBusy?.(false);
     }
   }
 
@@ -78,10 +106,12 @@ export function ImageUploader({
       activationConstraint: {
         distance: 5,
       },
-    })
+    }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
-  function handleDragEnd(event: any) {
+  function handleDragEnd(event: DragEndEvent) {
+    if (disabled || uploading) return;
     const { active, over } = event;
     if (over && active.id !== over.id) {
       const oldIndex = images.indexOf(active.id as string);
@@ -101,7 +131,7 @@ export function ImageUploader({
         onDrop={(e) => {
           e.preventDefault();
           setIsDragging(false);
-          if (!disabled && !isFull) void handleFiles(e.dataTransfer.files);
+          if (!disabled && !isFull && !uploading) void handleFiles(e.dataTransfer.files);
         }}
         className={cn(
           'flex flex-col items-center rounded-2xl border border-dashed px-6 py-10 text-center transition-colors',
@@ -139,7 +169,7 @@ export function ImageUploader({
             {!isFull && (
               <Button
                 type="button"
-                size="sm"
+                variant="outline"
                 className="mt-4"
                 disabled={disabled}
                 onClick={() => inputRef.current?.click()}
@@ -156,6 +186,7 @@ export function ImageUploader({
           accept="image/*"
           multiple
           hidden
+          disabled={disabled || uploading > 0 || isFull}
           onChange={(e) => {
             void handleFiles(e.target.files);
             // Se limpia para que volver a elegir el MISMO archivo dispare el
@@ -168,13 +199,14 @@ export function ImageUploader({
       {images.length > 0 && (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={images} strategy={rectSortingStrategy}>
-            <ul className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+            <ul className="grid grid-cols-[repeat(auto-fill,minmax(8rem,1fr))] gap-3">
               {images.map((url, index) => (
                 <SortableImageItem
                   key={url}
                   url={url}
                   index={index}
                   isCover={index === 0}
+                  disabled={Boolean(disabled || uploading > 0)}
                   onMakeCover={makeCover}
                   onRemove={(u) => onChange(images.filter((i) => i !== u))}
                 />
@@ -191,16 +223,21 @@ function SortableImageItem({
   url,
   index,
   isCover,
+  disabled,
   onMakeCover,
   onRemove,
 }: {
   url: string;
   index: number;
   isCover: boolean;
+  disabled: boolean;
   onMakeCover: (url: string) => void;
   onRemove: (url: string) => void;
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: url });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: url,
+    disabled,
+  });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -213,68 +250,63 @@ function SortableImageItem({
     <li
       ref={setNodeRef}
       style={style}
-      className={cn(
-        "group relative aspect-square overflow-hidden rounded-xl border bg-muted",
-        isDragging && "shadow-2xl ring-2 ring-ring"
-      )}
+      className={cn('overflow-hidden rounded-xl border bg-card', isDragging && 'ring-2 ring-ring')}
     >
-      <img
-        src={url}
-        alt={isCover ? 'Foto de portada del producto' : `Foto ${index + 1} del producto`}
-        className="size-full object-cover"
-        loading="lazy"
-      />
+      <div className="relative aspect-square bg-background">
+        <img
+          src={url}
+          alt={isCover ? 'Foto de portada del producto' : `Foto ${index + 1} del producto`}
+          className="size-full object-contain"
+          loading="lazy"
+        />
 
-      {isCover && (
-        <span className="absolute left-1.5 top-1.5 z-10 rounded-xl bg-primary px-1.5 py-0.5 text-2xs font-bold text-primary-foreground">
-          Portada
-        </span>
-      )}
-
-      {/* Control de arrastre */}
-      <div
-        {...attributes}
-        {...listeners}
-        className={cn(
-          "absolute left-0 top-0 p-1.5 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 cursor-grab active:cursor-grabbing",
-          isDragging && "opacity-100 cursor-grabbing"
+        {isCover && (
+          <span className="absolute left-2 bottom-2 rounded-xl border border-primary-2 bg-selection px-2 py-1 text-xs font-semibold text-selection-foreground">
+            Principal
+          </span>
         )}
-      >
-        <div className="rounded-xl bg-black/60 p-1 text-white">
-          <HugeIcon icon={DragDropVerticalIcon} size={14} strokeWidth={2} />
-        </div>
+
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          {...attributes}
+          {...listeners}
+          disabled={disabled}
+          aria-label={`Mover la foto ${index + 1}`}
+          title="Mover foto"
+          className="absolute right-2 top-2 cursor-grab touch-none active:cursor-grabbing"
+        >
+          <HugeIcon icon={DragDropVerticalIcon} size={16} strokeWidth={2} aria-hidden />
+        </Button>
       </div>
 
-      <div
-        className={cn(
-          'absolute inset-x-0 bottom-0 flex justify-end gap-1 bg-gradient-to-t from-black/70 to-transparent p-1.5',
-          'opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100',
-          'motion-reduce:transition-none',
-        )}
-      >
+      <div className="flex justify-end gap-2 border-t p-2">
         {!isCover && (
           <Button
             type="button"
-            variant="onMedia"
-            size="icon-xs"
+            variant="outline"
+            size="icon"
+            disabled={disabled}
             aria-label={`Usar la foto ${index + 1} como portada`}
-            title="Hacer portada"
+            title="Usar como imagen principal"
             onClick={() => onMakeCover(url)}
             onPointerDown={(e) => e.stopPropagation()} // Evitar que inicie drag
           >
-            <HugeIcon icon={StarIcon} size={12} strokeWidth={2} />
+            <HugeIcon icon={StarIcon} size={16} strokeWidth={2} aria-hidden />
           </Button>
         )}
         <Button
           type="button"
-          variant="onMedia"
-          size="icon-xs"
+          variant="cancel"
+          size="icon"
+          disabled={disabled}
           aria-label={`Quitar la foto ${index + 1}`}
           title="Quitar"
           onClick={() => onRemove(url)}
           onPointerDown={(e) => e.stopPropagation()}
         >
-          <HugeIcon icon={Cancel01Icon} size={12} strokeWidth={2} />
+          <HugeIcon icon={Cancel01Icon} size={16} strokeWidth={2} aria-hidden />
         </Button>
       </div>
     </li>

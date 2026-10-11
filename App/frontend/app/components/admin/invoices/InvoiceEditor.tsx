@@ -1,13 +1,27 @@
+import { FormSection, FormPanel, FormBody, FormActions } from '~/components/ui/form-layout';
 import { HugeIcon } from '~/components/ui/icon';
-import { Add01Icon, Alert02Icon, Calendar03Icon, Delete01Icon, UserIcon, Coupon01Icon, Cancel01Icon } from '@hugeicons/core-free-icons';
+import {
+  Add01Icon,
+  Alert02Icon,
+  Delete01Icon,
+  Coupon01Icon,
+  Cancel01Icon,
+} from '@hugeicons/core-free-icons';
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
 import { Button } from '~/components/ui/button';
+import { FormErrorBanner, serverErrorMessage } from '~/components/ui/form-feedback';
 import { DatePicker, toYmd, toLocalNoonIso } from '~/components/ui/date-picker';
 import { Input } from '~/components/ui/input';
 import { Combobox } from '~/components/ui/combobox';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '~/components/ui/select';
 import { errMsg, formatCordobas } from '~/lib/formatters';
 import { useGetSellableProductsQuery, type SellableProduct } from '~/store/api/salesApi';
 import {
@@ -21,7 +35,7 @@ import {
   type DiscountCodeValidation,
 } from '~/store/api/discountCodesApi';
 import { Spinner } from '~/components/ui/spinner';
-import { Label } from '~/components/ui/label';
+import { Field, FieldLabel } from '~/components/ui/field';
 import { Switch } from '~/components/ui/switch';
 import { cn } from '~/lib/utils';
 
@@ -42,11 +56,13 @@ export function InvoiceEditor({
   onCreated,
   invoice,
   onUpdated,
+  onCancel,
 }: {
   onCreated?: (invoiceId: string) => void;
   /** Si viene, el formulario arranca relleno y guarda en vez de crear. */
   invoice?: Invoice;
   onUpdated?: () => void;
+  onCancel?: () => void;
 }) {
   const { data: catalog = [] } = useGetSellableProductsQuery();
   const { data: sellers = [] } = useGetInvoiceSellersQuery();
@@ -54,6 +70,7 @@ export function InvoiceEditor({
   const [updateInvoice, { isLoading: updating }] = useUpdateInvoiceMutation();
 
   const isEdit = !!invoice;
+  const [serverError, setServerError] = useState<string | null>(null);
 
   const [lines, setLines] = useState<InvoiceLine[]>([
     { uid: crypto.randomUUID(), productName: '', quantity: '', unitPrice: '' }
@@ -207,6 +224,7 @@ export function InvoiceEditor({
             : null;
 
   async function handleUpdate() {
+    setServerError(null);
     if (disabledReason || !invoice) return;
     try {
       await updateInvoice({
@@ -228,7 +246,7 @@ export function InvoiceEditor({
       toast.success(`${invoice.invoiceCode} actualizada.`);
       onUpdated?.();
     } catch (err) {
-      toast.error(errMsg(err, 'No se pudo actualizar la factura.'));
+      setServerError(serverErrorMessage(err, 'No se pudo actualizar la factura.'));
     }
   }
 
@@ -252,6 +270,7 @@ export function InvoiceEditor({
 
   const handleCreate = async () => {
     if (disabledReason) return;
+    setServerError(null);
 
     try {
       const result = await createInvoice({
@@ -271,343 +290,407 @@ export function InvoiceEditor({
           unitPrice: Number(l.unitPrice)
         }))
       }).unwrap();
-      
+
       toast.success('Factura creada exitosamente.');
       onCreated?.(result.id);
     } catch (err) {
-      toast.error(errMsg(err, 'No se pudo crear la factura.'));
+      setServerError(serverErrorMessage(err, 'No se pudo crear la factura.'));
     }
   };
 
   return (
-    <div className="space-y-6">
-      <section className="space-y-3 rounded-2xl border bg-card p-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <HugeIcon icon={UserIcon} size={16} strokeWidth={2} className="text-primary-2" aria-hidden />
-            <h3 className="text-sm font-semibold text-foreground">Datos del cliente</h3>
-          </div>
-          <Switch
-            id="include-customer-invoice"
-            checked={includeCustomer}
-            onCheckedChange={setIncludeCustomer}
-          />
-        </div>
-        <div
-          className={cn(
-            'grid grid-cols-1 gap-4 overflow-hidden transition-all duration-300 sm:grid-cols-2',
-            includeCustomer ? 'mt-3 max-h-40 opacity-100' : 'mt-0 max-h-0 opacity-0',
-          )}
-        >
-          <div className="space-y-1.5">
-            <Label htmlFor="customerName">Nombre (Opcional)</Label>
-            <Input
-              id="customerName"
-              value={customerName}
-              onChange={(e) => setCustomerName(e.target.value)}
-              placeholder="Ej. Juan Pérez"
-              disabled={!includeCustomer}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="phone">Teléfono (Opcional)</Label>
-            <Input
-              id="phone"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="Ej. 8888 8888"
-              disabled={!includeCustomer}
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* Solo al crear: quién factura no se reasigna después (mismo criterio
-          que las líneas — si está mal, se anula y se emite otra). */}
-      {!isEdit && (
-        <section className="space-y-1.5 rounded-2xl border bg-card p-4">
-          <Label htmlFor="invoice-seller">Vendedor</Label>
-          <Combobox
-            id="invoice-seller"
-            value={sellerQuery}
-            onChange={setSellerQuery}
-            options={sellerNames}
-            placeholder="Escribí para buscar al vendedor..."
-            aria-invalid={!!sellerQuery && !sellerUid}
-          />
-        </section>
-      )}
-
-      {/* Fecha de factura */}
-      <section className="space-y-3 rounded-2xl border bg-card p-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <HugeIcon icon={Calendar03Icon} size={16} strokeWidth={2} className="text-primary-2" aria-hidden />
-            <Label htmlFor="invoice-date" className="font-semibold text-foreground">Fecha de factura</Label>
-          </div>
-          {isManualDate && (
-            <span className="inline-flex items-center rounded-full bg-warning/10 px-2.5 py-0.5 text-xs font-medium text-warning border border-warning/20">
-              Fecha manual
-            </span>
-          )}
-        </div>
-        <div className="pt-1">
-          <DatePicker
-            id="invoice-date"
-            value={invoiceDate}
-            onChange={(val) => setInvoiceDate(val)}
-            disabled={creating || updating}
-            disableFuture
-            className="max-w-xs"
-          />
-        </div>
-      </section>
-
-      <div className="space-y-2">
-        <Label>Productos</Label>
-        <div className="border rounded-xl divide-y">
-          {lines.map((line) => (
-            <div key={line.uid} className="flex flex-col sm:flex-row gap-2 p-2 items-start sm:items-center bg-card">
-              <div className="flex-1 w-full">
-                <Combobox
-                  value={line.productName}
-                  onChange={(v) => updateLine(line.uid, 'productName', v)}
-                  options={productNames}
-                  placeholder="Escribí para buscar un producto..."
-                  emptyMessage="Sin productos con stock. Recibí una compra en Inventario."
-                  renderOptionMeta={(name) => {
-                    const p = products.find((pp) => pp.productName === name);
-                    return p ? (
-                      <span className="shrink-0 text-xs text-muted-foreground">{formatCordobas(p.price)}</span>
-                    ) : null;
-                  }}
-                />
-              </div>
-              <div className="w-full sm:w-24">
-                <Input
-                  type="number"
-                  min="1"
-                  placeholder="Cant"
-                  value={line.quantity}
-                  onChange={e => updateLine(line.uid, 'quantity', e.target.value === '' ? '' : parseInt(e.target.value, 10))}
-                />
-              </div>
-              <div className="w-full sm:w-32">
-                <Input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  placeholder="Precio"
-                  value={line.unitPrice}
-                  onChange={e => updateLine(line.uid, 'unitPrice', e.target.value === '' ? '' : parseFloat(e.target.value))}
-                />
-              </div>
-              <div className="w-full sm:w-32 text-right text-sm font-medium">
-                {formatCordobas((Number(line.quantity) || 0) * (Number(line.unitPrice) || 0))}
-              </div>
-              {lines.length > 1 && (
-                <Button aria-label="Eliminar línea" variant="ghost" size="icon" className="shrink-0 text-destructive" onClick={() => removeLine(line.uid)}>
-                  <HugeIcon icon={Delete01Icon} size={18} />
-                </Button>
-              )}
-            </div>
-          ))}
-        </div>
-        <Button variant="outline" size="sm" onClick={addLine} className="mt-2">
-          <HugeIcon icon={Add01Icon} size={16} className="mr-1.5" /> Agregar línea
-        </Button>
-      </div>
-
-      <div className="space-y-4 border-t pt-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="space-y-1.5">
-            <Label>Método de pago</Label>
-            <Select value={method} onValueChange={v => setMethod(v as any)}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {METHODS.map(m => (
-                  <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        {/* En edición el código ya se canjeó al emitir: volver a aplicarlo
-            consumiría otro uso. El monto descontado se conserva tal cual y el
-            servidor lo resta al subtotal nuevo. */}
-        {isEdit && (invoice?.discount ?? 0) > 0 && (
-          <div className="rounded-2xl border border-primary/30 bg-primary/10 px-4 py-3 text-sm">
-            <span className="font-medium text-primary">
-              Descuento aplicado: {formatCordobas(invoice?.discount ?? 0)}
-            </span>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              El código ya fue canjeado y no se puede cambiar. Si hay que quitarlo, cancelá la
-              factura y emití una nueva.
-            </p>
-          </div>
-        )}
-
-        {/* ── Descuento ──
-            Switch, no campo libre: si está apagado NO hay descuento. Al
-            encenderlo se pide el código, que es lo único que descuenta. */}
-        {!isEdit && (
-        <section className="space-y-3 rounded-2xl border bg-card p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <HugeIcon icon={Coupon01Icon} size={16} strokeWidth={2} className="text-primary-2" aria-hidden />
-              <h3 className="text-sm font-semibold text-foreground">Descuento</h3>
-            </div>
-            <Switch
-              id="include-discount-invoice"
-              checked={includeDiscount}
-              onCheckedChange={(v) => {
-                setIncludeDiscount(v);
-                // Apagar el switch descarta el código: si no, seguiría contando
-                // en el total con la sección colapsada y sin forma de verlo.
-                if (!v) removeCode();
-              }}
-            />
-          </div>
-          <div
-            className={cn(
-              'overflow-hidden transition-all duration-300 motion-reduce:transition-none',
-              includeDiscount ? 'mt-2 max-h-40 opacity-100' : 'mt-0 max-h-0 opacity-0',
-            )}
-          >
-            <Label htmlFor="discount-code">Código de descuento</Label>
-            <div className="mt-1.5">
-          {appliedCode ? (
-            <div className="flex items-center justify-between rounded-xl border border-primary/30 bg-primary/10 px-3 py-2">
-              <span className="flex items-center gap-1.5 text-sm font-semibold text-primary">
-                <HugeIcon icon={Coupon01Icon} size={16} strokeWidth={2} aria-hidden />
-                {appliedCode.code}
-                <span className="font-normal text-muted-foreground">
-                  ({appliedCode.type === 'percent' ? `${appliedCode.value}%` : formatCordobas(appliedCode.value)})
-                </span>
-              </span>
-              <button
-                type="button"
-                onClick={removeCode}
-                className="grid size-6 place-items-center rounded-full text-muted-foreground hover:bg-primary/10 hover:text-foreground"
-                title="Quitar código"
-              >
-                <HugeIcon icon={Cancel01Icon} size={14} strokeWidth={2} aria-hidden />
-              </button>
-            </div>
-          ) : (
-            <div className="flex gap-2">
-              <Input
-                id="discount-code"
-                value={codeInput}
-                onChange={(e) => setCodeInput(e.target.value.toUpperCase())}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    applyCode();
-                  }
-                }}
-                placeholder="Ej. GS-DC-1"
-                className="uppercase"
-                maxLength={30}
-                disabled={!includeDiscount}
+    <FormPanel>
+      <FormErrorBanner message={serverError} />
+      <FormBody>
+        <FormSection
+          title="Datos del cliente"
+          action={
+            <>
+              <Switch
+                id="include-customer-invoice"
+                checked={includeCustomer}
+                onCheckedChange={setIncludeCustomer}
               />
-              <Button type="button" variant="outline" onClick={applyCode} disabled={validatingCode || !codeInput.trim()}>
-                {validatingCode ? 'Validando…' : 'Aplicar'}
-              </Button>
-            </div>
-          )}
-            </div>
-          </div>
-        </section>
-        )}
-
-        <section className="space-y-3 rounded-2xl border bg-card p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <h3 className="text-sm font-semibold text-foreground">Delivery</h3>
-            </div>
-            <Switch
-              id="include-delivery-invoice"
-              checked={includeDelivery}
-              onCheckedChange={setIncludeDelivery}
-            />
-          </div>
+            </>
+          }
+        >
           <div
             className={cn(
               'grid grid-cols-1 gap-4 overflow-hidden transition-all duration-300 sm:grid-cols-2',
-              includeDelivery ? 'max-h-40 opacity-100 mt-2' : 'max-h-0 opacity-0 mt-0',
+              includeCustomer ? 'mt-3 max-h-40 opacity-100' : 'mt-0 max-h-0 opacity-0',
             )}
           >
-            <div className="space-y-1.5">
-              <Label htmlFor="deliveryName">Nombre del Repartidor</Label>
-              <Input 
-                id="deliveryName"
-                type="text" 
-                value={deliveryName} 
-                onChange={e => setDeliveryName(e.target.value)} 
+            <Field>
+              <FieldLabel htmlFor="customerName">Nombre (Opcional)</FieldLabel>
+              <Input
+                id="customerName"
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
                 placeholder="Ej. Juan Pérez"
-                disabled={!includeDelivery}
+                disabled={!includeCustomer}
               />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="deliveryFee">Precio (C$)</Label>
-              <Input 
-                id="deliveryFee"
-                type="number" 
-                min="0" 
-                step="0.01" 
-                value={deliveryFee} 
-                onChange={e => setDeliveryFee(e.target.value === '' ? '' : Number(e.target.value))} 
-                placeholder="Ej. 150"
-                disabled={!includeDelivery}
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="phone">Teléfono (Opcional)</FieldLabel>
+              <Input
+                id="phone"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="Ej. 8888 8888"
+                disabled={!includeCustomer}
               />
-            </div>
+            </Field>
           </div>
-        </section>
-      </div>
+        </FormSection>
 
-      <div className="rounded-xl bg-muted p-4 flex flex-col items-end space-y-1">
-        <div className="text-sm text-muted-foreground flex justify-between w-full max-w-xs">
-          <span>Subtotal:</span>
-          <span>{formatCordobas(subtotal)}</span>
-        </div>
-        {codeDiscount > 0 && (
-          <div className="text-sm text-primary flex justify-between w-full max-w-xs">
-            <span>Código {appliedCode?.code}:</span>
-            <span>-{formatCordobas(codeDiscount)}</span>
-          </div>
+        {/* Solo al crear: quién factura no se reasigna después (mismo criterio
+              que las líneas — si está mal, se anula y se emite otra). */}
+        {!isEdit && (
+          <FormSection title="Asignación">
+            <Field>
+              <FieldLabel htmlFor="invoice-seller" required>
+                Vendedor
+              </FieldLabel>
+              <Combobox
+                id="invoice-seller"
+                value={sellerQuery}
+                onChange={setSellerQuery}
+                options={sellerNames}
+                placeholder="Escribí para buscar al vendedor..."
+                aria-invalid={!!sellerQuery && !sellerUid}
+              />
+            </Field>
+          </FormSection>
         )}
-        {effectiveDeliveryFee > 0 && (
-          <div className="text-sm text-muted-foreground flex justify-between w-full max-w-xs">
-            <span>Envío:</span>
-            <span>{formatCordobas(effectiveDeliveryFee)}</span>
-          </div>
-        )}
-        <div className="text-xl font-bold text-foreground flex justify-between w-full max-w-xs border-t pt-2 mt-2">
-          <span>Total:</span>
-          <span>{formatCordobas(total)}</span>
-        </div>
-      </div>
 
-      <div className="flex flex-col items-end gap-2">
-        <Button
-          size="lg"
-          onClick={isEdit ? handleUpdate : handleCreate}
-          disabled={creating || updating || !!disabledReason}
+        {/* Fecha de factura */}
+        <FormSection
+          title="Fecha de factura"
+          action={
+            isManualDate && (
+              <span className="inline-flex items-center rounded-full bg-warning/10 px-2.5 py-0.5 text-xs font-medium text-warning border border-warning/20">
+                Fecha manual
+              </span>
+            )
+          }
         >
-          {(creating || updating) && <Spinner className="mr-2" />}
-          {isEdit ? 'Guardar cambios' : 'Crear e Imprimir Factura'}
-        </Button>
+          <Field>
+            <FieldLabel htmlFor="invoice-date">Fecha de emisión</FieldLabel>
+            <DatePicker
+              id="invoice-date"
+              value={invoiceDate}
+              onChange={(val) => setInvoiceDate(val)}
+              disabled={creating || updating}
+              disableFuture
+              className="max-w-xs"
+            />
+          </Field>
+        </FormSection>
+
+        <FormSection title="Productos">
+          <div className="border rounded-xl divide-y">
+            {lines.map((line) => (
+              <div
+                key={line.uid}
+                className="flex flex-col sm:flex-row gap-2 p-2 items-start sm:items-center bg-card"
+              >
+                <Field className="flex-1 w-full">
+                  <FieldLabel htmlFor={`invoice-product-${line.uid}`} required>
+                    Producto
+                  </FieldLabel>
+                  <Combobox
+                    id={`invoice-product-${line.uid}`}
+                    value={line.productName}
+                    onChange={(v) => updateLine(line.uid, 'productName', v)}
+                    options={productNames}
+                    placeholder="Escribí para buscar un producto..."
+                    emptyMessage="Sin productos con stock. Recibí una compra en Inventario."
+                    renderOptionMeta={(name) => {
+                      const p = products.find((pp) => pp.productName === name);
+                      return p ? (
+                        <span className="shrink-0 text-xs text-muted-foreground">
+                          {formatCordobas(p.price)}
+                        </span>
+                      ) : null;
+                    }}
+                  />
+                </Field>
+                <Field className="w-full sm:w-24">
+                  <FieldLabel htmlFor={`invoice-quantity-${line.uid}`} required>
+                    Cantidad
+                  </FieldLabel>
+                  <Input
+                    id={`invoice-quantity-${line.uid}`}
+                    type="number"
+                    min="1"
+                    placeholder="Cant"
+                    value={line.quantity}
+                    onChange={(e) =>
+                      updateLine(
+                        line.uid,
+                        'quantity',
+                        e.target.value === '' ? '' : parseInt(e.target.value, 10),
+                      )
+                    }
+                  />
+                </Field>
+                <Field className="w-full sm:w-32">
+                  <FieldLabel htmlFor={`invoice-price-${line.uid}`} required>
+                    Precio (C$)
+                  </FieldLabel>
+                  <Input
+                    id={`invoice-price-${line.uid}`}
+                    inputMode="decimal"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="Precio"
+                    value={line.unitPrice}
+                    onChange={(e) =>
+                      updateLine(
+                        line.uid,
+                        'unitPrice',
+                        e.target.value === '' ? '' : parseFloat(e.target.value),
+                      )
+                    }
+                  />
+                </Field>
+                <div className="w-full sm:w-32 text-right text-sm font-medium">
+                  {formatCordobas((Number(line.quantity) || 0) * (Number(line.unitPrice) || 0))}
+                </div>
+                {lines.length > 1 && (
+                  <Button
+                    aria-label="Eliminar línea"
+                    variant="ghost"
+                    size="icon"
+                    className="shrink-0 text-destructive"
+                    onClick={() => removeLine(line.uid)}
+                  >
+                    <HugeIcon icon={Delete01Icon} size={18} />
+                  </Button>
+                )}
+              </div>
+            ))}
+          </div>
+          <Button type="button" variant="outline" onClick={addLine}>
+            <HugeIcon icon={Add01Icon} size={16} className="mr-1.5" /> Agregar línea
+          </Button>
+        </FormSection>
+
+        <div className="space-y-5">
+          <FormSection title="Pago">
+            <Field>
+              <FieldLabel>Método de pago</FieldLabel>
+              <Select value={method} onValueChange={(v) => setMethod(v as any)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {METHODS.map((m) => (
+                    <SelectItem key={m.value} value={m.value}>
+                      {m.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+          </FormSection>
+
+          {/* En edición el código ya se canjeó al emitir: volver a aplicarlo
+                consumiría otro uso. El monto descontado se conserva tal cual y el
+                servidor lo resta al subtotal nuevo. */}
+          {isEdit && (invoice?.discount ?? 0) > 0 && (
+            <div className="rounded-2xl border border-primary/30 bg-primary/10 px-4 py-3 text-sm">
+              <span className="font-medium text-primary">
+                Descuento aplicado: {formatCordobas(invoice?.discount ?? 0)}
+              </span>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                El código ya fue canjeado y no se puede cambiar. Si hay que quitarlo, cancelá la
+                factura y emití una nueva.
+              </p>
+            </div>
+          )}
+
+          {/* ── Descuento ──
+                Switch, no campo libre: si está apagado NO hay descuento. Al
+                encenderlo se pide el código, que es lo único que descuenta. */}
+          {!isEdit && (
+            <FormSection
+              title="Descuento"
+              action={
+                <>
+                  <Switch
+                    id="include-discount-invoice"
+                    checked={includeDiscount}
+                    onCheckedChange={(v) => {
+                      setIncludeDiscount(v);
+                      // Apagar el switch descarta el código: si no, seguiría contando
+                      // en el total con la sección colapsada y sin forma de verlo.
+                      if (!v) removeCode();
+                    }}
+                  />
+                </>
+              }
+            >
+              <Field
+                className={cn(
+                  'overflow-hidden transition-all duration-300 motion-reduce:transition-none',
+                  includeDiscount ? 'mt-2 max-h-40 opacity-100' : 'mt-0 max-h-0 opacity-0',
+                )}
+              >
+                <FieldLabel htmlFor="discount-code">Código de descuento</FieldLabel>
+                <div className="mt-1.5">
+                  {appliedCode ? (
+                    <div className="flex items-center justify-between rounded-xl border border-primary/30 bg-primary/10 px-3 py-2">
+                      <span className="flex items-center gap-1.5 text-sm font-semibold text-primary">
+                        <HugeIcon icon={Coupon01Icon} size={16} strokeWidth={2} aria-hidden />
+                        {appliedCode.code}
+                        <span className="font-normal text-muted-foreground">
+                          (
+                          {appliedCode.type === 'percent'
+                            ? `${appliedCode.value}%`
+                            : formatCordobas(appliedCode.value)}
+                          )
+                        </span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={removeCode}
+                        className="grid size-6 place-items-center rounded-full text-muted-foreground hover:bg-primary/10 hover:text-foreground"
+                        title="Quitar código"
+                      >
+                        <HugeIcon icon={Cancel01Icon} size={14} strokeWidth={2} aria-hidden />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex gap-2">
+                      <Input
+                        id="discount-code"
+                        value={codeInput}
+                        onChange={(e) => setCodeInput(e.target.value.toUpperCase())}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            applyCode();
+                          }
+                        }}
+                        placeholder="Ej. GS-DC-1"
+                        className="uppercase"
+                        maxLength={30}
+                        disabled={!includeDiscount}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={applyCode}
+                        disabled={validatingCode || !codeInput.trim()}
+                      >
+                        {validatingCode ? 'Validando…' : 'Aplicar'}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </Field>
+            </FormSection>
+          )}
+
+          <FormSection
+            title="Delivery"
+            action={
+              <>
+                <Switch
+                  id="include-delivery-invoice"
+                  checked={includeDelivery}
+                  onCheckedChange={setIncludeDelivery}
+                />
+              </>
+            }
+          >
+            <div
+              className={cn(
+                'grid grid-cols-1 gap-4 overflow-hidden transition-all duration-300 sm:grid-cols-2',
+                includeDelivery ? 'max-h-40 opacity-100 mt-2' : 'max-h-0 opacity-0 mt-0',
+              )}
+            >
+              <Field>
+                <FieldLabel htmlFor="deliveryName">Nombre del Repartidor</FieldLabel>
+                <Input
+                  id="deliveryName"
+                  type="text"
+                  value={deliveryName}
+                  onChange={(e) => setDeliveryName(e.target.value)}
+                  placeholder="Ej. Juan Pérez"
+                  disabled={!includeDelivery}
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="deliveryFee">Precio (C$)</FieldLabel>
+                <Input
+                  id="deliveryFee"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={deliveryFee}
+                  onChange={(e) =>
+                    setDeliveryFee(e.target.value === '' ? '' : Number(e.target.value))
+                  }
+                  placeholder="Ej. 150"
+                  disabled={!includeDelivery}
+                />
+              </Field>
+            </div>
+          </FormSection>
+        </div>
+
+        <div className="rounded-xl bg-muted p-4 flex flex-col items-end space-y-1">
+          <div className="text-sm text-muted-foreground flex justify-between w-full max-w-xs">
+            <span>Subtotal:</span>
+            <span>{formatCordobas(subtotal)}</span>
+          </div>
+          {codeDiscount > 0 && (
+            <div className="text-sm text-primary flex justify-between w-full max-w-xs">
+              <span>Código {appliedCode?.code}:</span>
+              <span>-{formatCordobas(codeDiscount)}</span>
+            </div>
+          )}
+          {effectiveDeliveryFee > 0 && (
+            <div className="text-sm text-muted-foreground flex justify-between w-full max-w-xs">
+              <span>Envío:</span>
+              <span>{formatCordobas(effectiveDeliveryFee)}</span>
+            </div>
+          )}
+          <div className="text-xl font-bold text-foreground flex justify-between w-full max-w-xs border-t pt-2 mt-2">
+            <span>Total:</span>
+            <span>{formatCordobas(total)}</span>
+          </div>
+        </div>
+
         {disabledReason && (
           <p className="flex items-center gap-1.5 text-xs text-warning">
             <HugeIcon icon={Alert02Icon} size={14} strokeWidth={2} className="shrink-0" aria-hidden />
             {disabledReason}
           </p>
         )}
-      </div>
-    </div>
+      </FormBody>
+      <FormActions>
+        {onCancel && (
+          <Button type="button" variant="cancel" onClick={onCancel} disabled={creating || updating}>
+            Cancelar
+          </Button>
+        )}
+        <Button
+          type="button"
+          onClick={isEdit ? handleUpdate : handleCreate}
+          disabled={creating || updating || !!disabledReason}
+        >
+          {(creating || updating) && <Spinner className="mr-2" />}
+          {creating || updating
+            ? 'Guardando…'
+            : isEdit
+            ? 'Guardar cambios'
+            : 'Crear e imprimir factura'}
+        </Button>
+      </FormActions>
+    </FormPanel>
   );
 }

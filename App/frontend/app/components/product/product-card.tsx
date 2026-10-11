@@ -66,6 +66,7 @@ export function ProductCard({
   const hoverImage = product.images[1];
   const available = product.availability === 'available';
   const soldOut = product.availability === 'sold_out';
+  const comingSoon = product.availability === 'coming_soon';
   const compareAt = product.compareAtPrice ?? 0;
   const onSale = compareAt > product.price;
   const discountPct = onSale ? Math.round((1 - product.price / compareAt) * 100) : 0;
@@ -115,11 +116,19 @@ export function ProductCard({
         isList ? 'aspect-square h-full w-full shrink-0' : 'aspect-square w-full',
       )}
     >
-      {(onSale || product.isPromo) && (
+      {(onSale || product.isPromo || product.unpublished) && (
         <div className="absolute top-2.5 left-2.5 z-10 flex flex-col items-start gap-1.5">
-          <Badge variant="promo" className="text-xs tabular-nums">
-            {onSale ? `−${discountPct}%` : product.promoScope === 'some' ? 'Oferta en opciones' : 'Oferta'}
-          </Badge>
+          {/* Solo llega en la vista previa del modo edición. */}
+          {product.unpublished && (
+            <Badge variant="outline" className="bg-card text-xs">
+              Sin publicar
+            </Badge>
+          )}
+          {(onSale || product.isPromo) && (
+            <Badge variant="promo" className="text-xs tabular-nums">
+              {onSale ? `−${discountPct}%` : product.promoScope === 'some' ? 'Oferta en opciones' : 'Oferta'}
+            </Badge>
+          )}
         </div>
       )}
 
@@ -185,18 +194,21 @@ export function ProductCard({
           ))}
         </dl>
       )}
-      <div className="mt-1 flex flex-wrap items-baseline gap-x-2">
-        {product.priceFrom && <span className="text-xs font-medium text-muted-foreground">Desde</span>}
-        <span className="font-heading text-lg font-extrabold tracking-tight text-foreground tabular-nums">
-          {formatCordobas(product.price, currency)}
-        </span>
-        {onSale && (
-          <span className="text-xs text-muted-foreground line-through tabular-nums sm:text-sm">
-            <span className="sr-only">Antes </span>
-            {formatCordobas(compareAt, currency)}
+      {/* «Próximamente» no tiene precio todavía: el estado de abajo lo dice. */}
+      {!comingSoon && (
+        <div className="mt-1 flex flex-wrap items-baseline gap-x-2">
+          {product.priceFrom && <span className="text-xs font-medium text-muted-foreground">Desde</span>}
+          <span className="font-heading text-lg font-extrabold tracking-tight text-primary-2 tabular-nums">
+            {formatCordobas(product.price, currency)}
           </span>
-        )}
-      </div>
+          {onSale && (
+            <span className="text-xs text-muted-foreground line-through tabular-nums sm:text-sm">
+              <span className="sr-only">Antes </span>
+              {formatCordobas(compareAt, currency)}
+            </span>
+          )}
+        </div>
+      )}
       {!available && (
         <p className={cn('text-xs font-medium', soldOut ? 'text-destructive' : 'text-foreground')}>
           {AVAILABILITY_LABEL[product.availability]}
@@ -260,7 +272,7 @@ export function ProductCard({
   if (isList) {
     return (
       <>
-        <motion.article {...motionProps} className={cn(shell, 'flex-col gap-3')}>
+        <motion.article {...motionProps} data-landing-product={product.id} className={cn(shell, 'flex-col gap-3')}>
           <Link to={productUrl} prefetch="intent" className="flex w-full gap-3 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:gap-4">
             <div className="relative w-[38%] max-w-[180px] shrink-0 self-start">{Stage}</div>
             {Info}
@@ -274,7 +286,7 @@ export function ProductCard({
 
   return (
     <>
-      <motion.article {...motionProps} className={cn(shell, 'h-full flex-col')}>
+      <motion.article {...motionProps} data-landing-product={product.id} className={cn(shell, 'h-full flex-col')}>
         <Link to={productUrl} prefetch="intent" className="flex flex-1 flex-col rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background">
           {Stage}
           {Info}

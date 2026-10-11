@@ -14,6 +14,8 @@ import { Hero } from '~/components/catalog/hero';
 import { ProductGrid } from '~/components/catalog/product-grid';
 import { StorefrontShell } from '~/components/layout/storefront-shell';
 import type { StoreConfig } from '~/store/api/sessionApi';
+import { useAppSelector } from '~/store/hooks';
+import { selectPreviewCatalog } from '~/store/slices/builderSlice';
 
 // Catálogo público: 60s fresco + 5min de stale-while-revalidate. El HTML del SSR
 // no contiene nada privado, así que es seguro cachearlo en navegador/CDN.
@@ -87,7 +89,9 @@ export const meta: MetaFunction<typeof loader> = ({ data }) => {
 };
 
 export default function Index() {
-  const { products, config, landing, catalogError } = useLoaderData<typeof loader>();
+  const { products: published, config, landing, catalogError } = useLoaderData<typeof loader>();
+  // En la vista previa del modo edición: con los cambios de productos del borrador.
+  const products = useAppSelector(selectPreviewCatalog) ?? published;
   const categories = config?.categories;
 
   return (

@@ -1,5 +1,5 @@
-// Gestión de combos desde el panel. El público solo LEE combos publicados
-// (services/combos.ts); acá va el CRUD, que exige admin (ver routes/adminCombos).
+// Combos desde la vista Combos de Inventario: nombre, precio e incluidos. Las
+// fotos y si se muestra se cambian en el modo edición (services/storeDraft.ts).
 //
 // El combo tiene un precio PLANO (el del paquete), independiente de sus items:
 // `items` es el contenido (productos del catálogo + cantidad), solo informativo
@@ -51,14 +51,7 @@ function toAdminCombo(row: ComboRow): AdminCombo {
 }
 
 function toRow(input: AdminComboInput) {
-  return {
-    name: input.name.trim(),
-    price: input.price,
-    items: input.items,
-    images: input.images,
-    published: input.published,
-    sort_order: input.sortOrder,
-  };
+  return { name: input.name.trim(), price: input.price, items: input.items };
 }
 
 export async function listAdminCombos(): Promise<AdminCombo[]> {
@@ -81,9 +74,16 @@ export async function getAdminCombo(id: string): Promise<AdminCombo | null> {
 }
 
 export async function createAdminCombo(input: AdminComboInput): Promise<AdminCombo> {
+  // Nace oculto y al final: se muestra al publicar desde el modo edición.
+  const { data: last } = await db
+    .from('combos')
+    .select('sort_order')
+    .order('sort_order', { ascending: false })
+    .limit(1)
+    .maybeSingle();
   const { data, error } = await db
     .from('combos')
-    .insert(toRow(input))
+    .insert({ ...toRow(input), images: [], published: false, sort_order: ((last?.sort_order as number | undefined) ?? 0) + 1 })
     .select(COMBO_COLUMNS)
     .single();
   if (error) throw error;

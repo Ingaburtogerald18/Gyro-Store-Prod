@@ -1,8 +1,6 @@
 import { Router } from 'express';
 import { asyncHandler } from '../utils/asyncHandler';
-import { requireAdmin } from '../middleware/auth';
-import { landingConfigSchema } from '../../shared/schemas';
-import { getLandingConfig, saveLandingConfig } from '../services/landing';
+import { getLandingConfig } from '../services/landing';
 
 const router = Router();
 
@@ -15,14 +13,6 @@ router.get(
   }),
 );
 
-// Solo admin: es contenido de portada, no lo toca ni un seller.
-router.put(
-  '/',
-  requireAdmin,
-  asyncHandler(async (req, res) => {
-    const data = landingConfigSchema.parse(req.body);
-    res.json(await saveLandingConfig(data));
-  }),
-);
+// Se publica solo desde el modo edición (routes/storeEditor.ts), con el bloqueo tomado.
 
 export default router;

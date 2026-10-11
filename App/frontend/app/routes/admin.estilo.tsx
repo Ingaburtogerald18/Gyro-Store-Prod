@@ -1,3 +1,4 @@
+import { FormLayout, FormActions, FormBody } from "~/components/ui/form-layout";
 // Página de muestra del panel: cada pieza del sistema de diseño en un lugar.
 // Sirve para comparar pantallas contra DESIGN.md. Solo para admin y fuera del menú.
 import { useState } from "react";
@@ -5,13 +6,28 @@ import type { MetaFunction } from "@remix-run/node";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Add01Icon, InboxIcon } from "@hugeicons/core-free-icons";
 
-import { Kbd, Metric, MetricStrip, SegmentedControl, ToolbarSearch, ToolbarSelect, Workspace, WorkspaceToolbar } from "~/components/admin/workspace";
+import {
+  Kbd,
+  Metric,
+  MetricStrip,
+  SegmentedControl,
+  ToolbarSearch,
+  ToolbarSelect,
+  Workspace,
+  WorkspaceToolbar,
+} from "~/components/admin/workspace";
 import { PageHeader } from "~/components/layout/PageHeader";
 import { Button } from "~/components/ui/button";
 import { CodeCell } from "~/components/ui/cells";
 import { Chip } from "~/components/ui/chip";
 import { DataTable } from "~/components/ui/DataTable";
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "~/components/ui/empty";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "~/components/ui/empty";
 import { Field, FieldError, FieldLabel } from "~/components/ui/field";
 import { HugeIcon } from "~/components/ui/icon";
 import { Input } from "~/components/ui/input";
@@ -29,12 +45,12 @@ const COLORS: { name: string; token: string; className: string }[] = [
   { name: "Tinta", token: "--ink", className: "bg-ink" },
   { name: "Crema", token: "--background", className: "bg-background" },
   { name: "Blanco", token: "--card", className: "bg-card" },
-    { name: "Texto secundario", token: "--muted-foreground", className: "bg-muted-foreground" },
+  { name: "Texto secundario", token: "--muted-foreground", className: "bg-muted-foreground" },
   { name: "Amarillo", token: "--action", className: "bg-action" },
   { name: "Bordó", token: "--primary-2", className: "bg-primary-2" },
   { name: "Rosa", token: "--rose", className: "bg-rose" },
   { name: "Teal del logo", token: "--logo", className: "bg-logo" },
-    { name: "Error", token: "--destructive", className: "bg-destructive" },
+  { name: "Error", token: "--destructive", className: "bg-destructive" },
   { name: "Advertencia", token: "--warning", className: "bg-warning" },
   { name: "Información", token: "--info", className: "bg-info" },
   { name: "WhatsApp", token: "--whatsapp", className: "bg-whatsapp" },
@@ -147,7 +163,10 @@ export default function AdminEstilo() {
         <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
           {COLORS.map((c) => (
             <li key={c.token} className="space-y-1.5">
-              <span aria-hidden className={`block h-12 rounded-xl border border-border ${c.className}`} />
+              <span
+                aria-hidden
+                className={`block h-12 rounded-xl border border-border ${c.className}`}
+              />
               <span className="block text-sm font-semibold">{c.name}</span>
               <span className="block font-mono text-xs text-muted-foreground">{c.token}</span>
             </li>
@@ -170,13 +189,27 @@ export default function AdminEstilo() {
         <div className="flex flex-wrap items-center gap-3">
           {VARIANTS.map((v) => (
             <Button key={v} variant={v}>
-              {v === "link" ? "Ver detalle" : v === "cancel" ? "Cancelar" : v === "destructive" ? "Eliminar" : v.startsWith("whatsapp") ? "Escribir por WhatsApp" : v === "ghost" ? "Más" : v === "outline" ? "Exportar" : "Guardar cambios"}
+              {v === "link"
+                ? "Ver detalle"
+                : v === "cancel"
+                ? "Cancelar"
+                : v === "destructive"
+                ? "Eliminar"
+                : v.startsWith("whatsapp")
+                ? "Escribir por WhatsApp"
+                : v === "ghost"
+                ? "Más"
+                : v === "outline"
+                ? "Exportar"
+                : "Guardar cambios"}
             </Button>
           ))}
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <Button>Tamaño normal (44 px)</Button>
-          <Button size="sm" variant="outline">Tamaño de tabla (36 px)</Button>
+          <Button size="sm" variant="outline">
+            Tamaño de tabla (36 px)
+          </Button>
           <Button disabled>Guardando…</Button>
         </div>
       </Section>
@@ -192,14 +225,28 @@ export default function AdminEstilo() {
           ]}
         />
         <div className="flex flex-wrap items-center gap-3">
-          <Button variant="outline" aria-pressed={onlyOffers} onClick={() => setOnlyOffers(!onlyOffers)}>
+          <Button
+            variant="outline"
+            aria-pressed={onlyOffers}
+            onClick={() => setOnlyOffers(!onlyOffers)}
+          >
             Ofertas
           </Button>
-          <Chip variant="status" tone="success">Entregado</Chip>
-          <Chip variant="status" tone="warning">Datos por completar</Chip>
-          <Chip variant="status" tone="info">En tránsito</Chip>
-          <Chip variant="status" tone="error">Anulado</Chip>
-          <Chip variant="filter" onRemove={() => undefined} removeLabel="Quitar filtro Disponibles">Disponibles</Chip>
+          <Chip variant="status" tone="success">
+            Entregado
+          </Chip>
+          <Chip variant="status" tone="warning">
+            Datos por completar
+          </Chip>
+          <Chip variant="status" tone="info">
+            En tránsito
+          </Chip>
+          <Chip variant="status" tone="error">
+            Anulado
+          </Chip>
+          <Chip variant="filter" onRemove={() => undefined} removeLabel="Quitar filtro Disponibles">
+            Disponibles
+          </Chip>
           <Chip variant="count">3</Chip>
           <Chip variant="category">Audio</Chip>
         </div>
@@ -236,28 +283,36 @@ export default function AdminEstilo() {
       </Workspace>
 
       <Section title="Formulario">
-        <form className="max-w-xl space-y-4" onSubmit={(e) => e.preventDefault()} noValidate>
-          <Field>
-            <FieldLabel htmlFor="estilo-proveedor" required>Proveedor</FieldLabel>
-            <Input id="estilo-proveedor" aria-invalid defaultValue="" />
-            <FieldError>Escribí el nombre del proveedor.</FieldError>
-          </Field>
-          <div className="grid gap-4 sm:grid-cols-2">
+        <FormLayout className="max-w-xl" mode="page" onSubmit={(e) => e.preventDefault()} noValidate>
+          <FormBody>
             <Field>
-              <FieldLabel htmlFor="estilo-fecha">Fecha</FieldLabel>
-              <Input id="estilo-fecha" type="date" />
+              <FieldLabel htmlFor="estilo-proveedor" required>
+                Proveedor
+              </FieldLabel>
+              <Input id="estilo-proveedor" aria-invalid defaultValue="" />
+              <FieldError>Escribí el nombre del proveedor.</FieldError>
             </Field>
-            <Field>
-              <FieldLabel htmlFor="estilo-monto" required>Monto (C$)</FieldLabel>
-              <Input id="estilo-monto" inputMode="decimal" aria-invalid defaultValue="-20" />
-              <FieldError>El monto tiene que ser mayor que cero.</FieldError>
-            </Field>
-          </div>
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="cancel">Cancelar</Button>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field>
+                <FieldLabel htmlFor="estilo-fecha">Fecha</FieldLabel>
+                <Input id="estilo-fecha" type="date" />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="estilo-monto" required>
+                  Monto (C$)
+                </FieldLabel>
+                <Input id="estilo-monto" inputMode="decimal" aria-invalid defaultValue="-20" />
+                <FieldError>El monto tiene que ser mayor que cero.</FieldError>
+              </Field>
+            </div>
+          </FormBody>
+          <FormActions>
+            <Button type="button" variant="cancel">
+              Cancelar
+            </Button>
             <Button type="submit">Registrar compra</Button>
-          </div>
-        </form>
+          </FormActions>
+        </FormLayout>
       </Section>
 
       <Section title="Estados">

@@ -20,10 +20,7 @@ import { Add01Icon, Cancel01Icon, Menu01Icon } from '@hugeicons/core-free-icons'
 
 import type { StoreCategory } from '~/store/api/sessionApi';
 import { useAppDispatch, useAppSelector } from '~/store/hooks';
-import {
-  selectDraftHomeCategories,
-  updateHomeCategories,
-} from '~/store/slices/builderSlice';
+import { selectDraftHomeCategories, updateHomeCategories } from '~/store/slices/builderSlice';
 
 import { Button } from '~/components/ui/button';
 import { HugeIcon } from '~/components/ui/icon';
@@ -39,12 +36,17 @@ function SortableRailItem({
   id,
   category,
   onRemove,
+  disabled,
 }: {
   id: string;
   category: StoreCategory;
   onRemove: (id: string) => void;
+  disabled: boolean;
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id,
+    disabled,
+  });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -57,86 +59,88 @@ function SortableRailItem({
       ref={setNodeRef}
       style={style}
       className={cn(
-        "group flex w-full max-w-2xl items-center gap-3 rounded-xl border bg-card p-3 transition-all",
-        isDragging && "opacity-50 ring-2 ring-primary shadow-lg"
+        'flex w-full items-center gap-3 rounded-xl border bg-card p-3',
+        isDragging && 'opacity-50 border-primary-2',
       )}
     >
-      <div 
-        {...attributes} 
+      <Button
+        variant="outline"
+        size="icon"
+        disabled={disabled}
+        {...attributes}
         {...listeners}
-        className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground touch-none flex-shrink-0"
-        aria-label="Arrastrar para reordenar"
+        className="cursor-grab touch-none active:cursor-grabbing"
+        aria-label={`Mover la sección ${category.name}`}
       >
         <HugeIcon icon={Menu01Icon} size={20} strokeWidth={2} />
-      </div>
-      
+      </Button>
+
       <div className="flex flex-1 items-center gap-2 font-medium">
         {category.icon && <span className="text-xl">{category.icon}</span>}
         <span className="text-sm">{category.name}</span>
       </div>
-      
-      <button
+
+      <Button
+        variant="cancel"
+        size="icon"
+        disabled={disabled}
         onClick={() => onRemove(id)}
-        className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-destructive/10 text-destructive transition-opacity hover:bg-destructive hover:text-destructive-foreground focus-visible:opacity-100 group-hover:opacity-100"
         aria-label={`Quitar la sección ${category.name}`}
       >
         <HugeIcon icon={Cancel01Icon} size={16} strokeWidth={2} />
-      </button>
+      </Button>
     </div>
   );
 }
 
 interface InlineRailsEditorProps {
   allCategories: StoreCategory[];
+  disabled?: boolean;
 }
 
-export function InlineRailsEditor({ allCategories }: InlineRailsEditorProps) {
+export function InlineRailsEditor({ allCategories, disabled = false }: InlineRailsEditorProps) {
   const dispatch = useAppDispatch();
   const draftHomeCategories = useAppSelector(selectDraftHomeCategories);
-  
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
   const availableToAdd = useMemo(() => {
-    return allCategories.filter(c => !draftHomeCategories.includes(c.id));
+    return allCategories.filter((c) => !draftHomeCategories.includes(c.id));
   }, [allCategories, draftHomeCategories]);
 
   const handleDragEnd = (event: DragEndEvent) => {
+    if (disabled) return;
     const { active, over } = event;
     if (over && active.id !== over.id) {
       const oldIndex = draftHomeCategories.indexOf(active.id as string);
       const newIndex = draftHomeCategories.indexOf(over.id as string);
-      dispatch(updateHomeCategories(arrayMove(draftHomeCategories, oldIndex, newIndex)));
+      if (oldIndex >= 0 && newIndex >= 0)
+        dispatch(updateHomeCategories(arrayMove(draftHomeCategories, oldIndex, newIndex)));
     }
   };
 
   const handleRemove = (idToRemove: string) => {
-    dispatch(updateHomeCategories(draftHomeCategories.filter(id => id !== idToRemove)));
+    if (disabled) return;
+    dispatch(updateHomeCategories(draftHomeCategories.filter((id) => id !== idToRemove)));
   };
 
   const handleAdd = (idToAdd: string) => {
-    if (draftHomeCategories.length >= 20) return;
+    if (disabled || draftHomeCategories.length >= 20) return;
     dispatch(updateHomeCategories([...draftHomeCategories, idToAdd]));
   };
 
   return (
     <div className="flex flex-col items-stretch gap-4">
-      <p className="text-sm text-muted-foreground text-center max-w-md">
-        Arrastra para ordenar las secciones. Sin selección, se muestran automáticamente todas las categorías con productos.
+      <p className="text-xs text-muted-foreground">
+        Arrastrá desde el asa para ordenar. Con teclado, presioná Espacio y usá las flechas.
       </p>
 
       <div className="flex w-full flex-col items-center gap-2">
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragEnd={handleDragEnd}
-        >
-          <SortableContext
-            items={draftHomeCategories}
-            strategy={verticalListSortingStrategy}
-          >
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={draftHomeCategories} strategy={verticalListSortingStrategy}>
             {draftHomeCategories.map((id) => {
               const cat = allCategories.find((c) => c.id === id);
               if (!cat) return null;
@@ -146,6 +150,7 @@ export function InlineRailsEditor({ allCategories }: InlineRailsEditorProps) {
                   id={id}
                   category={cat}
                   onRemove={handleRemove}
+                  disabled={disabled}
                 />
               );
             })}
@@ -155,20 +160,22 @@ export function InlineRailsEditor({ allCategories }: InlineRailsEditorProps) {
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button 
-            variant="outline" 
-            className="mt-4 gap-2 border-primary/30 text-primary hover:bg-primary/10 hover:text-primary"
-            disabled={draftHomeCategories.length >= 20}
+          <Button
+            variant="outline"
+            className="w-full"
+            disabled={disabled || draftHomeCategories.length >= 20 || availableToAdd.length === 0}
           >
             <HugeIcon icon={Add01Icon} size={18} strokeWidth={2} />
-            Añadir sección
+            Agregar sección
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="center" className="w-56 max-h-64 overflow-y-auto">
+        <DropdownMenuContent align="start" className="w-56 max-h-64 overflow-y-auto">
           {availableToAdd.length === 0 ? (
-            <div className="p-2 text-sm text-muted-foreground text-center">No hay más categorías</div>
+            <div className="p-2 text-sm text-muted-foreground text-center">
+              No hay más categorías
+            </div>
           ) : (
-            availableToAdd.map(cat => (
+            availableToAdd.map((cat) => (
               <DropdownMenuItem key={cat.id} onClick={() => handleAdd(cat.id)}>
                 {cat.icon && <span className="mr-2">{cat.icon}</span>}
                 {cat.name}
@@ -177,6 +184,9 @@ export function InlineRailsEditor({ allCategories }: InlineRailsEditorProps) {
           )}
         </DropdownMenuContent>
       </DropdownMenu>
+      <p className="text-xs text-muted-foreground">
+        {draftHomeCategories.length} de 20 secciones seleccionadas.
+      </p>
     </div>
   );
 }

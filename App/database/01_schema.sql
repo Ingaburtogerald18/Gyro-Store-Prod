@@ -16,13 +16,15 @@
 -- Módulos:
 --    0. Utilidades      set_updated_at
 --    1. Personal        profiles, pending_role_grants
---    2. Catálogo        categories, templates, catalog_items, combos
---    3. Clientes        contacts, contact_activities, follow_ups
+--    2. Catálogo        categories, templates, catalog_items, combos,
+--                       product_offers
+--    3. Clientes        contacts, contact_activities, follow_ups, stock_notices
 --    4. Compras         suppliers, purchase_invoices, purchase_orders, purchases
 --    5. Ventas          orders, order_items, invoices, invoice_items,
 --                       installments, payments, commission_payments,
 --                       commission_adjustments, sale_returns, spo_outbox
---    6. Tienda web      public_orders, public_order_items, public_order_attempts
+--    6. Tienda web      public_orders, public_order_items, public_order_attempts,
+--                       store_draft, store_versions
 --    7. Stock           stock_reservations, stock_movements, losses
 --    8. Descuentos      discount_codes, discount_code_redemptions
 --    9. Finanzas        expenses, loan_payments, app_config
@@ -120,21 +122,57 @@ create table categories (
   updated_at  timestamptz not null default now()
 );
 
--- Molde reutilizable. `axes` es un ARRAY ORDENADO [{ key, label, options[],
--- isColor }]: el orden arma el nombre de la combinación ("Negro / Con
--- micrófono"), que es la llave de `catalog_items.variant_mappings`.
+-- Una plantilla por modelo (KZ EDX Pro): nombre, descripción y categoría son
+-- los que muestra la tienda. `axes` es un ARRAY ORDENADO [{ key, label,
+-- options[], isColor }]: el orden arma el nombre de la combinación ("Negro /
+-- Con micrófono"), que es la llave de `catalog_items.variant_mappings`.
 create table templates (
-  id           uuid primary key default gen_random_uuid(),
-  name         text,
-  description  text,
-  category_id  uuid references categories(id) on delete set null,
-  axes         jsonb default '[]',
-  specs        jsonb default '{}',
-  created_at   timestamptz not null default now(),
-  updated_at   timestamptz not null default now()
+  id             uuid primary key default gen_random_uuid(),
+  name           text,
+  description    text,                       -- la muestra la tienda
+  internal_note  text not null default '',   -- no se publica
+  category_id    uuid references categories(id) on delete set null,
+  axes           jsonb default '[]',
+  specs          jsonb default '{}',
+  created_at     timestamptz not null default now(),
+  updated_at     timestamptz not null default now()
 );
 
 create index templates_category_id_idx on templates (category_id);
+
+create or replace function public.template_model_key(model_name text)
+returns text language sql immutable as $$
+  select nullif(lower(regexp_replace(coalesce(model_name, ''), '[[:space:]_–—-]+', '', 'g')), '');
+$$;
+
+create index templates_model_key_idx on templates (public.template_model_key(name));
+
+create or replace function public.check_template_model_name()
+returns trigger language plpgsql set search_path = public as $$
+declare
+  model_key text := public.template_model_key(new.name);
+begin
+  if model_key is null then return new; end if;
+  if tg_op = 'UPDATE' then
+    if model_key is not distinct from public.template_model_key(old.name) then return new; end if;
+  end if;
+  -- Serializa las escrituras del mismo modelo, incluso entre administradores.
+  perform pg_advisory_xact_lock(hashtextextended('templates:' || model_key, 0));
+  if exists (
+    select 1 from public.templates
+    where public.template_model_key(name) = model_key and id <> new.id
+  ) then
+    raise exception using errcode = '23505',
+      message = 'Ya existe una plantilla para este modelo.',
+      constraint = 'templates_model_name_unique';
+  end if;
+  return new;
+end;
+$$;
+
+create trigger templates_model_name_unique
+  before insert or update of name on templates
+  for each row execute function public.check_template_model_name();
 
 -- El producto que se vende. `name`/`description` son propios del producto,
 -- independientes del molde. `spo_link`: carpeta de SharePoint con fotos y
@@ -177,12 +215,30 @@ create table combos (
   updated_at  timestamptz not null default now()
 );
 
+-- Oferta de un color de un producto (todos sus códigos): precio fijo menor al
+-- normal, con vencimiento en hora de Nicaragua. Solo la usa la tienda. `color`
+-- es '' en los productos sin colores. Una por producto y color.
+create table product_offers (
+  id               uuid primary key default gen_random_uuid(),
+  catalog_item_id  uuid not null references catalog_items(id) on delete cascade,
+  color            text not null default '',
+  price            numeric(12,2) not null check (price > 0),
+  ends_at          timestamptz not null,
+  created_by       uuid references profiles(id) on delete set null,
+  created_at       timestamptz not null default now(),
+  updated_at       timestamptz not null default now(),
+  unique (catalog_item_id, color)
+);
+
+create index product_offers_ends_at_idx on product_offers (ends_at);
+
 
 -- ============================================================================
 -- 3. Clientes
 -- ============================================================================
 
-create type contact_origin as enum ('fb_ads', 'organic', 'whatsapp_link', 'referral', 'other');
+-- 'store' = pidió «Avisame cuando haya» en la tienda.
+create type contact_origin as enum ('fb_ads', 'organic', 'whatsapp_link', 'referral', 'store', 'other');
 create type follow_up_status as enum ('pending', 'completed', 'cancelled');
 
 -- `phone` es la identidad del cliente (es por donde se cierra la venta).
@@ -221,6 +277,23 @@ create table follow_ups (
 
 create index follow_ups_contact_id_idx on follow_ups (contact_id);
 create index follow_ups_status_idx on follow_ups (status);
+
+-- «Avisame cuando haya»: liga el seguimiento «Avisar cuando llegue» a la
+-- variante que el cliente espera. Cuando tiene stock, el CRM lo marca «Ya
+-- llegó, avisar». Un aviso abierto (seguimiento pendiente) por teléfono y variante.
+create table stock_notices (
+  id               uuid primary key default gen_random_uuid(),
+  contact_id       uuid not null references contacts(id) on delete cascade,
+  follow_up_id     uuid not null references follow_ups(id) on delete cascade,
+  catalog_item_id  uuid not null references catalog_items(id) on delete cascade,
+  variant_name     text not null default '',
+  label            text not null,
+  created_at       timestamptz not null default now()
+);
+
+create index stock_notices_contact_id_idx on stock_notices (contact_id);
+create index stock_notices_follow_up_id_idx on stock_notices (follow_up_id);
+create index stock_notices_catalog_item_id_idx on stock_notices (catalog_item_id);
 
 
 -- ============================================================================
@@ -602,6 +675,39 @@ create table public_order_attempts (
   response         jsonb not null,
   created_at       timestamptz not null default now()
 );
+
+-- Borrador compartido del modo edición (portada y cambios de productos) y su
+-- bloqueo: un admin a la vez. Una sola fila; el servidor libera el bloqueo a
+-- los 15 minutos sin actividad o cuando el navegador deja de mandar el latido.
+create table store_draft (
+  id                 text primary key default 'tienda' check (id = 'tienda'),
+  landing            jsonb,
+  products           jsonb not null default '{}',
+  changed_at         timestamptz,
+  changed_by         uuid references profiles(id) on delete set null,
+  lock_holder        uuid references profiles(id) on delete set null,
+  lock_session       uuid,
+  lock_acquired_at   timestamptz,
+  lock_heartbeat_at  timestamptz,
+  lock_activity_at   timestamptz,
+  updated_at         timestamptz not null default now()
+);
+
+insert into store_draft (id) values ('tienda');
+
+-- Cada «Publicar» del modo edición: portada y presentación de los productos
+-- (fotos, «Mostrar en la tienda», orden), con quién, cuándo y qué cambió.
+-- Precio, stock y datos de la plantilla no se guardan. El servidor guarda 5.
+create table store_versions (
+  id            uuid primary key default gen_random_uuid(),
+  landing       jsonb not null,
+  products      jsonb not null default '{}',
+  summary       jsonb not null default '[]',
+  published_by  uuid references profiles(id) on delete set null,
+  published_at  timestamptz not null default now()
+);
+
+create index store_versions_published_at_idx on store_versions (published_at desc);
 
 
 -- ============================================================================

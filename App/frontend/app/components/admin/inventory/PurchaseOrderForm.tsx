@@ -1,17 +1,29 @@
-// Registrar una compra de Alibaba. Las compras se cargan producto por producto
-// y muchos comparten la misma orden (y el mismo proveedor): si el número de
-// orden ya está registrado, el producto se agrega a esa orden y no se vuelve a
-// pedir proveedor, factura ni fotos. Si es nuevo, se registra la orden con su
-// encabezado completo; su factura puede ser una ya cargada, porque Alibaba
-// parte un pago en varias órdenes con una sola factura. "Guardar y cargar
-// otro" deja la orden puesta para el siguiente producto.
-import { useMemo, useState } from "react";
+import {
+  FormLayout,
+  FormDialogContent,
+  FormActions,
+  FormBody,
+  FormSection,
+} from "~/components/ui/form-layout";
+// Registrar una compra de Alibaba: la orden con todos sus productos de una vez.
+// Si el número ya está registrado, los productos se agregan a esa orden.
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
+import { z } from "zod";
 
+import type { AdminTemplate } from "@shared/schemas";
 import { Button } from "~/components/ui/button";
-import { Spinner } from "~/components/ui/spinner";
+import { Dialog, DialogHeader, DialogTitle } from "~/components/ui/dialog";
+import {
+  DiscardChangesDialog,
+  fieldMessages,
+  FormErrorBanner,
+  serverErrorMessage,
+} from "~/components/ui/form-feedback";
 import { formatUsd, splitProductName } from "~/lib/formatters";
-import { useGetAdminCatalogQuery } from "~/store/api/catalogAdminApi";
+import { useGetCategoriesQuery, useGetTemplatesQuery } from "~/store/api/catalogAdminApi";
 import {
   useAddPurchaseOrderLinesMutation,
   useCreatePurchaseOrderMutation,
@@ -28,7 +40,6 @@ import {
   orderHeaderPayload,
   OrderHeaderFields,
   validateOrderHeader,
-  type OrderHeaderErrors,
   type OrderHeaderState,
 } from "./OrderHeaderFields";
 import {
@@ -42,166 +53,253 @@ import {
 } from "./OrderLinesEditor";
 import { MISSING_LABELS } from "./PurchaseOrderDialogs";
 
-type AfterSave = "close" | "another";
+interface PurchaseFormValues {
+  header: OrderHeaderState;
+  lines: OrderLineState[];
+}
 
-export function PurchaseOrderForm({ onDone }: { onDone?: () => void }) {
-  const [createOrder, { isLoading: creating }] = useCreatePurchaseOrderMutation();
-  const [addLines, { isLoading: adding }] = useAddPurchaseOrderLinesMutation();
-  const { data: suppliers = [] } = useGetSuppliersQuery();
-  const { data: purchases = [] } = useGetPurchasesQuery();
-  const { data: catalog = [] } = useGetAdminCatalogQuery();
-  const { data: ordersData, refetch: refetchOrders } = useGetPurchaseOrdersQuery();
+const emptyValues = (): PurchaseFormValues => ({
+  header: emptyOrderHeader(),
+  lines: [emptyOrderLine()],
+});
 
-  const [header, setHeader] = useState<OrderHeaderState>(emptyOrderHeader);
-  const [lines, setLines] = useState<OrderLineState[]>(() => [emptyOrderLine()]);
-  const [headerErrors, setHeaderErrors] = useState<OrderHeaderErrors>({});
-  const [lineErrors, setLineErrors] = useState<OrderLineErrors>({});
-  const [saving, setSaving] = useState(false);
-  // La orden recién guardada, por si la lista todavía no se recargó.
-  const [lastSaved, setLastSaved] = useState<PurchaseOrder | null>(null);
+/** La orden ya registrada con ese número, si la hay. */
+function findOrder(orders: PurchaseOrder[], orderNumber: string): PurchaseOrder | null {
+  const typed = orderNumber.trim().toUpperCase();
+  return typed ? orders.find((o) => o.orderNumber.toUpperCase() === typed) ?? null : null;
+}
+
+// Las reglas son las de OrderHeaderFields y OrderLinesEditor, que también usan
+// «Editar orden» y «Agregar productos».
+function purchaseFormSchema(templates: AdminTemplate[], orders: PurchaseOrder[]) {
+  return z
+    .object({ header: z.custom<OrderHeaderState>(), lines: z.array(z.custom<OrderLineState>()) })
+    .superRefine((values, ctx) => {
+      const existing = findOrder(orders, values.header.orderNumber);
+      const headerErrors = existing
+        ? {}
+        : validateOrderHeader(values.header, { requireSupplier: true });
+      for (const [field, message] of Object.entries(headerErrors))
+        ctx.addIssue({ code: "custom", path: ["header", field], message });
+      const lineErrors = validateOrderLines(values.lines, templates);
+      values.lines.forEach((line, index) => {
+        for (const [field, message] of Object.entries(lineErrors[line.key] ?? {}))
+          ctx.addIssue({ code: "custom", path: ["lines", index, field], message });
+      });
+    });
+}
+
+const taxNumber = (value: string) => (value.trim() === "" ? 0 : Number(value));
+
+export function PurchaseOrderForm({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const [createOrder] = useCreatePurchaseOrderMutation();
+  const [addLines] = useAddPurchaseOrderLinesMutation();
+  const { data: suppliers = [] } = useGetSuppliersQuery(undefined, { skip: !open });
+  const { data: purchases = [] } = useGetPurchasesQuery(undefined, { skip: !open });
+  const {
+    data: templates = [],
+    isLoading: templatesLoading,
+    isError: templatesFailed,
+    refetch: refetchTemplates,
+  } = useGetTemplatesQuery(undefined, { skip: !open });
+  const { data: categories = [] } = useGetCategoriesQuery(undefined, { skip: !open });
+  const { data: ordersData, refetch: refetchOrders } = useGetPurchaseOrdersQuery(undefined, {
+    skip: !open,
+  });
+  const [serverError, setServerError] = useState<string | null>(null);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
 
   // Las provisionales (lotes viejos) no se sugieren: sus nombres se repiten.
   const registered = useMemo(
     () => (ordersData?.orders ?? []).filter((o) => !o.numberProvisional),
     [ordersData],
   );
-  const typedNumber = header.orderNumber.trim().toUpperCase();
-  const existing = useMemo<PurchaseOrder | null>(() => {
-    if (!typedNumber) return null;
-    const fromList = registered.find((o) => o.orderNumber.toUpperCase() === typedNumber);
-    if (fromList) return fromList;
-    return lastSaved && lastSaved.orderNumber.toUpperCase() === typedNumber ? lastSaved : null;
-  }, [registered, typedNumber, lastSaved]);
   const invoices = useMemo(() => invoicesFromOrders(ordersData?.orders ?? []), [ordersData]);
-  const existingLines = useMemo(
-    () => (existing ? purchases.filter((p) => p.orderId === existing.id) : []),
-    [existing, purchases],
+
+  const resolver = useMemo(
+    () => zodResolver(purchaseFormSchema(templates, registered)),
+    [templates, registered],
+  );
+  const {
+    control,
+    handleSubmit,
+    reset,
+    watch,
+    getValues,
+    setValue,
+    formState: { errors, isDirty, isSubmitting },
+  } = useForm<PurchaseFormValues>({ resolver, defaultValues: emptyValues() });
+
+  useEffect(() => {
+    if (!open) return;
+    reset(emptyValues());
+    setServerError(null);
+  }, [open, reset]);
+
+  const header = watch("header");
+  const lines = watch("lines");
+  const found = useMemo(
+    () => findOrder(registered, header.orderNumber),
+    [registered, header.orderNumber],
   );
 
-  const linesTotal = lines.reduce((sum, line) => sum + lineTotalUsd(line), 0);
+  const existingLines = useMemo(
+    () => (found ? purchases.filter((p) => p.orderId === found.id) : []),
+    [found, purchases],
+  );
+  // Una orden con productos ya tiene su impuesto; si son distintos, lo nuevo va con 0.
+  const taxUnit = found && found.lineCount > 0 ? found.taxUnit ?? 0 : taxNumber(header.taxUnit);
+  const linesTotal = lines.reduce((sum, line) => sum + lineTotalUsd(line, taxUnit), 0);
 
-  /** Deja la orden puesta y un producto vacío para cargar el siguiente. */
-  function keepOrder(order: PurchaseOrder) {
-    setHeader({
-      ...emptyOrderHeader(),
-      orderNumber: order.orderNumber,
-      // Por si después cambia a otra orden del mismo proveedor y día.
-      purchaseDate: order.purchaseDate,
-      supplierChoice: order.supplier?.id ?? "",
-      // Otra orden del mismo pago suele venir en la misma factura.
-      invoiceChoice: order.invoice?.id ?? "",
-    });
-    setLines([emptyOrderLine()]);
-    setHeaderErrors({});
-    setLineErrors({});
+  const headerErrors = fieldMessages(errors.header);
+  const lineErrors: OrderLineErrors = {};
+  lines.forEach((line, index) => {
+    const messages = fieldMessages(errors.lines?.[index]);
+    if (Object.keys(messages).length) lineErrors[line.key] = messages;
+  });
+
+  function requestClose(next: boolean) {
+    if (next) return onOpenChange(true);
+    if (isDirty && !isSubmitting) setConfirmDiscard(true);
+    else onOpenChange(false);
   }
 
-  function changeOrder() {
-    setHeader(emptyOrderHeader());
-    setHeaderErrors({});
-  }
-
-  async function submit(after: AfterSave) {
-    if (saving) return;
-    const hErrors = existing
-      ? typedNumber.length < 3
-        ? { orderNumber: "Escribí el número de orden de Alibaba." }
-        : {}
-      : validateOrderHeader(header, { requireSupplier: true });
-    const lErrors = validateOrderLines(lines, catalog);
-    setHeaderErrors(hErrors);
-    setLineErrors(lErrors);
-    if (Object.keys(hErrors).length || Object.keys(lErrors).length) {
-      toast.error("Revisá los campos marcados en rojo.");
-      return;
-    }
-    setSaving(true);
+  async function onSubmit(values: PurchaseFormValues) {
+    setServerError(null);
     try {
+      const payloadLines = orderLinesPayload(values.lines, templates);
       let order: PurchaseOrder;
-      if (existing) {
-        order = await addLines({ id: existing.id, lines: orderLinesPayload(lines) }).unwrap();
-        toast.success(
-          lines.length === 1
-            ? `Producto agregado a la orden ${order.orderNumber}.`
-            : `${lines.length} productos agregados a la orden ${order.orderNumber}.`,
-        );
+      if (found) {
+        const tax = values.header.taxUnit.trim();
+        order = await addLines({
+          id: found.id,
+          lines: payloadLines,
+          ...(found.lineCount === 0 && tax !== "" ? { taxUnit: Number(tax) } : {}),
+        }).unwrap();
       } else {
-        const payload = await orderHeaderPayload(header);
-        order = await createOrder({ ...payload, lines: orderLinesPayload(lines) }).unwrap();
-        toast.success(`Orden ${order.orderNumber} registrada (En tránsito).`);
+        const payload = await orderHeaderPayload(values.header);
+        order = await createOrder({
+          ...payload,
+          taxUnit: payload.taxUnit ?? 0,
+          lines: payloadLines,
+        }).unwrap();
       }
-      setLastSaved(order);
-      if (after === "close" && onDone) onDone();
-      else keepOrder(order);
-    } catch (err: any) {
-      const message: string = err?.data?.error || err?.message || "No se pudo guardar la compra.";
-      // Otra persona la registró recién: con la lista al día, el formulario
-      // pasa solo a "agregar a esa orden".
+      const count = values.lines.length === 1 ? "1 producto" : `${values.lines.length} productos`;
+      toast.success("Compra registrada", {
+        description: `Orden ${order.orderNumber}: ${count} en tránsito.`,
+      });
+      onOpenChange(false);
+    } catch (err) {
+      const message = serverErrorMessage(err, "No se pudo guardar la compra.");
+      // Otra persona la registró recién: con la lista al día, pasa a "agregar a esa orden".
       if (/ya está registrada/.test(message)) refetchOrders();
-      toast.error(message);
-    } finally {
-      setSaving(false);
+      setServerError(message);
     }
   }
 
-  const busy = saving || creating || adding;
+  function focusFirstError() {
+    requestAnimationFrame(() =>
+      formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus(),
+    );
+  }
 
   return (
-    <div className="space-y-6 p-1">
-      <section className="space-y-3">
-        <h3 className="border-b pb-2 text-sm font-semibold text-foreground">Orden</h3>
-        <OrderHeaderFields
-          value={header}
-          onChange={(patch) => setHeader((prev) => ({ ...prev, ...patch }))}
-          errors={headerErrors}
-          suppliers={suppliers}
-          linesTotalUsd={linesTotal}
-          orderOptions={registered}
-          invoices={invoices}
-          existingOrder={existing}
-          existingSlot={
-            existing && (
-              <ExistingOrderSummary order={existing} lines={existingLines} newLinesTotal={linesTotal} onChangeOrder={changeOrder} />
-            )
-          }
-        />
-      </section>
+    <>
+      <Dialog open={open} onOpenChange={requestClose}>
+        <FormDialogContent size="long">
+          <DialogHeader>
+            <DialogTitle>Registrar compra</DialogTitle>
+          </DialogHeader>
 
-      <section className="space-y-3">
-        <h3 className="border-b pb-2 text-sm font-semibold text-foreground">
-          {existing ? "Producto que se agrega a la orden" : "Productos de la orden"}
-        </h3>
-        <OrderLinesEditor
-          lines={lines}
-          onChange={setLines}
-          errors={lineErrors}
-          purchases={purchases}
-          alreadyInOrder={existingLines}
-        />
-      </section>
+          <FormLayout ref={formRef} onSubmit={handleSubmit(onSubmit, focusFirstError)} noValidate>
+            <FormErrorBanner message={serverError} />
 
-      <div className="flex flex-wrap justify-end gap-2 border-t pt-4">
-        {onDone && (
-          <Button type="button" variant="cancel" onClick={onDone}>
-            Cancelar
-          </Button>
-        )}
-        {onDone && (
-          <Button type="button" variant="outline" onClick={() => submit("close")} disabled={busy}>
-            Guardar y cerrar
-          </Button>
-        )}
-        <Button type="button" onClick={() => submit("another")} disabled={busy}>
-          {busy && <Spinner className="mr-2" />}
-          Guardar y cargar otro producto
-        </Button>
-      </div>
-    </div>
+            <FormBody>
+              <FormSection title="Orden">
+                <Controller
+                  control={control}
+                  name="header"
+                  render={({ field }) => (
+                    <OrderHeaderFields
+                      value={field.value}
+                      onChange={(patch) => field.onChange({ ...getValues("header"), ...patch })}
+                      errors={headerErrors}
+                      suppliers={suppliers}
+                      linesTotalUsd={linesTotal}
+                      orderOptions={registered}
+                      invoices={invoices}
+                      existingOrder={found}
+                      existingSlot={
+                        found && (
+                          <ExistingOrderSummary
+                            order={found}
+                            lines={existingLines}
+                            newLinesTotal={linesTotal}
+                            onChangeOrder={() =>
+                              setValue("header", emptyOrderHeader(), { shouldDirty: true })
+                            }
+                          />
+                        )
+                      }
+                    />
+                  )}
+                />
+              </FormSection>
+
+              <FormSection
+                title={found ? "Productos que se agregan a la orden" : "Productos de la orden"}
+              >
+                <Controller
+                  control={control}
+                  name="lines"
+                  render={({ field }) => (
+                    <OrderLinesEditor
+                      lines={field.value}
+                      onChange={field.onChange}
+                      errors={lineErrors}
+                      templates={templates}
+                      categories={categories}
+                      taxUnit={taxUnit}
+                      alreadyInOrder={existingLines}
+                      loading={templatesLoading}
+                      failed={templatesFailed}
+                      onRetry={() => void refetchTemplates()}
+                      disabled={isSubmitting}
+                    />
+                  )}
+                />
+              </FormSection>
+            </FormBody>
+
+            <FormActions>
+              <Button type="button" variant="cancel" onClick={() => requestClose(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={isSubmitting || templatesLoading || templatesFailed}>
+                {isSubmitting ? "Guardando…" : "Guardar"}
+              </Button>
+            </FormActions>
+          </FormLayout>
+        </FormDialogContent>
+      </Dialog>
+
+      <DiscardChangesDialog
+        open={confirmDiscard}
+        onOpenChange={setConfirmDiscard}
+        onDiscard={() => onOpenChange(false)}
+      />
+    </>
   );
 }
 
-// Resumen de la orden ya registrada a la que se agrega el producto: lo que ya
-// tiene (para no cargar dos veces lo mismo) y cuánto falta para la factura.
+// Lo que la orden ya tiene (para no cargar dos veces lo mismo) y cuánto falta para la factura.
 function ExistingOrderSummary({
   order,
   lines,
@@ -213,7 +311,9 @@ function ExistingOrderSummary({
   newLinesTotal: number;
   onChangeOrder: () => void;
 }) {
-  const gap = order.invoice ? invoiceGapText(order.invoice.totalUsd, order.invoice.linesTotalUsd + newLinesTotal) : null;
+  const gap = order.invoice
+    ? invoiceGapText(order.invoice.totalUsd, order.invoice.linesTotalUsd + newLinesTotal)
+    : null;
   const otherOrders = order.invoice ? order.invoice.orders.filter((o) => o.id !== order.id) : [];
   const shown = lines.slice(0, 6);
   const arrived = order.status === "received" || order.status === "partial";
@@ -222,11 +322,13 @@ function ExistingOrderSummary({
     <div className="space-y-2 rounded-2xl border border-primary/30 bg-primary/5 p-4 text-sm">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <p className="font-semibold text-foreground">Esta orden ya está registrada: el producto se agrega a ella.</p>
+          <p className="font-semibold text-foreground">
+            Esta orden ya está registrada: los productos se agregan a ella.
+          </p>
           <p className="text-muted-foreground">
             {order.supplier ? order.supplier.name : "Sin proveedor"} · {order.lineCount}{" "}
-            {order.lineCount === 1 ? "producto cargado" : "productos cargados"} · {order.units.toLocaleString("en-US")} u ·{" "}
-            {formatUsd(order.linesTotalUsd)}
+            {order.lineCount === 1 ? "producto cargado" : "productos cargados"} ·{" "}
+            {order.units.toLocaleString("en-US")} u · {formatUsd(order.linesTotalUsd)}
           </p>
         </div>
         <Button type="button" variant="ghost" size="sm" onClick={onChangeOrder}>
@@ -255,14 +357,20 @@ function ExistingOrderSummary({
           <span className="font-spec">{otherOrders.map((o) => o.orderNumber).join(", ")}</span>.
         </p>
       )}
-      {gap && <p className={gap.over ? "text-warning" : "text-muted-foreground"}>Con lo que estás cargando: {gap.text}</p>}
+      {gap && (
+        <p className={gap.over ? "text-warning" : "text-muted-foreground"}>
+          Con lo que estás cargando: {gap.text}
+        </p>
+      )}
       {arrived && (
-        <p className="text-muted-foreground">Esta orden ya llegó: lo que agregues queda en tránsito hasta que lo recibas.</p>
+        <p className="text-muted-foreground">
+          Esta orden ya llegó: lo que agregues queda en tránsito hasta que lo recibas.
+        </p>
       )}
       {order.missing.length > 0 && (
         <p className="text-warning">
-          Le falta: {order.missing.map((m) => MISSING_LABELS[m]).join(", ")}. Lo completás desde la tabla de compras
-          (Completar datos).
+          Le falta: {order.missing.map((m) => MISSING_LABELS[m]).join(", ")}. Lo completás desde la
+          tabla de compras (Completar datos).
         </p>
       )}
     </div>

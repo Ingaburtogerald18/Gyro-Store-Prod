@@ -7,7 +7,7 @@ export function RelativeBar({
   ratio,
   animKey,
   className,
-  barClassName = 'bg-tone-emerald',
+  barClassName = 'bg-primary-2',
 }: {
   /** 0..1 */
   ratio: number;

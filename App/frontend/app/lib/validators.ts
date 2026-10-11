@@ -40,15 +40,13 @@ const requiredPositiveNumber = (msg = "Requerido") =>
     z.number({ message: msg }).positive(msg),
   );
 
-// Registro de compra (China).
+// Editar una compra (EditPurchaseModal).
 export const purchaseFormSchema = z.object({
   purchaseDate: z.string().min(1, "Fecha requerida"),
   // Lote viejo (LT1) o número de orden de Alibaba: desde la migración 0024 la
   // línea de una orden lleva el número de su orden acá.
   lot: z.string().trim().min(1, "Lote requerido").max(60),
   productName: z.string().min(2, "Nombre requerido"),
-  // El backend la exige al registrar la compra (newPurchaseInputSchema), así
-  // que el formulario tiene que pedirla: sin esto el POST vuelve 400.
   category: z.string().min(1, "Categoría requerida"),
   quantity: z.preprocess(
     (v) => (v === "" || v === null || v === undefined ? NaN : Number(v)),
@@ -74,7 +72,8 @@ export type PurchaseFormValues = z.input<typeof purchaseFormSchema>;
 export const arrivalFormSchema = z.object({
   arrivalDate: z.string().min(1, "Fecha de ingreso requerida"),
   shippingUnit: z.coerce.number().nonnegative("No puede ser negativo"),
-  suggestedPrice: z.coerce.number().nonnegative("No puede ser negativo").optional(),
+  // Es el único precio que usa la tienda.
+  suggestedPrice: z.coerce.number({ error: "Escribí el precio de venta." }).positive("Escribí el precio de venta."),
   // Vacío = la tasa de Configuración.
   exchangeRate: z.preprocess(
     (v) => (v === "" || v === null || v === undefined ? undefined : Number(v)),

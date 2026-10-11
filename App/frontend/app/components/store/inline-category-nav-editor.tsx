@@ -16,14 +16,11 @@ import {
   useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Add01Icon, Cancel01Icon } from '@hugeicons/core-free-icons';
+import { Add01Icon, Cancel01Icon, Menu01Icon } from '@hugeicons/core-free-icons';
 
 import type { StoreCategory } from '~/store/api/sessionApi';
 import { useAppDispatch, useAppSelector } from '~/store/hooks';
-import {
-  selectDraftHeaderCategories,
-  updateHeaderCategories,
-} from '~/store/slices/builderSlice';
+import { selectDraftHeaderCategories, updateHeaderCategories } from '~/store/slices/builderSlice';
 
 import { Button } from '~/components/ui/button';
 import { HugeIcon } from '~/components/ui/icon';
@@ -39,12 +36,17 @@ function SortableCategoryItem({
   id,
   category,
   onRemove,
+  disabled,
 }: {
   id: string;
   category: StoreCategory;
   onRemove: (id: string) => void;
+  disabled: boolean;
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id,
+    disabled,
+  });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -57,78 +59,87 @@ function SortableCategoryItem({
       ref={setNodeRef}
       style={style}
       className={cn(
-        "group relative flex w-full items-center gap-2 rounded-xl border border-transparent bg-transparent px-3 py-1.5 text-sm font-medium transition-colors hover:bg-muted",
-        isDragging && "opacity-50 ring-2 ring-primary bg-muted shadow-lg"
+        'relative flex w-full items-center gap-3 rounded-xl border bg-card p-3 text-sm font-medium',
+        isDragging && 'opacity-50 border-primary-2',
       )}
     >
-      <div 
-        {...attributes} 
+      <Button
+        variant="outline"
+        size="icon"
+        disabled={disabled}
+        {...attributes}
         {...listeners}
-        className="cursor-grab active:cursor-grabbing text-foreground touch-none flex flex-1 items-center gap-2"
-        aria-label="Arrastrar para reordenar"
+        className="cursor-grab touch-none active:cursor-grabbing"
+        aria-label={`Mover ${category.name}`}
       >
+        <HugeIcon icon={Menu01Icon} size={16} aria-hidden />
+      </Button>
+      <div className="flex min-w-0 flex-1 items-center gap-2">
         {category.icon && <span>{category.icon}</span>}
         {category.name}
       </div>
-      
-      {/* Botón de quitar, solo visible en hover (desktop) o siempre en móvil */}
-      <button
+      <Button
+        variant="cancel"
+        size="icon"
+        disabled={disabled}
         onClick={() => onRemove(id)}
-        className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-destructive/10 text-destructive transition-opacity hover:bg-destructive hover:text-destructive-foreground focus-visible:opacity-100 group-hover:opacity-100"
         aria-label={`Quitar ${category.name} de la navegación`}
       >
-        <HugeIcon icon={Cancel01Icon} size={12} strokeWidth={2.5} />
-      </button>
+        <HugeIcon icon={Cancel01Icon} size={16} aria-hidden />
+      </Button>
     </div>
   );
 }
 
 interface InlineCategoryNavEditorProps {
   allCategories: StoreCategory[];
+  disabled?: boolean;
 }
 
-export function InlineCategoryNavEditor({ allCategories }: InlineCategoryNavEditorProps) {
+export function InlineCategoryNavEditor({
+  allCategories,
+  disabled = false,
+}: InlineCategoryNavEditorProps) {
   const dispatch = useAppDispatch();
   const draftHeaderCategories = useAppSelector(selectDraftHeaderCategories);
-  
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
   const availableToAdd = useMemo(() => {
-    return allCategories.filter(c => !draftHeaderCategories.includes(c.id));
+    return allCategories.filter((c) => !draftHeaderCategories.includes(c.id));
   }, [allCategories, draftHeaderCategories]);
 
   const handleDragEnd = (event: DragEndEvent) => {
+    if (disabled) return;
     const { active, over } = event;
     if (over && active.id !== over.id) {
       const oldIndex = draftHeaderCategories.indexOf(active.id as string);
       const newIndex = draftHeaderCategories.indexOf(over.id as string);
-      dispatch(updateHeaderCategories(arrayMove(draftHeaderCategories, oldIndex, newIndex)));
+      if (oldIndex >= 0 && newIndex >= 0)
+        dispatch(updateHeaderCategories(arrayMove(draftHeaderCategories, oldIndex, newIndex)));
     }
   };
 
   const handleRemove = (idToRemove: string) => {
-    dispatch(updateHeaderCategories(draftHeaderCategories.filter(id => id !== idToRemove)));
+    if (disabled) return;
+    dispatch(updateHeaderCategories(draftHeaderCategories.filter((id) => id !== idToRemove)));
   };
 
   const handleAdd = (idToAdd: string) => {
-    if (draftHeaderCategories.length >= 7) return;
+    if (disabled || draftHeaderCategories.length >= 7) return;
     dispatch(updateHeaderCategories([...draftHeaderCategories, idToAdd]));
   };
 
   return (
     <div className="flex w-full flex-col items-stretch gap-2">
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        onDragEnd={handleDragEnd}
-      >
-        <SortableContext
-          items={draftHeaderCategories}
-          strategy={verticalListSortingStrategy}
-        >
+      <p className="mb-2 text-xs text-muted-foreground">
+        Arrastrá desde el asa para ordenar. Con teclado, presioná Espacio y usá las flechas.
+      </p>
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext items={draftHeaderCategories} strategy={verticalListSortingStrategy}>
           {draftHeaderCategories.map((id) => {
             const cat = allCategories.find((c) => c.id === id);
             if (!cat) return null;
@@ -138,30 +149,31 @@ export function InlineCategoryNavEditor({ allCategories }: InlineCategoryNavEdit
                 id={id}
                 category={cat}
                 onRemove={handleRemove}
+                disabled={disabled}
               />
             );
           })}
         </SortableContext>
       </DndContext>
 
-      {/* Botón de añadir */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className="h-8 shrink-0 gap-1 rounded-xl px-2 text-primary"
-            disabled={draftHeaderCategories.length >= 7}
+          <Button
+            variant="outline"
+            className="mt-2 w-full"
+            disabled={disabled || draftHeaderCategories.length >= 7 || availableToAdd.length === 0}
           >
             <HugeIcon icon={Add01Icon} size={16} strokeWidth={2} />
-            <span className="text-xs">Añadir</span>
+            Agregar categoría
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuContent align="start" className="max-h-64 w-56 overflow-y-auto">
           {availableToAdd.length === 0 ? (
-            <div className="p-2 text-sm text-muted-foreground text-center">No hay más categorías</div>
+            <div className="p-2 text-sm text-muted-foreground text-center">
+              No hay más categorías
+            </div>
           ) : (
-            availableToAdd.map(cat => (
+            availableToAdd.map((cat) => (
               <DropdownMenuItem key={cat.id} onClick={() => handleAdd(cat.id)}>
                 {cat.icon && <span className="mr-2">{cat.icon}</span>}
                 {cat.name}
@@ -171,13 +183,9 @@ export function InlineCategoryNavEditor({ allCategories }: InlineCategoryNavEdit
         </DropdownMenuContent>
       </DropdownMenu>
 
-      {/* Contador de uso */}
-      <div className="ml-auto flex shrink-0 items-center gap-1 rounded-full bg-muted/50 px-2 py-0.5 text-2xs font-medium text-muted-foreground">
-        <span className={cn(draftHeaderCategories.length >= 7 && "text-warning")}>
-          {draftHeaderCategories.length}
-        </span>
-        / 7
-      </div>
+      <p className="text-xs text-muted-foreground">
+        {draftHeaderCategories.length} de 7 categorías seleccionadas.
+      </p>
     </div>
   );
 }

@@ -1,7 +1,7 @@
-// Inventario Actual: productos recibidos en bodega con todas las columnas
-// calculadas (cantidad = original − vendidos, precios USD y costo real en C$).
+// Stock actual: productos recibidos en bodega con todas las columnas calculadas
+// (cantidad = original − vendidos, costos). `readOnly` es la vista del vendedor, sin costos.
 import { HugeIcon } from "~/components/ui/icon";
-import { Alert02Icon, CheckmarkCircle01Icon, Edit02Icon, Delete02Icon, PackageIcon } from "@hugeicons/core-free-icons";
+import { Alert02Icon, CheckmarkCircle01Icon, Edit02Icon, Delete02Icon, DiscountTag01Icon, LinkSquare02Icon, PackageIcon } from "@hugeicons/core-free-icons";
 import { useMemo, useState } from "react";
 import { type ColumnDef } from "@tanstack/react-table";
 import { toast } from "sonner";
@@ -13,18 +13,20 @@ import { Button } from "~/components/ui/button";
 import { RowActionsMenu } from "~/components/ui/RowActionsMenu";
 import { EditArrivalModal } from "./EditArrivalModal";
 import { StockAdjustDialog } from "./StockAdjustDialog";
+import { ColorOfferDialog } from "./ColorOfferDialog";
+import { ConfirmDialog } from "~/components/ui/confirm-dialog";
+import { serverErrorMessage } from "~/components/ui/form-feedback";
 import { stockPerProduct } from "./InventoryMetrics";
 import {
   useGetCurrentInventoryQuery,
   useRevertPurchaseMutation,
   useGetPurchasesQuery,
+  useRemoveColorOfferMutation,
   type InventoryRow,
   type Purchase,
 } from "~/store/api/inventoryV1Api";
-import { useGetAdminCatalogQuery } from "~/store/api/catalogAdminApi";
-import { formatUsd, splitProductName } from "~/lib/formatters";
+import { formatCordobas, formatNicaraguaDateTime, formatUsd, splitProductName } from "~/lib/formatters";
 import { CodeCell, MoneyCell } from "~/components/ui/cells";
-import { useNavigate } from "@remix-run/react";
 import { Spinner } from "~/components/ui/spinner";
 import { useCategoryLabel } from "~/hooks/useCategoryLabel";
 
@@ -32,14 +34,15 @@ export function CurrentInventoryTable({
   period = "all",
   mode = "all",
   search,
+  readOnly = false,
 }: {
   period?: string;
   mode?: "inStock" | "outOfStock" | "all";
   /** Búsqueda controlada desde la barra de la pantalla. Si se pasa, la tabla
    *  no dibuja su propio buscador (habría dos). */
   search?: string;
+  readOnly?: boolean;
 }) {
-  const navigate = useNavigate();
   const { data: allRows = [], isLoading } = useGetCurrentInventoryQuery(period);
   const rows = useMemo(() => {
     if (mode === "inStock") return allRows.filter(r => (r.available || 0) > 0);
@@ -53,29 +56,27 @@ export function CurrentInventoryTable({
   }, [allRows, mode]);
   // Las compras se traen sin filtro de periodo: se usan para resolver el lote
   // detrás de una fila al editar, y ese lote puede ser de cualquier mes.
-  const { data: purchases = [] } = useGetPurchasesQuery();
-  const { data: catalog = [] } = useGetAdminCatalogQuery();
+  const { data: purchases = [] } = useGetPurchasesQuery(undefined, { skip: readOnly });
   const categoryLabel = useCategoryLabel();
   const [revert] = useRevertPurchaseMutation();
-
-  const codeToCatalogMap = useMemo(() => {
-    const map = new Map<string, string>();
-    catalog.forEach((c: any) => {
-      if (c.variantMappings) {
-        Object.values(c.variantMappings).forEach((m: any) => {
-          if (m.codes) m.codes.forEach((s: string) => map.set(s, c.id));
-          if (m.sku) map.set(m.sku, c.id);
-          if (m.skus) m.skus.forEach((s: string) => map.set(s, c.id));
-        });
-      }
-    });
-    return map;
-  }, [catalog]);
+  const [removeOffer] = useRemoveColorOfferMutation();
 
   const [revertFor, setRevertFor] = useState<InventoryRow | null>(null);
   const [adjustFor, setAdjustFor] = useState<InventoryRow | null>(null);
   const [editFor, setEditFor] = useState<Purchase | null>(null);
+  const [offerFor, setOfferFor] = useState<InventoryRow | null>(null);
+  const [removeOfferFor, setRemoveOfferFor] = useState<InventoryRow | null>(null);
   const [reverting, setReverting] = useState(false);
+
+  async function handleRemoveOffer(row: InventoryRow) {
+    if (!row.offer) return;
+    try {
+      await removeOffer(row.offer.id).unwrap();
+      toast.success("Oferta quitada", { description: `${row.offerTarget?.label ?? row.productName} vuelve a su precio normal.` });
+    } catch (err) {
+      toast.error(serverErrorMessage(err, "No se pudo quitar la oferta."));
+    }
+  }
 
   async function handleRevert() {
     if (!revertFor) return;
@@ -110,37 +111,43 @@ export function CurrentInventoryTable({
       },
       {
         id: "catalogMatch",
-        header: "Catálogo",
-        cell: ({ row }) => {
-          const rowData = row.original;
-          // Vínculo por columna (elegido al registrar la compra) o, si no, el
-          // cargado a mano en el editor de Catálogo.
-          const catalogId = rowData.catalogItemId ?? codeToCatalogMap.get(rowData.code);
-          // Texto con ícono, sin animación: "Sin vincular" parpadeaba en loop
-          // en cada fila, y un parpadeo permanente deja de ser una señal.
-          return catalogId ? (
-            <button
-              type="button"
-              onClick={() => navigate(`/admin/catalogo?sku=${rowData.code}`)}
-              className="inline-flex items-center gap-1 whitespace-nowrap rounded-xl text-xs text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
+        header: "Tienda",
+        cell: ({ row }) =>
+          // Vinculado por columna (al registrar o editar la compra) o, en lotes viejos, a mano en el antiguo Catálogo.
+          row.original.catalogItemId || row.original.offerTarget ? (
+            <span className="inline-flex items-center gap-1 whitespace-nowrap text-xs text-muted-foreground">
               <HugeIcon icon={CheckmarkCircle01Icon} size={13} strokeWidth={2} className="text-foreground" aria-hidden />
               Vinculado
-            </button>
+            </span>
           ) : (
-            <button
-              type="button"
-              onClick={() => {
-                navigate('/admin/catalogo');
-                toast.info('Desde acá podés vincular artículos del inventario con productos del catálogo público.');
-              }}
-              className="inline-flex items-center gap-1 whitespace-nowrap rounded-xl text-xs font-medium text-warning hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            <span
+              className="inline-flex items-center gap-1 whitespace-nowrap text-xs font-medium text-warning"
+              title="La tienda no ve este lote. Vinculalo a una plantilla con «Editar datos de compra» en Compras."
             >
               <HugeIcon icon={Alert02Icon} size={13} strokeWidth={2} aria-hidden />
               Sin vincular
-            </button>
-          );
-        }
+            </span>
+          ),
+      },
+      {
+        id: "media",
+        header: "Fotos y videos",
+        enableSorting: false,
+        cell: ({ row }) =>
+          row.original.spoLink ? (
+            <a
+              href={row.original.spoLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="inline-flex items-center gap-1 whitespace-nowrap rounded-xl text-xs font-medium text-primary-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <HugeIcon icon={LinkSquare02Icon} size={13} strokeWidth={2} aria-hidden />
+              Abrir
+            </a>
+          ) : (
+            <span className="text-xs text-muted-foreground">—</span>
+          ),
       },
       {
         accessorKey: "category",
@@ -211,8 +218,18 @@ export function CurrentInventoryTable({
         meta: { align: "right" },
         cell: ({ row }) => {
           const ps = row.original.suggestedPrice;
-          if (!ps) return <span className="text-muted-foreground text-xs">—</span>;
-          return <MoneyCell tone="strong" value={ps} />;
+          const offer = row.original.offer;
+          return (
+            <div className="flex flex-col items-end">
+              {/* Sin precio, la tienda usa el del catálogo hasta que se le ponga uno con «Editar». */}
+              {ps ? <MoneyCell tone="strong" value={ps} /> : <span className="text-xs text-warning">Sin precio</span>}
+              {offer && (
+                <span className="text-xs whitespace-nowrap text-muted-foreground" title={`Oferta del color hasta el ${formatNicaraguaDateTime(offer.endsAt)}`}>
+                  Oferta {formatCordobas(offer.price)} · {formatNicaraguaDateTime(offer.endsAt)}
+                </span>
+              )}
+            </div>
+          );
         },
       },
       {
@@ -238,6 +255,12 @@ export function CurrentInventoryTable({
               <RowActionsMenu
                 actions={[
                   ...(p ? [{ label: "Editar", icon: <HugeIcon icon={Edit02Icon} size={16} strokeWidth={2} />, onClick: () => setEditFor(p) }] : []),
+                  ...(rowData.offerTarget
+                    ? [{ label: rowData.offer ? "Cambiar oferta" : "Poner oferta", icon: <HugeIcon icon={DiscountTag01Icon} size={16} strokeWidth={2} />, onClick: () => setOfferFor(rowData) }]
+                    : []),
+                  ...(rowData.offer
+                    ? [{ label: "Quitar oferta", icon: <HugeIcon icon={DiscountTag01Icon} size={16} strokeWidth={2} />, onClick: () => setRemoveOfferFor(rowData) }]
+                    : []),
                   { label: "Ajustar stock", icon: <HugeIcon icon={PackageIcon} size={16} strokeWidth={2} />, onClick: () => setAdjustFor(rowData) },
                   { label: "Descartar llegada", icon: <HugeIcon icon={Delete02Icon} size={16} strokeWidth={2} />, danger: true, separatorBefore: !!p, onClick: () => setRevertFor(rowData) }
                 ]}
@@ -248,20 +271,21 @@ export function CurrentInventoryTable({
       },
     ],
     // `categoryLabel` en la lista: sin él la columna se quedaba con el primer
-    // valor resuelto y no reaccionaba a un renombrado en Catálogo.
-    [purchases, codeToCatalogMap, navigate, categoryLabel],
+    // valor resuelto y no reaccionaba a un renombrado de categoría.
+    [purchases, categoryLabel],
   );
 
   const columns = useMemo(() => {
-    if (mode === "outOfStock") {
-      const allowed = ["code", "productName", "catalogMatch", "category", "quantitySold", "actions"];
-      return allColumns.filter((c: any) => {
-        const id = c.accessorKey || c.id;
-        return allowed.includes(id);
-      });
-    }
-    return allColumns;
-  }, [allColumns, mode]);
+    const allowed = readOnly
+      ? mode === "outOfStock"
+        ? ["code", "productName", "category", "media"]
+        : ["code", "productName", "category", "available", "precioSugerido", "media"]
+      : mode === "outOfStock"
+        ? ["code", "productName", "catalogMatch", "category", "quantitySold", "actions"]
+        : null;
+    if (!allowed) return allColumns;
+    return allColumns.filter((c) => allowed.includes(("accessorKey" in c ? String(c.accessorKey) : c.id) ?? ""));
+  }, [allColumns, mode, readOnly]);
 
   if (isLoading) {
     return (
@@ -284,8 +308,8 @@ export function CurrentInventoryTable({
         emptyText={mode === "outOfStock" ? "No hay productos agotados." : "No hay productos recibidos en bodega todavía."}
         initialSorting={[{ id: "code", desc: false }]}
         // Las columnas secundarias se activan desde «Columnas» para caber en 1280 px.
-        tableId="inventario-stock"
-        defaultHiddenColumns={["category", "quantityOriginal", "quantityReserved", "costRealCordobas"]}
+        tableId={readOnly ? "inventario-stock-vendedor" : "inventario-stock"}
+        defaultHiddenColumns={readOnly ? [] : ["category", "quantityOriginal", "quantityReserved", "costRealCordobas", "media"]}
       />
 
       <Dialog open={!!revertFor} onOpenChange={() => setRevertFor(null)}>
@@ -318,6 +342,15 @@ export function CurrentInventoryTable({
 
       <EditArrivalModal purchase={editFor} onClose={() => setEditFor(null)} />
       <StockAdjustDialog lot={adjustFor} onClose={() => setAdjustFor(null)} />
+      <ColorOfferDialog target={offerFor?.offerTarget ?? null} offer={offerFor?.offer ?? null} onClose={() => setOfferFor(null)} />
+      <ConfirmDialog
+        open={!!removeOfferFor}
+        onOpenChange={(open) => !open && setRemoveOfferFor(null)}
+        title="¿Quitar la oferta?"
+        description={`${removeOfferFor?.offerTarget?.label ?? ""} vuelve a su precio normal en la tienda.`}
+        confirmText="Quitar oferta"
+        onConfirm={() => removeOfferFor && handleRemoveOffer(removeOfferFor)}
+      />
     </>
   );
 }

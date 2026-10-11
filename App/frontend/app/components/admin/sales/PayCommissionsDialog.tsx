@@ -1,3 +1,4 @@
+import { FormDialogContent, FormBody, FormActions } from '~/components/ui/form-layout';
 // Pago de comisiones a UN vendedor (admin). El servidor ya lo resolvía
 // (`POST /api/sales/pay` y `/settle-balance`, ver server/services/sellerPayments.ts)
 // pero ninguna pantalla lo llamaba: las ventas aprobadas nunca pasaban a
@@ -12,12 +13,19 @@ import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
 import { Button } from '~/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '~/components/ui/dialog';
+import { FormErrorBanner, serverErrorMessage } from '~/components/ui/form-feedback';
+import { Dialog, DialogDescription, DialogHeader, DialogTitle } from '~/components/ui/dialog';
 import { Field, FieldDescription, FieldLabel } from '~/components/ui/field';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '~/components/ui/select';
 import { Spinner } from '~/components/ui/spinner';
 import { Textarea } from '~/components/ui/textarea';
-import { errMsg, formatCordobas, formatLongDate } from '~/lib/formatters';
+import { formatCordobas, formatLongDate } from '~/lib/formatters';
 import { uploadOne } from '~/lib/uploadQueue';
 import {
   useGetSalesQuery,
@@ -52,6 +60,7 @@ export function PayCommissionsDialog({
   const { data: balances = [] } = useGetSellerBalancesQuery(undefined, { skip: !open });
   const [payCommissions, { isLoading: paying }] = usePayCommissionsMutation();
   const [settleBalance, { isLoading: settling }] = useSettleSellerBalanceMutation();
+  const [serverError, setServerError] = useState<string | null>(null);
 
   // Vendedores con algo por cobrar: ventas aprobadas sin pagar y/o saldo de
   // ajustes. La clave es `sellerEmail` (en vendedores esporádicos es el nombre).
@@ -141,6 +150,7 @@ export function PayCommissionsDialog({
   }
 
   async function handleSubmit() {
+    setServerError(null);
     if (!seller || disabledReason) return;
     try {
       let receiptUrl: string | undefined;
@@ -170,31 +180,34 @@ export function PayCommissionsDialog({
       toast.success(`Pago a ${seller.name} registrado por ${formatCordobas(total, 'C$', 2)}.`);
       onClose();
     } catch (err) {
-      toast.error(errMsg(err, 'No se pudo registrar el pago.'));
+      setServerError(serverErrorMessage(err, 'No se pudo registrar el pago.'));
     }
   }
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && !busy && onClose()}>
-      <DialogContent className="flex max-h-[90vh] w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-xl">
-        <DialogHeader className="shrink-0 border-b border-border px-5 py-4 pr-14">
+      <FormDialogContent>
+        <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <HugeIcon icon={Wallet01Icon} size={18} strokeWidth={2} aria-hidden />
             Pagar comisiones
           </DialogTitle>
           <DialogDescription>
-            Las ventas pagadas pasan a "Pagadas" y el saldo de ajustes queda saldado. El pago no se puede editar
-            después.
+            Las ventas pagadas pasan a "Pagadas" y el saldo de ajustes queda saldado. El pago no se
+            puede editar después.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4">
+        <FormErrorBanner message={serverError} />
+        <FormBody>
           {loadingSales ? (
             <div className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
               <Spinner className="h-4 w-4" /> Cargando ventas aprobadas…
             </div>
           ) : sellers.length === 0 ? (
-            <p className="py-6 text-sm text-muted-foreground">No hay comisiones pendientes de pago.</p>
+            <p className="py-6 text-sm text-muted-foreground">
+              No hay comisiones pendientes de pago.
+            </p>
           ) : (
             <>
               <Field>
@@ -217,7 +230,8 @@ export function PayCommissionsDialog({
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-xs text-muted-foreground">
                     <span>
-                      {selectedSales.length} de {seller.sales.length} venta{seller.sales.length === 1 ? '' : 's'}
+                      {selectedSales.length} de {seller.sales.length} venta
+                      {seller.sales.length === 1 ? '' : 's'}
                     </span>
                     <button
                       type="button"
@@ -246,10 +260,16 @@ export function PayCommissionsDialog({
                             disabled={busy}
                           />
                           <span className="min-w-0 flex-1">
-                            <span className="block text-foreground">{formatLongDate(sale.createdAt)}</span>
+                            <span className="block text-foreground">
+                              {formatLongDate(sale.createdAt)}
+                            </span>
                             <span className="nums block text-xs text-muted-foreground">
                               {sale.invoiceCode ?? 'Sin factura'} ·{' '}
-                              {formatCordobas(Math.max(0, sale.total - (sale.deliveryFee ?? 0)), 'C$', 2)}
+                              {formatCordobas(
+                                Math.max(0, sale.total - (sale.deliveryFee ?? 0)),
+                                'C$',
+                                2,
+                              )}
                             </span>
                           </span>
                           <span className="nums shrink-0 font-medium text-foreground">
@@ -282,7 +302,13 @@ export function PayCommissionsDialog({
                   </div>
                   {total < 0 && (
                     <p className="flex items-start gap-1.5 pt-1 text-xs text-warning">
-                      <HugeIcon icon={Alert02Icon} size={14} strokeWidth={2} className="mt-px shrink-0" aria-hidden />
+                      <HugeIcon
+                        icon={Alert02Icon}
+                        size={14}
+                        strokeWidth={2}
+                        className="mt-px shrink-0"
+                        aria-hidden
+                      />
                       El total es negativo: el vendedor le debe a la tienda.
                     </p>
                   )}
@@ -313,7 +339,9 @@ export function PayCommissionsDialog({
                   className="flex cursor-pointer items-center gap-2 rounded-xl border border-dashed border-border px-3 py-2.5 text-sm text-muted-foreground hover:bg-muted/50"
                 >
                   <HugeIcon icon={Upload04Icon} size={16} strokeWidth={2} aria-hidden />
-                  <span className="min-w-0 truncate">{file ? file.name : 'Subir foto del comprobante'}</span>
+                  <span className="min-w-0 truncate">
+                    {file ? file.name : 'Subir foto del comprobante'}
+                  </span>
                 </label>
                 <input
                   id="pay-receipt"
@@ -323,7 +351,9 @@ export function PayCommissionsDialog({
                   onChange={(e) => setFile(e.target.files?.[0] ?? null)}
                   disabled={busy}
                 />
-                <FieldDescription>Si no hay comprobante (por ejemplo, pago en efectivo), explicalo abajo.</FieldDescription>
+                <FieldDescription>
+                  Si no hay comprobante (por ejemplo, pago en efectivo), explicalo abajo.
+                </FieldDescription>
               </Field>
 
               <Field>
@@ -339,18 +369,26 @@ export function PayCommissionsDialog({
               </Field>
             </>
           )}
-        </div>
+        </FormBody>
 
-        <div className="shrink-0 space-y-2 border-t border-border px-5 py-4">
-          <Button className="w-full" onClick={handleSubmit} disabled={busy || !!disabledReason || sellers.length === 0}>
-            {busy && <Spinner className="mr-2" />}
-            {onlyBalance ? 'Saldar ajustes' : 'Registrar pago'} · {formatCordobas(total, 'C$', 2)}
-          </Button>
+        <FormActions className="flex-wrap">
           {disabledReason && sellers.length > 0 && (
-            <p className="text-xs text-muted-foreground">{disabledReason}</p>
+            <p className="w-full text-xs text-muted-foreground">{disabledReason}</p>
           )}
-        </div>
-      </DialogContent>
+          <Button type="button" variant="cancel" onClick={onClose} disabled={busy}>
+            Cancelar
+          </Button>
+          <Button
+            type="button"
+            onClick={handleSubmit}
+            disabled={busy || !!disabledReason || sellers.length === 0}
+          >
+            {busy && <Spinner className="mr-2" />}
+            {busy ? 'Guardando…' : onlyBalance ? 'Saldar ajustes' : 'Registrar pago'} ·{' '}
+            {formatCordobas(total, 'C$', 2)}
+          </Button>
+        </FormActions>
+      </FormDialogContent>
     </Dialog>
   );
 }

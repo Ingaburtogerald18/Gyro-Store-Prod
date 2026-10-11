@@ -1,125 +1,235 @@
-// Editor de portada y carrito.
-//
-// Tres niveles de cambios, siempre separados:
-//   1. Formulario abierto (un banner, una parte del carrito): copia local.
-//   2. Borrador: lo que se aplicó desde los formularios. Se guarda también en
-//      este navegador (lib/landingDraft) para sobrevivir a una recarga.
-//   3. Publicado: lo que ve la tienda. Solo cambia con «Publicar».
-//
-// La vista previa es la tienda real en un iframe aislado: no crea pedidos, no
-// abre WhatsApp ni publica, y no toca el carrito ni el tema guardados.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useBlocker } from '@remix-run/react';
-import { motion, useReducedMotion } from 'framer-motion';
 import { toast } from 'sonner';
+import {
+  ArrowDown01Icon,
+  ArrowLeft01Icon,
+  RedoIcon,
+  UndoIcon,
+  ViewIcon,
+  WorkHistoryIcon,
+} from '@hugeicons/core-free-icons';
 import {
   categoryMode,
   landingConfigSchema,
   MAX_HERO_SLIDES,
   type CategoryMode,
+  type EditorEntry,
   type HeroSlide,
+  type LandingConfig,
+  type StoreVersion,
 } from '@shared/schemas';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '~/components/ui/dialog';
 import { Button } from '~/components/ui/button';
+import { HugeIcon } from '~/components/ui/icon';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '~/components/ui/dialog';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '~/components/ui/dropdown-menu';
+import { serverErrorMessage } from '~/components/ui/form-feedback';
 import { useAppDispatch, useAppSelector } from '~/store/hooks';
-import { selectUser, toggleEditMode } from '~/store/slices/authSlice';
+import { toggleEditMode } from '~/store/slices/authSlice';
 import {
   clearBuilderSession,
+  endBuilderChange,
   initBuilderSession,
+  redoBuilderChange,
+  selectCanRedoBuilder,
+  selectCanUndoBuilder,
+  initDraftProducts,
   selectDraftLandingConfig,
+  selectDraftProducts,
   setCategoryMode,
+  setDraftProductOrder,
+  undoBuilderChange,
+  updateDraftCombo,
+  updateDraftProduct,
+  updateHeroSlide,
   updateHeroSlides,
 } from '~/store/slices/builderSlice';
-import { useStoreCatalog, useStoreConfig, useStoreLanding } from '~/hooks/useStoreConfig';
-import { useUpdateLandingConfigMutation } from '~/store/api/storefrontApi';
+import { useStoreCatalog, useStoreConfig } from '~/hooks/useStoreConfig';
+import {
+  isEditorLockLost,
+  useDiscardStoreDraftMutation,
+  useGetEditorProductsQuery,
+  usePublishStoreDraftMutation,
+  useRestoreStoreVersionMutation,
+  useSaveStoreDraftMutation,
+} from '~/store/api/storeEditorApi';
+import { useGetAdminCombosQuery } from '~/store/api/catalogAdminApi';
 import { InlineCategoryNavEditor } from './inline-category-nav-editor';
 import { InlineRailsEditor } from './inline-rails-editor';
-import { BannerEditor } from './banner-editor';
-import { CART_EDITOR_SECTIONS, CartContentEditor, type CartEditorSection } from '~/components/cart/cart-content-editor';
-import { clearLandingDraft, loadLandingDraft, saveLandingDraft, signature, type StoredLandingDraft } from '~/lib/landingDraft';
-import { hasLandingErrors, validateLanding, validateSlide, type LandingErrors, type SlideErrors } from '~/lib/landingValidation';
-import { getProductUrl, errMsg } from '~/lib/formatters';
+import { HomeEditorPanel } from './home-editor-panel';
+import { StoreChangeReview } from './store-change-review';
+import { FormDialogContent, FormPanel, FormBody, FormActions } from '~/components/ui/form-layout';
+import { FormErrorBanner } from '~/components/ui/form-feedback';
+import {
+  CART_EDITOR_SECTIONS,
+  CartContentEditor,
+  type CartEditorSection,
+} from '~/components/cart/cart-content-editor';
+import { hasLandingErrors, validateLanding, type LandingErrors } from '~/lib/landingValidation';
+import {
+  applyDraftCombos,
+  applyDraftProducts,
+  cardImages,
+  EMPTY_DRAFT_PRODUCTS,
+  hasDraftProductChanges,
+  normalizeDraftProducts,
+  previewCatalog,
+} from '~/lib/storeDraftProducts';
+import { errMsg, formatNicaraguaDateTime, getProductUrl } from '~/lib/formatters';
 import { cn } from '~/lib/utils';
+import { ProductsPanel } from './products-panel';
+import { EditorCombosPanel } from './editor-combos-panel';
+import { VersionsDialog } from './versions-dialog';
+import type { PendingDraftRef } from './store-editor-gate';
 
-const SECTIONS = [
-  { id: 'banners', label: 'Banners', hint: 'Imagen, texto y botón principal' },
-  { id: 'navigation', label: 'Navegación', hint: 'Categorías del encabezado' },
-  { id: 'products', label: 'Secciones', hint: 'Grupos de productos de la portada' },
-  { id: 'cart', label: 'Carrito', hint: 'Textos e imágenes de compra' },
+const SECTIONS = ['navigation', 'banners', 'products', 'items', 'combos', 'cart'] as const;
+type SectionId = (typeof SECTIONS)[number];
+const TASKS = [
+  { id: 'home', label: 'Portada' },
+  { id: 'items', label: 'Productos' },
+  { id: 'combos', label: 'Combos' },
+  { id: 'cart', label: 'Carrito' },
 ] as const;
-type SectionId = typeof SECTIONS[number]['id'];
-
-// Anchos LÓGICOS reales de la vista previa. «Escritorio» se ve como escritorio
-// aunque el panel lateral achique el espacio: se escala para que entre.
+type TaskId = (typeof TASKS)[number]['id'];
 const VIEWPORTS = [
-  { id: 'm320', width: 320, label: '320', group: 'Móvil' },
-  { id: 'm390', width: 390, label: '390', group: 'Móvil' },
-  { id: 't768', width: 768, label: '768', group: 'Tablet' },
-  { id: 'd1280', width: 1280, label: '1280', group: 'Escritorio' },
-  { id: 'd1440', width: 1440, label: '1440', group: 'Escritorio' },
+  { id: 'm360', width: 360, label: 'Móvil' },
+  { id: 'd1280', width: 1280, label: 'Escritorio' },
+  { id: 'd1440', width: 1440, label: 'Escritorio amplio' },
 ] as const;
-type ViewportId = typeof VIEWPORTS[number]['id'];
-
+type ViewportId = (typeof VIEWPORTS)[number]['id'];
 const MODE_LABEL: Record<CategoryMode, string> = {
   auto: 'Automático',
   custom: 'Elegidas',
   hidden: 'Ocultar',
 };
+const selectionClass = 'border-2 border-primary-2 font-semibold';
+const SAVE_DELAY_MS = 800;
+const SAVE_RETRY_MS = 10_000;
+const signature = (config: LandingConfig | null | undefined) =>
+  config ? JSON.stringify(config) : '';
 
-export function LandingEditor() {
+export function LandingEditor({
+  session,
+  entry,
+  pendingDraft,
+  onLockLost,
+}: {
+  session: string;
+  /** Borrador del servidor y portada publicada, al entrar. */
+  entry: EditorEntry;
+  pendingDraft: PendingDraftRef;
+  onLockLost: (message: string) => void;
+}) {
   const dispatch = useAppDispatch();
-  const reduceMotion = useReducedMotion();
-  const user = useAppSelector(selectUser);
-  const landing = useStoreLanding();
   const config = useStoreConfig();
   const products = useStoreCatalog();
   const draft = useAppSelector(selectDraftLandingConfig);
-  const [publish, { isLoading: publishing }] = useUpdateLandingConfigMutation();
-
+  const draftProducts = useAppSelector(selectDraftProducts);
+  const {
+    data: editorProducts,
+    isLoading: productsLoading,
+    isError: productsFailed,
+    refetch: refetchProducts,
+  } = useGetEditorProductsQuery();
+  const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
+  const {
+    data: editorCombos,
+    isLoading: combosLoading,
+    isError: combosFailed,
+    refetch: refetchCombos,
+  } = useGetAdminCombosQuery();
+  const [selectedComboId, setSelectedComboId] = useState<string | null>(null);
+  const canUndo = useAppSelector(selectCanUndoBuilder);
+  const canRedo = useAppSelector(selectCanRedoBuilder);
+  const [publish, { isLoading: publishing }] = usePublishStoreDraftMutation();
+  const [saveDraft] = useSaveStoreDraftMutation();
+  const [discardDraft, { isLoading: discarding }] = useDiscardStoreDraftMutation();
+  const [restoreVersion, { isLoading: restoring }] = useRestoreStoreVersionMutation();
+  const [versionsOpen, setVersionsOpen] = useState(false);
+  const [saveState, setSaveState] = useState<'saved' | 'saving' | 'error'>('saved');
+  const [saveRetry, setSaveRetry] = useState(0);
   const [section, setSection] = useState<SectionId>('banners');
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [homeOverview, setHomeOverview] = useState(true);
   const [viewport, setViewport] = useState<ViewportId>('d1280');
   const [previewTheme, setPreviewTheme] = useState<'light' | 'dark'>('light');
   const [preview, setPreview] = useState(false);
-  const [mobilePanel, setMobilePanel] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [exitOpen, setExitOpen] = useState(false);
+  const [publishOpen, setPublishOpen] = useState(false);
+  const [publishFailure, setPublishFailure] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [cartSection, setCartSection] = useState<CartEditorSection | null>(null);
-  const [cartDirty, setCartDirty] = useState(false);
-  const [recovery, setRecovery] = useState<StoredLandingDraft | null>(null);
   const [publishErrors, setPublishErrors] = useState<LandingErrors | null>(null);
-
-  // Formulario de banner: copia local + su versión original para saber si hay
-  // cambios sin aplicar.
-  const [bannerForm, setBannerForm] = useState<HeroSlide | null>(null);
-  const [bannerOriginal, setBannerOriginal] = useState('');
-  const [bannerErrors, setBannerErrors] = useState<SlideErrors>({});
-  const [discardForm, setDiscardForm] = useState(false);
-
-  const original = useRef<string | null>(null);
+  const original = useRef(signature(entry.published));
+  const savedKey = useRef(
+    JSON.stringify({
+      landing: entry.draft?.landing ?? null,
+      products: entry.draft?.products ?? EMPTY_DRAFT_PRODUCTS,
+    }),
+  );
+  const saveQueue = useRef(Promise.resolve());
   const frame = useRef<HTMLIFrameElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
-
-  const host = typeof window !== 'undefined' ? window.location.host : '';
-  const userId = user?.id ?? '';
   const serialized = signature(draft);
-  const dirty = original.current !== null && serialized !== original.current;
-  const formDirty = (bannerForm !== null && JSON.stringify(bannerForm) !== bannerOriginal) || cartDirty;
-  const busy = publishing || uploading;
-  const slide = draft?.heroSlides.find(item => item.id === selectedId) ?? draft?.heroSlides[0];
+  const landingDirty = draft !== null && serialized !== original.current;
+  // Hasta que llegan los productos se guarda el borrador tal cual vino.
+  const productChanges = useMemo(
+    () =>
+      editorProducts
+        ? normalizeDraftProducts(draftProducts, editorProducts, editorCombos)
+        : draftProducts,
+    [draftProducts, editorProducts, editorCombos],
+  );
+  const shownCombos = useMemo(
+    () => (editorCombos ? applyDraftCombos(editorCombos, draftProducts) : []),
+    [draftProducts, editorCombos],
+  );
+  const shownProducts = useMemo(
+    () => (editorProducts ? applyDraftProducts(editorProducts, draftProducts) : []),
+    [draftProducts, editorProducts],
+  );
+  const previewProducts = useMemo(
+    () => (editorProducts ? previewCatalog(shownProducts) : undefined),
+    [editorProducts, shownProducts],
+  );
+  const dirty = landingDirty || hasDraftProductChanges(productChanges);
+  const busy = publishing || uploading || discarding || restoring;
+  const slide = draft?.heroSlides.find((item) => item.id === selectedId) ?? draft?.heroSlides[0];
+  const task: TaskId =
+    section === 'items' || section === 'combos' || section === 'cart' ? section : 'home';
+  const homeSection = section === 'navigation' || section === 'products' ? section : 'banners';
+  const publishedLanding = original.current
+    ? (JSON.parse(original.current) as LandingConfig)
+    : null;
+  const validationContext = useMemo(
+    () => ({
+      productUrls: products.map((p) => getProductUrl(p.id, p.name)),
+      socialCount: [
+        config?.socialLinks?.facebook,
+        config?.socialLinks?.instagram,
+        config?.socialLinks?.tiktok,
+      ].filter((v) => v?.trim()).length,
+    }),
+    [products, config?.socialLinks],
+  );
 
-  const validationContext = useMemo(() => ({
-    productUrls: products.map((p) => getProductUrl(p.id, p.name)),
-    socialCount: [config?.socialLinks?.facebook, config?.socialLinks?.instagram, config?.socialLinks?.tiktok].filter((v) => v?.trim()).length,
-  }), [products, config?.socialLinks]);
-
-  // ── Aislamiento del área: tokens y fuente del panel, también en portales ──
-  // Los diálogos y menús se montan en <body>, fuera del editor; el atributo en
-  // un contenedor no cambiaría su cascada. Mientras el editor está abierto, el
-  // documento entero es «admin» (la tienda real no se ve detrás).
   useEffect(() => {
     const html = document.documentElement;
     const previous = html.dataset.area;
@@ -127,470 +237,744 @@ export function LandingEditor() {
     setPreviewTheme(html.dataset.theme === 'dark' ? 'dark' : 'light');
     return () => {
       if (previous) html.dataset.area = previous;
+      else delete html.dataset.area;
     };
   }, []);
-
-  // ── Sesión del borrador ──
   useEffect(() => {
-    if (!draft && landing) dispatch(initBuilderSession(landing));
-    if (original.current === null && landing) original.current = signature(landing);
-  }, [draft, landing, dispatch]);
-
-  // Borrador local de una sesión anterior: se OFRECE, nunca se aplica solo.
-  useEffect(() => {
-    if (!landing || !userId) return;
-    const stored = loadLandingDraft(userId, host);
-    if (stored && signature(stored.draft) !== signature(landing)) setRecovery(stored);
-    // Solo al abrir el editor.
+    dispatch(initBuilderSession(entry.draft?.landing ?? entry.published));
+    dispatch(initDraftProducts(entry.draft?.products ?? EMPTY_DRAFT_PRODUCTS));
+    if (entry.draft)
+      toast.info('Hay un borrador sin publicar', {
+        description: `Último cambio${
+          entry.draft.changedBy ? ` de ${entry.draft.changedBy}` : ''
+        }: ${formatNicaraguaDateTime(entry.draft.changedAt)}.`,
+      });
+    // Solo al entrar: después manda el borrador del editor.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [Boolean(landing), userId]);
-
-  // Guardado local del borrador mientras haya cambios sin publicar.
+  }, []);
+  // Cada cambio va al borrador del servidor; lo que quede pendiente al cerrar
+  // la pestaña sale con la liberación del bloqueo (store-editor-gate).
   useEffect(() => {
-    if (!userId || original.current === null || !draft || recovery) return;
+    if (!draft) return;
+    const payload = { landing: landingDirty ? draft : null, products: productChanges };
+    const key = JSON.stringify(payload);
+    if (key === savedKey.current) {
+      pendingDraft.current = null;
+      return;
+    }
+    pendingDraft.current = payload;
     const timer = setTimeout(() => {
-      if (dirty) saveLandingDraft({ userId, host, base: original.current ?? '', draft });
-      else clearLandingDraft(userId, host);
-    }, 500);
+      saveQueue.current = saveQueue.current.then(async () => {
+        // Publicar o descartar ya lo resolvió.
+        if (pendingDraft.current !== payload) return;
+        setSaveState('saving');
+        try {
+          await saveDraft({ session, ...payload }).unwrap();
+          savedKey.current = key;
+          if (pendingDraft.current === payload) pendingDraft.current = null;
+          setSaveState('saved');
+        } catch (error) {
+          if (isEditorLockLost(error)) {
+            onLockLost(serverErrorMessage(error, 'El editor se cerró. Tu borrador está guardado.'));
+            return;
+          }
+          setSaveState('error');
+          setTimeout(() => setSaveRetry((n) => n + 1), SAVE_RETRY_MS);
+        }
+      });
+    }, SAVE_DELAY_MS);
     return () => clearTimeout(timer);
-  }, [serialized, dirty, draft, userId, host, recovery]);
+  }, [
+    draft,
+    landingDirty,
+    productChanges,
+    saveRetry,
+    session,
+    saveDraft,
+    pendingDraft,
+    onLockLost,
+  ]);
+  // Plantillas y combos se corrigen en Inventario (otra pestaña).
+  useEffect(() => {
+    const refresh = () => {
+      void refetchProducts();
+      void refetchCombos();
+    };
+    window.addEventListener('focus', refresh);
+    return () => window.removeEventListener('focus', refresh);
+  }, [refetchProducts, refetchCombos]);
 
-  // ── Vista previa ──
   const syncPreview = useCallback(() => {
     frame.current?.contentWindow?.postMessage(
-      { type: 'gyro:landing-preview', config: draft, slideId: preview ? null : slide?.id, interactive: preview, theme: previewTheme },
+      {
+        type: 'gyro:landing-preview',
+        config: draft,
+        slideId: preview || homeOverview ? null : slide?.id,
+        interactive: preview,
+        theme: previewTheme,
+        section,
+        part: 'banner',
+        products: previewProducts,
+      },
       window.location.origin,
     );
-  }, [draft, slide?.id, preview, previewTheme]);
-
+  }, [draft, slide?.id, preview, previewTheme, section, homeOverview, previewProducts]);
   useEffect(() => {
     syncPreview();
     function onMessage(event: MessageEvent) {
-      // Solo mensajes del iframe propio y del mismo origen.
-      if (event.origin !== window.location.origin || event.source !== frame.current?.contentWindow) return;
-      const type = event.data?.type;
-      if (type === 'gyro:preview-link') toast.info('En la vista previa los enlaces y compras no se ejecutan.', { id: 'preview-link' });
-      if (type === 'gyro:preview-ready') syncPreview();
-      if (type === 'gyro:select-section' && !busy && SECTIONS.some(item => item.id === event.data.section)) {
-        setSection(event.data.section);
-        setMobilePanel(true);
-      }
+      if (event.origin !== window.location.origin || event.source !== frame.current?.contentWindow)
+        return;
+      if (event.data?.type === 'gyro:preview-ready') syncPreview();
+      if (event.data?.type === 'gyro:preview-link')
+        toast.info('Las compras y los enlaces externos no se ejecutan en la vista previa.', {
+          id: 'preview-link',
+        });
+      if (event.data?.type !== 'gyro:select-section' || busy || preview) return;
+      if (!SECTIONS.includes(event.data.section)) return;
+      dispatch(endBuilderChange());
+      setSection(event.data.section);
+      setHomeOverview(false);
+      if (draft?.heroSlides.some((item) => item.id === event.data.slideId))
+        setSelectedId(event.data.slideId);
+      if (event.data.section === 'items')
+        setSelectedProductId(
+          typeof event.data.productId === 'string' ? event.data.productId : null,
+        );
     }
     window.addEventListener('message', onMessage);
     return () => window.removeEventListener('message', onMessage);
-  }, [syncPreview, busy]);
-
+  }, [syncPreview, busy, preview, dispatch, draft]);
   useEffect(() => {
     const el = canvasRef.current;
     if (!el || typeof ResizeObserver === 'undefined') return;
     const observer = new ResizeObserver(([entry]) => {
-      if (entry) setCanvasSize({ width: entry.contentRect.width, height: entry.contentRect.height });
+      if (entry)
+        setCanvasSize({ width: entry.contentRect.width, height: entry.contentRect.height });
     });
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
+  const logical = VIEWPORTS.find((v) => v.id === viewport)!;
+  const scale =
+    canvasSize.width > 0 ? Math.min(1, Math.max(1, canvasSize.width - 40) / logical.width) : 1;
+  const frameHeight = canvasSize.height > 0 ? Math.max(1, canvasSize.height - 40) / scale : 800;
 
-  const logical = VIEWPORTS.find(v => v.id === viewport) ?? VIEWPORTS[3];
-  const scale = canvasSize.width > 0 ? Math.min(1, canvasSize.width / logical.width) : 1;
-  const frameHeight = canvasSize.height > 0 ? canvasSize.height / scale : 800;
-
-  // ── Salida con cambios pendientes ──
   useEffect(() => {
-    if (!dirty && !formDirty) return;
-    const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ''; };
+    const warn = (event: BeforeUnloadEvent) => {
+      if (!pendingDraft.current) return;
+      event.preventDefault();
+      event.returnValue = '';
+    };
     window.addEventListener('beforeunload', warn);
     return () => window.removeEventListener('beforeunload', warn);
-  }, [dirty, formDirty]);
-
-  const blocker = useBlocker(({ currentLocation, nextLocation }) =>
-    (dirty || formDirty) && currentLocation.pathname !== nextLocation.pathname,
-  );
-
+  }, [pendingDraft]);
   function exit() {
     dispatch(clearBuilderSession());
     dispatch(toggleEditMode());
   }
-  function exitKeepingDraft() {
-    if (userId && draft && dirty) saveLandingDraft({ userId, host, base: original.current ?? '', draft });
-    exit();
-  }
-  function exitDiscarding() {
-    if (userId) clearLandingDraft(userId, host);
-    exit();
-  }
-
-  function recoverDraft() {
-    if (!recovery) return;
-    dispatch(initBuilderSession(recovery.draft));
-    setRecovery(null);
-    toast.success('Recuperaste tu borrador. Todavía no está publicado.');
-  }
-  function dismissRecovery() {
-    if (userId) clearLandingDraft(userId, host);
-    setRecovery(null);
-  }
-
-  async function save() {
-    const parsed = landingConfigSchema.safeParse(draft);
-    const errors = parsed.success ? validateLanding(parsed.data, validationContext) : { slides: {} };
-    if (!parsed.success || hasLandingErrors(errors)) {
-      setPublishErrors(errors);
-      const firstSlide = Object.keys(errors.slides)[0];
-      if (firstSlide) {
-        setSection('banners');
-        setSelectedId(firstSlide);
-      } else if (errors.headerCategories) setSection('navigation');
-      else if (errors.homeCategories) setSection('products');
-      setMobilePanel(true);
-      toast.error(parsed.success ? 'No se publicó: revisá los campos marcados.' : 'No se publicó: el borrador tiene datos inválidos.');
-      return;
-    }
-    setPublishErrors(null);
+  async function exitDiscarding() {
+    pendingDraft.current = null;
     try {
-      await publish(parsed.data).unwrap();
-      original.current = signature(parsed.data);
-      if (userId) clearLandingDraft(userId, host);
+      await saveQueue.current;
+      await discardDraft(session).unwrap();
       exit();
-      toast.success('Portada publicada. La tienda ya muestra los cambios.');
     } catch (error) {
-      toast.error(errMsg(error, 'No se pudo publicar. Tu borrador sigue guardado.'));
+      if (isEditorLockLost(error)) onLockLost(serverErrorMessage(error, 'El editor se cerró.'));
+      else toast.error(serverErrorMessage(error, 'No se pudo descartar el borrador.'));
     }
   }
-
-  // ── Banners ──
-  function openBanner(next: HeroSlide) {
-    setBannerForm(next);
-    setBannerOriginal(JSON.stringify(next));
-    setBannerErrors(publishErrors?.slides[next.id] ?? {});
-  }
-  function closeBanner() {
-    setBannerForm(null);
-    setBannerOriginal('');
-    setBannerErrors({});
-  }
-  function requestCloseBanner() {
-    if (uploading) return;
-    if (bannerForm && JSON.stringify(bannerForm) !== bannerOriginal) setDiscardForm(true);
-    else closeBanner();
-  }
-  function applyBanner() {
-    if (!bannerForm || !draft) return;
-    const errors = validateSlide(bannerForm, validationContext);
-    if (Object.keys(errors).length) {
-      setBannerErrors(errors);
-      return;
+  async function restore(version: StoreVersion) {
+    pendingDraft.current = null;
+    try {
+      await saveQueue.current;
+      const result = await restoreVersion({ id: version.id, session, discardDraft: true }).unwrap();
+      original.current = signature(result.published);
+      const products = result.draft?.products ?? EMPTY_DRAFT_PRODUCTS;
+      savedKey.current = JSON.stringify({ landing: result.draft?.landing ?? null, products });
+      dispatch(initBuilderSession(result.draft?.landing ?? result.published));
+      dispatch(initDraftProducts(products));
+      void refetchProducts();
+      void refetchCombos();
+      setPublishErrors(null);
+      setVersionsOpen(false);
+      toast.success('Versión restaurada', {
+        description: 'La tienda ya la muestra. Lo que estaba publicado quedó como borrador.',
+      });
+    } catch (error) {
+      if (isEditorLockLost(error)) {
+        setVersionsOpen(false);
+        onLockLost(serverErrorMessage(error, 'El editor se cerró. Tu borrador está guardado.'));
+      } else toast.error(serverErrorMessage(error, 'No se pudo restaurar la versión.'));
     }
-    if (draft.heroSlides.some(item => item.id === bannerForm.id)) {
-      dispatch(updateHeroSlides(draft.heroSlides.map(item => item.id === bannerForm.id ? bannerForm : item)));
-    } else {
-      dispatch(updateHeroSlides([...draft.heroSlides, bannerForm]));
-    }
-    setSelectedId(bannerForm.id);
-    if (publishErrors?.slides[bannerForm.id]) {
-      const rest = { ...publishErrors.slides };
-      delete rest[bannerForm.id];
-      setPublishErrors({ ...publishErrors, slides: rest });
-    }
-    closeBanner();
-    toast.success('Banner aplicado al borrador. Publicá para que se vea en la tienda.');
+  }
+  function selectSection(next: SectionId, id?: string) {
+    dispatch(endBuilderChange());
+    setSection(next);
+    setHomeOverview(false);
+    setPreview(false);
+    if (id) setSelectedId(id);
+  }
+  function openTask(next: TaskId) {
+    dispatch(endBuilderChange());
+    setPreview(false);
+    if (next === 'home') {
+      setSection('banners');
+      setHomeOverview(true);
+    } else setSection(next);
+  }
+  function editBanner(next: HeroSlide) {
+    const key = Object.keys(next).find(
+      (key) => next[key as keyof HeroSlide] !== slide?.[key as keyof HeroSlide],
+    );
+    dispatch(updateHeroSlide({ slide: next, key: `${next.id}:${key}` }));
+    setPublishErrors(null);
   }
   function addSlide() {
     if (!draft || draft.heroSlides.length >= MAX_HERO_SLIDES) return;
-    openBanner({ id: crypto.randomUUID(), title: '', description: '', eyebrow: '', mediaUrl: '', mediaType: 'image', buttonText: 'Ver catálogo', actionType: 'link', actionTarget: '/#catalogo' });
+    const next: HeroSlide = {
+      id: crypto.randomUUID(),
+      title: '',
+      description: '',
+      eyebrow: '',
+      mediaUrl: '',
+      mediaType: 'image',
+      buttonText: 'Ver catálogo',
+      actionType: 'link',
+      actionTarget: '/#catalogo',
+    };
+    dispatch(updateHeroSlides([...draft.heroSlides, next]));
+    selectSection('banners', next.id);
   }
   function moveSlide(direction: -1 | 1) {
     if (!draft || !slide) return;
-    const index = draft.heroSlides.findIndex(item => item.id === slide.id);
+    const index = draft.heroSlides.findIndex((item) => item.id === slide.id);
     const target = index + direction;
     if (!draft.heroSlides[target] || slide.locked || draft.heroSlides[target].locked) return;
     const next = [...draft.heroSlides];
     [next[index], next[target]] = [next[target], next[index]];
     dispatch(updateHeroSlides(next));
   }
-
-  const status = publishing
-    ? { text: 'Publicando…', tone: 'bg-info/10 text-info' }
-    : uploading
-      ? { text: 'Subiendo archivo…', tone: 'bg-info/10 text-info' }
-      : dirty
-        ? { text: 'Borrador sin publicar', tone: 'bg-warning/10 text-warning' }
-        : { text: 'Igual a lo publicado', tone: 'bg-success/10 text-foreground' };
-
+  function preparePublish() {
+    const parsed = landingConfigSchema.safeParse(draft);
+    const errors = parsed.success
+      ? validateLanding(parsed.data, validationContext)
+      : { slides: {} };
+    if (!parsed.success || hasLandingErrors(errors)) {
+      setPublishErrors(errors);
+      const firstSlide = Object.keys(errors.slides)[0];
+      if (firstSlide) selectSection('banners', firstSlide);
+      else if (errors.headerCategories) selectSection('navigation');
+      else if (errors.homeCategories) selectSection('products');
+      toast.error('Revisá los campos marcados antes de publicar.');
+      return;
+    }
+    setPublishFailure(null);
+    setPublishErrors(null);
+    setPublishOpen(true);
+  }
+  async function save() {
+    const parsed = landingConfigSchema.safeParse(draft);
+    if (!parsed.success || hasLandingErrors(validateLanding(parsed.data, validationContext))) {
+      setPublishOpen(false);
+      preparePublish();
+      return;
+    }
+    try {
+      await saveQueue.current;
+      await publish({ session, landing: parsed.data, products: productChanges }).unwrap();
+      original.current = signature(parsed.data);
+      savedKey.current = JSON.stringify({ landing: null, products: EMPTY_DRAFT_PRODUCTS });
+      pendingDraft.current = null;
+      setPublishOpen(false);
+      exit();
+      toast.success('Tienda publicada. Ya se muestran los cambios.');
+    } catch (error) {
+      if (isEditorLockLost(error)) {
+        setPublishOpen(false);
+        onLockLost(serverErrorMessage(error, 'El editor se cerró. Tu borrador está guardado.'));
+        return;
+      }
+      setPublishFailure(errMsg(error, 'No se pudo publicar. Tu borrador sigue guardado.'));
+    }
+  }
   const headerMode = categoryMode(draft?.headerCategoriesMode, draft?.headerCategories);
   const homeMode = categoryMode(draft?.homeCategoriesMode, draft?.homeCategories);
+  const themeLabel = previewTheme === 'light' ? 'Claro' : 'Oscuro';
+  const pending = (items: { published: boolean; noPhotos: boolean }[]) => {
+    const hidden = items.filter((item) => !item.published).length;
+    const noPhotos = items.filter((item) => item.noPhotos).length;
+    const parts = [hidden && `${hidden} ${hidden === 1 ? 'oculto' : 'ocultos'}`, noPhotos && `${noPhotos} sin fotos`];
+    return parts.filter(Boolean).join(' · ') || 'Todo listo';
+  };
+  const bannerCount = draft?.heroSlides.length ?? 0;
+  const taskStatus: Record<TaskId, { text: string; alert?: boolean }> = {
+    home:
+      publishErrors && hasLandingErrors(publishErrors)
+        ? { text: 'Revisar campos', alert: true }
+        : { text: `${bannerCount} ${bannerCount === 1 ? 'banner' : 'banners'}` },
+    items: productsLoading
+      ? { text: 'Cargando…' }
+      : {
+          text: pending(
+            shownProducts.map((p) => ({
+              published: p.published,
+              noPhotos: !cardImages(p.images, p.imagesByColor).length,
+            })),
+          ),
+        },
+    combos: combosLoading
+      ? { text: 'Cargando…' }
+      : { text: pending(shownCombos.map((c) => ({ published: c.published, noPhotos: !c.images.length }))) },
+    cart: {
+      text: Object.values(draft?.cart ?? {}).some(Boolean) ? 'Personalizado' : 'Textos de siempre',
+    },
+  };
+  const status = publishing
+    ? 'Publicando…'
+    : uploading
+    ? 'Subiendo archivo…'
+    : saveState === 'saving'
+    ? 'Guardando borrador…'
+    : saveState === 'error'
+    ? 'No se pudo guardar el borrador'
+    : savedKey.current !==
+      JSON.stringify({ landing: landingDirty ? draft : null, products: productChanges })
+    ? 'Guardando borrador…'
+    : dirty
+    ? 'Borrador guardado · Cambios sin publicar'
+    : 'Sin cambios pendientes';
 
   return (
-    <div data-skin="admin" data-area="admin" className="landing-studio fixed inset-0 z-50 flex flex-col bg-background text-foreground">
-      <header className="flex min-h-16 flex-wrap items-center justify-between gap-2 border-b bg-card px-4 py-3 lg:px-6">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" disabled={busy} onClick={() => (dirty || formDirty ? setExitOpen(true) : exit())}>← Salir</Button>
-          <div className="border-l pl-4">
-            <h1 className="text-sm font-semibold">Editor de portada</h1>
-            <p role="status" className={cn('mt-1 inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium', status.tone)}>{status.text}</p>
+    <div
+      data-skin="admin"
+      data-area="admin"
+      onBlurCapture={() => dispatch(endBuilderChange())}
+      className="landing-studio fixed inset-0 z-50 flex flex-col bg-background text-foreground"
+    >
+      <header className="shrink-0 space-y-4 border-b bg-card px-5 py-4">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <Button
+              variant="cancel"
+              size="icon"
+              aria-label="Salir del editor"
+              title="Salir del editor"
+              disabled={busy}
+              onClick={() => (dirty ? setExitOpen(true) : exit())}
+            >
+              <HugeIcon icon={ArrowLeft01Icon} size={16} aria-hidden />
+            </Button>
+            <div>
+              <h1 className="font-heading text-2xl font-bold tracking-tight">Editor de tienda</h1>
+              <p role="status" className="mt-1 flex items-center gap-2 text-xs">
+                <span
+                  aria-hidden
+                  className={cn(
+                    'size-2 rounded-full',
+                    saveState === 'error'
+                      ? 'bg-destructive'
+                      : busy || saveState === 'saving'
+                      ? 'bg-info'
+                      : dirty
+                      ? 'bg-warning'
+                      : 'bg-success',
+                  )}
+                />
+                {status}
+              </p>
+            </div>
+            {saveState === 'error' && (
+              <Button
+                variant="outline"
+                disabled={busy}
+                onClick={() => setSaveRetry((value) => value + 1)}
+              >
+                Reintentar
+              </Button>
+            )}
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="outline"
+              size="icon"
+              aria-label="Deshacer"
+              title="Deshacer"
+              disabled={busy || !canUndo}
+              onClick={() => dispatch(undoBuilderChange())}
+            >
+              <HugeIcon icon={UndoIcon} size={16} aria-hidden />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              aria-label="Rehacer"
+              title="Rehacer"
+              disabled={busy || !canRedo}
+              onClick={() => dispatch(redoBuilderChange())}
+            >
+              <HugeIcon icon={RedoIcon} size={16} aria-hidden />
+            </Button>
+            <Button variant="outline" disabled={busy} onClick={() => setVersionsOpen(true)}>
+              <HugeIcon icon={WorkHistoryIcon} size={16} aria-hidden /> Versiones
+            </Button>
+            <Button variant="outline" disabled={busy} onClick={() => setPreview(!preview)}>
+              <HugeIcon icon={ViewIcon} size={16} aria-hidden />
+              {preview ? 'Volver a editar' : 'Vista previa'}
+            </Button>
+            <Button disabled={busy || !dirty || !draft} onClick={preparePublish}>
+              {publishing ? 'Publicando…' : 'Revisar cambios'}
+            </Button>
           </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <div role="group" aria-label="Ancho de la vista previa" className="hidden items-center rounded-xl border p-1 md:flex">
-            {VIEWPORTS.map(item => (
-              <button
-                key={item.id}
-                type="button"
-                aria-pressed={viewport === item.id}
-                title={`${item.group} · ${item.width}px`}
-                onClick={() => setViewport(item.id)}
-                className={cn('rounded-xl px-2.5 py-1.5 text-xs tabular-nums focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none', viewport === item.id ? 'bg-muted font-semibold' : 'text-muted-foreground')}
+        <nav aria-label="Qué querés editar" className="flex flex-wrap items-center gap-2">
+          {TASKS.map((item) => (
+            <Button
+              key={item.id}
+              variant="outline"
+              aria-pressed={task === item.id}
+              className={cn(
+                'h-auto min-h-11 min-w-36 flex-col items-start gap-0.5 py-2 text-left',
+                task === item.id && selectionClass,
+              )}
+              disabled={busy}
+              onClick={() => openTask(item.id)}
+            >
+              {item.label}
+              <span
+                className={cn(
+                  'text-xs font-normal',
+                  taskStatus[item.id].alert ? 'text-destructive' : 'text-muted-foreground',
+                )}
               >
-                <span className="sr-only">{item.group} </span>{item.label}
-              </button>
-            ))}
-          </div>
-          <div role="group" aria-label="Tema de la vista previa" className="hidden items-center rounded-xl border p-1 sm:flex">
-            {(['light', 'dark'] as const).map(theme => (
-              <button
-                key={theme}
-                type="button"
-                aria-pressed={previewTheme === theme}
-                onClick={() => setPreviewTheme(theme)}
-                className={cn('rounded-xl px-2.5 py-1.5 text-xs focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none', previewTheme === theme ? 'bg-muted font-semibold' : 'text-muted-foreground')}
-              >
-                {theme === 'light' ? 'Claro' : 'Oscuro'}
-              </button>
-            ))}
-          </div>
-          <Button variant="outline" size="sm" disabled={busy} onClick={() => { setPreview(!preview); setMobilePanel(false); }}>{preview ? 'Volver a editar' : 'Probar vista previa'}</Button>
-          <Button size="sm" disabled={busy || !dirty || !draft} onClick={() => void save()}>{publishing ? 'Publicando…' : 'Publicar'}</Button>
-        </div>
+                {taskStatus[item.id].text}
+              </span>
+            </Button>
+          ))}
+        </nav>
       </header>
-
-      {recovery && (
-        <div role="alert" className="flex flex-wrap items-center justify-between gap-3 border-b bg-warning/10 px-4 py-3 text-sm lg:px-6">
-          <p>
-            Tenés un borrador sin publicar del {new Date(recovery.savedAt).toLocaleString('es-NI', { dateStyle: 'medium', timeStyle: 'short' })}.
-            {landing && recovery.base !== signature(landing) && ' La portada publicada cambió desde entonces: revisalo antes de publicar.'}
-          </p>
-          <div className="flex gap-2">
-            <Button size="sm" variant="outline" onClick={dismissRecovery}>Descartar borrador</Button>
-            <Button size="sm" onClick={recoverDraft}>Recuperar borrador</Button>
-          </div>
-        </div>
-      )}
-
-      <div className="relative flex min-h-0 flex-1">
-        {!preview && (
-          <aside className={cn('flex w-80 shrink-0 flex-col border-r bg-card lg:static lg:flex', mobilePanel ? 'absolute inset-x-0 bottom-0 top-0 z-20 w-full' : 'hidden')}>
-            <div className="border-b p-4">
-              <div className="mb-3 flex items-center justify-between"><p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Diseñá tu portada</p><Button variant="ghost" size="sm" className="lg:hidden" onClick={() => setMobilePanel(false)}>Ver página</Button></div>
-              <nav aria-label="Secciones del editor" className="grid grid-cols-2 gap-1 rounded-xl bg-muted p-1">
-                {SECTIONS.map(item => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    aria-pressed={section === item.id}
+      <div className="relative flex min-h-0 flex-1 flex-col lg:flex-row">
+        {!preview && task === 'home' && (
+          <HomeEditorPanel
+            draft={draft}
+            slide={slide}
+            section={homeSection}
+            overview={homeOverview}
+            disabled={busy}
+            errors={publishErrors}
+            canAdd={Boolean(draft && draft.heroSlides.length < MAX_HERO_SLIDES)}
+            onSelect={selectSection}
+            onBack={() => {
+              dispatch(endBuilderChange());
+              setHomeOverview(true);
+            }}
+            onAdd={addSlide}
+            onMove={moveSlide}
+            onRemove={() => slide && setDeleteId(slide.id)}
+            onChange={editBanner}
+            onBusy={setUploading}
+          >
+            {section === 'navigation' && (
+              <>
+                <CategoryModeField
+                  label="Categorías del encabezado"
+                  mode={headerMode}
+                  onChange={(mode) => dispatch(setCategoryMode({ zone: 'header', mode }))}
+                  descriptions={{
+                    auto: 'Todas las categorías con productos, en su orden.',
+                    custom: 'Solo las que elijas, en el orden que definas.',
+                    hidden: 'El encabezado no muestra categorías.',
+                  }}
+                  error={publishErrors?.headerCategories}
+                />
+                {headerMode === 'custom' && (
+                  <InlineCategoryNavEditor
+                    allCategories={config?.categories ?? []}
                     disabled={busy}
-                    onClick={() => setSection(item.id)}
-                    className={cn('relative rounded-xl px-3 py-2.5 text-sm transition-colors motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring', section === item.id ? 'bg-card font-semibold text-foreground' : 'text-muted-foreground hover:bg-card/70 hover:text-foreground')}
-                  >
-                    {item.label}
-                    {((item.id === 'banners' && publishErrors && Object.keys(publishErrors.slides).length > 0) ||
-                      (item.id === 'navigation' && publishErrors?.headerCategories) ||
-                      (item.id === 'products' && publishErrors?.homeCategories)) && (
-                      <span className="ml-1.5 inline-block size-2 rounded-full bg-destructive" aria-label="con errores" />
-                    )}
-                  </button>
-                ))}
-              </nav>
-            </div>
-            <div className="min-h-0 flex-1 overflow-y-auto p-4">
-              <h2 className="text-base font-semibold">{SECTIONS.find(item => item.id === section)?.label}</h2>
-              <p className="mb-5 mt-1 text-xs text-muted-foreground">{SECTIONS.find(item => item.id === section)?.hint}</p>
-              <motion.fieldset key={section} initial={reduceMotion ? false : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.18 }} disabled={busy} className={cn('min-w-0 space-y-5', busy && 'pointer-events-none')}>
-                {section === 'navigation' && (
-                  <>
-                    <CategoryModeField
-                      label="Categorías del encabezado"
-                      mode={headerMode}
-                      onChange={(mode) => dispatch(setCategoryMode({ zone: 'header', mode }))}
-                      descriptions={{
-                        auto: 'Se muestran las categorías con productos, en su orden.',
-                        custom: 'Solo las que elijas, en el orden que definas.',
-                        hidden: 'El encabezado no muestra categorías.',
-                      }}
-                      error={publishErrors?.headerCategories}
-                    />
-                    {headerMode === 'custom' && <InlineCategoryNavEditor allCategories={config?.categories ?? []} />}
-                  </>
+                  />
                 )}
-                {section === 'products' && (
-                  <>
-                    <CategoryModeField
-                      label="Secciones de la portada"
-                      mode={homeMode}
-                      onChange={(mode) => dispatch(setCategoryMode({ zone: 'home', mode }))}
-                      descriptions={{
-                        auto: 'Una sección por cada categoría con productos.',
-                        custom: 'Solo las secciones que elijas, en ese orden.',
-                        hidden: 'Sin secciones: se muestra el catálogo completo en una grilla.',
-                      }}
-                      error={publishErrors?.homeCategories}
-                    />
-                    {homeMode === 'custom' && <InlineRailsEditor allCategories={config?.categories ?? []} />}
-                  </>
+              </>
+            )}
+            {section === 'products' && (
+              <>
+                <CategoryModeField
+                  label="Secciones del inicio"
+                  mode={homeMode}
+                  onChange={(mode) => dispatch(setCategoryMode({ zone: 'home', mode }))}
+                  descriptions={{
+                    auto: 'Una sección por categoría con productos.',
+                    custom: 'Solo las secciones que elijas, en ese orden.',
+                    hidden: 'Se muestra el catálogo completo en una grilla.',
+                  }}
+                  error={publishErrors?.homeCategories}
+                />
+                {homeMode === 'custom' && (
+                  <InlineRailsEditor allCategories={config?.categories ?? []} disabled={busy} />
                 )}
-                {section === 'banners' && <>
-                  <ul className="flex gap-2 overflow-x-auto pb-2" aria-label="Banners del borrador">
-                    {draft?.heroSlides.map((item, index) => {
-                      const hasErrors = Boolean(publishErrors?.slides[item.id]);
-                      return (
-                        <li key={item.id}>
-                          <button
-                            type="button"
-                            aria-pressed={slide?.id === item.id}
-                            onClick={() => setSelectedId(item.id)}
-                            className={cn('w-32 shrink-0 overflow-hidden rounded-xl border bg-background text-left transition-colors hover:border-primary-2 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none', slide?.id === item.id && 'border-primary ring-2 ring-primary/40', hasErrors && 'border-destructive')}
-                          >
-                            {item.mediaUrl && item.mediaType === 'image' ? <img src={item.mediaUrl} alt="" className="h-20 w-full object-cover" /> : <div className="grid h-20 place-items-center bg-muted text-xs">Banner {index + 1}</div>}
-                            <span className="block truncate p-2 text-xs">{item.title || 'Sin título'}</span>
-                            {hasErrors && <span className="block px-2 pb-2 text-xs font-medium text-destructive">Revisar</span>}
-                          </button>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                  <Button variant="outline" size="sm" className="w-full" disabled={!draft || draft.heroSlides.length >= MAX_HERO_SLIDES || busy} onClick={addSlide}>+ Agregar banner</Button>
-                  {slide && <>
-                    <div className="flex items-center justify-between gap-2 border-b pb-3">
-                      <span className="text-xs text-muted-foreground">{slide.locked ? 'Banner principal' : 'Orden del banner'}</span>
-                      <div className="flex gap-1">
-                        <Button variant="ghost" size="sm" disabled={slide.locked || busy || draft?.heroSlides[0]?.id === slide.id || draft?.heroSlides[(draft?.heroSlides.findIndex(item => item.id === slide.id) ?? 0) - 1]?.locked} onClick={() => moveSlide(-1)} aria-label="Mover banner antes">←</Button>
-                        <Button variant="ghost" size="sm" disabled={slide.locked || busy || draft?.heroSlides.at(-1)?.id === slide.id} onClick={() => moveSlide(1)} aria-label="Mover banner después">→</Button>
-                      </div>
-                    </div>
-                    <div className="rounded-2xl border bg-card p-4">
-                      <p className="mb-1 text-xs font-medium text-muted-foreground">Banner seleccionado</p>
-                      <h3 className="font-semibold">{slide.title || 'Sin título'}</h3>
-                      <p className="mt-2 line-clamp-3 text-sm text-muted-foreground">{slide.description || 'Sin descripción.'}</p>
-                      {publishErrors?.slides[slide.id] && (
-                        <ul className="mt-3 space-y-1 text-sm text-destructive">
-                          {Object.values(publishErrors.slides[slide.id] ?? {}).map((message) => <li key={message}>{message}</li>)}
-                        </ul>
-                      )}
-                      <Button className="mt-4 w-full" disabled={busy} onClick={() => openBanner({ ...slide })}>Editar banner</Button>
-                    </div>
-                    {!slide.locked && <Button variant="outline" size="sm" className="w-full text-destructive" disabled={busy || (draft?.heroSlides.length ?? 0) <= 1} onClick={() => setDeleteId(slide.id)}>Quitar banner del borrador</Button>}
-                  </>}
-                </>}
-                {section === 'cart' && (
-                  <div className="space-y-2">
-                    {(Object.keys(CART_EDITOR_SECTIONS) as CartEditorSection[]).map(key => (
-                      <button key={key} type="button" onClick={() => setCartSection(key)} className="w-full rounded-xl border p-4 text-left transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none">
-                        <span className="block text-sm font-medium">{CART_EDITOR_SECTIONS[key].label}</span>
-                        <span className="mt-1 block text-xs text-muted-foreground">{CART_EDITOR_SECTIONS[key].hint}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </motion.fieldset>
-            </div>
-            <div className="border-t p-4 text-xs text-muted-foreground">Los cambios aplicados quedan en el borrador (guardado en este navegador). La tienda cambia al publicar.</div>
-          </aside>
+              </>
+            )}
+          </HomeEditorPanel>
         )}
-        <div className="studio-canvas flex min-w-0 flex-1 flex-col">
-          <div className="flex h-12 shrink-0 items-center justify-between gap-2 border-b px-4 text-xs text-muted-foreground">
-            <span className="truncate">{preview ? 'Vista previa: probá los controles del carrusel. Las compras y enlaces no se ejecutan.' : 'Edición: tocá una sección de la página para editarla.'} · {logical.group} {logical.width}px{scale < 1 ? ` (al ${Math.round(scale * 100)}%)` : ''}</span>
-            <Button variant="ghost" size="sm" className="lg:hidden" onClick={() => { setPreview(false); setMobilePanel(!mobilePanel); }}>{mobilePanel ? 'Ver página' : 'Ajustes'}</Button>
+
+        <main
+          aria-label="Vista previa de la tienda"
+          className={cn(
+            'studio-canvas min-h-0 min-w-0 flex-1 flex-col',
+            preview || task === 'home' ? 'flex' : 'hidden',
+          )}
+        >
+          <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b bg-card px-5 py-3">
+            <p className="text-sm text-muted-foreground">
+              {preview
+                ? 'Así quedará la tienda al publicar.'
+                : 'Tocá un banner o un producto para editarlo.'}
+            </p>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  aria-label={`Tamaño y tema de la vista previa: ${logical.label}, ${themeLabel.toLowerCase()}`}
+                >
+                  {logical.label} · {themeLabel}
+                  <HugeIcon icon={ArrowDown01Icon} size={16} aria-hidden />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-60">
+                <DropdownMenuLabel className="text-xs text-muted-foreground">Tamaño</DropdownMenuLabel>
+                <DropdownMenuRadioGroup
+                  value={viewport}
+                  onValueChange={(value) => setViewport(value as ViewportId)}
+                >
+                  {VIEWPORTS.map((item) => (
+                    <DropdownMenuRadioItem key={item.id} value={item.id}>
+                      {item.label} · {item.width} px
+                    </DropdownMenuRadioItem>
+                  ))}
+                </DropdownMenuRadioGroup>
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel className="text-xs text-muted-foreground">Tema</DropdownMenuLabel>
+                <DropdownMenuRadioGroup
+                  value={previewTheme}
+                  onValueChange={(value) => setPreviewTheme(value === 'dark' ? 'dark' : 'light')}
+                >
+                  <DropdownMenuRadioItem value="light">Claro</DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="dark">Oscuro</DropdownMenuRadioItem>
+                </DropdownMenuRadioGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
           <div ref={canvasRef} className="relative min-h-0 flex-1 overflow-hidden">
-            <div className="absolute top-0 left-1/2" style={{ width: logical.width * scale, height: '100%', transform: 'translateX(-50%)' }}>
+            <div
+              className="absolute left-1/2 top-5 overflow-hidden rounded-2xl border bg-background"
+              style={{
+                width: logical.width * scale,
+                height: Math.max(0, canvasSize.height - 40),
+                transform: 'translateX(-50%)',
+              }}
+            >
               <iframe
                 ref={frame}
                 onLoad={syncPreview}
-                title="Vista previa de la portada"
+                title="Vista previa de la tienda"
                 src="/?landing-preview=1"
-                style={{ width: logical.width, height: frameHeight, transform: `scale(${scale})`, transformOrigin: 'top left' }}
-                className="border-x bg-background"
+                style={{
+                  width: logical.width,
+                  height: frameHeight,
+                  transform: `scale(${scale})`,
+                  transformOrigin: 'top left',
+                }}
+                className="bg-background"
               />
             </div>
           </div>
-        </div>
+        </main>
+
+        <section
+          aria-label="Preparar productos"
+          className={cn(
+            'min-h-0 min-w-0 flex-1 overflow-y-auto p-5',
+            (preview || task !== 'items') && 'hidden',
+          )}
+        >
+          <div className="mx-auto max-w-7xl space-y-5">
+            <div>
+              <h2 className="text-lg font-semibold">Productos de la tienda</h2>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Prepará las fotos, elegí qué mostrar y organizá el orden.
+              </p>
+            </div>
+            <ProductsPanel
+              products={shownProducts}
+              loading={productsLoading}
+              failed={productsFailed}
+              onRetry={() => void refetchProducts()}
+              selectedId={selectedProductId}
+              onSelect={setSelectedProductId}
+              onChange={(id, change) => dispatch(updateDraftProduct({ id, change }))}
+              onReorder={(ids) => dispatch(setDraftProductOrder(ids))}
+              onBusy={setUploading}
+              disabled={busy}
+              currency={config?.currency}
+              changedIds={Object.keys(productChanges.items)}
+              groupByCategory={homeMode !== 'hidden'}
+            />
+          </div>
+        </section>
+        <section
+          aria-label="Preparar combos"
+          className={cn(
+            'min-h-0 min-w-0 flex-1 overflow-y-auto p-5',
+            (preview || task !== 'combos') && 'hidden',
+          )}
+        >
+          <div className="mx-auto max-w-7xl space-y-5">
+            <div>
+              <h2 className="text-lg font-semibold">Combos de la tienda</h2>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Prepará las fotos y elegí cuáles mostrar.
+              </p>
+            </div>
+            <EditorCombosPanel
+              combos={shownCombos}
+              loading={combosLoading}
+              failed={combosFailed}
+              onRetry={() => void refetchCombos()}
+              selectedId={selectedComboId}
+              onSelect={setSelectedComboId}
+              onChange={(id, change) => dispatch(updateDraftCombo({ id, change }))}
+              onBusy={setUploading}
+              disabled={busy}
+              currency={config?.currency}
+              changedIds={Object.keys(productChanges.combos)}
+            />
+          </div>
+        </section>
+        {!preview && task === 'cart' && (
+          <section
+            aria-label="Editar carrito"
+            className="min-h-0 min-w-0 flex-1 overflow-y-auto p-5"
+          >
+            <div className="mx-auto max-w-5xl space-y-5">
+              <div>
+                <h2 className="text-lg font-semibold">Carrito y pedido recibido</h2>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Elegí la pantalla que querés personalizar.
+                </p>
+              </div>
+              <div className="grid gap-5 md:grid-cols-3">
+                {(Object.keys(CART_EDITOR_SECTIONS) as CartEditorSection[]).map((key, index) => (
+                  <Button
+                    key={key}
+                    variant="outline"
+                    disabled={busy}
+                    onClick={() => setCartSection(key)}
+                    className="h-auto min-h-40 flex-col items-start gap-3 whitespace-normal p-5 text-left"
+                  >
+                    <span className="text-xs text-muted-foreground">Pantalla {index + 1}</span>
+                    <span className="text-lg font-semibold">{CART_EDITOR_SECTIONS[key].label}</span>
+                    <span className="text-sm text-muted-foreground">
+                      {CART_EDITOR_SECTIONS[key].hint}
+                    </span>
+                    <span className="font-semibold text-primary-2">Editar pantalla</span>
+                  </Button>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
       </div>
 
-      {/* Salir con cambios pendientes: tres caminos claros. */}
+      <Dialog
+        open={publishOpen}
+        onOpenChange={(open) => {
+          if (!publishing) setPublishOpen(open);
+        }}
+      >
+        <FormDialogContent size="long" showCloseButton={!publishing}>
+          <DialogHeader>
+            <DialogTitle>Revisar cambios de la tienda</DialogTitle>
+            <DialogDescription>
+              Este borrador reemplazará lo publicado cuando confirmés. Revisá cada sección antes de
+              continuar.
+            </DialogDescription>
+          </DialogHeader>
+          <FormPanel>
+            <FormErrorBanner message={publishFailure} />
+            <FormBody>
+              <StoreChangeReview
+                draft={draft}
+                published={publishedLanding}
+                changes={productChanges}
+                products={editorProducts ?? []}
+                combos={editorCombos}
+                onEdit={(next, id) => {
+                  setPublishOpen(false);
+                  selectSection(next, next === 'banners' ? id : undefined);
+                  if (next === 'items') setSelectedProductId(id ?? null);
+                  if (next === 'combos') setSelectedComboId(id ?? null);
+                }}
+              />
+            </FormBody>
+            <FormActions>
+              <Button variant="cancel" disabled={publishing} onClick={() => setPublishOpen(false)}>
+                Seguir editando
+              </Button>
+              <Button disabled={publishing} onClick={() => void save()}>
+                {publishing ? 'Publicando…' : 'Publicar cambios'}
+              </Button>
+            </FormActions>
+          </FormPanel>
+        </FormDialogContent>
+      </Dialog>
       <Dialog open={exitOpen} onOpenChange={setExitOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>¿Salir del editor?</DialogTitle>
             <DialogDescription>
-              {formDirty ? 'Tenés un formulario con cambios sin aplicar; esos cambios se pierden. ' : ''}
-              El borrador no está publicado. Podés dejarlo guardado en este navegador para seguir después, o descartarlo.
+              El borrador queda guardado y cualquier administrador puede seguirlo. También podés
+              descartarlo.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 sm:flex-col sm:items-stretch">
-            <Button onClick={exitKeepingDraft}>Salir y guardar el borrador</Button>
-            <Button variant="outline" onClick={() => setExitOpen(false)}>Seguir editando</Button>
-            <Button variant="ghost" className="text-destructive" onClick={exitDiscarding}>Descartar el borrador y salir</Button>
+            <Button disabled={discarding} onClick={exit}>
+              Salir y dejar el borrador
+            </Button>
+            <Button variant="cancel" disabled={discarding} onClick={() => setExitOpen(false)}>
+              Seguir editando
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={discarding}
+              onClick={() => void exitDiscarding()}
+            >
+              {discarding ? 'Descartando…' : 'Descartar borrador y salir'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {/* Navegación del navegador (atrás, otra ruta) con cambios pendientes. */}
-      <ConfirmDialog
-        open={blocker.state === 'blocked'}
-        onOpenChange={(open) => { if (!open && blocker.state === 'blocked') blocker.reset(); }}
-        variant="default"
-        title="¿Salir del editor?"
-        description="El borrador queda guardado en este navegador y podés recuperarlo al volver. Los formularios sin aplicar se pierden."
-        confirmText="Salir"
-        cancelText="Seguir editando"
-        onConfirm={() => {
-          if (userId && draft && dirty) saveLandingDraft({ userId, host, base: original.current ?? '', draft });
-          blocker.proceed?.();
-        }}
-      />
-
       <ConfirmDialog
         open={deleteId !== null}
-        onOpenChange={open => !open && setDeleteId(null)}
+        onOpenChange={(open) => !open && setDeleteId(null)}
         title="Quitar banner"
-        description="Se quita del borrador. La tienda cambia cuando publiques."
+        description="Se quita del borrador. Podés deshacerlo antes de publicar."
         confirmText="Quitar del borrador"
-        onConfirm={() => { if (draft) dispatch(updateHeroSlides(draft.heroSlides.filter(item => item.id !== deleteId))); setSelectedId(null); }}
+        onConfirm={() => {
+          if (draft)
+            dispatch(updateHeroSlides(draft.heroSlides.filter((item) => item.id !== deleteId)));
+          setSelectedId(null);
+        }}
       />
-
-      <ConfirmDialog
-        open={discardForm}
-        onOpenChange={setDiscardForm}
-        title="¿Descartar los cambios del banner?"
-        description="Los cambios de este formulario todavía no se aplicaron al borrador."
-        confirmText="Descartar cambios"
-        cancelText="Seguir editando"
-        onConfirm={closeBanner}
+      <VersionsDialog
+        open={versionsOpen}
+        onOpenChange={setVersionsOpen}
+        dirty={dirty}
+        restoring={restoring}
+        onRestore={(version) => void restore(version)}
       />
-
-      <Dialog open={bannerForm !== null} onOpenChange={open => { if (!open) requestCloseBanner(); }}>
-        <DialogContent
-          showCloseButton={!uploading}
-          className="max-h-[90dvh] overflow-y-auto sm:max-w-2xl"
-          onEscapeKeyDown={event => { if (uploading) event.preventDefault(); }}
-          onPointerDownOutside={event => event.preventDefault()}
-        >
-          <DialogHeader>
-            <DialogTitle>{draft?.heroSlides.some(item => item.id === bannerForm?.id) ? 'Editar banner' : 'Nuevo banner'}</DialogTitle>
-            <DialogDescription>Los cambios pasan al borrador cuando tocás «Aplicar al borrador». No se publican solos.</DialogDescription>
-          </DialogHeader>
-          {bannerForm && <BannerEditor key={bannerForm.id} slide={bannerForm} onChange={(next) => { setBannerForm(next); setBannerErrors({}); }} onBusy={setUploading} errors={bannerErrors} />}
-          <DialogFooter className="sticky bottom-0 border-t bg-popover pt-4">
-            <Button variant="cancel" disabled={uploading} onClick={requestCloseBanner}>Cancelar</Button>
-            <Button disabled={uploading} onClick={applyBanner}>Aplicar al borrador</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <CartContentEditor section={cartSection} onClose={() => setCartSection(null)} onDirtyChange={setCartDirty} />
+      <CartContentEditor section={cartSection} onClose={() => setCartSection(null)} />
     </div>
   );
 }
 
-/** Automático / Elegidas / Ocultar, con la explicación del modo activo. */
 function CategoryModeField({
   label,
   mode,
@@ -605,23 +989,27 @@ function CategoryModeField({
   error?: string;
 }) {
   return (
-    <fieldset className="space-y-2">
-      <legend className="mb-2 text-sm font-medium">{label}</legend>
-      <div className="grid grid-cols-3 gap-1 rounded-xl bg-muted p-1">
+    <fieldset className="space-y-3">
+      <legend className="mb-3 text-sm font-semibold">{label}</legend>
+      <div className="flex flex-wrap gap-2">
         {(['auto', 'custom', 'hidden'] as const).map((item) => (
-          <button
+          <Button
             key={item}
-            type="button"
+            variant="outline"
             aria-pressed={mode === item}
             onClick={() => onChange(item)}
-            className={cn('rounded-xl px-2 py-2 text-xs focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none', mode === item ? 'bg-card font-semibold' : 'text-muted-foreground hover:text-foreground')}
+            className={cn('text-xs', mode === item && selectionClass)}
           >
             {MODE_LABEL[item]}
-          </button>
+          </Button>
         ))}
       </div>
       <p className="text-xs text-muted-foreground">{descriptions[mode]}</p>
-      {error && <p role="alert" className="text-xs font-medium text-destructive">{error}</p>}
+      {error && (
+        <p role="alert" className="text-sm text-destructive">
+          {error}
+        </p>
+      )}
     </fieldset>
   );
 }

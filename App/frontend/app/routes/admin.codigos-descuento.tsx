@@ -1,3 +1,5 @@
+import { FormLayout, FormDialogContent, FormActions, FormBody } from '~/components/ui/form-layout';
+import { FormErrorBanner, serverErrorMessage } from '~/components/ui/form-feedback';
 // Códigos de descuento (Centro de Administración).
 // Incluye historial completo de canjes y KPIs.
 import { HugeIcon } from '~/components/ui/icon';
@@ -19,8 +21,14 @@ import { Button } from '~/components/ui/button';
 import { Input } from '~/components/ui/input';
 import { Textarea } from '~/components/ui/textarea';
 import { DatePicker } from '~/components/ui/date-picker';
-import { Label } from '~/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/components/ui/select';
+import { Field, FieldLabel, FieldError } from '~/components/ui/field';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '~/components/ui/select';
 import { Spinner } from '~/components/ui/spinner';
 import { Skeleton } from '~/components/ui/skeleton';
 import {
@@ -33,7 +41,13 @@ import {
   WorkspaceToolbar,
   useShortcut,
 } from '~/components/admin/workspace';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '~/components/ui/dialog';
+import {
+  Dialog,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogDescription,
+} from '~/components/ui/dialog';
 import { cn } from '~/lib/utils';
 import { errMsg, formatCordobas, formatLongDate } from '~/lib/formatters';
 import {
@@ -56,14 +70,18 @@ export default function AdminDiscountCodes() {
   const [filter, setFilter] = useState<'all' | 'redeemed' | 'pending' | 'expired'>('all');
   const [modalOpen, setModalOpen] = useState(false);
   const [search, setSearch] = useState('');
+  const [serverError, setServerError] = useState<string | null>(null);
+  const [valueError, setValueError] = useState<string | null>(null);
   useShortcut('n', () => setModalOpen(true));
 
   const set = (k: keyof typeof EMPTY_FORM, v: string) => setForm((f) => ({ ...f, [k]: v }));
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    setServerError(null);
+    setValueError(null);
     const value = Number(form.value);
-    if (!value || value <= 0) return toast.error('El valor debe ser mayor a 0.');
+    if (!value || value <= 0) { setValueError('Escribí un valor mayor a 0.'); return; }
     try {
       // El código lo devuelve el servidor ya generado (GS-DC-N).
       const created = await createCode({
@@ -77,7 +95,7 @@ export default function AdminDiscountCodes() {
       setForm(EMPTY_FORM);
       setModalOpen(false);
     } catch (err) {
-      toast.error(errMsg(err, 'No se pudo crear el código.'));
+      setServerError(serverErrorMessage(err, 'No se pudo crear el código.'));
     }
   }
 
@@ -122,77 +140,98 @@ export default function AdminDiscountCodes() {
         description="Cupones de un solo uso. Seguí sus canjes en pedidos web y facturas."
         className="mb-0"
         actions={
-        <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-          <DialogTrigger asChild>
-            <Button className="h-9 gap-2 rounded-xl">
-              <HugeIcon icon={Add01Icon} size={16} strokeWidth={2} aria-hidden />
-              Generar código
-              <Kbd>N</Kbd>
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle>Nuevo código de descuento</DialogTitle>
-              <DialogDescription>
-                Se creará un código de único uso.
-              </DialogDescription>
-            </DialogHeader>
-            <form onSubmit={submit} className="grid gap-4 mt-2">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <Label>Tipo</Label>
-                  <Select value={form.type} onValueChange={(v) => set('type', v as DiscountType)}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="percent">% Porcentaje</SelectItem>
-                      <SelectItem value="fixed">C$ Monto fijo</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label>{form.type === 'percent' ? 'Valor (%)' : 'Valor (C$)'}</Label>
-                  <Input
-                    type="number"
-                    min={1}
-                    max={form.type === 'percent' ? 100 : undefined}
-                    value={form.value}
-                    onChange={(e) => set('value', e.target.value)}
-                    placeholder={form.type === 'percent' ? '10' : '50'}
-                  />
-                </div>
-              </div>
+          <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+            <DialogTrigger asChild>
+              <Button className="h-9 gap-2 rounded-xl">
+                <HugeIcon icon={Add01Icon} size={16} strokeWidth={2} aria-hidden />
+                Generar código
+                <Kbd>N</Kbd>
+              </Button>
+            </DialogTrigger>
+            <FormDialogContent>
+              <DialogHeader>
+                <DialogTitle>Generar código de descuento</DialogTitle>
+                <DialogDescription>Se creará un código de único uso.</DialogDescription>
+              </DialogHeader>
+              <FormLayout onSubmit={submit}>
+                <FormErrorBanner message={serverError} />
+                <FormBody>
+                  <div className="grid grid-cols-2 gap-4">
+                    <Field>
+                      <FieldLabel htmlFor="discount-type" required>
+                        Tipo
+                      </FieldLabel>
+                      <Select value={form.type} onValueChange={(v) => set('type', v as DiscountType)}>
+                        <SelectTrigger id="discount-type">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="percent">% Porcentaje</SelectItem>
+                          <SelectItem value="fixed">C$ Monto fijo</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </Field>
+                    <Field>
+                      <FieldLabel htmlFor="discount-value" required>
+                        {form.type === 'percent' ? 'Valor (%)' : 'Valor (C$)'}
+                      </FieldLabel>
+                      <Input
+                        id="discount-value"
+                        type="number"
+                        min={1}
+                        max={form.type === 'percent' ? 100 : undefined}
+                        value={form.value}
+                        onChange={(e) => {
+                          set('value', e.target.value);
+                          setValueError(null);
+                        }}
+                        aria-invalid={!!valueError}
+                        placeholder={form.type === 'percent' ? '10' : '50'}
+                      />
+                      {valueError && <FieldError>{valueError}</FieldError>}
+                    </Field>
+                  </div>
 
-              <div className="space-y-1.5">
-                <Label>Vence (opcional)</Label>
-                <DatePicker
-                  value={form.expiresAt}
-                  onChange={(v) => set('expiresAt', v)}
-                  placeholder="Sin vencimiento"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Descripción (referencia interna)</Label>
-                {/* Se guarda en la columna `note`: solo cambia la etiqueta. */}
-                <Textarea
-                  rows={2}
-                  value={form.note}
-                  onChange={(e) => set('note', e.target.value)}
-                  placeholder="Ej. Reseña en Google del cliente de la factura #120"
-                  maxLength={200}
-                />
-              </div>
+                  <Field>
+                    <FieldLabel htmlFor="discount-expiry">Vence (opcional)</FieldLabel>
+                    <DatePicker
+                      id="discount-expiry"
+                      value={form.expiresAt}
+                      onChange={(v) => set('expiresAt', v)}
+                      placeholder="Sin vencimiento"
+                    />
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="discount-note">Descripción (referencia interna)</FieldLabel>
+                    {/* Se guarda en la columna `note`: solo cambia la etiqueta. */}
+                    <Textarea
+                      id="discount-note"
+                      rows={2}
+                      value={form.note}
+                      onChange={(e) => set('note', e.target.value)}
+                      placeholder="Ej. Reseña en Google del cliente de la factura #120"
+                      maxLength={200}
+                    />
+                  </Field>
+                </FormBody>
 
-              <div className="pt-2 flex justify-end">
-                <Button type="submit" disabled={creating} className="w-full sm:w-auto">
-                  {creating && <Spinner className="mr-2" />}
-                  Generar
-                </Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
+                <FormActions>
+                  <Button
+                    type="button"
+                    variant="cancel"
+                    onClick={() => setModalOpen(false)}
+                    disabled={creating}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button type="submit" disabled={creating}>
+                    {creating && <Spinner className="mr-2" />}
+                    {creating ? 'Guardando…' : 'Generar código'}
+                  </Button>
+                </FormActions>
+              </FormLayout>
+            </FormDialogContent>
+          </Dialog>
         }
       />
 
@@ -209,7 +248,11 @@ export default function AdminDiscountCodes() {
               { value: 'expired', label: 'Vencidos o desactivados' },
             ]}
           />
-          <ToolbarSearch value={search} onChange={setSearch} placeholder="Buscar código o descripción" />
+          <ToolbarSearch
+            value={search}
+            onChange={setSearch}
+            placeholder="Buscar código o descripción"
+          />
         </WorkspaceToolbar>
 
         <MetricStrip>
@@ -229,7 +272,11 @@ export default function AdminDiscountCodes() {
           ) : filteredData.length === 0 ? (
             <div className="py-12 flex flex-col items-center justify-center text-muted-foreground">
               <HugeIcon icon={Coupon01Icon} size={32} className="mb-2 opacity-50" />
-              <p className="text-sm">{data.length === 0 ? 'Todavía no se generó ningún código.' : 'Ningún código coincide con la búsqueda o el filtro.'}</p>
+              <p className="text-sm">
+                {data.length === 0
+                  ? 'Todavía no se generó ningún código.'
+                  : 'Ningún código coincide con la búsqueda o el filtro.'}
+              </p>
             </div>
           ) : (
             <div className="divide-y">
@@ -243,7 +290,7 @@ export default function AdminDiscountCodes() {
                     key={d.code}
                     className={cn(
                       'flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6 p-4 transition-colors hover:bg-muted/30',
-                      effectivelyOff && 'bg-muted/10'
+                      effectivelyOff && 'bg-muted/10',
                     )}
                   >
                     {/* Col 1: Code & Type */}
@@ -254,12 +301,17 @@ export default function AdminDiscountCodes() {
                           onClick={() => copyCode(d.code)}
                           title="Copiar código"
                           className={cn(
-                            "flex items-center gap-1.5 rounded-xl bg-muted/60 px-2 py-1 font-spec text-sm font-semibold tracking-wide transition-colors hover:bg-muted",
-                            effectivelyOff ? "text-muted-foreground line-through" : "text-foreground"
+                            'flex items-center gap-1.5 rounded-xl bg-muted/60 px-2 py-1 font-spec text-sm font-semibold tracking-wide transition-colors hover:bg-muted',
+                            effectivelyOff ? 'text-muted-foreground line-through' : 'text-foreground',
                           )}
                         >
                           {d.code}
-                          <HugeIcon icon={Copy01Icon} size={12} className="text-muted-foreground" aria-hidden />
+                          <HugeIcon
+                            icon={Copy01Icon}
+                            size={12}
+                            className="text-muted-foreground"
+                            aria-hidden
+                          />
                         </button>
                         <span className="rounded-xl border border-border px-2 py-0.5 text-xs text-muted-foreground">
                           {d.type === 'percent' ? `−${d.value} %` : `−C$${d.value}`}
@@ -270,7 +322,9 @@ export default function AdminDiscountCodes() {
                         {d.note && (
                           <>
                             {d.expiresAt && <span>•</span>}
-                            <span className="truncate max-w-[200px]" title={d.note}>{d.note}</span>
+                            <span className="truncate max-w-[200px]" title={d.note}>
+                              {d.note}
+                            </span>
                           </>
                         )}
                       </div>
@@ -280,18 +334,23 @@ export default function AdminDiscountCodes() {
                     <div className="flex-1 min-w-[220px]">
                       {d.redeemedAt ? (
                         <div className="flex items-start gap-2">
-                          <div className={cn(
-                            "mt-0.5 rounded-full p-1.5",
-                            "bg-muted text-muted-foreground"
-                          )}>
+                          <div
+                            className={cn(
+                              'mt-0.5 rounded-full p-1.5',
+                              'bg-muted text-muted-foreground',
+                            )}
+                          >
                             <HugeIcon
-                              icon={d.redeemedSource === 'checkout' ? ShoppingCart01Icon : Invoice01Icon}
+                              icon={
+                                d.redeemedSource === 'checkout' ? ShoppingCart01Icon : Invoice01Icon
+                              }
                               size={14}
                             />
                           </div>
                           <div className="text-sm">
                             <p className="font-medium text-foreground flex items-center gap-1">
-                              {d.redeemedLabel || (d.redeemedSource === 'checkout' ? 'Pedido web' : 'Factura de caja')}
+                              {d.redeemedLabel ||
+                                (d.redeemedSource === 'checkout' ? 'Pedido web' : 'Factura de caja')}
                             </p>
                             <p className="text-xs text-muted-foreground">
                               Canjeado el {formatLongDate(d.redeemedAt)}
@@ -311,13 +370,22 @@ export default function AdminDiscountCodes() {
                       <span
                         className={cn(
                           'rounded-full px-2.5 py-0.5 text-xs font-medium whitespace-nowrap',
-                          !d.active ? 'bg-muted text-muted-foreground'
-                            : exhausted ? 'bg-success/10 text-foreground'
-                            : expired ? 'bg-warning/10 text-warning'
+                          !d.active
+                            ? 'bg-muted text-muted-foreground'
+                            : exhausted
+                            ? 'bg-success/10 text-foreground'
+                            : expired
+                            ? 'bg-warning/10 text-warning'
                             : 'bg-info/10 text-info',
                         )}
                       >
-                        {!d.active ? 'Desactivado' : exhausted ? 'Canjeado' : expired ? 'Vencido' : 'Pendiente'}
+                        {!d.active
+                          ? 'Desactivado'
+                          : exhausted
+                          ? 'Canjeado'
+                          : expired
+                          ? 'Vencido'
+                          : 'Pendiente'}
                       </span>
 
                       {!exhausted && (
@@ -327,8 +395,10 @@ export default function AdminDiscountCodes() {
                           title={d.active ? 'Desactivar' : 'Reactivar'}
                           aria-label={d.active ? `Desactivar ${d.code}` : `Reactivar ${d.code}`}
                           className={cn(
-                            "grid h-8 w-8 shrink-0 place-items-center rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                            d.active ? "text-muted-foreground hover:bg-destructive/10 hover:text-destructive" : "text-foreground hover:bg-success/10"
+                            'grid h-8 w-8 shrink-0 place-items-center rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                            d.active
+                              ? 'text-muted-foreground hover:bg-destructive/10 hover:text-destructive'
+                              : 'text-foreground hover:bg-success/10',
                           )}
                         >
                           <HugeIcon icon={PowerServiceIcon} size={16} strokeWidth={2} aria-hidden />

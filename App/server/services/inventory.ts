@@ -12,10 +12,11 @@ import { BadRequestError } from '../utils/httpError';
 import { isMissingColumn } from './orderPersistence';
 import { fetchAllRows } from '../utils/fetchAllRows';
 import type {
-  NewPurchaseInput,
   UpdatePurchaseInput,
   ArrivalInput,
 } from '../../shared/schemas';
+import type { LotInfo } from './catalogPresenter';
+import { resolveTemplateLink } from './templateProducts';
 
 // ============================================================================
 // ── Tipos (contrato con inventoryV1Api.ts) ──
@@ -452,44 +453,40 @@ export async function getInventoryKpis(period?: string): Promise<InventoryKpis> 
 // ── Escritura (purchases) ──
 // ============================================================================
 
-export async function createPurchase(input: NewPurchaseInput): Promise<Purchase> {
-  const [generatedCode] = await nextPurchaseCodes(1);
-
-  // Compra de un producto del catálogo: el nombre y la categoría salen de ahí,
-  // y el lote nace vinculado a su variante (la tienda lo ve sin pasos extra).
-  const link: CatalogLink | null = input.catalogItemId
-    ? { catalogItemId: input.catalogItemId, variantKey: input.variantKey ?? '' }
-    : null;
-  const fromCatalog = link ? await nameForVariant(link) : null;
-
-  const row = {
-    code: generatedCode,
-    lot: input.lot,
-    product_name: fromCatalog?.productName ?? input.productName,
-    category: input.category || fromCatalog?.categoryId || null,
-    purchase_date: input.purchaseDate,
-    quantity: input.quantity,
-    costo_china_usd: input.costUnit,
-    impuesto_unit_usd: input.taxUnit,
-    suggested_price: input.suggestedPrice ?? null,
-    status: 'china',
-  };
-
-  let { data, error } = link
-    ? await db
-        .from('purchases')
-        .insert({ ...row, catalog_item_id: link.catalogItemId, variant_key: link.variantKey })
-        .select(PURCHASE_COLUMNS_LINKED)
-        .single()
-    : await db.from('purchases').insert(row).select(PURCHASE_COLUMNS).single();
-  // Sin la migración 0022 el lote se guarda igual, con el nombre del catálogo,
-  // pero sin el vínculo por columna.
-  if (link && isMissingColumn(error)) {
-    ({ data, error } = await db.from('purchases').insert(row).select(PURCHASE_COLUMNS).single());
-  }
-
+/** Saca un código de lote de los vínculos que se cargaban a mano en el editor de Catálogo. */
+async function dropManualLinks(code: string): Promise<void> {
+  const { data, error } = await db.from('catalog_items').select('id, variant_mappings').not('variant_mappings', 'is', null);
   if (error) throw error;
-  return toPurchase(data as unknown as PurchaseRow);
+  for (const item of (data ?? []) as { id: string; variant_mappings: Record<string, unknown> }[]) {
+    const entries = Object.entries(item.variant_mappings ?? {});
+    if (!entries.some(([, entry]) => codesOfMapping(entry).includes(code))) continue;
+    const mappings = Object.fromEntries(
+      entries.map(([key, entry]) => {
+        if (!codesOfMapping(entry).includes(code)) return [key, entry];
+        const { sku: _sku, skus: _skus, ...rest } = entry as Record<string, unknown>;
+        return [key, { ...rest, codes: codesOfMapping(entry).filter((c) => c !== code) }];
+      }),
+    );
+    const { error: updateError } = await db.from('catalog_items').update({ variant_mappings: mappings }).eq('id', item.id);
+    if (updateError) throw updateError;
+  }
+}
+
+/** Link de fotos y videos del producto de cada lote (`catalog_items.spo_link`). */
+export async function withMediaLinks<T extends InventoryRow & { offerTarget?: { catalogItemId: string } | null }>(
+  rows: T[],
+): Promise<Array<T & { spoLink: string | null }>> {
+  const productOf = (row: T) => row.offerTarget?.catalogItemId ?? row.catalogItemId ?? null;
+  const ids = [...new Set(rows.map(productOf).filter((id): id is string => Boolean(id)))];
+  const links = new Map<string, string>();
+  if (ids.length) {
+    const { data, error } = await db.from('catalog_items').select('id, spo_link').in('id', ids).not('spo_link', 'is', null);
+    if (error) throw error;
+    for (const item of (data ?? []) as { id: string; spo_link: string | null }[]) {
+      if (item.spo_link) links.set(item.id, item.spo_link);
+    }
+  }
+  return rows.map((row) => ({ ...row, spoLink: links.get(productOf(row) ?? '') ?? null }));
 }
 
 /**
@@ -546,7 +543,7 @@ export async function reportArrival(id: string, input: ArrivalInput): Promise<bo
       costo_real_cs: costing.costoRealCs,
       costo_f_u: costing.costoFU,
       coste_final: costing.costeFinal,
-      suggested_price: input.suggestedPrice ?? costing.precioSugerido,
+      suggested_price: input.suggestedPrice,
     })
     .eq('id', id);
 
@@ -587,6 +584,7 @@ export async function updatePurchase(
   id: string,
   rawInput: UpdatePurchaseInput,
   authorUid?: string,
+  opts: { fromOrder?: boolean } = {},
 ): Promise<boolean> {
   let input = rawInput;
   const { data: existing, error: fetchError } = await db
@@ -600,18 +598,6 @@ export async function updatePurchase(
   const sold = existing.quantity_sold ?? 0;
   const reserved = existing.quantity_reserved ?? 0;
 
-  // Vincular a una variante del catálogo: el lote toma el nombre que ya usan
-  // los otros lotes de esa variante (Ventas los agrupa por nombre). Si tiene
-  // unidades reservadas se conserva el nombre: renombrar rompería el costeo.
-  if (input.catalogItemId !== undefined) {
-    const link: CatalogLink | null = input.catalogItemId
-      ? { catalogItemId: input.catalogItemId, variantKey: input.variantKey ?? '' }
-      : null;
-    const canonical = link && reserved === 0 ? await nameForVariant(link) : null;
-    await setPurchaseLink(id, link);
-    if (canonical) input = { ...input, productName: canonical.productName };
-  }
-
   // Una línea de una orden de Alibaba toma el número y la fecha de la orden:
   // cambiarlos acá la separaría de su orden. Se cambian desde la orden.
   if (existing.order_id) {
@@ -620,6 +606,9 @@ export async function updatePurchase(
     }
     if (input.purchaseDate !== undefined && input.purchaseDate !== existing.purchase_date) {
       throw new BadRequestError('La fecha de compra se cambia desde la orden, no desde una línea.');
+    }
+    if (!opts.fromOrder && input.taxUnit !== undefined && Number(input.taxUnit) !== Number(existing.impuesto_unit_usd ?? 0)) {
+      throw new BadRequestError('El impuesto es el mismo para toda la orden: cambialo desde «Editar orden».');
     }
   }
 
@@ -639,6 +628,37 @@ export async function updatePurchase(
     throw new BadRequestError(
       `La cantidad no puede ser menor a ${sold + reserved}: ya hay ${sold} vendida(s) y ${reserved} reservada(s).`,
     );
+  }
+
+  // Con plantilla, el servidor busca (o crea, sin publicar) su producto.
+  if (input.templateId) {
+    const { link } = await resolveTemplateLink({
+      templateId: input.templateId,
+      variantKey: input.variantKey ?? '',
+      catalogItemId: input.catalogItemId ?? undefined,
+    });
+    input = { ...input, ...link };
+  }
+
+  // Vincular a una variante: el lote toma el nombre que ya usan los otros lotes
+  // de esa variante (Ventas los agrupa por nombre). Si tiene unidades
+  // reservadas se conserva el nombre: renombrar rompería el costeo.
+  if (input.catalogItemId !== undefined) {
+    const link: CatalogLink | null = input.catalogItemId
+      ? { catalogItemId: input.catalogItemId, variantKey: input.variantKey ?? '' }
+      : null;
+    const canonical = link && reserved === 0 ? await nameForVariant(link) : null;
+    await setPurchaseLink(id, link);
+    // El vínculo por columna queda como el único: sin el editor de Catálogo, uno
+    // cargado a mano ahí ya no se podría corregir.
+    await dropManualLinks(existing.code);
+    if (canonical) {
+      input = {
+        ...input,
+        productName: canonical.productName,
+        ...(input.templateId && canonical.categoryId ? { category: canonical.categoryId } : {}),
+      };
+    }
   }
 
   // Solo se toma como "cambio" lo que es distinto de lo guardado: el panel
@@ -755,15 +775,9 @@ export async function deletePurchase(id: string, authorUid: string): Promise<boo
     throw new BadRequestError('No se puede borrar un lote con stock ya vendido o reservado.');
   }
 
-  const linkedTo = (await listAvailableLots()).find((lot) => lot.code === existing.code)?.linkedTo;
-  if (linkedTo) {
-    throw new BadRequestError(
-      `El lote ${existing.code} está vinculado a "${linkedTo}" en Catálogo. Desvinculalo ahí antes de borrarlo.`,
-    );
-  }
-
   const { error } = await db.from('purchases').delete().eq('id', id);
   if (error) throw error;
+  await dropManualLinks(existing.code);
 
   await db.from('audit_logs').insert({
     entity: 'purchases',
@@ -781,11 +795,8 @@ export async function deletePurchase(id: string, authorUid: string): Promise<boo
 // ============================================================================
 // ── FIFO ──
 // ============================================================================
-// LIMITACIÓN CONOCIDA: `purchases` no tiene ningún link a catalog_items/SKU
-// (ni `NewPurchase` lo manda), así que el único campo que agrupa varios lotes
-// del "mismo producto" es `product_name` (texto libre) — dos compras con el
-// nombre tipeado distinto no se agrupan. Reemplazar por un id real de
-// producto en cuanto exista el vínculo con el catálogo (doc 09 ítem 54).
+// Agrupa los lotes por `product_name`: por eso las compras nuevas toman el
+// nombre que ya usan los lotes de su variante (nameForVariant).
 //
 // Tampoco hay una función de Postgres con locking real (`FOR UPDATE`) como
 // pide doc 09 ("TX SQL"): sin acceso a Supabase para probar una función
@@ -1070,98 +1081,6 @@ export async function releaseConsumedReservations(orderId: string): Promise<{ re
 // la tabla pero no es vendible, y publicarlo como stock haría prometer entregas
 // que no se pueden cumplir.
 
-export interface AvailableLot {
-  code: string;
-  productName: string;
-  category: string | null;
-  lot: string;
-  available: number;
-  suggestedPrice: number | null;
-  linkedTo: string | null;
-}
-
-// Catálogo de lotes recibidos para el buscador del editor de producto. Devuelve
-// también los agotados: al editar un producto ya mapeado hay que poder ver el
-// lote vinculado aunque se haya vendido entero, o el vínculo se vería "roto".
-// `excludeProductId`: el producto que se está editando — sus propios vínculos
-// no cuentan como "ya vinculados" porque son los que el usuario está gestionando.
-export async function listAvailableLots(excludeProductId?: string): Promise<AvailableLot[]> {
-  const [purchasesResult, catalogResult] = await Promise.all([
-    db
-      .from('purchases')
-      .select('code, product_name, category, lot, quantity, quantity_sold, quantity_reserved, suggested_price')
-      .eq('status', 'received')
-      .order('purchase_date', { ascending: false }),
-    db
-      .from('catalog_items')
-      .select('id, name, variant_mappings')
-      .not('variant_mappings', 'is', null),
-  ]);
-
-  if (purchasesResult.error) throw purchasesResult.error;
-  if (catalogResult.error) throw catalogResult.error;
-
-  const codeToProduct = new Map<string, string>();
-  for (const item of (catalogResult.data ?? []) as { id: string; name: string; variant_mappings: unknown }[]) {
-    if (excludeProductId && item.id === excludeProductId) continue;
-    const mappings = item.variant_mappings;
-    if (!mappings || typeof mappings !== 'object') continue;
-    for (const entry of Object.values(mappings as Record<string, unknown>)) {
-      if (!entry || typeof entry !== 'object') continue;
-      const e = entry as Record<string, unknown>;
-      const codes = [
-        ...(Array.isArray(e.codes) ? e.codes.filter((c: unknown) => typeof c === 'string') : []),
-        ...(Array.isArray(e.skus) ? e.skus.filter((c: unknown) => typeof c === 'string') : []),
-        ...(typeof e.sku === 'string' && e.sku ? [e.sku] : []),
-      ];
-      for (const code of codes) codeToProduct.set(code as string, item.name ?? 'Producto sin nombre');
-    }
-  }
-
-  // Lotes vinculados por columna (0022): cuentan como vinculados aunque el
-  // editor de Catálogo no los tenga en su lista.
-  const linkedRows = await db.from('purchases').select('code, catalog_item_id').not('catalog_item_id', 'is', null);
-  if (!isMissingColumn(linkedRows.error)) {
-    if (linkedRows.error) throw linkedRows.error;
-    const names = new Map(
-      ((catalogResult.data ?? []) as { id: string; name: string }[]).map((item) => [item.id, item.name]),
-    );
-    const missing = (linkedRows.data ?? []).filter((r) => !names.has(r.catalog_item_id as string));
-    if (missing.length) {
-      const { data: extra } = await db
-        .from('catalog_items')
-        .select('id, name')
-        .in('id', [...new Set(missing.map((r) => r.catalog_item_id as string))]);
-      for (const item of (extra ?? []) as { id: string; name: string }[]) names.set(item.id, item.name);
-    }
-    for (const r of (linkedRows.data ?? []) as { code: string; catalog_item_id: string }[]) {
-      if (excludeProductId && r.catalog_item_id === excludeProductId) continue;
-      if (!codeToProduct.has(r.code)) codeToProduct.set(r.code, names.get(r.catalog_item_id) ?? 'Producto sin nombre');
-    }
-  }
-
-  const rows = (purchasesResult.data ?? []) as unknown as {
-    code: string;
-    product_name: string;
-    category: string | null;
-    lot: string | null;
-    quantity: number;
-    quantity_sold: number;
-    quantity_reserved: number;
-    suggested_price: number | null;
-  }[];
-
-  return rows.map((row) => ({
-    code: row.code,
-    productName: row.product_name,
-    category: row.category,
-    lot: row.lot ?? '',
-    available: Math.max(0, row.quantity - row.quantity_sold - row.quantity_reserved),
-    suggestedPrice: row.suggested_price,
-    linkedTo: codeToProduct.get(row.code) ?? null,
-  }));
-}
-
 // Disponible por código, para resolver el stock de las variantes del storefront.
 // Varios lotes NO pueden compartir código (`purchases.code` es unique), así que
 // el mapa es 1-a-1; aun así se suma, para no depender de esa restricción.
@@ -1187,6 +1106,43 @@ export async function getAvailableByCodes(codes: string[]): Promise<Map<string, 
     available.set(row.code, (available.get(row.code) ?? 0) + free);
   }
   return available;
+}
+
+/**
+ * Lotes de bodega por código para la tienda: unidades libres, si siguen en
+ * camino, su precio de venta y su lugar en el FIFO (el mismo orden de Ventas).
+ */
+export async function getLotsByCodes(codes: string[]): Promise<Map<string, LotInfo>> {
+  const lots = new Map<string, LotInfo>();
+  const unique = [...new Set(codes.filter(Boolean))];
+  if (unique.length === 0) return lots;
+
+  const { data, error } = await db
+    .from('purchases')
+    .select('code, status, quantity, quantity_sold, quantity_reserved, suggested_price, purchase_date, created_at')
+    .in('code', unique);
+  if (error) throw error;
+
+  for (const row of (data ?? []) as unknown as {
+    code: string;
+    status: PurchaseStatus;
+    quantity: number;
+    quantity_sold: number;
+    quantity_reserved: number;
+    suggested_price: number | string | null;
+    purchase_date: string;
+    created_at: string;
+  }[]) {
+    const received = row.status === 'received';
+    const price = row.suggested_price == null ? null : Number(row.suggested_price);
+    lots.set(row.code, {
+      available: received ? Math.max(0, row.quantity - row.quantity_sold - row.quantity_reserved) : 0,
+      inTransit: !received,
+      salePrice: price && price > 0 ? price : null,
+      fifoKey: `${row.purchase_date}|${row.created_at}`,
+    });
+  }
+  return lots;
 }
 
 // ============================================================================

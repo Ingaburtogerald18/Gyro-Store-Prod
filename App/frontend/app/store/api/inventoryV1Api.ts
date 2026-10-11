@@ -90,24 +90,26 @@ export interface PurchaseOrder {
   receivedLineCount: number;
   units: number;
   linesTotalUsd: number;
+  /** Impuesto por unidad de la orden (USD); null si no tiene líneas o difieren. */
+  taxUnit: number | null;
   status: PurchaseOrderStatus;
   missing: PurchaseOrderMissing[];
   arrivalDate: string | null;
 }
 
+/** Una variante de una plantilla. `catalogItemId` solo si la plantilla tiene varios productos. */
 export interface PurchaseOrderLinePayload {
-  productName: string;
-  category: string;
+  templateId: string;
+  variantKey: string;
+  catalogItemId?: string;
   quantity: number;
   costUnit: number;
-  taxUnit: number;
-  catalogItemId?: string;
-  variantKey?: string;
 }
 
 export interface PurchaseOrderHeaderPayload {
   orderNumber: string;
   purchaseDate: string;
+  taxUnit?: number;
   supplierId?: string | null;
   newSupplier?: SupplierPayload;
   invoiceId?: string | null;
@@ -116,7 +118,8 @@ export interface PurchaseOrderHeaderPayload {
   notes?: string;
 }
 
-export interface NewPurchaseOrderPayload extends PurchaseOrderHeaderPayload {
+export interface NewPurchaseOrderPayload extends Omit<PurchaseOrderHeaderPayload, "taxUnit"> {
+  taxUnit: number;
   lines: PurchaseOrderLinePayload[];
 }
 
@@ -173,6 +176,25 @@ export interface InventoryRow {
   gananciaUnitCordobas?: number;
   catalogItemId?: string | null;
   variantKey?: string | null;
+  /** Producto y color del lote, para ponerle oferta; null si no está vinculado. */
+  offerTarget?: OfferTarget | null;
+  /** Oferta vigente de ese color. */
+  offer?: ColorOffer | null;
+  /** Link de fotos y videos del producto. */
+  spoLink?: string | null;
+}
+
+export interface OfferTarget {
+  catalogItemId: string;
+  color: string;
+  label: string;
+  normalPrice: number | null;
+}
+
+export interface ColorOffer {
+  id: string;
+  price: number;
+  endsAt: string;
 }
 
 export interface InventoryKpis {
@@ -185,20 +207,6 @@ export interface InventoryKpis {
   totalImpuestosUsd: number;
   totalInversionConImpuestosUsd: number;
   totalEnviosUsd: number;
-}
-
-export interface NewPurchase {
-  purchaseDate: string;
-  lot: string;
-  code?: string;
-  productName: string;
-  category: string;
-  quantity: number;
-  costUnit: number;
-  taxUnit: number;
-  suggestedPrice?: number;
-  catalogItemId?: string;
-  variantKey?: string;
 }
 
 export interface ArrivalPayload {
@@ -237,10 +245,6 @@ export const inventoryApi = baseApi.injectEndpoints({
       query: (period) => withPeriod("/inventory/kpis", period || undefined),
       providesTags: ["Purchase"],
     }),
-    createPurchase: build.mutation<Purchase, NewPurchase>({
-      query: (body) => ({ url: "/inventory/purchases", method: "POST", body }),
-      invalidatesTags: ["Purchase"],
-    }),
     reportArrival: build.mutation<{ ok: boolean }, { id: string; body: ArrivalPayload }>({
       query: ({ id, body }) => ({ url: `/inventory/purchases/${id}/arrival`, method: "PATCH", body }),
       invalidatesTags: ["Purchase", "Product", "Catalog"],
@@ -255,9 +259,10 @@ export const inventoryApi = baseApi.injectEndpoints({
         body: { shippingUnit, exchangeRate },
       }),
     }),
-    updatePurchase: build.mutation<{ ok: boolean }, { id: string; body: Partial<Purchase> }>({
+    // Con `templateId` el servidor puede crear (sin publicar) el producto de la plantilla.
+    updatePurchase: build.mutation<{ ok: boolean }, { id: string; body: Partial<Purchase> & { templateId?: string } }>({
       query: ({ id, body }) => ({ url: `/inventory/purchases/${id}`, method: "PUT", body }),
-      invalidatesTags: ["Purchase", "Product", "Catalog"],
+      invalidatesTags: ["Purchase", "Product", "Catalog", "Templates"],
     }),
     revertPurchase: build.mutation<{ ok: boolean }, string>({
       query: (id) => ({ url: `/inventory/purchases/${id}/revert`, method: "PATCH" }),
@@ -275,6 +280,15 @@ export const inventoryApi = baseApi.injectEndpoints({
       query: ({ id, body }) => ({ url: `/inventory/purchases/${id}/adjust`, method: "POST", body }),
       invalidatesTags: ["Purchase", "Product", "Catalog"],
     }),
+    // Oferta por color (migración 0027): reemplaza la que hubiera.
+    setColorOffer: build.mutation<ColorOffer, { catalogItemId: string; color: string; price: number; endsAt: string }>({
+      query: (body) => ({ url: "/inventory/offers", method: "PUT", body }),
+      invalidatesTags: ["Product", "Catalog"],
+    }),
+    removeColorOffer: build.mutation<{ ok: boolean }, string>({
+      query: (id) => ({ url: `/inventory/offers/${id}`, method: "DELETE" }),
+      invalidatesTags: ["Product", "Catalog"],
+    }),
     getStockMovements: build.query<StockMovement[], string>({
       query: (purchaseId) => ({ url: "/inventory/movements", params: { purchaseId } }),
       providesTags: ["Purchase"],
@@ -287,9 +301,10 @@ export const inventoryApi = baseApi.injectEndpoints({
       query: () => "/inventory/orders",
       providesTags: ["Purchase"],
     }),
+    // Registrar crea (sin publicar) los productos de plantillas nuevas en el catálogo.
     createPurchaseOrder: build.mutation<PurchaseOrder, NewPurchaseOrderPayload>({
       query: (body) => ({ url: "/inventory/orders", method: "POST", body }),
-      invalidatesTags: ["Purchase"],
+      invalidatesTags: ["Purchase", "Templates"],
     }),
     updatePurchaseOrder: build.mutation<PurchaseOrder, { id: string; body: PurchaseOrderHeaderPayload }>({
       query: ({ id, body }) => ({ url: `/inventory/orders/${id}`, method: "PUT", body }),
@@ -299,9 +314,9 @@ export const inventoryApi = baseApi.injectEndpoints({
       query: (id) => ({ url: `/inventory/orders/${id}`, method: "DELETE" }),
       invalidatesTags: ["Purchase"],
     }),
-    addPurchaseOrderLines: build.mutation<PurchaseOrder, { id: string; lines: PurchaseOrderLinePayload[] }>({
-      query: ({ id, lines }) => ({ url: `/inventory/orders/${id}/lines`, method: "POST", body: { lines } }),
-      invalidatesTags: ["Purchase"],
+    addPurchaseOrderLines: build.mutation<PurchaseOrder, { id: string; lines: PurchaseOrderLinePayload[]; taxUnit?: number }>({
+      query: ({ id, lines, taxUnit }) => ({ url: `/inventory/orders/${id}/lines`, method: "POST", body: { lines, taxUnit } }),
+      invalidatesTags: ["Purchase", "Templates"],
     }),
     simulateOrderReceipt: build.mutation<ReceiptPreview, { id: string; body: Omit<ReceiveOrderPayload, "arrivalDate"> }>({
       query: ({ id, body }) => ({ url: `/inventory/orders/${id}/simulate-receipt`, method: "POST", body }),
@@ -350,13 +365,14 @@ export const {
   useGetAvailableInventoryQuery,
   useGetIncomingInventoryQuery,
   useGetInventoryKpisQuery,
-  useCreatePurchaseMutation,
   useReportArrivalMutation,
   useSimulateCostMutation,
   useUpdatePurchaseMutation,
   useRevertPurchaseMutation,
   useDeletePurchaseMutation,
   useAdjustStockMutation,
+  useSetColorOfferMutation,
+  useRemoveColorOfferMutation,
   useGetStockMovementsQuery,
   useGetPurchaseOrdersQuery,
   useCreatePurchaseOrderMutation,
