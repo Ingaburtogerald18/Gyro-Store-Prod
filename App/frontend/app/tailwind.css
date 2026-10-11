@@ -439,13 +439,6 @@ html[data-area='store'] .store-header .store-cart-button:active {
 :is(html[data-area='store'][data-theme='light'], .store-preview[data-theme='light']) .product-stage {
   position: relative;
 }
-:is(html[data-area='store'][data-theme='light'], .store-preview[data-theme='light']) .product-stage {
-  background-image: radial-gradient(circle closest-side, var(--rose) 88%, transparent 88.5%);
-}
-/* Multiplicar deja ver el círculo a través del fondo blanco de la foto. */
-:is(html[data-area='store'][data-theme='light'], .store-preview[data-theme='light']) .product-stage img {
-  mix-blend-mode: multiply;
-}
 :is(html[data-area='store'][data-theme='light'], .store-preview[data-theme='light']) .product-stage::after {
   content: '';
   position: absolute;

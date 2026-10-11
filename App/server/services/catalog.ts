@@ -86,3 +86,15 @@ export async function listPublishedCatalogByIds(ids: string[]): Promise<PublicCa
   }
   return withLinkedLots(parseDbRows(publicCatalogItemSchema, data, 'catalog_items'));
 }
+
+// Todos los productos, publicados o no, con las mismas columnas: Stock actual
+// calcula con ellos el precio normal de cada color para las ofertas.
+export async function listCatalogForPricing(ids?: string[]): Promise<PublicCatalogItem[]> {
+  let query = db.from('catalog_items').select(PUBLIC_CATALOG_COLUMNS);
+  if (ids) query = query.in('id', ids);
+  const { data, error } = await query;
+  if (error) {
+    throw error;
+  }
+  return withLinkedLots(parseDbRows(publicCatalogItemSchema, data, 'catalog_items'));
+}

@@ -6,7 +6,6 @@ import { useMemo, useState } from "react";
 
 import type { AdminTemplate, Category } from "@shared/schemas";
 import { Button } from "~/components/ui/button";
-import { Combobox } from "~/components/ui/combobox";
 import { Field, FieldDescription, FieldError, FieldLabel } from "~/components/ui/field";
 import { HugeIcon } from "~/components/ui/icon";
 import { Input } from "~/components/ui/input";
@@ -15,6 +14,7 @@ import { NativeSelect, NativeSelectOption } from "~/components/ui/native-select"
 import { formatUsd } from "~/lib/formatters";
 import type { Purchase, PurchaseOrderLinePayload } from "~/store/api/inventoryV1Api";
 import { TemplateFormDialog } from "./TemplateFormDialog";
+import { TemplateModelPicker } from "./TemplateModelPicker";
 
 export interface OrderLineState {
   key: string;
@@ -35,7 +35,15 @@ export type OrderLineErrors = Record<string, Partial<Record<LineField, string>>>
 let lineSeq = 0;
 export function emptyOrderLine(): OrderLineState {
   lineSeq += 1;
-  return { key: `line-${Date.now()}-${lineSeq}`, templateQuery: "", templateId: "", axisValues: [], catalogItemId: "", quantity: "", costUnit: "" };
+  return {
+    key: `line-${Date.now()}-${lineSeq}`,
+    templateQuery: "",
+    templateId: "",
+    axisValues: [],
+    catalogItemId: "",
+    quantity: "",
+    costUnit: "",
+  };
 }
 
 const num = (v: string) => (v.trim() === "" ? NaN : Number(v));
@@ -44,7 +52,9 @@ const num = (v: string) => (v.trim() === "" ? NaN : Number(v));
 export function lineTotalUsd(line: OrderLineState, taxUnit: number): number {
   const qty = num(line.quantity);
   const cost = num(line.costUnit);
-  return Number.isFinite(qty) && Number.isFinite(cost) ? qty * (cost + (Number.isFinite(taxUnit) ? taxUnit : 0)) : 0;
+  return Number.isFinite(qty) && Number.isFinite(cost)
+    ? qty * (cost + (Number.isFinite(taxUnit) ? taxUnit : 0))
+    : 0;
 }
 
 function variantKeyOf(line: OrderLineState, template: AdminTemplate | undefined): string | null {
@@ -54,7 +64,10 @@ function variantKeyOf(line: OrderLineState, template: AdminTemplate | undefined)
   return values.every(Boolean) ? values.join(" / ") : null;
 }
 
-export function validateOrderLines(lines: OrderLineState[], templates: AdminTemplate[]): OrderLineErrors {
+export function validateOrderLines(
+  lines: OrderLineState[],
+  templates: AdminTemplate[],
+): OrderLineErrors {
   const byId = new Map(templates.map((t) => [t.id, t]));
   const errors: OrderLineErrors = {};
   for (const line of lines) {
@@ -64,7 +77,8 @@ export function validateOrderLines(lines: OrderLineState[], templates: AdminTemp
     else {
       const missing = template.axes.find((axis, i) => !line.axisValues[i]);
       if (missing) e.variant = `Elegí ${missing.label.toLowerCase()}.`;
-      if (template.products.length > 1 && !line.catalogItemId) e.product = "Elegí a qué producto va la compra.";
+      if (template.products.length > 1 && !line.catalogItemId)
+        e.product = "Elegí a qué producto va la compra.";
     }
     const qty = num(line.quantity);
     if (!Number.isInteger(qty) || qty <= 0) e.quantity = "Escribí una cantidad mayor a 0.";
@@ -75,7 +89,10 @@ export function validateOrderLines(lines: OrderLineState[], templates: AdminTemp
   return errors;
 }
 
-export function orderLinesPayload(lines: OrderLineState[], templates: AdminTemplate[]): PurchaseOrderLinePayload[] {
+export function orderLinesPayload(
+  lines: OrderLineState[],
+  templates: AdminTemplate[],
+): PurchaseOrderLinePayload[] {
   const byId = new Map(templates.map((t) => [t.id, t]));
   return lines.map((line) => ({
     templateId: line.templateId,
@@ -94,6 +111,10 @@ export function OrderLinesEditor({
   categories,
   taxUnit,
   alreadyInOrder = [],
+  loading = false,
+  failed = false,
+  onRetry,
+  disabled = false,
 }: {
   lines: OrderLineState[];
   onChange: (lines: OrderLineState[]) => void;
@@ -104,11 +125,18 @@ export function OrderLinesEditor({
   taxUnit: number;
   /** Productos que la orden ya tiene, al agregarle más: se avisa si se repite uno. */
   alreadyInOrder?: Purchase[];
+  loading?: boolean;
+  failed?: boolean;
+  onRetry?: () => void;
+  disabled?: boolean;
 }) {
   const [creating, setCreating] = useState<{ lineKey: string; name: string } | null>(null);
   const byId = useMemo(() => new Map(templates.map((t) => [t.id, t])), [templates]);
   const total = lines.reduce((sum, line) => sum + lineTotalUsd(line, taxUnit), 0);
-  const units = lines.reduce((sum, line) => sum + (Number.isInteger(num(line.quantity)) ? num(line.quantity) : 0), 0);
+  const units = lines.reduce(
+    (sum, line) => sum + (Number.isInteger(num(line.quantity)) ? num(line.quantity) : 0),
+    0,
+  );
 
   const update = (key: string, patch: Partial<OrderLineState>) =>
     onChange(lines.map((line) => (line.key === key ? { ...line, ...patch } : line)));
@@ -118,11 +146,18 @@ export function OrderLinesEditor({
     const template = byId.get(line.templateId);
     const key = variantKeyOf(line, template);
     if (!template || key === null) return null;
-    const repeated = lines.findIndex((other, i) => i < index && other.templateId === line.templateId && variantKeyOf(other, template) === key);
+    const repeated = lines.findIndex(
+      (other, i) =>
+        i < index && other.templateId === line.templateId && variantKeyOf(other, template) === key,
+    );
     if (repeated >= 0) return `Es la misma variante que el producto ${repeated + 1}.`;
     const productIds = new Set(template.products.map((p) => p.id));
-    const inOrder = alreadyInOrder.find((p) => p.catalogItemId && productIds.has(p.catalogItemId) && (p.variantKey ?? "") === key);
-    return inOrder ? `Ya está en esta orden (${inOrder.code}, ${inOrder.quantity} u). Revisá que no lo cargues dos veces.` : null;
+    const inOrder = alreadyInOrder.find(
+      (p) => p.catalogItemId && productIds.has(p.catalogItemId) && (p.variantKey ?? "") === key,
+    );
+    return inOrder
+      ? `Ya está en esta orden (${inOrder.code}, ${inOrder.quantity} u). Revisá que no lo cargues dos veces.`
+      : null;
   }
 
   return (
@@ -142,17 +177,29 @@ export function OrderLinesEditor({
           onChange={(patch) => update(line.key, patch)}
           onRemove={() => remove(line.key)}
           onCreateTemplate={(name) => setCreating({ lineKey: line.key, name })}
+          loading={loading}
+          failed={failed}
+          onRetry={onRetry}
+          disabled={disabled}
         />
       ))}
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <Button type="button" variant="outline" onClick={() => onChange([...lines, emptyOrderLine()])}>
+        <Button
+          type="button"
+          variant="outline"
+          disabled={disabled}
+          onClick={() => onChange([...lines, emptyOrderLine()])}
+        >
           <HugeIcon icon={Add01Icon} size={16} strokeWidth={2} aria-hidden />
           Agregar otro producto
         </Button>
         <p className="text-sm text-muted-foreground">
-          {lines.length} {lines.length === 1 ? "producto" : "productos"} · {units.toLocaleString("es-NI")} unidades ·{" "}
-          <span className="font-heading text-base font-extrabold tabular-nums text-foreground">{formatUsd(total)}</span>
+          {lines.length} {lines.length === 1 ? "producto" : "productos"} ·{" "}
+          {units.toLocaleString("es-NI")} unidades ·{" "}
+          <span className="font-heading text-base font-extrabold tabular-nums text-foreground">
+            {formatUsd(total)}
+          </span>
         </p>
       </div>
 
@@ -163,7 +210,13 @@ export function OrderLinesEditor({
         categories={categories}
         initialName={creating?.name}
         onSaved={(template) => {
-          if (creating) update(creating.lineKey, { templateQuery: template.name, templateId: template.id, axisValues: [], catalogItemId: "" });
+          if (creating)
+            update(creating.lineKey, {
+              templateQuery: template.name,
+              templateId: template.id,
+              axisValues: [],
+              catalogItemId: "",
+            });
         }}
       />
     </div>
@@ -183,6 +236,10 @@ function OrderLineRow({
   onChange,
   onRemove,
   onCreateTemplate,
+  loading,
+  failed,
+  onRetry,
+  disabled,
 }: {
   index: number;
   line: OrderLineState;
@@ -196,71 +253,58 @@ function OrderLineRow({
   onChange: (patch: Partial<OrderLineState>) => void;
   onRemove: () => void;
   onCreateTemplate: (name: string) => void;
+  loading: boolean;
+  failed: boolean;
+  onRetry?: () => void;
+  disabled: boolean;
 }) {
-  const id = `line-${index}`;
+  const id = line.key;
   const err = (message?: string) => [message ? { message } : undefined];
-  const names = useMemo(() => templates.map((t) => t.name).sort((a, b) => a.localeCompare(b, "es")), [templates]);
-  const categoryOf = useMemo(() => {
-    const categoryName = new Map(categories.map((c) => [c.id, c.name]));
-    const byName = new Map(templates.map((t) => [t.name, t.categoryId ? categoryName.get(t.categoryId) ?? "" : ""]));
-    return (name: string) => byName.get(name) ?? "";
-  }, [templates, categories]);
-  const query = line.templateQuery.trim();
-  const noMatch = query.length > 0 && !template;
-
-  function chooseByName(name: string) {
-    const found = templates.find((t) => t.name.toLowerCase() === name.trim().toLowerCase());
-    onChange({
-      templateQuery: name,
-      templateId: found?.id ?? "",
-      // Cambiar de plantilla borra la variante elegida: era de otra plantilla.
-      ...(found?.id !== line.templateId ? { axisValues: [], catalogItemId: "" } : {}),
-    });
-  }
 
   return (
-    <div className="flex flex-col gap-4 rounded-2xl border bg-card p-4">
+    <fieldset
+      disabled={disabled}
+      className="flex min-w-0 flex-col gap-4 rounded-2xl border bg-card p-4"
+    >
       <div className="flex items-center justify-between">
         <span className="text-sm font-semibold text-foreground">Producto {index + 1}</span>
         {canRemove && (
-          <Button type="button" variant="ghost" size="icon" aria-label={`Quitar producto ${index + 1}`} onClick={onRemove}>
+          <Button
+            type="button"
+            variant="cancel"
+            size="icon"
+            aria-label={`Quitar producto ${index + 1}`}
+            onClick={onRemove}
+          >
             <HugeIcon icon={Delete02Icon} size={16} strokeWidth={2} aria-hidden />
           </Button>
         )}
       </div>
 
-      <Field data-invalid={!!errors.template}>
-        <FieldLabel htmlFor={`${id}-template`} required>
-          Plantilla del modelo
-        </FieldLabel>
-        <div className="flex gap-2">
-          <div className="min-w-0 flex-1">
-            <Combobox
-              id={`${id}-template`}
-              value={line.templateQuery}
-              onChange={chooseByName}
-              options={names}
-              placeholder="Buscá el modelo, ej. KZ EDX Pro"
-              renderOptionMeta={(name) => <span className="shrink-0 text-xs text-muted-foreground">{categoryOf(name)}</span>}
-              emptyMessage="No hay una plantilla con ese nombre."
-              aria-invalid={!!errors.template}
-            />
-          </div>
-          <Button type="button" variant="outline" onClick={() => onCreateTemplate(template ? "" : query)}>
-            <HugeIcon icon={Add01Icon} size={16} strokeWidth={2} aria-hidden />
-            Crear plantilla
-          </Button>
-        </div>
-        {noMatch && !errors.template && (
-          <FieldDescription>
-            No hay una plantilla «{query}».{" "}
-            <Button type="button" variant="link" className="h-auto p-0" onClick={() => onCreateTemplate(query)}>
-              Crearla con ese nombre
-            </Button>
-          </FieldDescription>
-        )}
-        <FieldError errors={err(errors.template)} />
-      </Field>
+      <TemplateModelPicker
+        id={`${id}-template`}
+        templates={templates}
+        categories={categories}
+        query={line.templateQuery}
+        selectedId={line.templateId}
+        onQueryChange={(templateQuery) =>
+          onChange({ templateQuery, templateId: "", axisValues: [], catalogItemId: "" })
+        }
+        onSelect={(selected) =>
+          onChange({
+            templateQuery: selected?.name ?? line.templateQuery,
+            templateId: selected?.id ?? "",
+            ...(selected?.id !== line.templateId ? { axisValues: [], catalogItemId: "" } : {}),
+          })
+        }
+        onCreate={onCreateTemplate}
+        error={errors.template}
+        required
+        loading={loading}
+        failed={failed}
+        onRetry={onRetry}
+        disabled={disabled}
+      />
 
       {template && (template.axes.length > 0 || template.products.length > 1) && (
         <div className="grid gap-3 sm:grid-cols-3">
@@ -342,14 +386,22 @@ function OrderLineRow({
           <FieldLabel htmlFor={`${id}-cost`} required>
             Costo por unidad
           </FieldLabel>
-          <MoneyInput id={`${id}-cost`} value={line.costUnit} onChange={(costUnit) => onChange({ costUnit })} invalid={!!errors.costUnit} aria-required />
+          <MoneyInput
+            id={`${id}-cost`}
+            value={line.costUnit}
+            onChange={(costUnit) => onChange({ costUnit })}
+            invalid={!!errors.costUnit}
+            aria-required
+          />
           <FieldError errors={err(errors.costUnit)} />
         </Field>
         <div className="flex flex-col justify-end pb-2 sm:text-right">
           <span className="text-xs text-muted-foreground">Total con impuesto</span>
-          <span className="font-heading text-base font-extrabold tabular-nums text-foreground">{formatUsd(lineTotalUsd(line, taxUnit))}</span>
+          <span className="font-heading text-base font-extrabold tabular-nums text-foreground">
+            {formatUsd(lineTotalUsd(line, taxUnit))}
+          </span>
         </div>
       </div>
-    </div>
+    </fieldset>
   );
 }

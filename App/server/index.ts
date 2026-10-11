@@ -11,6 +11,7 @@ import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import configRouter from './routes/config';
 import adminConfigRouter from './routes/adminConfig';
 import landingRouter from './routes/landing';
+import storeEditorRouter from './routes/storeEditor';
 import catalogRouter from './routes/catalog';
 import adminCatalogRouter from './routes/adminCatalog';
 import adminCombosRouter from './routes/adminCombos';
@@ -28,9 +29,10 @@ import combosRouter from './routes/combos';
 import ordersRouter from './routes/orders';
 import reportsRouter from './routes/reports';
 import contactRouter from './routes/contact';
+import stockNoticesRouter from './routes/stockNotices';
 import crmRouter from './routes/crm';
 import analyticsRouter from './routes/analytics';
-import { apiLimiter, publicOrderLimiter, contactLimiter, telemetryLimiter } from './middleware/rateLimiter';
+import { apiLimiter, publicOrderLimiter, contactLimiter, stockNoticeLimiter, telemetryLimiter } from './middleware/rateLimiter';
 import { sanitizeBody } from './utils/sanitize';
 import { logger } from './utils/logger';
 import { startUserCleanupCron } from './services/cleanupUsers';
@@ -127,6 +129,7 @@ app.get(
 
 app.use('/api/config', configRouter);
 app.use('/api/landing-config', landingRouter);
+app.use('/api/admin/store-editor', storeEditorRouter);
 app.use('/api/catalog', catalogRouter);
 app.use('/api/admin/catalog', adminCatalogRouter);
 app.use('/api/admin/combos', adminCombosRouter);
@@ -155,6 +158,8 @@ app.use('/api/orders', ordersRouter);
 // Mismo patrón: el límite propio intercepta el POST antes del router.
 app.post('/api/contact', contactLimiter);
 app.use('/api/contact', contactRouter);
+app.post('/api/stock-notices', stockNoticeLimiter);
+app.use('/api/stock-notices', stockNoticesRouter);
 app.use('/api/crm', crmRouter);
 app.use('/api/reports', reportsRouter);
 

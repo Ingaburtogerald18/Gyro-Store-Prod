@@ -7,7 +7,7 @@ import {
   FormSection,
 } from "~/components/ui/form-layout";
 // Modal para editar los datos base de una compra en tránsito (China).
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
@@ -20,12 +20,15 @@ import {
   type PurchaseFormValues,
 } from "~/lib/validators";
 import { useUpdatePurchaseMutation, type Purchase } from "~/store/api/inventoryV1Api";
-import { useGetAdminCatalogQuery, useGetCategoriesQuery } from "~/store/api/catalogAdminApi";
+import { useGetCategoriesQuery, useGetTemplatesQuery } from "~/store/api/catalogAdminApi";
 import {
-  CatalogVariantPicker,
-  isCatalogLinkComplete,
-  type CatalogLinkValue,
-} from "./CatalogVariantPicker";
+  EMPTY_TEMPLATE_LINK,
+  TemplateVariantPicker,
+  templateLinkError,
+  templateLinkOf,
+  templateVariantKey,
+  type TemplateLinkValue,
+} from "./TemplateVariantPicker";
 import { Input } from "~/components/ui/input";
 import { NativeSelect, NativeSelectOption } from "~/components/ui/native-select";
 import { formatUsd } from "~/lib/formatters";
@@ -36,10 +39,15 @@ export function EditPurchaseModal({ purchase, onClose }: { purchase: Purchase | 
   const [updatePurchase, { isLoading }] = useUpdatePurchaseMutation();
   const [serverError, setServerError] = useState<string | null>(null);
   const { data: categories = [] } = useGetCategoriesQuery();
-  const { data: catalog = [] } = useGetAdminCatalogQuery();
-  // Vínculo con el catálogo. Cambiarlo hace que la tienda vea (o deje de ver)
-  // este lote en esa variante.
-  const [link, setLink] = useState<CatalogLinkValue | null>(null);
+  const { data: templates = [] } = useGetTemplatesQuery();
+  // Plantilla y variante del lote: la tienda lo cuenta en esa variante.
+  const initialLink = useMemo(
+    () => (purchase ? templateLinkOf(templates, purchase.catalogItemId, purchase.variantKey) : EMPTY_TEMPLATE_LINK),
+    [purchase, templates],
+  );
+  const [link, setLink] = useState<TemplateLinkValue>(EMPTY_TEMPLATE_LINK);
+  const [linkError, setLinkError] = useState<string | null>(null);
+  const templatesReady = templates.length > 0;
   // Línea de una orden de Alibaba: número y fecha son de la orden.
   const inOrder = Boolean(purchase?.orderId);
 
@@ -56,8 +64,14 @@ export function EditPurchaseModal({ purchase, onClose }: { purchase: Purchase | 
   });
 
   useEffect(() => {
+    setLink(initialLink);
+    setLinkError(null);
+    // Solo al abrir otra compra o cuando llegan las plantillas: no pisa lo que se elige.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [purchase, templatesReady]);
+
+  useEffect(() => {
     if (purchase) {
-      setLink(purchase.catalogItemId ? { catalogItemId: purchase.catalogItemId, variantKey: purchase.variantKey ?? "" } : null);
       reset({
         purchaseDate: purchase.purchaseDate || "",
         lot: purchase.lot || "",
@@ -80,22 +94,26 @@ export function EditPurchaseModal({ purchase, onClose }: { purchase: Purchase | 
   async function onSubmit(data: PurchaseFormInput) {
     if (!purchase) return;
     data.lot = data.lot.toUpperCase();
-    if (!isCatalogLinkComplete(link, catalog)) {
-      toast.error("Elegí la variante del producto.");
-      return;
+    const template = templates.find((t) => t.id === link.templateId);
+    let linkBody: { templateId: string; variantKey: string; catalogItemId?: string } | null = null;
+    if (template) {
+      const problem = templateLinkError(link, template);
+      if (problem) return setLinkError(problem);
+      const variantKey = templateVariantKey(link, template) ?? "";
+      const changed =
+        link.templateId !== initialLink.templateId ||
+        variantKey !== templateVariantKey(initialLink, template) ||
+        link.catalogItemId !== initialLink.catalogItemId;
+      if (changed) linkBody = { templateId: template.id, variantKey, ...(link.catalogItemId ? { catalogItemId: link.catalogItemId } : {}) };
+    } else if (link.query.trim()) {
+      return setLinkError("Elegí una plantilla de los resultados para vincular el producto.");
+    } else if (initialLink.templateId) {
+      return setLinkError("Elegí la plantilla del modelo.");
     }
-    const linkChanged =
-      (link?.catalogItemId ?? null) !== (purchase.catalogItemId ?? null) ||
-      (link?.variantKey ?? null) !== (purchase.catalogItemId ? purchase.variantKey ?? "" : null);
+    setLinkError(null);
     setServerError(null);
     try {
-      await updatePurchase({
-        id: purchase.id,
-        body: {
-          ...data,
-          ...(linkChanged ? { catalogItemId: link?.catalogItemId ?? null, variantKey: link?.variantKey ?? "" } : {}),
-        },
-      }).unwrap();
+      await updatePurchase({ id: purchase.id, body: { ...data, ...linkBody } }).unwrap();
       toast.success("Compra modificada correctamente.");
       onClose();
     } catch (err: any) {
@@ -158,13 +176,25 @@ export function EditPurchaseModal({ purchase, onClose }: { purchase: Purchase | 
                   <FieldError errors={[errors.lot]} />
                 </Field>
 
-                {/* Vínculo con el catálogo: al vincular, el nombre pasa a ser el de
-                  los otros lotes de esa variante (lo pone el servidor). */}
                 <div className="sm:col-span-2">
-                  <CatalogVariantPicker
+                  <TemplateVariantPicker
                     idPrefix="edit-purchase"
+                    templates={templates}
+                    categories={categories}
+                    disabled={isLoading}
                     value={link}
-                    onChange={(next) => setLink(next)}
+                    onChange={(next) => {
+                      setLink(next);
+                      setLinkError(null);
+                    }}
+                    error={linkError}
+                    description={
+                      purchase?.catalogItemId && !initialLink.templateId
+                        ? "Está vinculado a un producto sin plantilla. Elegí una para cambiarlo."
+                        : purchase?.catalogItemId
+                          ? "Al cambiarla, el nombre y la categoría pasan a ser los de la plantilla."
+                          : "Sin plantilla, la tienda no ve este lote."
+                    }
                   />
                 </div>
 

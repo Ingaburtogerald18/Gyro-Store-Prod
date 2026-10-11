@@ -1,5 +1,5 @@
-// CRUD de combos desde el panel. Solo admin (crear/editar/borrar/publicar). El
-// listado público de combos vive en routes/combos.ts (sin auth).
+// CRUD de combos desde Inventario. Solo admin. El listado público de combos
+// vive en routes/combos.ts (sin auth).
 import { Router } from 'express';
 import { z } from 'zod';
 import { asyncHandler } from '../utils/asyncHandler';

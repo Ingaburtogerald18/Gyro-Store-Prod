@@ -1,31 +1,60 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
-import type { CategoryMode, HeroSlide, LandingConfig } from '@shared/schemas';
+import type {
+  CatalogProduct,
+  CategoryMode,
+  DraftComboChange,
+  DraftProductChange,
+  HeroSlide,
+  LandingConfig,
+  StoreDraftProducts,
+} from '@shared/schemas';
+
+// Deshacer y rehacer cubren la portada y los productos juntos.
+interface Snapshot {
+  landing: LandingConfig;
+  products: StoreDraftProducts;
+}
 
 interface BuilderState {
   // Estado borrador de la configuración actual, solo activo durante el Modo Edición.
   draftLandingConfig: LandingConfig | null;
+  draftProducts: StoreDraftProducts;
+  /** Solo en la vista previa (iframe): el catálogo con los cambios del borrador. */
+  previewCatalog: CatalogProduct[] | null;
   activeHeroSlideId: string | null;
-  past: LandingConfig[];
-  future: LandingConfig[];
+  past: Snapshot[];
+  future: Snapshot[];
   changeKey: string | null;
 }
 
+const emptyProducts = (): StoreDraftProducts => ({ items: {}, combos: {} });
+
 const initialState: BuilderState = {
   draftLandingConfig: null,
+  draftProducts: emptyProducts(),
+  previewCatalog: null,
   activeHeroSlideId: null,
   past: [],
   future: [],
   changeKey: null,
 };
 
+const snapshot = (state: BuilderState): Snapshot =>
+  JSON.parse(JSON.stringify({ landing: state.draftLandingConfig, products: state.draftProducts })) as Snapshot;
+
 function remember(state: BuilderState, key: string | null = null) {
   if (!state.draftLandingConfig) return;
   if (!key || state.changeKey !== key) {
-    state.past.push(JSON.parse(JSON.stringify(state.draftLandingConfig)) as LandingConfig);
+    state.past.push(snapshot(state));
     if (state.past.length > 50) state.past.shift();
   }
   state.future = [];
   state.changeKey = key;
+}
+
+function restore(state: BuilderState, to: Snapshot) {
+  state.draftLandingConfig = to.landing;
+  state.draftProducts = to.products;
 }
 
 const builderSlice = createSlice({
@@ -64,9 +93,34 @@ const builderSlice = createSlice({
         state.draftLandingConfig.homeCategories = action.payload;
       }
     },
+    // Cambios de productos que trae el borrador del servidor; no entran a la historia.
+    initDraftProducts(state, action: PayloadAction<StoreDraftProducts>) {
+      state.draftProducts = action.payload;
+    },
+    updateDraftProduct(state, action: PayloadAction<{ id: string; change: DraftProductChange; key?: string }>) {
+      if (!state.draftLandingConfig) return;
+      remember(state, action.payload.key ?? null);
+      const { id, change } = action.payload;
+      state.draftProducts.items[id] = { ...state.draftProducts.items[id], ...change };
+    },
+    updateDraftCombo(state, action: PayloadAction<{ id: string; change: DraftComboChange }>) {
+      if (!state.draftLandingConfig) return;
+      remember(state);
+      const { id, change } = action.payload;
+      state.draftProducts.combos[id] = { ...state.draftProducts.combos[id], ...change };
+    },
+    setDraftProductOrder(state, action: PayloadAction<string[]>) {
+      if (!state.draftLandingConfig) return;
+      remember(state);
+      state.draftProducts.order = action.payload;
+    },
+    setPreviewCatalog(state, action: PayloadAction<CatalogProduct[] | null>) {
+      state.previewCatalog = action.payload;
+    },
     // Descarta los cambios
     clearBuilderSession(state) {
       state.draftLandingConfig = null;
+      state.draftProducts = emptyProducts();
       state.activeHeroSlideId = null;
       state.past = [];
       state.future = [];
@@ -79,11 +133,12 @@ const builderSlice = createSlice({
         state.draftLandingConfig.heroSlides = action.payload;
       }
     },
-    // El carrito comparte el borrador y su publicación con la portada.
-    updateCartContent(state, action: PayloadAction<import('@shared/schemas').CartContent>) {
+    // El carrito comparte el borrador y su publicación con la portada; `key` junta
+    // lo que se escribe en un mismo campo en un solo paso de deshacer.
+    updateCartContent(state, action: PayloadAction<{ content: import('@shared/schemas').CartContent; key?: string }>) {
       if (state.draftLandingConfig) {
-        remember(state);
-        state.draftLandingConfig.cart = action.payload;
+        remember(state, action.payload.key ?? null);
+        state.draftLandingConfig.cart = action.payload.content;
       }
     },
     updateHeroSlide(state, action: PayloadAction<{ slide: HeroSlide; key?: string }>) {
@@ -106,21 +161,23 @@ const builderSlice = createSlice({
     undoBuilderChange(state) {
       const previous = state.past.pop();
       if (!previous || !state.draftLandingConfig) return;
-      state.future.push(state.draftLandingConfig);
-      state.draftLandingConfig = previous;
+      state.future.push(snapshot(state));
+      restore(state, previous);
       state.changeKey = null;
     },
     redoBuilderChange(state) {
       const next = state.future.pop();
       if (!next || !state.draftLandingConfig) return;
-      state.past.push(state.draftLandingConfig);
-      state.draftLandingConfig = next;
+      state.past.push(snapshot(state));
+      restore(state, next);
       state.changeKey = null;
     },
   },
   selectors: {
     selectActiveHeroSlideId: (state) => state.activeHeroSlideId,
     selectDraftLandingConfig: (state) => state.draftLandingConfig,
+    selectDraftProducts: (state) => state.draftProducts,
+    selectPreviewCatalog: (state) => state.previewCatalog,
     selectCanUndoBuilder: (state) => state.past.length > 0,
     selectCanRedoBuilder: (state) => state.future.length > 0,
     selectDraftHeaderCategories: (state) => state.draftLandingConfig?.headerCategories || [],
@@ -138,6 +195,11 @@ export const {
   updateHeroSlides,
   updateCartContent,
   updateHeroSlide,
+  initDraftProducts,
+  updateDraftProduct,
+  updateDraftCombo,
+  setDraftProductOrder,
+  setPreviewCatalog,
   endBuilderChange,
   undoBuilderChange,
   redoBuilderChange,
@@ -146,6 +208,8 @@ export const {
 export const {
   selectActiveHeroSlideId,
   selectDraftLandingConfig,
+  selectDraftProducts,
+  selectPreviewCatalog,
   selectCanUndoBuilder,
   selectCanRedoBuilder,
   selectDraftHeaderCategories,

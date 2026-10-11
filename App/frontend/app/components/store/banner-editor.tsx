@@ -16,14 +16,6 @@ import { getProductUrl } from '~/lib/formatters';
 import type { SlideErrors } from '~/lib/landingValidation';
 import { cn } from '~/lib/utils';
 
-export type BannerPart = 'banner' | 'title' | 'description' | 'image' | 'button';
-export const BANNER_PARTS: { id: BannerPart; label: string }[] = [
-  { id: 'title', label: 'Título' },
-  { id: 'description', label: 'Descripción' },
-  { id: 'image', label: 'Imagen' },
-  { id: 'button', label: 'Botón' },
-];
-
 type UploadState =
   | { kind: 'idle' }
   | { kind: 'sending'; percent: number | null }
@@ -38,25 +30,23 @@ const actionOf = (slide: HeroSlide): ActionChoice =>
   slide.actionType === 'social'
     ? 'social'
     : slide.actionType === 'modal'
-      ? 'modal'
-      : slide.actionTarget.startsWith('/producto/')
-        ? 'product'
-        : 'link';
+    ? 'modal'
+    : slide.actionTarget.startsWith('/producto/')
+    ? 'product'
+    : 'link';
 
 export function BannerEditor({
   slide,
   onChange,
   onBusy,
   errors = {},
-  part = 'banner',
-  group = 'content',
+  disabled = false,
 }: {
   slide: HeroSlide;
   onChange: (slide: HeroSlide) => void;
   onBusy: (busy: boolean) => void;
   errors?: SlideErrors;
-  part?: BannerPart;
-  group?: 'content' | 'design';
+  disabled?: boolean;
 }) {
   const form = useForm<HeroSlide>({
     resolver: zodResolver(heroSlideSchema),
@@ -71,17 +61,17 @@ export function BannerEditor({
   latest.current = slide;
   const products = useStoreCatalog();
   const ids = useId();
-  const busy = upload.kind === 'sending' || upload.kind === 'processing';
+  const busy = disabled || upload.kind === 'sending' || upload.kind === 'processing';
   useEffect(() => {
     if (slide.actionTarget || slide.actionType !== 'link')
       setActionChoice(
         slide.actionType === 'social'
           ? 'social'
           : slide.actionType === 'modal'
-            ? 'modal'
-            : slide.actionTarget.startsWith('/producto/')
-              ? 'product'
-              : 'link',
+          ? 'modal'
+          : slide.actionTarget.startsWith('/producto/')
+          ? 'product'
+          : 'link',
       );
   }, [slide.actionTarget, slide.actionType]);
   // Limpieza al desmontar: una carga en curso se corta.
@@ -146,55 +136,39 @@ export function BannerEditor({
   }
 
   const action = actionChoice;
-  const show = (field: BannerPart) => part === 'banner' || part === field;
-
-  if (group === 'design')
-    return (
-      <fieldset disabled={busy} className="space-y-5">
-        <legend className="mb-4 text-sm font-semibold">Composición del banner</legend>
-        <div className="grid gap-2">
-          {(
-            [
-              { value: 'left', label: 'Imagen a la izquierda' },
-              { value: 'right', label: 'Imagen a la derecha' },
-              { value: 'top', label: 'Imagen arriba' },
-            ] as const
-          ).map((item) => (
-            <Button
-              key={item.value}
-              type="button"
-              variant="outline"
-              aria-pressed={(slide.layout ?? 'left') === item.value}
-              onClick={() => set('layout', item.value)}
-              className={cn(
-                'justify-start',
-                (slide.layout ?? 'left') === item.value &&
-                'border-2 border-primary-2 font-semibold',
-              )}
-            >
-              {item.label}
-            </Button>
-          ))}
-        </div>
-        <label className="flex min-h-11 items-center gap-3 border-t pt-5 text-sm">
-          <input
-            type="checkbox"
-            checked={slide.visible !== false}
-            onChange={(event) => set('visible', event.target.checked)}
-            className="size-5 accent-primary-2"
-          />
-          Mostrar este banner
-        </label>
-        <p className="text-xs text-muted-foreground">
-          En móvil, la imagen va arriba del texto. Un banner oculto permanece guardado en el
-          borrador.
-        </p>
-      </fieldset>
-    );
+  const designFields = (
+    <fieldset disabled={busy} className="space-y-5">
+      <legend className="mb-4 text-sm font-semibold">Composición del banner</legend>
+      <div className="grid gap-2">
+        {(
+          [
+            { value: 'left', label: 'Imagen a la izquierda' },
+            { value: 'right', label: 'Imagen a la derecha' },
+            { value: 'top', label: 'Imagen arriba' },
+          ] as const
+        ).map((item) => (
+          <Button
+            key={item.value}
+            type="button"
+            variant="outline"
+            aria-pressed={(slide.layout ?? 'left') === item.value}
+            onClick={() => set('layout', item.value)}
+            className={cn(
+              'justify-start',
+              (slide.layout ?? 'left') === item.value && 'border-2 border-primary-2 font-semibold',
+            )}
+          >
+            {item.label}
+          </Button>
+        ))}
+      </div>
+      <p className="text-xs text-muted-foreground">En móvil, la imagen va arriba del texto.</p>
+    </fieldset>
+  );
 
   return (
     <div className="space-y-5">
-      <div hidden={part !== 'image'}>
+      <div>
         <Field>
           <FieldLabel htmlFor={`${ids}-file`}>Imagen o video</FieldLabel>
           <div className="overflow-hidden rounded-xl border bg-muted">
@@ -231,6 +205,7 @@ export function BannerEditor({
           <FieldDescription id={`${ids}-file-hint`}>
             PNG, JPG, WebP, GIF o video. Revisá también el encuadre en móvil.
           </FieldDescription>
+          <FieldError>{errors.mediaUrl}</FieldError>
 
           <div id={`${ids}-upload-status`} aria-live="polite" className="space-y-2">
             {upload.kind === 'sending' && (
@@ -274,7 +249,7 @@ export function BannerEditor({
           {slide.mediaUrl && !busy && (
             <Button
               type="button"
-              variant="outline"
+              variant="destructive"
               className="w-fit"
               onClick={() => set('mediaUrl', '')}
             >
@@ -285,7 +260,7 @@ export function BannerEditor({
       </div>
 
       <fieldset disabled={busy} className="space-y-5">
-        <div hidden={!show('title')}>
+        <div>
           <Field data-invalid={Boolean(errors.title)}>
             <FieldLabel htmlFor={`${ids}-title`} required>
               Título
@@ -305,7 +280,7 @@ export function BannerEditor({
             <FieldError>{errors.title || form.formState.errors.title?.message}</FieldError>
           </Field>
         </div>
-        <div hidden={!show('description')}>
+        <div>
           <Field>
             <FieldLabel htmlFor={`${ids}-description`}>Descripción</FieldLabel>
             <Textarea
@@ -321,7 +296,8 @@ export function BannerEditor({
             </FieldDescription>
           </Field>
         </div>
-        <div hidden={!show('button')} className="space-y-5">
+        <div className="space-y-5 border-t pt-5">
+          <h3 className="font-semibold">Botón del banner</h3>
           <Field>
             <FieldLabel htmlFor={`${ids}-action`}>Al tocar el botón</FieldLabel>
             <NativeSelect
@@ -412,6 +388,23 @@ export function BannerEditor({
           )}
         </div>
       </fieldset>
+      <details className="rounded-xl border bg-background p-4">
+        <summary className="cursor-pointer rounded-xl font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          Apariencia del banner
+        </summary>
+        <div className="mt-4">{designFields}</div>
+      </details>
+      <label className="flex min-h-11 items-center gap-3 rounded-xl border bg-background p-4 text-sm">
+        <input
+          type="checkbox"
+          checked={slide.visible !== false}
+          disabled={busy}
+          onChange={(event) => set('visible', event.target.checked)}
+          className="size-5 accent-primary-2"
+        />
+        <span className="font-semibold">Mostrar este banner</span>
+        <span className="ml-auto text-xs text-muted-foreground">Se aplica al publicar.</span>
+      </label>
     </div>
   );
 }

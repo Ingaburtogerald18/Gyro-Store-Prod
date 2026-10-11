@@ -16,6 +16,7 @@ import type {
   ArrivalInput,
 } from '../../shared/schemas';
 import type { LotInfo } from './catalogPresenter';
+import { resolveTemplateLink } from './templateProducts';
 
 // ============================================================================
 // ── Tipos (contrato con inventoryV1Api.ts) ──
@@ -452,6 +453,42 @@ export async function getInventoryKpis(period?: string): Promise<InventoryKpis> 
 // ── Escritura (purchases) ──
 // ============================================================================
 
+/** Saca un código de lote de los vínculos que se cargaban a mano en el editor de Catálogo. */
+async function dropManualLinks(code: string): Promise<void> {
+  const { data, error } = await db.from('catalog_items').select('id, variant_mappings').not('variant_mappings', 'is', null);
+  if (error) throw error;
+  for (const item of (data ?? []) as { id: string; variant_mappings: Record<string, unknown> }[]) {
+    const entries = Object.entries(item.variant_mappings ?? {});
+    if (!entries.some(([, entry]) => codesOfMapping(entry).includes(code))) continue;
+    const mappings = Object.fromEntries(
+      entries.map(([key, entry]) => {
+        if (!codesOfMapping(entry).includes(code)) return [key, entry];
+        const { sku: _sku, skus: _skus, ...rest } = entry as Record<string, unknown>;
+        return [key, { ...rest, codes: codesOfMapping(entry).filter((c) => c !== code) }];
+      }),
+    );
+    const { error: updateError } = await db.from('catalog_items').update({ variant_mappings: mappings }).eq('id', item.id);
+    if (updateError) throw updateError;
+  }
+}
+
+/** Link de fotos y videos del producto de cada lote (`catalog_items.spo_link`). */
+export async function withMediaLinks<T extends InventoryRow & { offerTarget?: { catalogItemId: string } | null }>(
+  rows: T[],
+): Promise<Array<T & { spoLink: string | null }>> {
+  const productOf = (row: T) => row.offerTarget?.catalogItemId ?? row.catalogItemId ?? null;
+  const ids = [...new Set(rows.map(productOf).filter((id): id is string => Boolean(id)))];
+  const links = new Map<string, string>();
+  if (ids.length) {
+    const { data, error } = await db.from('catalog_items').select('id, spo_link').in('id', ids).not('spo_link', 'is', null);
+    if (error) throw error;
+    for (const item of (data ?? []) as { id: string; spo_link: string | null }[]) {
+      if (item.spo_link) links.set(item.id, item.spo_link);
+    }
+  }
+  return rows.map((row) => ({ ...row, spoLink: links.get(productOf(row) ?? '') ?? null }));
+}
+
 /**
  * Vincula (o desvincula, con `null`) un lote existente a una variante del
  * catálogo. Requiere la migración 0022.
@@ -561,18 +598,6 @@ export async function updatePurchase(
   const sold = existing.quantity_sold ?? 0;
   const reserved = existing.quantity_reserved ?? 0;
 
-  // Vincular a una variante del catálogo: el lote toma el nombre que ya usan
-  // los otros lotes de esa variante (Ventas los agrupa por nombre). Si tiene
-  // unidades reservadas se conserva el nombre: renombrar rompería el costeo.
-  if (input.catalogItemId !== undefined) {
-    const link: CatalogLink | null = input.catalogItemId
-      ? { catalogItemId: input.catalogItemId, variantKey: input.variantKey ?? '' }
-      : null;
-    const canonical = link && reserved === 0 ? await nameForVariant(link) : null;
-    await setPurchaseLink(id, link);
-    if (canonical) input = { ...input, productName: canonical.productName };
-  }
-
   // Una línea de una orden de Alibaba toma el número y la fecha de la orden:
   // cambiarlos acá la separaría de su orden. Se cambian desde la orden.
   if (existing.order_id) {
@@ -603,6 +628,37 @@ export async function updatePurchase(
     throw new BadRequestError(
       `La cantidad no puede ser menor a ${sold + reserved}: ya hay ${sold} vendida(s) y ${reserved} reservada(s).`,
     );
+  }
+
+  // Con plantilla, el servidor busca (o crea, sin publicar) su producto.
+  if (input.templateId) {
+    const { link } = await resolveTemplateLink({
+      templateId: input.templateId,
+      variantKey: input.variantKey ?? '',
+      catalogItemId: input.catalogItemId ?? undefined,
+    });
+    input = { ...input, ...link };
+  }
+
+  // Vincular a una variante: el lote toma el nombre que ya usan los otros lotes
+  // de esa variante (Ventas los agrupa por nombre). Si tiene unidades
+  // reservadas se conserva el nombre: renombrar rompería el costeo.
+  if (input.catalogItemId !== undefined) {
+    const link: CatalogLink | null = input.catalogItemId
+      ? { catalogItemId: input.catalogItemId, variantKey: input.variantKey ?? '' }
+      : null;
+    const canonical = link && reserved === 0 ? await nameForVariant(link) : null;
+    await setPurchaseLink(id, link);
+    // El vínculo por columna queda como el único: sin el editor de Catálogo, uno
+    // cargado a mano ahí ya no se podría corregir.
+    await dropManualLinks(existing.code);
+    if (canonical) {
+      input = {
+        ...input,
+        productName: canonical.productName,
+        ...(input.templateId && canonical.categoryId ? { category: canonical.categoryId } : {}),
+      };
+    }
   }
 
   // Solo se toma como "cambio" lo que es distinto de lo guardado: el panel
@@ -719,15 +775,9 @@ export async function deletePurchase(id: string, authorUid: string): Promise<boo
     throw new BadRequestError('No se puede borrar un lote con stock ya vendido o reservado.');
   }
 
-  const linkedTo = (await listAvailableLots()).find((lot) => lot.code === existing.code)?.linkedTo;
-  if (linkedTo) {
-    throw new BadRequestError(
-      `El lote ${existing.code} está vinculado a "${linkedTo}" en Catálogo. Desvinculalo ahí antes de borrarlo.`,
-    );
-  }
-
   const { error } = await db.from('purchases').delete().eq('id', id);
   if (error) throw error;
+  await dropManualLinks(existing.code);
 
   await db.from('audit_logs').insert({
     entity: 'purchases',
@@ -1030,98 +1080,6 @@ export async function releaseConsumedReservations(orderId: string): Promise<{ re
 // Solo cuentan los lotes `received`: un lote en tránsito desde China existe en
 // la tabla pero no es vendible, y publicarlo como stock haría prometer entregas
 // que no se pueden cumplir.
-
-export interface AvailableLot {
-  code: string;
-  productName: string;
-  category: string | null;
-  lot: string;
-  available: number;
-  suggestedPrice: number | null;
-  linkedTo: string | null;
-}
-
-// Catálogo de lotes recibidos para el buscador del editor de producto. Devuelve
-// también los agotados: al editar un producto ya mapeado hay que poder ver el
-// lote vinculado aunque se haya vendido entero, o el vínculo se vería "roto".
-// `excludeProductId`: el producto que se está editando — sus propios vínculos
-// no cuentan como "ya vinculados" porque son los que el usuario está gestionando.
-export async function listAvailableLots(excludeProductId?: string): Promise<AvailableLot[]> {
-  const [purchasesResult, catalogResult] = await Promise.all([
-    db
-      .from('purchases')
-      .select('code, product_name, category, lot, quantity, quantity_sold, quantity_reserved, suggested_price')
-      .eq('status', 'received')
-      .order('purchase_date', { ascending: false }),
-    db
-      .from('catalog_items')
-      .select('id, name, variant_mappings')
-      .not('variant_mappings', 'is', null),
-  ]);
-
-  if (purchasesResult.error) throw purchasesResult.error;
-  if (catalogResult.error) throw catalogResult.error;
-
-  const codeToProduct = new Map<string, string>();
-  for (const item of (catalogResult.data ?? []) as { id: string; name: string; variant_mappings: unknown }[]) {
-    if (excludeProductId && item.id === excludeProductId) continue;
-    const mappings = item.variant_mappings;
-    if (!mappings || typeof mappings !== 'object') continue;
-    for (const entry of Object.values(mappings as Record<string, unknown>)) {
-      if (!entry || typeof entry !== 'object') continue;
-      const e = entry as Record<string, unknown>;
-      const codes = [
-        ...(Array.isArray(e.codes) ? e.codes.filter((c: unknown) => typeof c === 'string') : []),
-        ...(Array.isArray(e.skus) ? e.skus.filter((c: unknown) => typeof c === 'string') : []),
-        ...(typeof e.sku === 'string' && e.sku ? [e.sku] : []),
-      ];
-      for (const code of codes) codeToProduct.set(code as string, item.name ?? 'Producto sin nombre');
-    }
-  }
-
-  // Lotes vinculados por columna (0022): cuentan como vinculados aunque el
-  // editor de Catálogo no los tenga en su lista.
-  const linkedRows = await db.from('purchases').select('code, catalog_item_id').not('catalog_item_id', 'is', null);
-  if (!isMissingColumn(linkedRows.error)) {
-    if (linkedRows.error) throw linkedRows.error;
-    const names = new Map(
-      ((catalogResult.data ?? []) as { id: string; name: string }[]).map((item) => [item.id, item.name]),
-    );
-    const missing = (linkedRows.data ?? []).filter((r) => !names.has(r.catalog_item_id as string));
-    if (missing.length) {
-      const { data: extra } = await db
-        .from('catalog_items')
-        .select('id, name')
-        .in('id', [...new Set(missing.map((r) => r.catalog_item_id as string))]);
-      for (const item of (extra ?? []) as { id: string; name: string }[]) names.set(item.id, item.name);
-    }
-    for (const r of (linkedRows.data ?? []) as { code: string; catalog_item_id: string }[]) {
-      if (excludeProductId && r.catalog_item_id === excludeProductId) continue;
-      if (!codeToProduct.has(r.code)) codeToProduct.set(r.code, names.get(r.catalog_item_id) ?? 'Producto sin nombre');
-    }
-  }
-
-  const rows = (purchasesResult.data ?? []) as unknown as {
-    code: string;
-    product_name: string;
-    category: string | null;
-    lot: string | null;
-    quantity: number;
-    quantity_sold: number;
-    quantity_reserved: number;
-    suggested_price: number | null;
-  }[];
-
-  return rows.map((row) => ({
-    code: row.code,
-    productName: row.product_name,
-    category: row.category,
-    lot: row.lot ?? '',
-    available: Math.max(0, row.quantity - row.quantity_sold - row.quantity_reserved),
-    suggestedPrice: row.suggested_price,
-    linkedTo: codeToProduct.get(row.code) ?? null,
-  }));
-}
 
 // Disponible por código, para resolver el stock de las variantes del storefront.
 // Varios lotes NO pueden compartir código (`purchases.code` es unique), así que

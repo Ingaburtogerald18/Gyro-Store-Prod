@@ -4,12 +4,12 @@
 // stock que el sistema no sabía despachar. Cumple el contrato de
 // frontend/app/store/api/inventoryV1Api.ts (mismos paths/verbos) — no el de
 // inventoryApi.ts, que es un draft sin usar (ver server/services/inventory.ts).
-// Solo admin: a diferencia del catálogo (adminCatalog.ts, admin+seller),
-// comprar/recibir stock es tarea de administración (doc 09 ítems 49.5-51).
-import { Router } from 'express';
+// Solo admin, salvo Stock actual: el vendedor lo ve en solo lectura y sin
+// costos. Comprar y recibir es tarea de administración.
+import { Router, type Request } from 'express';
 import { z } from 'zod';
 import { asyncHandler } from '../utils/asyncHandler';
-import { requireAdmin } from '../middleware/auth';
+import { requireAdmin, requireSeller } from '../middleware/auth';
 import { parseUuidParam } from '../utils/params';
 import {
   updatePurchaseInputSchema,
@@ -21,6 +21,7 @@ import {
   simulatePurchaseOrderReceiptInputSchema,
   supplierInputSchema,
   purchaseInvoiceInputSchema,
+  colorOfferInputSchema,
 } from '../../shared/schemas';
 import {
   getPurchases,
@@ -35,6 +36,7 @@ import {
   simulateCost,
   adjustStock,
   listStockMovements,
+  withMediaLinks,
 } from '../services/inventory';
 import {
   addPurchaseOrderLines,
@@ -52,10 +54,9 @@ import {
   updatePurchaseOrder,
   updateSupplier,
 } from '../services/purchaseOrders';
+import { removeColorOffer, setColorOffer, withOffers } from '../services/offers';
 
 const router = Router();
-
-router.use(requireAdmin);
 
 const periodSchema = z.string().regex(/^\d{4}-\d{2}$/);
 
@@ -66,19 +67,35 @@ function parsePeriod(raw: unknown): string | undefined {
   return parsed.success ? parsed.data : undefined;
 }
 
+const isAdminUser = (user: Request['user']) =>
+  !!user && (user.roles.includes('admin') || user.roles.includes('global_admin'));
+
+router.get(
+  '/current',
+  requireSeller,
+  asyncHandler(async (req, res) => {
+    const rows = await withMediaLinks(await withOffers(await getCurrentInventory(parsePeriod(req.query.period))));
+    if (isAdminUser(req.user)) {
+      res.json(rows);
+      return;
+    }
+    // Lista cerrada: un campo de costo nuevo no le llega al vendedor por descuido.
+    res.json(
+      rows.map(({ id, code, productName, category, quantitySold, quantityReserved, available, suggestedPrice, offer, spoLink }) => ({
+        id, code, productName, category, quantitySold, quantityReserved, available, suggestedPrice, offer, spoLink,
+      })),
+    );
+  }),
+);
+
+router.use(requireAdmin);
+
 // ── purchases ──
 
 router.get(
   '/purchases',
   asyncHandler(async (req, res) => {
     res.json(await getPurchases(parsePeriod(req.query.period)));
-  }),
-);
-
-router.get(
-  '/current',
-  asyncHandler(async (req, res) => {
-    res.json(await getCurrentInventory(parsePeriod(req.query.period)));
   }),
 );
 
@@ -355,6 +372,28 @@ router.delete(
     const ok = await deletePurchase(id, req.user!.uid);
     if (!ok) {
       res.status(404).json({ error: 'Compra no encontrada.' });
+      return;
+    }
+    res.json({ ok: true });
+  }),
+);
+
+// ── ofertas por color ──
+
+router.put(
+  '/offers',
+  asyncHandler(async (req, res) => {
+    const data = colorOfferInputSchema.parse(req.body);
+    res.json(await setColorOffer(data, req.user!.uid));
+  }),
+);
+
+router.delete(
+  '/offers/:id',
+  asyncHandler(async (req, res) => {
+    const id = parseUuidParam(req.params.id, 'Oferta no encontrada.');
+    if (!(await removeColorOffer(id))) {
+      res.status(404).json({ error: 'Oferta no encontrada.' });
       return;
     }
     res.json({ ok: true });

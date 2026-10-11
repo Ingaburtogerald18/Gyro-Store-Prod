@@ -1,8 +1,8 @@
 // Inventario: barra de herramientas, métricas y la lista (órdenes de compra,
-// productos en bodega o plantillas), en bloques sueltos sobre el crema.
+// stock, plantillas o combos). El vendedor ve solo Stock actual, sin costos.
 import { useMemo, useState } from "react";
 import { useSearchParams } from "@remix-run/react";
-import { Add01Icon, DashboardSquare01Icon, ShoppingBag01Icon, Tag01Icon, WarehouseIcon } from "@hugeicons/core-free-icons";
+import { Add01Icon, DashboardSquare01Icon, GiftIcon, ShoppingBag01Icon, Tag01Icon, WarehouseIcon } from "@hugeicons/core-free-icons";
 import type { MetaFunction } from "@remix-run/node";
 
 import { PurchaseMetrics, StockMetrics } from "~/components/admin/inventory/InventoryMetrics";
@@ -11,6 +11,7 @@ import { PurchasesTable, type PurchaseStatusFilter } from "~/components/admin/in
 import { CurrentInventoryTable } from "~/components/admin/inventory/CurrentInventoryTable";
 import { PurchaseCommandPalette } from "~/components/admin/inventory/PurchaseCommandPalette";
 import { TemplatesView } from "~/components/admin/inventory/TemplatesView";
+import { CombosView } from "~/components/admin/inventory/CombosView";
 import { CategoriesDialog } from "~/components/admin/inventory/CategoriesDialog";
 import { Kbd, ToolbarSearch, ToolbarSelect, useShortcut } from "~/components/admin/workspace";
 import { PageHeader } from "~/components/layout/PageHeader";
@@ -19,17 +20,20 @@ import { Toolbar } from "~/components/ui/toolbar";
 import { HugeIcon } from "~/components/ui/icon";
 import { pageTitle } from "~/lib/brand";
 import { useGetPurchasesQuery } from "~/store/api/inventoryV1Api";
+import { useAppSelector } from "~/store/hooks";
+import { selectIsAdmin } from "~/store/slices/authSlice";
 
 export const meta: MetaFunction = () => {
   return [{ title: pageTitle("Inventario", { admin: true }) }];
 };
 
-type View = "purchases" | "inventory" | "templates";
+type View = "purchases" | "inventory" | "templates" | "combos";
 
-const VIEWS: { value: View; label: string; icon: typeof ShoppingBag01Icon }[] = [
+const VIEWS: { value: View; label: string; icon: typeof ShoppingBag01Icon; action?: string }[] = [
   { value: "purchases", label: "Compras", icon: ShoppingBag01Icon },
   { value: "inventory", label: "Stock actual", icon: WarehouseIcon },
-  { value: "templates", label: "Plantillas", icon: DashboardSquare01Icon },
+  { value: "templates", label: "Plantillas", icon: DashboardSquare01Icon, action: "Crear plantilla" },
+  { value: "combos", label: "Combos", icon: GiftIcon, action: "Crear combo" },
 ];
 type StockFilter = "current" | "outOfStock";
 
@@ -62,16 +66,18 @@ export default function AdminInventario() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [purchaseFormOpen, setPurchaseFormOpen] = useState(false);
   const [templateFormOpen, setTemplateFormOpen] = useState(false);
+  const [comboFormOpen, setComboFormOpen] = useState(false);
+  const isAdmin = useAppSelector(selectIsAdmin);
   const [categoriesOpen, setCategoriesOpen] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [purchaseStatus, setPurchaseStatus] = useState<PurchaseStatusFilter>("all");
   const monthOptions = useMemo(buildMonthOptions, []);
 
-  const { data: purchases = [] } = useGetPurchasesQuery();
+  const { data: purchases = [] } = useGetPurchasesQuery(undefined, { skip: !isAdmin });
 
   const tab = searchParams.get("tab");
-  const view: View = tab === "inventory" || tab === "templates" ? tab : "purchases";
+  const view: View = !isAdmin ? "inventory" : VIEWS.find((v) => v.value === tab && tab !== "purchases")?.value ?? "purchases";
   // `?type=migrated` de un enlace viejo cae a "current": ese módulo ya no existe.
   const stockFilter: StockFilter = searchParams.get("type") === "outOfStock" ? "outOfStock" : "current";
   const period = searchParams.get("period") || "all";
@@ -97,12 +103,13 @@ export default function AdminInventario() {
 
   const goToView = (v: View) => {
     if (v === "inventory") updateParams({ tab: "inventory", type: stockFilter });
-    else updateParams({ tab: v === "templates" ? "templates" : null, type: null });
+    else updateParams({ tab: v === "purchases" ? null : v, type: null });
   };
 
   // "N" abre la acción principal de la vista ("/" y Esc los maneja ToolbarSearch).
-  const openPrimary = () => (view === "templates" ? setTemplateFormOpen(true) : setPurchaseFormOpen(true));
-  useShortcut("n", openPrimary);
+  const openPrimary = () =>
+    view === "templates" ? setTemplateFormOpen(true) : view === "combos" ? setComboFormOpen(true) : setPurchaseFormOpen(true);
+  useShortcut("n", openPrimary, isAdmin);
 
   return (
     <div className="flex flex-col gap-5">
@@ -111,40 +118,52 @@ export default function AdminInventario() {
         title="Inventario"
         className="mb-0"
         actions={
-          <Button onClick={openPrimary} className="gap-2">
-            <HugeIcon icon={Add01Icon} size={16} strokeWidth={2} aria-hidden />
-            {view === "templates" ? "Crear plantilla" : "Registrar compra"}
-            <Kbd>N</Kbd>
-          </Button>
+          isAdmin && (
+            <Button onClick={openPrimary} className="gap-2">
+              <HugeIcon icon={Add01Icon} size={16} strokeWidth={2} aria-hidden />
+              {VIEWS.find((v) => v.value === view)?.action ?? "Registrar compra"}
+              <Kbd>N</Kbd>
+            </Button>
+          )
         }
       />
 
       <Toolbar className="gap-2 sm:gap-3 sm:px-4">
-        <div role="group" aria-label="Vista" className="flex shrink-0 gap-2">
-          {VIEWS.map((v) => {
-            const active = view === v.value;
-            return (
-              <Button
-                key={v.value}
-                type="button"
-                variant="outline"
-                aria-pressed={active}
-                onClick={() => {
-                  if (v.value !== view) setSearch("");
-                  goToView(v.value);
-                }}
-                className="gap-2 px-3.5"
-              >
-                <HugeIcon icon={v.icon} size={16} strokeWidth={2} aria-hidden className="text-primary-2" />
-                {v.label}
-              </Button>
-            );
-          })}
-        </div>
+        {isAdmin && (
+          <div role="group" aria-label="Vista" className="flex shrink-0 gap-2">
+            {VIEWS.map((v) => {
+              const active = view === v.value;
+              return (
+                <Button
+                  key={v.value}
+                  type="button"
+                  variant="outline"
+                  aria-pressed={active}
+                  onClick={() => {
+                    if (v.value !== view) setSearch("");
+                    goToView(v.value);
+                  }}
+                  className="gap-2 px-3.5"
+                >
+                  <HugeIcon icon={v.icon} size={16} strokeWidth={2} aria-hidden className="text-primary-2" />
+                  {v.label}
+                </Button>
+              );
+            })}
+          </div>
+        )}
         <ToolbarSearch
           value={search}
           onChange={setSearch}
-          placeholder={view === "templates" ? "Buscar modelo" : "Buscar producto, código u orden"}
+          placeholder={
+            view === "templates"
+              ? "Buscar modelo"
+              : view === "combos"
+                ? "Buscar combo"
+                : isAdmin
+                  ? "Buscar producto, código u orden"
+                  : "Buscar producto o código"
+          }
         />
         {view === "purchases" && (
           <ToolbarSelect
@@ -169,7 +188,7 @@ export default function AdminInventario() {
       </Toolbar>
 
       {view === "purchases" && <PurchaseMetrics period={effectivePeriod} />}
-      {view === "inventory" && <StockMetrics />}
+      {view === "inventory" && <StockMetrics showCosts={isAdmin} />}
 
       {view === "purchases" ? (
         <PurchasesTable
@@ -180,6 +199,8 @@ export default function AdminInventario() {
         />
       ) : view === "templates" ? (
         <TemplatesView search={search} createOpen={templateFormOpen} onCreateOpenChange={setTemplateFormOpen} />
+      ) : view === "combos" ? (
+        <CombosView search={search} createOpen={comboFormOpen} onCreateOpenChange={setComboFormOpen} />
       ) : (
         <section aria-labelledby="inventory-stock-title" className="space-y-3">
           <h2 id="inventory-stock-title" className="font-heading text-xl font-bold tracking-tight text-foreground md:text-2xl">
@@ -189,25 +210,30 @@ export default function AdminInventario() {
             period={effectivePeriod}
             mode={stockFilter === "outOfStock" ? "outOfStock" : "inStock"}
             search={search}
+            readOnly={!isAdmin}
           />
         </section>
       )}
 
-      <PurchaseOrderForm open={purchaseFormOpen} onOpenChange={setPurchaseFormOpen} />
-      <CategoriesDialog open={categoriesOpen} onOpenChange={setCategoriesOpen} />
+      {isAdmin && (
+        <>
+          <PurchaseOrderForm open={purchaseFormOpen} onOpenChange={setPurchaseFormOpen} />
+          <CategoriesDialog open={categoriesOpen} onOpenChange={setCategoriesOpen} />
 
-      {/* Paleta de compras (Ctrl+K). */}
-      <PurchaseCommandPalette
-        open={commandPaletteOpen}
-        onOpenChange={setCommandPaletteOpen}
-        purchases={purchases}
-        onSelect={(p) => {
-          setSearch(p.code);
-          setPurchaseStatus("all");
-          goToView("purchases");
-          setCommandPaletteOpen(false);
-        }}
-      />
+          {/* Paleta de compras (Ctrl+K). */}
+          <PurchaseCommandPalette
+            open={commandPaletteOpen}
+            onOpenChange={setCommandPaletteOpen}
+            purchases={purchases}
+            onSelect={(p) => {
+              setSearch(p.code);
+              setPurchaseStatus("all");
+              goToView("purchases");
+              setCommandPaletteOpen(false);
+            }}
+          />
+        </>
+      )}
     </div>
   );
 }

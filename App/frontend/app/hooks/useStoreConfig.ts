@@ -9,7 +9,7 @@
 // (refleja cambios del panel sin recargar).
 import { useMatches } from '@remix-run/react';
 import { useAppSelector } from '~/store/hooks';
-import { selectDraftLandingConfig } from '~/store/slices/builderSlice';
+import { selectDraftLandingConfig, selectPreviewCatalog } from '~/store/slices/builderSlice';
 import { selectEditMode } from '~/store/slices/authSlice';
 
 import type { CatalogProduct, LandingConfig } from '@shared/schemas';
@@ -50,6 +50,7 @@ export function useStoreLanding(): LandingConfig | undefined {
  *  fuente: header, conteos y grilla leen lo mismo y no se repite la consulta en
  *  el cliente. En otras rutas, RTK Query. */
 export function useStoreCatalog(): CatalogProduct[] {
+  const preview = useAppSelector(selectPreviewCatalog);
   const matches = useMatches();
   let fromLoader: CatalogProduct[] | undefined;
   for (let i = matches.length - 1; i >= 0; i--) {
@@ -59,6 +60,6 @@ export function useStoreCatalog(): CatalogProduct[] {
       break;
     }
   }
-  const { data } = useGetCatalogQuery(undefined, { skip: Boolean(fromLoader) });
-  return fromLoader ?? data ?? [];
+  const { data } = useGetCatalogQuery(undefined, { skip: Boolean(fromLoader || preview) });
+  return preview ?? fromLoader ?? data ?? [];
 }

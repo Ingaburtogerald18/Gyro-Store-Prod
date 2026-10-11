@@ -116,11 +116,19 @@ export function ProductCard({
         isList ? 'aspect-square h-full w-full shrink-0' : 'aspect-square w-full',
       )}
     >
-      {(onSale || product.isPromo) && (
+      {(onSale || product.isPromo || product.unpublished) && (
         <div className="absolute top-2.5 left-2.5 z-10 flex flex-col items-start gap-1.5">
-          <Badge variant="promo" className="text-xs tabular-nums">
-            {onSale ? `−${discountPct}%` : product.promoScope === 'some' ? 'Oferta en opciones' : 'Oferta'}
-          </Badge>
+          {/* Solo llega en la vista previa del modo edición. */}
+          {product.unpublished && (
+            <Badge variant="outline" className="bg-card text-xs">
+              Sin publicar
+            </Badge>
+          )}
+          {(onSale || product.isPromo) && (
+            <Badge variant="promo" className="text-xs tabular-nums">
+              {onSale ? `−${discountPct}%` : product.promoScope === 'some' ? 'Oferta en opciones' : 'Oferta'}
+            </Badge>
+          )}
         </div>
       )}
 
@@ -264,7 +272,7 @@ export function ProductCard({
   if (isList) {
     return (
       <>
-        <motion.article {...motionProps} className={cn(shell, 'flex-col gap-3')}>
+        <motion.article {...motionProps} data-landing-product={product.id} className={cn(shell, 'flex-col gap-3')}>
           <Link to={productUrl} prefetch="intent" className="flex w-full gap-3 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:gap-4">
             <div className="relative w-[38%] max-w-[180px] shrink-0 self-start">{Stage}</div>
             {Info}
@@ -278,7 +286,7 @@ export function ProductCard({
 
   return (
     <>
-      <motion.article {...motionProps} className={cn(shell, 'h-full flex-col')}>
+      <motion.article {...motionProps} data-landing-product={product.id} className={cn(shell, 'h-full flex-col')}>
         <Link to={productUrl} prefetch="intent" className="flex flex-1 flex-col rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background">
           {Stage}
           {Info}

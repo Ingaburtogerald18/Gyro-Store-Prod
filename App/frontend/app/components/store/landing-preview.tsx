@@ -1,8 +1,8 @@
 import { useEffect, useRef } from 'react';
-import { landingConfigSchema } from '@shared/schemas';
+import { catalogProductSchema, landingConfigSchema } from '@shared/schemas';
 import { useAppDispatch, useAppSelector } from '~/store/hooks';
 import { selectEditMode, toggleEditMode } from '~/store/slices/authSlice';
-import { initBuilderSession, selectHeroSlide } from '~/store/slices/builderSlice';
+import { initBuilderSession, selectHeroSlide, setPreviewCatalog } from '~/store/slices/builderSlice';
 
 // La vista aislada conserva los breakpoints reales, incluido el ancho móvil.
 export function LandingPreviewBridge() {
@@ -32,12 +32,22 @@ export function LandingPreviewBridge() {
         document.documentElement.dataset.theme = event.data.theme;
       }
       dispatch(initBuilderSession(parsed.data));
+      // Productos con los cambios del borrador; sin ellos, el catálogo publicado.
+      const products = catalogProductSchema.array().safeParse(event.data.products);
+      dispatch(setPreviewCatalog(products.success ? products.data : null));
       dispatch(selectHeroSlide(typeof event.data.slideId === 'string' ? event.data.slideId : null));
       if (!editingRef.current) dispatch(toggleEditMode());
     }
     window.addEventListener('message', receive);
     function select(event: MouseEvent) {
       if (!(event.target instanceof Element)) return;
+      const card = event.target.closest<HTMLElement>('[data-landing-product]');
+      if (!interactive && card) {
+        event.preventDefault();
+        event.stopPropagation();
+        window.parent.postMessage({ type: 'gyro:select-section', section: 'items', productId: card.dataset.landingProduct }, window.location.origin);
+        return;
+      }
       const area = event.target.closest<HTMLElement>('[data-landing-section]');
       if (!interactive && area) {
         event.preventDefault();

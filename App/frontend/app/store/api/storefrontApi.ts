@@ -10,6 +10,7 @@ import type {
   PublicContactInput,
   PublicOrderInput,
   PublicOrderStatus,
+  StockNoticeInput,
   TrackPublicOrderInput,
 } from '@shared/schemas';
 import { baseApi } from './baseApi';
@@ -97,30 +98,20 @@ export const storefrontApi = baseApi.injectEndpoints({
     }),
 
     // ── Configuración del landing: slides del hero + orden de categorías.
-    // GET es público (lo necesita la home); PUT lo restringe el backend a admin.
+    // GET es público (lo necesita la home); se publica desde storeEditorApi.
     getLandingConfig: build.query<LandingConfig, void>({
       query: () => 'landing-config',
       providesTags: ['Landing'],
-    }),
-    updateLandingConfig: build.mutation<LandingConfig, LandingConfig>({
-      query: (body) => ({ url: 'landing-config', method: 'PUT', body }),
-      async onQueryStarted(arg, { dispatch, queryFulfilled }) {
-        try {
-          const { data } = await queryFulfilled;
-          dispatch(
-            storefrontApi.util.updateQueryData('getLandingConfig', undefined, () => data)
-          );
-        } catch {
-          // Si el guardado falla, la caché queda como estaba; el error lo
-          // muestra quien llamó a la mutation.
-        }
-      }
     }),
 
     // ── Formulario de contacto público → captura el lead en el CRM
     // (server/services/crm.ts). En v2 escribe en el dominio de contactos.
     sendContact: build.mutation<{ ok: boolean }, PublicContactInput>({
       query: (body) => ({ url: 'contact', method: 'POST', body }),
+    }),
+    // «Avisame cuando haya»: `already` si ese teléfono ya esperaba esa opción.
+    createStockNotice: build.mutation<{ already: boolean }, StockNoticeInput>({
+      query: (body) => ({ url: 'stock-notices', method: 'POST', body }),
     }),
 
     // ── Seguimiento del pedido sin cuenta. El tag por id hace que, si el panel
@@ -144,8 +135,8 @@ export const {
   useCreatePublicOrderMutation,
   useRecoverPublicOrderMutation,
   useGetLandingConfigQuery,
-  useUpdateLandingConfigMutation,
   useSendContactMutation,
+  useCreateStockNoticeMutation,
   useGetPublicOrderQuery,
   useTrackPublicOrderMutation,
 } = storefrontApi;

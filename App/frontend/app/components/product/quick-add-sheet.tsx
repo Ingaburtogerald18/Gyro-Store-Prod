@@ -23,6 +23,7 @@ import {
 import { Skeleton } from '~/components/ui/skeleton';
 import { VariantPicker } from '~/components/product/variant-picker';
 import { PurchaseStatus, addLabel, cartItemFor } from '~/components/product/purchase-panel';
+import { StockNoticeDialog } from '~/components/product/stock-notice-dialog';
 import { WhatsappIcon } from '~/components/ui/whatsapp-icon';
 import { autoSelection, isConsultOnly, purchaseState, variantLabel, type VariantSelection } from '~/lib/purchase';
 import { useGetCatalogDetailQuery } from '~/store/api/storefrontApi';
@@ -47,6 +48,7 @@ export function QuickAddSheet({
   const { data: detail, isLoading, isFetching, isError, refetch } = useGetCatalogDetailQuery(product.id, { skip: !open });
   const [touched, setTouched] = useState<VariantSelection | null>(null);
   const [showMissing, setShowMissing] = useState(false);
+  const [noticeOpen, setNoticeOpen] = useState(false);
 
   const axes = useMemo(() => detail?.axes ?? [], [detail?.axes]);
   const variants = useMemo(() => detail?.variants ?? [], [detail?.variants]);
@@ -94,6 +96,7 @@ export function QuickAddSheet({
   }
 
   const consultable = isConsultOnly(state.kind);
+  const notifyVariant = state.kind === 'sold_out' || state.kind === 'coming_soon' ? state.variant : null;
 
   return (
     <Sheet open={open} onOpenChange={close}>
@@ -160,7 +163,17 @@ export function QuickAddSheet({
         </div>
 
         <SheetFooter className="gap-2 pb-[max(1rem,env(safe-area-inset-bottom))]">
-          {consultable ? (
+          {notifyVariant ? (
+            <>
+              <Button onClick={() => setNoticeOpen(true)} className="h-12 w-full text-base">
+                Avisame cuando haya
+              </Button>
+              <Button variant="whatsappOutline" onClick={handleConsult} className="h-12 w-full text-base">
+                <WhatsappIcon aria-hidden className="size-4" />
+                Consultar por WhatsApp
+              </Button>
+            </>
+          ) : consultable ? (
             <Button variant="whatsapp" onClick={handleConsult} className="h-12 w-full text-base">
               <WhatsappIcon aria-hidden className="size-4" />
               Consultar por WhatsApp
@@ -182,6 +195,16 @@ export function QuickAddSheet({
           </Button>
         </SheetFooter>
       </SheetContent>
+      {notifyVariant && (
+        <StockNoticeDialog
+          open={noticeOpen}
+          onOpenChange={setNoticeOpen}
+          catalogItemId={product.id}
+          productName={product.name}
+          variantName={notifyVariant.variantName}
+          comingSoon={notifyVariant.availability === 'coming_soon'}
+        />
+      )}
     </Sheet>
   );
 }

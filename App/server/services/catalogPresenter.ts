@@ -20,7 +20,7 @@ import type {
 // Forma canónica de un eje, ya normalizada desde cualquiera de las variantes de
 // jsonb que puede traer el template. `label` es lo que ve el cliente ("Tipo de
 // conector"); `key` es el id interno con el que `axis_options` lo referencia.
-interface Axis {
+export interface Axis {
   key: string;
   label: string;
   options: string[];
@@ -151,7 +151,7 @@ function readMapping(raw: unknown): VariantMapping | null {
   return { codes: [...new Set(codes)], price, promoPrice };
 }
 
-function mappingsOf(item: Pick<PublicCatalogItem, 'variant_mappings'>): Map<string, VariantMapping> {
+export function mappingsOf(item: Pick<PublicCatalogItem, 'variant_mappings'>): Map<string, VariantMapping> {
   const out = new Map<string, VariantMapping>();
   const raw = item.variant_mappings;
   if (!raw || typeof raw !== 'object') return out;
@@ -167,6 +167,12 @@ function mappingsOf(item: Pick<PublicCatalogItem, 'variant_mappings'>): Map<stri
 // una por producto (N+1).
 export function collectMappedCodes(item: Pick<PublicCatalogItem, 'variant_mappings'>): string[] {
   return [...mappingsOf(item).values()].flatMap((m) => m.codes);
+}
+
+// Color de una combinación: las ofertas van por color ('' si no hay eje de color).
+export function colorOfCombo(axes: Axis[], axisValues: string[]): string {
+  const index = axes.findIndex((axis) => axis.isColor);
+  return index >= 0 ? (axisValues[index] ?? '') : '';
 }
 
 // Producto cartesiano de las opciones OFRECIDAS, en el orden de los ejes. El
@@ -192,9 +198,9 @@ function buildCombinations(item: PublicCatalogItem, axes: Axis[]): string[][] {
 //      variante (`mapping.price`) o el del producto (`base_price` con oferta
 //      activa — ahí `price` es el de oferta —; `price` sin oferta, con
 //      `base_price` de respaldo).
-//   2. Promoción vigente, la más específica primero:
-//      · `mapping.promoPrice` (promoción de ESA variante);
-//      · `price` del producto cuando `is_promo` (oferta del modelo entero).
+//   2. Oferta vigente: la del color (`offerPrice`, Stock actual). Las
+//      promociones viejas del catálogo (`mapping.promoPrice`, `price` con
+//      `is_promo`) solo cuentan con el precio del catálogo, no con el de bodega.
 //      Solo cuenta si es > 0 y menor que el regular: una «oferta» que no
 //      rebaja no se anuncia.
 //   3. Sin promoción, un `base_price` mayor al regular sigue funcionando como
@@ -211,6 +217,7 @@ export function resolveVariantPrice(
   item: PriceFields,
   mapping?: Pick<VariantMapping, 'price' | 'promoPrice'>,
   lotPrice?: number,
+  offerPrice?: number,
 ): ResolvedPrice {
   const itemPrice = item.price ?? null;
   const basePrice = item.base_price ?? null;
@@ -221,7 +228,9 @@ export function resolveVariantPrice(
   const fromLot = lotPrice !== undefined && lotPrice > 0;
   const regular = fromLot ? lotPrice : catalogRegular;
 
-  const candidates = [mapping?.promoPrice, item.is_promo ? (itemPrice ?? undefined) : undefined];
+  const candidates = fromLot
+    ? [offerPrice]
+    : [offerPrice, mapping?.promoPrice, item.is_promo ? (itemPrice ?? undefined) : undefined];
   const promo = candidates.find((p): p is number => typeof p === 'number' && p > 0 && p < regular);
   if (promo !== undefined) return { price: promo, compareAtPrice: regular, isPromo: true };
 
@@ -241,6 +250,8 @@ export interface LotInfo {
   fifoKey: string;
 }
 export type StockByCode = ReadonlyMap<string, number | LotInfo>;
+/** Ofertas vigentes de un producto: color → precio de oferta. */
+export type ColorOffers = ReadonlyMap<string, number>;
 
 // Stock real de una variante: suma de lo disponible en los lotes vinculados.
 //   · Sin vínculo con bodega → 'unknown': no se sabe, y no se inventa una
@@ -280,6 +291,7 @@ export function resolveAvailability(
 export function buildVariants(
   item: PublicCatalogItem,
   stockByCode: StockByCode = new Map(),
+  offers: ColorOffers = new Map(),
 ): CatalogVariant[] {
   const axes = normalizeAxes(item.template?.axes);
   const mappings = mappingsOf(item);
@@ -290,7 +302,7 @@ export function buildVariants(
     if (availability === 'coming_soon') {
       return { variantName, axisValues, price: 0, isPromo: false, stock, availability };
     }
-    const price = resolveVariantPrice(item, mapping, lotPrice);
+    const price = resolveVariantPrice(item, mapping, lotPrice, offers.get(colorOfCombo(axes, axisValues)));
     // Sin ningún precio no se vende por la tienda: se consulta.
     const priced = availability !== 'available' || price.price > 0;
     return { variantName, axisValues, ...price, stock, availability: priced ? availability : 'unknown' };
@@ -353,6 +365,7 @@ export function summarizeVariants(variants: CatalogVariant[]): VariantSummary {
 export function toCatalogDetail(
   item: PublicCatalogItem,
   stockByCode: StockByCode = new Map(),
+  offers: ColorOffers = new Map(),
 ): CatalogDetail {
   const axes = normalizeAxes(item.template?.axes);
 
@@ -367,7 +380,7 @@ export function toCatalogDetail(
 
   const description = item.template?.description?.trim();
   return {
-    ...toCatalogProduct(item, stockByCode),
+    ...toCatalogProduct(item, stockByCode, offers),
     ...(description ? { description } : {}),
     // Solo las opciones que ESTE producto ofrece (`axis_options` recorta el
     // molde): una opción del molde que no se vende no es «agotada», no existe.
@@ -377,7 +390,7 @@ export function toCatalogDetail(
       options: includedOptions(item, axis),
       isColor: axis.isColor,
     })),
-    variants: buildVariants(item, stockByCode),
+    variants: buildVariants(item, stockByCode, offers),
     ...(Object.keys(colorImages).length > 0 ? { colorImages } : {}),
   };
 }
@@ -385,6 +398,7 @@ export function toCatalogDetail(
 export function toCatalogProduct(
   item: PublicCatalogItem,
   stockByCode: StockByCode = new Map(),
+  offers: ColorOffers = new Map(),
 ): CatalogProduct {
   const axes = normalizeAxes(item.template?.axes);
 
@@ -396,7 +410,7 @@ export function toCatalogProduct(
 
   // Precio, promoción y disponibilidad salen de las MISMAS variantes que ve la
   // ficha: la tarjeta no puede prometer algo que la ficha no sostiene.
-  const variants = buildVariants(item, stockByCode);
+  const variants = buildVariants(item, stockByCode, offers);
   const summary = summarizeVariants(variants);
 
   return {

@@ -4,6 +4,7 @@ import { asyncHandler } from '../utils/asyncHandler';
 import { getPublishedCatalogItem, listPublishedCatalog } from '../services/catalog';
 import { collectMappedCodes, toCatalogDetail, toCatalogProduct } from '../services/catalogPresenter';
 import { getLotsByCodes } from '../services/inventory';
+import { getActiveOffers } from '../services/offers';
 
 const router = Router();
 
@@ -17,9 +18,9 @@ router.get(
     // Una sola consulta a bodega para TODO el listado: se juntan los códigos de
     // lote de todos los ítems y se resuelven de golpe, en vez de una consulta
     // por producto (N+1) mientras se presenta cada fila.
-    const lots = await getLotsByCodes(rows.flatMap(collectMappedCodes));
+    const [lots, offers] = await Promise.all([getLotsByCodes(rows.flatMap(collectMappedCodes)), getActiveOffers()]);
     res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
-    res.json({ items: rows.map((row) => toCatalogProduct(row, lots)) });
+    res.json({ items: rows.map((row) => toCatalogProduct(row, lots, offers.get(row.id))) });
   })
 );
 
@@ -40,9 +41,9 @@ router.get(
       return;
     }
 
-    const lots = await getLotsByCodes(collectMappedCodes(item));
+    const [lots, offers] = await Promise.all([getLotsByCodes(collectMappedCodes(item)), getActiveOffers()]);
     res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
-    res.json(toCatalogDetail(item, lots));
+    res.json(toCatalogDetail(item, lots, offers.get(item.id)));
   }),
 );
 

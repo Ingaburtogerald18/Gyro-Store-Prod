@@ -58,7 +58,10 @@ interface PurchaseFormValues {
   lines: OrderLineState[];
 }
 
-const emptyValues = (): PurchaseFormValues => ({ header: emptyOrderHeader(), lines: [emptyOrderLine()] });
+const emptyValues = (): PurchaseFormValues => ({
+  header: emptyOrderHeader(),
+  lines: [emptyOrderLine()],
+});
 
 /** La orden ya registrada con ese número, si la hay. */
 function findOrder(orders: PurchaseOrder[], orderNumber: string): PurchaseOrder | null {
@@ -73,8 +76,11 @@ function purchaseFormSchema(templates: AdminTemplate[], orders: PurchaseOrder[])
     .object({ header: z.custom<OrderHeaderState>(), lines: z.array(z.custom<OrderLineState>()) })
     .superRefine((values, ctx) => {
       const existing = findOrder(orders, values.header.orderNumber);
-      const headerErrors = existing ? {} : validateOrderHeader(values.header, { requireSupplier: true });
-      for (const [field, message] of Object.entries(headerErrors)) ctx.addIssue({ code: "custom", path: ["header", field], message });
+      const headerErrors = existing
+        ? {}
+        : validateOrderHeader(values.header, { requireSupplier: true });
+      for (const [field, message] of Object.entries(headerErrors))
+        ctx.addIssue({ code: "custom", path: ["header", field], message });
       const lineErrors = validateOrderLines(values.lines, templates);
       values.lines.forEach((line, index) => {
         for (const [field, message] of Object.entries(lineErrors[line.key] ?? {}))
@@ -85,23 +91,42 @@ function purchaseFormSchema(templates: AdminTemplate[], orders: PurchaseOrder[])
 
 const taxNumber = (value: string) => (value.trim() === "" ? 0 : Number(value));
 
-export function PurchaseOrderForm({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+export function PurchaseOrderForm({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
   const [createOrder] = useCreatePurchaseOrderMutation();
   const [addLines] = useAddPurchaseOrderLinesMutation();
   const { data: suppliers = [] } = useGetSuppliersQuery(undefined, { skip: !open });
   const { data: purchases = [] } = useGetPurchasesQuery(undefined, { skip: !open });
-  const { data: templates = [] } = useGetTemplatesQuery(undefined, { skip: !open });
+  const {
+    data: templates = [],
+    isLoading: templatesLoading,
+    isError: templatesFailed,
+    refetch: refetchTemplates,
+  } = useGetTemplatesQuery(undefined, { skip: !open });
   const { data: categories = [] } = useGetCategoriesQuery(undefined, { skip: !open });
-  const { data: ordersData, refetch: refetchOrders } = useGetPurchaseOrdersQuery(undefined, { skip: !open });
+  const { data: ordersData, refetch: refetchOrders } = useGetPurchaseOrdersQuery(undefined, {
+    skip: !open,
+  });
   const [serverError, setServerError] = useState<string | null>(null);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
 
   // Las provisionales (lotes viejos) no se sugieren: sus nombres se repiten.
-  const registered = useMemo(() => (ordersData?.orders ?? []).filter((o) => !o.numberProvisional), [ordersData]);
+  const registered = useMemo(
+    () => (ordersData?.orders ?? []).filter((o) => !o.numberProvisional),
+    [ordersData],
+  );
   const invoices = useMemo(() => invoicesFromOrders(ordersData?.orders ?? []), [ordersData]);
 
-  const resolver = useMemo(() => zodResolver(purchaseFormSchema(templates, registered)), [templates, registered]);
+  const resolver = useMemo(
+    () => zodResolver(purchaseFormSchema(templates, registered)),
+    [templates, registered],
+  );
   const {
     control,
     handleSubmit,
@@ -120,9 +145,15 @@ export function PurchaseOrderForm({ open, onOpenChange }: { open: boolean; onOpe
 
   const header = watch("header");
   const lines = watch("lines");
-  const found = useMemo(() => findOrder(registered, header.orderNumber), [registered, header.orderNumber]);
+  const found = useMemo(
+    () => findOrder(registered, header.orderNumber),
+    [registered, header.orderNumber],
+  );
 
-  const existingLines = useMemo(() => (found ? purchases.filter((p) => p.orderId === found.id) : []), [found, purchases]);
+  const existingLines = useMemo(
+    () => (found ? purchases.filter((p) => p.orderId === found.id) : []),
+    [found, purchases],
+  );
   // Una orden con productos ya tiene su impuesto; si son distintos, lo nuevo va con 0.
   const taxUnit = found && found.lineCount > 0 ? found.taxUnit ?? 0 : taxNumber(header.taxUnit);
   const linesTotal = lines.reduce((sum, line) => sum + lineTotalUsd(line, taxUnit), 0);
@@ -154,10 +185,16 @@ export function PurchaseOrderForm({ open, onOpenChange }: { open: boolean; onOpe
         }).unwrap();
       } else {
         const payload = await orderHeaderPayload(values.header);
-        order = await createOrder({ ...payload, taxUnit: payload.taxUnit ?? 0, lines: payloadLines }).unwrap();
+        order = await createOrder({
+          ...payload,
+          taxUnit: payload.taxUnit ?? 0,
+          lines: payloadLines,
+        }).unwrap();
       }
       const count = values.lines.length === 1 ? "1 producto" : `${values.lines.length} productos`;
-      toast.success("Compra registrada", { description: `Orden ${order.orderNumber}: ${count} en tránsito.` });
+      toast.success("Compra registrada", {
+        description: `Orden ${order.orderNumber}: ${count} en tránsito.`,
+      });
       onOpenChange(false);
     } catch (err) {
       const message = serverErrorMessage(err, "No se pudo guardar la compra.");
@@ -168,7 +205,9 @@ export function PurchaseOrderForm({ open, onOpenChange }: { open: boolean; onOpe
   }
 
   function focusFirstError() {
-    requestAnimationFrame(() => formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus());
+    requestAnimationFrame(() =>
+      formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus(),
+    );
   }
 
   return (
@@ -229,6 +268,10 @@ export function PurchaseOrderForm({ open, onOpenChange }: { open: boolean; onOpe
                       categories={categories}
                       taxUnit={taxUnit}
                       alreadyInOrder={existingLines}
+                      loading={templatesLoading}
+                      failed={templatesFailed}
+                      onRetry={() => void refetchTemplates()}
+                      disabled={isSubmitting}
                     />
                   )}
                 />
@@ -239,7 +282,7 @@ export function PurchaseOrderForm({ open, onOpenChange }: { open: boolean; onOpe
               <Button type="button" variant="cancel" onClick={() => requestClose(false)}>
                 Cancelar
               </Button>
-              <Button type="submit" disabled={isSubmitting}>
+              <Button type="submit" disabled={isSubmitting || templatesLoading || templatesFailed}>
                 {isSubmitting ? "Guardando…" : "Guardar"}
               </Button>
             </FormActions>
@@ -268,7 +311,9 @@ function ExistingOrderSummary({
   newLinesTotal: number;
   onChangeOrder: () => void;
 }) {
-  const gap = order.invoice ? invoiceGapText(order.invoice.totalUsd, order.invoice.linesTotalUsd + newLinesTotal) : null;
+  const gap = order.invoice
+    ? invoiceGapText(order.invoice.totalUsd, order.invoice.linesTotalUsd + newLinesTotal)
+    : null;
   const otherOrders = order.invoice ? order.invoice.orders.filter((o) => o.id !== order.id) : [];
   const shown = lines.slice(0, 6);
   const arrived = order.status === "received" || order.status === "partial";
@@ -277,11 +322,13 @@ function ExistingOrderSummary({
     <div className="space-y-2 rounded-2xl border border-primary/30 bg-primary/5 p-4 text-sm">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <p className="font-semibold text-foreground">Esta orden ya está registrada: los productos se agregan a ella.</p>
+          <p className="font-semibold text-foreground">
+            Esta orden ya está registrada: los productos se agregan a ella.
+          </p>
           <p className="text-muted-foreground">
             {order.supplier ? order.supplier.name : "Sin proveedor"} · {order.lineCount}{" "}
-            {order.lineCount === 1 ? "producto cargado" : "productos cargados"} · {order.units.toLocaleString("en-US")} u ·{" "}
-            {formatUsd(order.linesTotalUsd)}
+            {order.lineCount === 1 ? "producto cargado" : "productos cargados"} ·{" "}
+            {order.units.toLocaleString("en-US")} u · {formatUsd(order.linesTotalUsd)}
           </p>
         </div>
         <Button type="button" variant="ghost" size="sm" onClick={onChangeOrder}>
@@ -310,14 +357,20 @@ function ExistingOrderSummary({
           <span className="font-spec">{otherOrders.map((o) => o.orderNumber).join(", ")}</span>.
         </p>
       )}
-      {gap && <p className={gap.over ? "text-warning" : "text-muted-foreground"}>Con lo que estás cargando: {gap.text}</p>}
+      {gap && (
+        <p className={gap.over ? "text-warning" : "text-muted-foreground"}>
+          Con lo que estás cargando: {gap.text}
+        </p>
+      )}
       {arrived && (
-        <p className="text-muted-foreground">Esta orden ya llegó: lo que agregues queda en tránsito hasta que lo recibas.</p>
+        <p className="text-muted-foreground">
+          Esta orden ya llegó: lo que agregues queda en tránsito hasta que lo recibas.
+        </p>
       )}
       {order.missing.length > 0 && (
         <p className="text-warning">
-          Le falta: {order.missing.map((m) => MISSING_LABELS[m]).join(", ")}. Lo completás desde la tabla de compras
-          (Completar datos).
+          Le falta: {order.missing.map((m) => MISSING_LABELS[m]).join(", ")}. Lo completás desde la
+          tabla de compras (Completar datos).
         </p>
       )}
     </div>

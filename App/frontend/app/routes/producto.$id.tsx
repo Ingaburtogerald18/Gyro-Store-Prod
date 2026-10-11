@@ -5,7 +5,7 @@
 // El dato se carga en el SERVIDOR para que el título, la descripción y la foto
 // estén en el HTML (Open Graph al compartir por WhatsApp).
 import { HugeIcon } from "~/components/ui/icon";
-import { ShoppingCart02Icon } from "@hugeicons/core-free-icons";
+import { Notification03Icon, ShoppingCart02Icon } from "@hugeicons/core-free-icons";
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { HeadersFunction, LoaderFunctionArgs, MetaFunction } from '@remix-run/node';
 import { getBrandName, pageTitle } from '~/lib/brand';
@@ -20,6 +20,7 @@ import { ProductGallery } from '~/components/product/product-gallery';
 import { ProductTopNav } from '~/components/product/product-top-nav';
 import { MobileBuyBar } from '~/components/product/mobile-buy-bar';
 import { QuantityStepper } from '~/components/product/quantity-stepper';
+import { StockNoticeDialog } from '~/components/product/stock-notice-dialog';
 import { PurchaseStatus, addLabel, cartItemFor } from '~/components/product/purchase-panel';
 import { TrustBox } from '~/components/product/trust-box';
 import { WhatsappIcon } from '~/components/ui/whatsapp-icon';
@@ -155,6 +156,7 @@ export default function ProductDetail() {
   );
   const [quantity, setQuantity] = useState(1);
   const [showMissing, setShowMissing] = useState(false);
+  const [noticeOpen, setNoticeOpen] = useState(false);
   const pickerRef = useRef<HTMLDivElement>(null);
   // Al pasar de una ficha a otra (relacionados) Remix reusa el componente: la
   // selección y la cantidad del producto anterior no deben arrastrarse.
@@ -239,8 +241,10 @@ export default function ProductDetail() {
     window.open(buildWhatsappUrl(config?.whatsapp ?? '', message), '_blank', 'noopener,noreferrer');
   }
 
-  // Agotado, próximamente o sin stock verificable: la acción principal es consultar.
+  // Agotado, próximamente o sin stock verificable: la acción principal es consultar,
+  // o pedir aviso cuando la opción elegida está agotada o en camino.
   const consultOnly = isConsultOnly(state.kind);
+  const notifyVariant = state.kind === 'sold_out' || state.kind === 'coming_soon' ? state.variant : null;
   const comingSoon = variant ? variant.availability === 'coming_soon' : product.availability === 'coming_soon';
   const whatsappLabel = state.kind === 'ready' ? 'Pedir por WhatsApp' : 'Consultar por WhatsApp';
 
@@ -334,7 +338,25 @@ export default function ProductDetail() {
             )}
 
             <div id="product-buy-actions" className="flex flex-col gap-3 sm:flex-row md:flex-col lg:flex-row">
-              {consultOnly ? (
+              {notifyVariant ? (
+                <>
+                  <Button
+                    onClick={() => setNoticeOpen(true)}
+                    className="h-12 min-h-12 w-full shrink-0 text-base sm:flex-1 md:flex-none lg:flex-1"
+                  >
+                    <HugeIcon icon={Notification03Icon} size={18} strokeWidth={2} aria-hidden />
+                    Avisame cuando haya
+                  </Button>
+                  <Button
+                    variant="whatsappOutline"
+                    onClick={handleWhatsApp}
+                    className="h-12 min-h-12 w-full shrink-0 justify-center text-base sm:w-auto sm:px-4 md:w-full lg:w-auto"
+                  >
+                    <WhatsappIcon className="size-4" />
+                    Consultar por WhatsApp
+                  </Button>
+                </>
+              ) : consultOnly ? (
                 <Button
                   variant="whatsapp"
                   onClick={handleWhatsApp}
@@ -397,11 +419,22 @@ export default function ProductDetail() {
         buyActionsId="product-buy-actions"
         name={product.name}
         price={comingSoon ? 'Próximamente' : `${showFrom ? 'Desde ' : ''}${formatCordobas(price * (state.kind === 'ready' ? safeQuantity : 1), currency)}`}
-        mode={consultOnly ? 'consult' : 'add'}
+        mode={notifyVariant ? 'notify' : consultOnly ? 'consult' : 'add'}
         addLabel={addLabel(state, { short: true })}
         onAdd={handleAddToCart}
+        onNotify={() => setNoticeOpen(true)}
         onWhatsApp={handleWhatsApp}
       />
+      {notifyVariant && (
+        <StockNoticeDialog
+          open={noticeOpen}
+          onOpenChange={setNoticeOpen}
+          catalogItemId={product.id}
+          productName={product.name}
+          variantName={notifyVariant.variantName}
+          comingSoon={notifyVariant.availability === 'coming_soon'}
+        />
+      )}
     </StorefrontShell>
   );
 }

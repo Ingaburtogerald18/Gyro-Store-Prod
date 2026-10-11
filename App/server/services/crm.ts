@@ -11,6 +11,7 @@
 // una actividad ligada al contacto en el mismo movimiento.
 import { db } from '../supabase';
 import { firstOfEmbed } from '../utils/firstOfEmbed';
+import { noticesForFollowUps } from './stockNotices';
 import type {
   PublicContactInput,
   Contact,
@@ -324,7 +325,9 @@ export async function listFollowUps(filter: { status?: string; upto?: string } =
   if (filter.upto) query = query.lte('scheduled_date', filter.upto);
   const { data, error } = await query;
   if (error) throw error;
-  return ((data ?? []) as unknown as FollowUpRow[]).map(toFollowUp);
+  const followUps = ((data ?? []) as unknown as FollowUpRow[]).map(toFollowUp);
+  const notices = await noticesForFollowUps(followUps.map((f) => f.id));
+  return followUps.map((f) => ({ ...f, stockNotice: notices.get(f.id) ?? null }));
 }
 
 export async function createFollowUp(input: FollowUpInput, createdBy: string | null): Promise<FollowUp> {

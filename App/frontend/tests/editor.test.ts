@@ -1,22 +1,11 @@
-// Editor de portada: borrador local, validación antes de publicar y subida con
-// progreso real, cancelación, error y límite de espera. Sin red: la subida usa
-// un XMLHttpRequest falso y el storage es un objeto en memoria.
+// Editor de portada: historia del borrador, validación antes de publicar y
+// subida con progreso real, cancelación, error y límite de espera. Sin red: la
+// subida usa un XMLHttpRequest falso.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { landingConfigSchema, type HeroSlide, type LandingConfig } from '@shared/schemas';
 import { builderReducer, initBuilderSession, updateHeroSlide, updateHeroSlides, setCategoryMode, updateCartContent, undoBuilderChange, redoBuilderChange, endBuilderChange } from '../app/store/slices/builderSlice';
-import { clearLandingDraft, loadLandingDraft, saveLandingDraft, signature } from '../app/lib/landingDraft';
 import { hasLandingErrors, isValidTarget, validateLanding, validateSlide } from '../app/lib/landingValidation';
-
-function memoryStorage() {
-  const map = new Map<string, string>();
-  return {
-    getItem: (k: string) => map.get(k) ?? null,
-    setItem: (k: string, v: string) => void map.set(k, v),
-    removeItem: (k: string) => void map.delete(k),
-    map,
-  };
-}
 
 const slide: HeroSlide = {
   id: 's1', eyebrow: '', title: 'KZ en oferta', description: '', mediaUrl: '', mediaType: 'image',
@@ -35,7 +24,7 @@ test('la historia agrupa escritura y conserva banners, categorías y carrito', (
   assert.equal(state.draftLandingConfig?.heroSlides[0]?.title, 'Audio');
   state = builderReducer(state, endBuilderChange());
   state = builderReducer(state, setCategoryMode({ zone: 'header', mode: 'hidden' }));
-  state = builderReducer(state, updateCartContent({ title: 'Tu pedido' }));
+  state = builderReducer(state, updateCartContent({ content: { title: 'Tu pedido' } }));
   state = builderReducer(state, undoBuilderChange());
   assert.equal(state.draftLandingConfig?.cart, undefined);
   assert.equal(state.draftLandingConfig?.headerCategoriesMode, 'hidden');
@@ -57,28 +46,6 @@ test('composición y visibilidad se conservan sin romper configuraciones anterio
   assert.equal(parsed.heroSlides[0]?.visible, false);
   assert.equal(landingConfigSchema.safeParse({ ...config, heroSlides: [{ ...slide, layout: 'free' }] }).success, false);
   assert.equal(hasLandingErrors(validateLanding({ ...config, heroSlides: [{ ...slide, title: '', visible: false }] }, { productUrls: [], socialCount: 0 })), false);
-});
-
-test('el borrador se guarda por usuario y sitio, y no se mezcla', () => {
-  const store = memoryStorage();
-  saveLandingDraft({ userId: 'ana', host: 'tienda.test', base: signature(config), draft: config }, store);
-  assert.equal(loadLandingDraft('ana', 'tienda.test', store)?.draft.heroSlides[0]?.title, 'KZ en oferta');
-  assert.equal(loadLandingDraft('beto', 'tienda.test', store), null);
-  assert.equal(loadLandingDraft('ana', 'otra.test', store), null);
-  clearLandingDraft('ana', 'tienda.test', store);
-  assert.equal(loadLandingDraft('ana', 'tienda.test', store), null);
-});
-
-test('un borrador corrupto o de otra versión se ignora', () => {
-  const store = memoryStorage();
-  saveLandingDraft({ userId: 'ana', host: 'h', base: '', draft: config }, store);
-  const [key] = [...store.map.keys()];
-  store.map.set(key!, '{"v":1,"userId":"ana","host":"h","draft":{"heroSlides":"no"}}');
-  assert.equal(loadLandingDraft('ana', 'h', store), null);
-  store.map.set(key!, '{nope');
-  assert.equal(loadLandingDraft('ana', 'h', store), null);
-  // Storage bloqueado: no rompe el editor.
-  assert.equal(saveLandingDraft({ userId: 'ana', host: 'h', base: '', draft: config }, { getItem: () => null, setItem: () => { throw new Error('bloqueado'); }, removeItem: () => {} }), false);
 });
 
 const ctx = { productUrls: ['/producto/kz-edx-pro--1'], socialCount: 0 };

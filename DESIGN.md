@@ -15,7 +15,7 @@ Los colores viven en `app/tailwind.css`, en el bloque de la paleta de marca. En 
 | Tinta | `--ink`, `--foreground` | `#2a1d1d` | `#f4f4f2` | Texto. Contorno del botón principal (`--action-outline`: `#111111` en oscuro) |
 | Crema | `--background` | `#fffcf3` | `#0e0f10` | Fondo de página |
 | Blanco | `--card`, `--popover` | `#ffffff` | `#18191b` | Tarjetas, menús, ventanas |
-| Rosa | `--rose`, `--muted`, `--selection` | `#f4ded9` | `#222326` (`--selection`: `#26272a`) | Fondo de lo elegido, encabezado de tablas, ofertas, círculo detrás de las fotos |
+| Rosa | `--rose`, `--muted`, `--selection` | `#f4ded9` | `#222326` (`--selection`: `#26272a`) | Fondo de lo elegido, encabezado de tablas, ofertas |
 | Texto secundario | `--muted-foreground` | `#6e5a57` | `#a8a29e` | Etiquetas, ayudas, fechas |
 | Amarillo | `--action` | `#ffc20e` | `#ffc20e` | Acción principal. Texto tinta (`#111111` en oscuro) |
 | Bordó | `--bordo`, `--primary-2` | `#812c2c` | `#e8a09a` (rosa oscuro) | Selección, navegación, links, foco, precios, línea del header de la tienda |
@@ -131,6 +131,7 @@ Nunca:
 - Encabezado con fondo rosa, `text-xs font-semibold` en tinta, sin mayúsculas. Proyecta una sombra corta sobre la primera fila. Las columnas ordenables muestran la flecha.
 - Filas de 52 px (40 px en modo compacto), `text-sm`, con relieve: cada fila se oscurece apenas hacia abajo y la línea entre filas va grabada (raya `--table-groove` con el brillo `--table-shine` debajo). Al pasar el mouse, rosa al 55 % (blanco al 4 % en oscuro).
 - Columnas en este orden: código, descripción, números, estado, acciones.
+- Productos de órdenes de compra: columna «Cantidad» después de Producto, separada del costo unitario y del total USD. El subtotal suma las cantidades en esa misma columna; si lo recibido difiere de lo pedido, se aclara debajo de la cantidad.
 - Código con `CodeCell`: mono de 14 px, peso medio, en tinta. Producto: nombre en semibold y la variante debajo en `text-sm` gris.
 - Un dato de apoyo debajo de un número (impuesto, unidades) va en `text-xs` gris.
 - Números a la derecha. La moneda va en el encabezado si toda la columna es de una moneda.
@@ -156,7 +157,9 @@ Nunca:
 - Si el servidor falla, el mensaje va arriba del formulario, sin cerrar ni perder lo escrito.
 - Si hay cambios sin guardar, cerrar pregunta «¿Descartar los cambios?».
 - Datos con react-hook-form y un esquema de validación. Obligatorio en formularios nuevos o reescritos.
-- Excepción en el editor de portada: los campos del banner se editan en el inspector fijo y actualizan el borrador de inmediato. La tienda cambia solo al confirmar «Publicar». Los formularios del carrito conservan su ventana centrada.
+- Excepción en el editor de tienda: el banner se edita en una ficha completa junto a la vista previa y actualiza el borrador de inmediato. Imagen, textos y botón quedan juntos; apariencia se despliega cuando hace falta. La tienda cambia solo al confirmar «Publicar cambios». Los formularios del carrito conservan su ventana centrada y, como el resto, guardan cada cambio en el borrador (cierran con «Listo»).
+- Productos de órdenes: «Modelo del producto» usa autocompletado compacto, sin listado con el campo vacío. Desde 2 caracteres muestra hasta 4 coincidencias en un desplegable superpuesto, sin mover el resto del formulario; cada fila se elige completa y muestra nombre y categoría. La búsqueda tolera espacios, guiones y errores leves y exige elegir por ID. La plantilla elegida queda dentro del campo con marca de confirmación y «Cambiar», sin tarjeta adicional. Si no hay coincidencia exacta se permite crearla al final del desplegable con el nombre escrito; al guardar se selecciona sin perder cantidad ni costo. Buscar no vincula automáticamente modelos parecidos. La carga o el error de la lista nunca se presenta como ausencia de plantilla.
+- Una plantilla por modelo: la creación y el cambio de nombre rechazan duplicados que difieren solo en mayúsculas, espacios o guiones; los sufijos de modelo, como Pro, se conservan. Las plantillas antiguas duplicadas no se fusionan ni pierden sus vínculos.
 
 Nunca:
 - El error de un campo en un aviso flotante.
@@ -177,7 +180,7 @@ Nunca:
 - Movimiento: 150 ms al pasar el mouse o presionar, 200 a 250 ms al abrir y cerrar. Sin rebotes.
 - En el panel solo se mueven el botón principal, los bordes al pasar el mouse y las flechas al abrir.
 - Todo movimiento respeta «reducir movimiento» del sistema.
-- En la tienda, en claro, las fotos llevan un círculo rosa detrás; la foto se multiplica para que su fondo blanco lo deje ver.
+- En la tienda las fotos van sobre el fondo liso del marco, sin círculo ni adorno detrás.
 - Fotos de producto cuadradas, de 1000 × 1000 px como mínimo, fondo blanco, el producto cerca del 80 % de la foto, siempre completas (`object-contain`). La primera foto es el producto solo.
 - Logo: sin recolorear ni deformar, mínimo 140 × 40 px.
 - Mascota: solo en estados vacíos, error 404 y pedido confirmado.
@@ -189,8 +192,15 @@ Panel:
 - Encabezado: título de página y, a la derecha, la acción principal con su atajo (`<Kbd>N</Kbd>`).
 - Debajo, bloques separados sobre el crema: barra de herramientas, métricas y contenido.
 - Un elemento domina cada pantalla: la tabla, la lista de órdenes o el formulario.
+- Inventario: vistas Compras, Stock actual, Plantillas y Combos. El vendedor solo ve Stock actual, en solo lectura y sin costos: precio de venta y el enlace a fotos y videos.
+- Combos: nombre, precio del paquete y productos incluidos en Inventario (vista Combos); fotos y «Mostrar en la tienda» en la sección «Combos» del modo edición.
 - Plantillas: tabla de modelos con resumen público de una línea, categoría, tipos de opción y conteo de productos vinculados/publicados. Las notas internas se consultan en la ficha. Edición en ventana centrada con información pública, opciones, ficha técnica y notas internas; vista previa pública de solo lectura al lado y acciones siempre visibles en el pie.
-- Editor de portada: estructura plegable a la izquierda, tienda real aislada al centro e inspector contextual a la derecha. Barra superior con estado del borrador, deshacer, rehacer, vista previa y publicación. Composiciones de banner preparadas (imagen a izquierda, derecha o arriba), sin posiciones libres. La vista móvil usa un ancho real de 360 px.
+- Editor de tienda: navegación fija por tareas —Portada, Productos, Combos y Carrito— con una sola zona de edición activa. Barra superior con estado del borrador, deshacer, rehacer, versiones, vista previa y «Revisar cambios». Cada tarea muestra debajo de su nombre lo que queda pendiente (campos por revisar, productos o combos ocultos y sin fotos, carrito personalizado). Tamaño y tema de la vista previa en un solo menú; sin pie de página. Portada tiene un único panel de bloques/ficha a la izquierda y la tienda real aislada a la derecha; abrir un bloque reemplaza la lista por sus campos y «Volver a los bloques». Composiciones de banner preparadas (imagen a izquierda, derecha o arriba), sin posiciones libres. La vista móvil usa un ancho real de 360 px.
+- Productos y Combos ocupan el área principal. Su ficha muestra fotos, visibilidad y una tarjeta de vista previa del borrador; los datos de referencia quedan en un bloque desplegable. La búsqueda y los filtros se conservan al volver al listado. Galerías con imagen principal identificada y controles de ordenar, elegir principal y quitar siempre visibles.
+- Modo edición: edita un administrador a la vez y los demás ven quién está editando, sin poder forzar la entrada. El borrador vive en el servidor, se guarda con cada cambio y lo puede seguir cualquier administrador. A los 13 minutos sin actividad pregunta «¿Seguís editando?» y a los 15 se cierra solo.
+- Sección «Productos» del modo edición: lista de 25 registros por página con buscador, filtros (ocultos, sin fotos, agotados, próximamente) y modo explícito «Ordenar productos» para arrastrar con mouse o teclado. Al ordenar se ven todos, sin páginas, y agrupados por categoría cuando la portada muestra una fila por categoría. En cada producto, fotos generales y por color y «Mostrar en la tienda»; nombre, descripción, categoría y precio en solo lectura con el enlace «Editar en Plantillas». «Visible» y «Oculto» describen el borrador; «Cambios sin publicar» identifica lo pendiente. En la vista previa, los productos sin publicar llevan la marca «Sin publicar»; la tienda real nunca la muestra.
+- Publicación: «Revisar cambios» abre un resumen por sección de los banners, categorías, carrito, fotos, visibilidad y orden que cambiarán; permite volver a editar. Solo «Publicar cambios» aplica el borrador a la tienda.
+- Versiones: cada «Publicar» guarda una versión con quién, cuándo y qué cambió; el editor muestra las últimas 5 en «Versiones». Restaurar pone esa versión en la tienda (portada, fotos, lo que se muestra y orden; no precio, stock ni plantillas) y lo que estaba publicado queda como borrador. Con cambios sin publicar, pregunta «Tenés cambios sin publicar, ¿descartarlos y restaurar?».
 
 Tienda:
 - El producto manda: la foto y el precio son lo más visible; navegación y filtros quedan en segundo plano.
@@ -198,6 +208,7 @@ Tienda:
 - Objetivos táctiles de 44 px como mínimo.
 - Nunca se muestra el stock exacto: «Disponible», «Próximamente», «Agotado» o «Consultar disponibilidad».
 - «Próximamente» (sin stock y con una compra en camino) se muestra sin precio. Ni «Próximamente» ni «Agotado» se pueden pedir.
+- En «Agotado» y «Próximamente» la acción principal es «Avisame cuando haya» (nombre y WhatsApp). Entra al CRM como seguimiento; no se mandan mensajes automáticos.
 
 Los dos:
 - Claro por defecto. Toda pantalla se revisa en claro y en oscuro.
@@ -246,7 +257,7 @@ Lo que este documento pide y el código todavía no tiene. Cada línea se borra 
 
 - Pedidos web y Códigos de descuento: pasar sus listas a `DataTable` (hoy son filas propias dentro de una tarjeta).
 - CRM: contactos en tabla en vez de tarjetas.
-- Atajo de teclado de la acción principal en Pedidos web, Usuarios, Catálogo e Inicio.
+- Atajo de teclado de la acción principal en Pedidos web, Usuarios e Inicio.
 - Reportería: el selector de periodo (`PeriodPicker`) usa pestañas animadas; pasarlo a botones con borde.
 - Contadores animados (`CountUp`) en las métricas del panel: el panel solo mueve el botón principal, bordes y flechas.
 - Comentarios largos: acortar a 1 o 2 líneas los bloques que quedan (unos 340, en casi todos los archivos de `app/`).
@@ -282,3 +293,13 @@ Lo que este documento pide y el código todavía no tiene. Cada línea se borra 
 | 2026-10-10 | El precio de la tienda es el de venta que se pone al recibir en bodega (el del lote más viejo con stock). Nuevo estado «Próximamente», sin precio; «Próximamente» y «Agotado» no se pueden pedir |
 | 2026-10-10 | Unificación aprobada de formularios: campos y botones compartidos de 44 px, amarillo para confirmar o guardar, bordó para foco y selección, cancelación neutra y componentes comunes de encabezado, secciones, cuerpo y pie fijo. Teal del logo como detalle discreto de identidad en el panel y los encabezados de formularios, con la paleta existente en claro y oscuro |
 | 2026-10-10 | Corrección del dueño al probar formularios: Cancelar, Cerrar y las X de cierre vuelven a rojo mediante la variante compartida `cancel`, con texto y borde rojos, fondo de tarjeta y fondo rojo al pasar el mouse. Reemplaza la cancelación neutra anterior y respeta los colores de claro y oscuro |
+| 2026-10-10 | «Avisame cuando haya» como acción principal en «Agotado» y «Próximamente»: entra al CRM como seguimiento y el equipo escribe cuando llega, sin mensajes automáticos |
+| 2026-10-10 | Borrador del modo edición en el servidor, compartido entre administradores y guardado con cada cambio (deja de vivir en el navegador). Un administrador a la vez, con aviso a los 13 minutos sin actividad y cierre a los 15 |
+| 2026-10-10 | El modo edición es el único lugar para preparar la vitrina: sección «Productos» con fotos, «Mostrar en la tienda» y orden en el borrador. Lo que viene de la plantilla y de bodega se ve en solo lectura |
+| 2026-10-10 | Versiones de la tienda: se guardan las últimas 5 publicaciones; restaurar una deja lo publicado como borrador |
+| 2026-10-10 | Se retira el Catálogo del panel: los combos pasan a Inventario (nombre, precio e incluidos) y sus fotos y visibilidad al modo edición; el vendedor ve Stock actual en solo lectura, sin costos |
+| 2026-10-10 | Rediseño aprobado del modo edición por tareas para que sea ordenado y fácil: Portada, Productos, Combos y Carrito; una sola zona de edición activa, banner en ficha completa junto a vista previa, productos y combos en el área principal, galerías con controles visibles y revisión de cambios antes de publicar. Reemplaza la estructura con árbol, tienda e inspector simultáneos |
+| 2026-10-10 | Modo edición más simple: estado pendiente en cada tarea, un solo menú de tamaño y tema, sin pie ni avisos repetidos, carrito guardado al borrador como lo demás y orden de productos sin páginas, por categoría |
+| 2026-10-10 | Órdenes de compra: cantidades en una columna propia después de Producto, con subtotal de unidades alineado; dejan de aparecer como dato secundario debajo del total USD |
+| 2026-10-10 | Corrección aprobada al agregar productos a órdenes: búsqueda con coincidencias, elección explícita de plantilla por ID, selección visible y creación con retorno inmediato al producto sin perder cantidad ni costo. Duplicados normalizados bloqueados en formulario y servidor; los modelos parecidos requieren elección del usuario |
+| 2026-10-10 | Selector de modelo compacto aprobado: reemplaza las tarjetas y la ficha de selección por un campo con autocompletado superpuesto desde 2 caracteres, hasta 4 coincidencias y creación al final. La selección queda en el campo con confirmación y «Cambiar», sin ocupar espacio adicional en el formulario |

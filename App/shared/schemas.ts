@@ -151,6 +151,8 @@ export const catalogProductSchema = z.object({
   // inventar una variante «Estándar».
   singleVariant: z.string().optional(),
   templateId: z.string().nullable(),
+  // Solo en la vista previa del modo edición: la tienda real nunca lo manda.
+  unpublished: z.boolean().optional(),
 });
 
 // Eje de variante ya resuelto (ej. { key: 'color', options: ['negro', ...] }).
@@ -498,6 +500,111 @@ export function categoryMode(mode: CategoryMode | undefined, ids: string[] | und
 }
 
 // ============================================================================
+// ── SCHEMAS DEL DOMINIO: MODO EDICIÓN (borrador compartido y bloqueo) ──
+// ============================================================================
+
+// Solo URLs ya subidas: una foto en cola (blob:) no sirve en otro navegador.
+const draftImagesSchema = z
+  .array(z.string().max(2048).regex(/^https?:\/\//, 'Hay una foto que no terminó de subir.'))
+  .max(8, 'Máximo 8 imágenes por producto.');
+
+// Lo que el borrador cambia de cada producto; lo que falta queda como está publicado.
+export const draftProductChangeSchema = z.object({
+  images: draftImagesSchema.optional(),
+  imagesByColor: z.record(z.string().max(200), draftImagesSchema).optional(),
+  published: z.boolean().optional(),
+});
+
+export const draftComboChangeSchema = z.object({
+  images: draftImagesSchema.optional(),
+  published: z.boolean().optional(),
+});
+
+export const storeDraftProductsSchema = z.object({
+  items: z.record(z.uuid(), draftProductChangeSchema).default({}),
+  combos: z.record(z.uuid(), draftComboChangeSchema).default({}),
+  /** Orden de los productos en la tienda; sin esto, el publicado. */
+  order: z.array(z.uuid()).max(5000).optional(),
+});
+
+export type DraftProductChange = z.infer<typeof draftProductChangeSchema>;
+export type DraftComboChange = z.infer<typeof draftComboChangeSchema>;
+export type StoreDraftProducts = z.infer<typeof storeDraftProductsSchema>;
+
+export const editorSessionSchema = z.object({ session: z.uuid() });
+
+/** `landing: null` = la portada no cambia respecto de la publicada. */
+export const storeDraftInputSchema = editorSessionSchema.extend({
+  landing: landingConfigSchema.nullable(),
+  products: storeDraftProductsSchema,
+});
+
+export const editorHeartbeatSchema = editorSessionSchema.extend({ active: z.boolean() });
+
+// Al cerrar la pestaña se libera con lo último que faltaba guardar.
+export const editorReleaseSchema = editorSessionSchema.extend({
+  draft: storeDraftInputSchema.omit({ session: true }).optional(),
+});
+
+export const storePublishInputSchema = editorSessionSchema.extend({
+  landing: landingConfigSchema,
+  products: storeDraftProductsSchema,
+});
+
+export type StoreDraftInput = z.infer<typeof storeDraftInputSchema>;
+export type StorePublishInput = z.infer<typeof storePublishInputSchema>;
+
+export interface StoreDraft {
+  landing: LandingConfig | null;
+  products: StoreDraftProducts;
+  changedAt: string | null;
+  changedBy: string | null;
+}
+
+export interface EditorLockHolder {
+  name: string;
+  since: string;
+}
+
+/** Respuesta al entrar al modo edición. */
+export interface EditorEntry {
+  draft: StoreDraft | null;
+  published: LandingConfig;
+}
+
+export const restoreVersionSchema = editorSessionSchema.extend({
+  /** El admin confirmó descartar el borrador sin publicar. */
+  discardDraft: z.boolean(),
+});
+
+/** Una de las últimas 5 publicaciones. */
+export interface StoreVersion {
+  id: string;
+  publishedAt: string;
+  publishedBy: string | null;
+  /** Qué cambió respecto de la anterior. */
+  summary: string[];
+  /** La que muestra la tienda ahora. */
+  current: boolean;
+}
+
+/** Producto tal como está publicado, para la sección Productos del modo edición. */
+export interface EditorProduct {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  templateId: string | null;
+  published: boolean;
+  images: string[];
+  imagesByColor: Record<string, string[]>;
+  /** Colores que ofrece; vacío si la plantilla no tiene eje de color. */
+  colors: string[];
+  /** La tarjeta de la tienda con lo publicado: precio, estado y fotos. */
+  card: CatalogProduct;
+}
+
+// ============================================================================
 // ── SCHEMAS DEL DOMINIO: COMBOS ──
 // ============================================================================
 
@@ -505,7 +612,7 @@ export function categoryMode(mode: CategoryMode | undefined, ids: string[] | und
 // un snapshot para mostrar el contenido sin re-pedir el catálogo. El precio del
 // combo es PLANO (lo fija el admin), NO se calcula de acá.
 export const comboItemSchema = z.object({
-  catalogItemId: z.string().uuid(),
+  catalogItemId: z.string().uuid('Elegí el producto.'),
   name: z.string().min(1).max(120),
   quantity: z.number().int().min(1).max(999),
 });
@@ -523,20 +630,20 @@ export const comboSchema = z.object({
 });
 
 // ── Combos (ADMIN) ──
-// Entrada del editor del panel (POST/PUT /api/admin/combos, requireAdmin). El
-// precio es el del PAQUETE; el servicio lo mapea a las columnas snake_case.
+// Entrada de la vista Combos de Inventario (POST/PUT /api/admin/combos). El
+// precio es el del PAQUETE. Las fotos y si se muestra van en el modo edición.
 export const adminComboInputSchema = z.object({
-  name: z.string().min(2, 'El nombre es obligatorio.').max(120),
-  price: z.number().min(0, 'El precio no puede ser negativo.').max(9_999_999),
-  images: z.array(z.string().max(2048)).max(8, 'Máximo 8 imágenes por combo.'),
-  items: z.array(comboItemSchema).max(30, 'Máximo 30 artículos por combo.'),
-  published: z.boolean(),
-  sortOrder: z.number().int().min(0).max(9999),
+  name: z.string().trim().min(2, 'Escribí el nombre del combo.').max(120),
+  price: z.number().positive('Escribí el precio del combo.').max(9_999_999),
+  items: z.array(comboItemSchema).min(1, 'Agregá al menos un producto.').max(30, 'Máximo 30 productos por combo.'),
 });
 export type AdminComboInput = z.infer<typeof adminComboInputSchema>;
 
 export const adminComboSchema = adminComboInputSchema.extend({
   id: z.uuid(),
+  images: z.array(z.string()),
+  published: z.boolean(),
+  sortOrder: z.number().int(),
   updatedAt: z.string(),
 });
 export type AdminCombo = z.infer<typeof adminComboSchema>;
@@ -548,13 +655,15 @@ export type AdminCombo = z.infer<typeof adminComboSchema>;
 // WhatsApp es CRM-B/C y depende de Meta — NO entra acá. Las tablas ya existen
 // (migración 0001): contacts, contact_activities, follow_ups.
 
-export const CONTACT_ORIGINS = ['fb_ads', 'organic', 'whatsapp_link', 'referral', 'other'] as const;
+// 'store' = pidió «Avisame cuando haya» en la tienda (migración 0028).
+export const CONTACT_ORIGINS = ['fb_ads', 'organic', 'whatsapp_link', 'referral', 'store', 'other'] as const;
 export type ContactOrigin = (typeof CONTACT_ORIGINS)[number];
 export const CONTACT_ORIGIN_LABELS: Record<ContactOrigin, string> = {
   fb_ads: 'Anuncio FB/IG',
   organic: 'Orgánico',
   whatsapp_link: 'Link WhatsApp',
   referral: 'Referido',
+  store: 'Tienda',
   other: 'Otro',
 };
 
@@ -623,6 +732,8 @@ export const followUpSchema = z.object({
   // Enriquecidos para la agenda (JOIN con el contacto).
   contactName: z.string().nullable().optional(),
   contactPhone: z.string().nullable().optional(),
+  // Aviso de la tienda: `arrived` cuando su variante ya tiene stock («Ya llegó, avisar»).
+  stockNotice: z.object({ label: z.string(), arrived: z.boolean() }).nullable().optional(),
 });
 export type FollowUp = z.infer<typeof followUpSchema>;
 
@@ -1038,6 +1149,9 @@ export const updatePurchaseInputSchema = z.object({
   // null = desvincular del catálogo.
   catalogItemId: z.uuid().nullable().optional(),
   variantKey: z.string().max(200).optional(),
+  // Vincular a una variante de plantilla: el servidor busca (o crea, sin
+  // publicar) su producto. `catalogItemId` elige cuál en una plantilla vieja compartida.
+  templateId: z.uuid().optional(),
 });
 export type UpdatePurchaseInput = z.infer<typeof updatePurchaseInputSchema>;
 
@@ -1171,6 +1285,16 @@ export const simulatePurchaseOrderReceiptInputSchema = receivePurchaseOrderInput
   .omit({ arrivalDate: true, lines: true })
   .extend({ lines: receiptLines(z.number().min(0).max(10_000_000).optional()) });
 export type SimulatePurchaseOrderReceiptInput = z.infer<typeof simulatePurchaseOrderReceiptInputSchema>;
+
+// ── Ofertas por color (migración 0027) ──
+// Una por producto y color ('' si el producto no tiene colores). Solo la ve la tienda.
+export const colorOfferInputSchema = z.object({
+  catalogItemId: z.uuid(),
+  color: z.string().max(200),
+  price: z.number().positive('Escribí el precio de oferta.').max(10_000_000),
+  endsAt: z.iso.datetime({ offset: true, error: 'Elegí cuándo vence la oferta.' }),
+});
+export type ColorOfferInput = z.infer<typeof colorOfferInputSchema>;
 
 // ============================================================================
 // ── SCHEMAS DEL DOMINIO: VENTAS (ADMIN/SELLER) ──
@@ -1416,6 +1540,25 @@ export const publicContactInputSchema = z.object({
   message: z.string().min(1, 'Escribí tu mensaje.').max(1000, 'Máximo 1000 caracteres.'),
 });
 export type PublicContactInput = z.infer<typeof publicContactInputSchema>;
+
+// WhatsApp de Nicaragua: 8 dígitos de celular (5, 7 u 8 al inicio), con o sin +505.
+// Se guarda sin el código de país, como lo escriben los pedidos web.
+export const nicaraguaWhatsappSchema = z
+  .string()
+  .trim()
+  .max(24, 'El teléfono es demasiado largo.')
+  .transform((v) => v.replace(/[\s().-]/g, '').replace(/^\+?505(?=\d{8}$)/, ''))
+  .pipe(z.string().regex(/^[578]\d{7}$/, 'Escribí un WhatsApp de Nicaragua: 8 dígitos que empiezan con 5, 7 u 8.'));
+
+// «Avisame cuando haya» (migración 0028): el producto y la variante los pone la ficha.
+export const stockNoticeInputSchema = z.object({
+  name: z.string().trim().min(2, 'Escribí tu nombre.').max(80),
+  phone: nicaraguaWhatsappSchema,
+  catalogItemId: z.uuid(),
+  variantName: z.string().max(200),
+});
+export type StockNoticeInput = z.input<typeof stockNoticeInputSchema>;
+export type StockNotice = z.output<typeof stockNoticeInputSchema>;
 
 // ============================================================================
 // ── GASTOS OPERATIVOS Y POZOS (Reportería y Presupuestos) ──

@@ -11,6 +11,7 @@ import {
   Controller,
   useFieldArray,
   useForm,
+  useWatch,
   type Control,
   type FieldError as RhfFieldError,
   type FieldErrors,
@@ -46,7 +47,12 @@ import { Switch } from "~/components/ui/switch";
 import { Textarea } from "~/components/ui/textarea";
 import { ToneDot } from "~/components/catalog/ToneDot";
 import { cn } from "~/lib/utils";
-import { useCreateTemplateMutation, useUpdateTemplateMutation } from "~/store/api/catalogAdminApi";
+import { templateNameKey } from "@shared/templateNames";
+import {
+  useCreateTemplateMutation,
+  useUpdateTemplateMutation,
+  useGetTemplatesQuery,
+} from "~/store/api/catalogAdminApi";
 import { TemplatePreview } from "./TemplatePreview";
 
 type TemplateFormValues = z.input<typeof templateInputSchema>;
@@ -60,18 +66,23 @@ const EMPTY: TemplateFormValues = {
   specs: [],
 };
 
-function toValues(
-  template: AdminTemplate | null,
-  initialName?: string
-): TemplateFormValues {
+function toValues(template: AdminTemplate | null, initialName?: string): TemplateFormValues {
   if (!template) return { ...EMPTY, name: initialName ?? "" };
   return {
     name: template.name,
     categoryId: template.categoryId ?? "",
-    description: template.description,
-    internalNote: template.internalNote,
-    axes: template.axes,
-    specs: template.specs,
+    description: template.description ?? "",
+    internalNote: template.internalNote ?? "",
+    // Copias con strings garantizados: el formulario y la vista previa hacen trim().
+    axes: (template.axes ?? []).map((axis) => ({
+      ...axis,
+      label: axis.label ?? "",
+      options: (axis.options ?? []).map((option) => String(option ?? "")),
+    })),
+    specs: (template.specs ?? []).map((spec) => ({
+      label: String(spec?.label ?? ""),
+      value: String(spec?.value ?? ""),
+    })),
   };
 }
 
@@ -93,6 +104,7 @@ export function TemplateFormDialog({
 }) {
   const [createTemplate] = useCreateTemplateMutation();
   const [updateTemplate] = useUpdateTemplateMutation();
+  const { data: templates = [] } = useGetTemplatesQuery(undefined, { skip: !open });
   const [serverError, setServerError] = useState<string | null>(null);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
 
@@ -101,6 +113,7 @@ export function TemplateFormDialog({
     register,
     handleSubmit,
     reset,
+    setError,
     formState: { errors, isDirty, isSubmitting },
   } = useForm<TemplateFormValues, unknown, TemplateInput>({
     resolver: zodResolver(templateInputSchema),
@@ -108,6 +121,17 @@ export function TemplateFormDialog({
   });
   const axes = useFieldArray({ control, name: "axes" });
   const specs = useFieldArray({ control, name: "specs" });
+  const name = useWatch({ control, name: "name" }) ?? "";
+  const nameKey = templateNameKey(name);
+  const duplicate =
+    template && templateNameKey(template.name) === nameKey
+      ? undefined
+      : templates.find(
+          (item) => item.id !== template?.id && nameKey && templateNameKey(item.name) === nameKey,
+        );
+  const duplicateMessage = duplicate
+    ? `Ya existe la plantilla «${duplicate.name}». Usá esa plantilla para este modelo.`
+    : undefined;
 
   useEffect(() => {
     if (!open) return;
@@ -124,6 +148,10 @@ export function TemplateFormDialog({
 
   async function onSubmit(values: TemplateInput) {
     setServerError(null);
+    if (duplicateMessage) {
+      setError("name", { type: "duplicate", message: duplicateMessage });
+      return;
+    }
     try {
       const saved = template
         ? await updateTemplate({ id: template.id, data: values }).unwrap()
@@ -132,9 +160,7 @@ export function TemplateFormDialog({
       onSaved?.(saved);
       onOpenChange(false);
     } catch (err) {
-      setServerError(
-        serverErrorMessage(err, "No se pudo guardar la plantilla.")
-      );
+      setServerError(serverErrorMessage(err, "No se pudo guardar la plantilla."));
     }
   }
 
@@ -169,7 +195,7 @@ export function TemplateFormDialog({
                     title="Información pública"
                     description="Nombre, categoría y descripción que ve el cliente."
                   >
-                    <Field data-invalid={!!errors.name}>
+                    <Field data-invalid={!!errors.name || !!duplicate}>
                       <FieldLabel htmlFor="template-name" required>
                         Nombre del modelo
                       </FieldLabel>
@@ -177,10 +203,23 @@ export function TemplateFormDialog({
                         id="template-name"
                         placeholder="Ej. KZ EDX Pro"
                         aria-required
-                        aria-invalid={!!errors.name}
+                        aria-invalid={!!errors.name || !!duplicate}
                         {...register("name")}
                       />
-                      <FieldError errors={[errors.name]} />
+                      <FieldError>{duplicateMessage || errors.name?.message}</FieldError>
+                      {duplicate && !template && onSaved && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          disabled={isSubmitting}
+                          onClick={() => {
+                            onSaved(duplicate);
+                            onOpenChange(false);
+                          }}
+                        >
+                          Usar plantilla existente
+                        </Button>
+                      )}
                     </Field>
                     <Field data-invalid={!!errors.categoryId}>
                       <FieldLabel htmlFor="template-category" required>
@@ -253,8 +292,8 @@ export function TemplateFormDialog({
                   >
                     {inUse && (
                       <p className="rounded-xl border border-warning/30 bg-warning/5 p-3 text-xs text-foreground">
-                        Ya hay compras de este modelo: cambiar el nombre de una opción la deja sin sus
-                        compras en la tienda. Para algo nuevo, agregá una opción.
+                        Ya hay compras de este modelo: cambiar el nombre de una opción la deja sin
+                        sus compras en la tienda. Para algo nuevo, agregá una opción.
                       </p>
                     )}
                     <FieldError errors={[errors.axes]} />
@@ -298,7 +337,11 @@ export function TemplateFormDialog({
                               <HugeIcon icon={Delete02Icon} size={16} strokeWidth={2} aria-hidden />
                             </Button>
                           </div>
-                          <AxisOptionsField control={control} axisIndex={axisIndex} errors={errors} />
+                          <AxisOptionsField
+                            control={control}
+                            axisIndex={axisIndex}
+                            errors={errors}
+                          />
                           <Field orientation="horizontal" className="justify-between">
                             <FieldLabel htmlFor={`axis-color-${axis.id}`} className="font-normal">
                               Es el color: cada opción lleva sus fotos
@@ -409,7 +452,7 @@ export function TemplateFormDialog({
               >
                 Cancelar
               </Button>
-              <Button type="submit" disabled={isSubmitting}>
+              <Button type="submit" disabled={isSubmitting || !!duplicate}>
                 {isSubmitting ? "Guardando…" : template ? "Guardar cambios" : "Crear plantilla"}
               </Button>
             </FormActions>
@@ -425,7 +468,6 @@ export function TemplateFormDialog({
   );
 }
 
-
 // `options` tiene strings: se controla el array entero porque useFieldArray necesita objetos.
 function AxisOptionsField({
   control,
@@ -439,9 +481,7 @@ function AxisOptionsField({
   const raw = errors.axes?.[axisIndex]?.options as unknown as
     | (RhfFieldError & ArrayLike<RhfFieldError | undefined>)
     | undefined;
-  const perOption: (RhfFieldError | undefined)[] = Array.isArray(raw)
-    ? raw
-    : [];
+  const perOption: (RhfFieldError | undefined)[] = Array.isArray(raw) ? raw : [];
   const rootError = raw?.message ? { message: raw.message } : undefined;
 
   return (
@@ -459,16 +499,14 @@ function AxisOptionsField({
                   key={optionIndex}
                   className={cn(
                     "flex h-11 items-center gap-1 rounded-xl border border-input bg-background pr-1",
-                    perOption[optionIndex] && "border-destructive"
+                    perOption[optionIndex] && "border-destructive",
                   )}
                 >
                   <input
                     value={option}
                     onChange={(e) =>
                       field.onChange(
-                        options.map((o, i) =>
-                          i === optionIndex ? e.target.value : o
-                        )
+                        options.map((o, i) => (i === optionIndex ? e.target.value : o)),
                       )
                     }
                     onBlur={field.onBlur}
@@ -483,18 +521,9 @@ function AxisOptionsField({
                     variant="ghost"
                     size="icon-sm"
                     aria-label={`Quitar opción ${option || optionIndex + 1}`}
-                    onClick={() =>
-                      field.onChange(
-                        options.filter((_, i) => i !== optionIndex)
-                      )
-                    }
+                    onClick={() => field.onChange(options.filter((_, i) => i !== optionIndex))}
                   >
-                    <HugeIcon
-                      icon={Cancel01Icon}
-                      size={16}
-                      strokeWidth={2}
-                      aria-hidden
-                    />
+                    <HugeIcon icon={Cancel01Icon} size={16} strokeWidth={2} aria-hidden />
                   </Button>
                 </div>
               ))}
@@ -504,12 +533,7 @@ function AxisOptionsField({
                 disabled={options.length >= 40}
                 onClick={() => field.onChange([...options, ""])}
               >
-                <HugeIcon
-                  icon={Add01Icon}
-                  size={16}
-                  strokeWidth={2}
-                  aria-hidden
-                />
+                <HugeIcon icon={Add01Icon} size={16} strokeWidth={2} aria-hidden />
                 Agregar valor
               </Button>
             </div>

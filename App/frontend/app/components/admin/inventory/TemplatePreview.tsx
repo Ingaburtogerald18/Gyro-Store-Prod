@@ -4,6 +4,9 @@ import type { z } from "zod";
 import { templateInputSchema, type Category } from "@shared/schemas";
 import { Chip } from "~/components/ui/chip";
 
+// Mientras el formulario se carga o se agrega una fila, algún campo llega vacío.
+const text = (value: unknown) => (typeof value === "string" ? value.trim() : "");
+
 export function TemplatePreview({
   control,
   categories,
@@ -16,9 +19,9 @@ export function TemplatePreview({
     name: ["name", "categoryId", "description", "axes", "specs"],
   });
   const category = categories.find((item) => item.id === categoryId);
-  const visibleAxes = (axes ?? []).filter((axis) => axis.label.trim());
+  const visibleAxes = (axes ?? []).filter((axis) => text(axis?.label));
   const visibleSpecs = (specs ?? []).filter(
-    (spec) => spec.label.trim() && spec.value.trim()
+    (spec) => text(spec?.label) && text(spec?.value)
   );
 
   return (
@@ -45,9 +48,9 @@ export function TemplatePreview({
             <p className="text-xs text-muted-foreground">Sin categoría</p>
           )}
           <h4 className="break-words text-lg font-semibold">
-            {name?.trim() || "Nombre del modelo"}
+            {text(name) || "Nombre del modelo"}
           </h4>
-          {description?.trim() ? (
+          {text(description) ? (
             <p className="whitespace-pre-line break-words text-sm text-muted-foreground">
               {description}
             </p>
@@ -65,8 +68,8 @@ export function TemplatePreview({
                 <div key={axis.key} className="space-y-1 break-words">
                   <dt className="font-semibold">{axis.label}</dt>
                   <dd className="text-muted-foreground">
-                    {axis.options
-                      .filter((option) => option.trim())
+                    {(axis.options ?? [])
+                      .filter((option) => text(option))
                       .join(" · ") || "Agregá las opciones"}
                   </dd>
                 </div>

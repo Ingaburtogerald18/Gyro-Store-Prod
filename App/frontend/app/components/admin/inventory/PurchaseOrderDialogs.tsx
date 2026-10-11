@@ -55,10 +55,14 @@ export const MISSING_LABELS: Record<PurchaseOrder["missing"][number], string> = 
 const focusFirstError = (form: HTMLFormElement | null) =>
   requestAnimationFrame(() => form?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus());
 
-const headerSchema = z.object({ header: z.custom<OrderHeaderState>() }).superRefine((values, ctx) => {
-  for (const [field, message] of Object.entries(validateOrderHeader(values.header, { requireSupplier: false })))
-    ctx.addIssue({ code: "custom", path: ["header", field], message });
-});
+const headerSchema = z
+  .object({ header: z.custom<OrderHeaderState>() })
+  .superRefine((values, ctx) => {
+    for (const [field, message] of Object.entries(
+      validateOrderHeader(values.header, { requireSupplier: false }),
+    ))
+      ctx.addIssue({ code: "custom", path: ["header", field], message });
+  });
 
 function taxHelpFor(order: PurchaseOrder): string | undefined {
   if (order.lineCount === 0) return undefined;
@@ -67,7 +71,13 @@ function taxHelpFor(order: PurchaseOrder): string | undefined {
   return "El mismo para todos los productos. Si lo cambiás, se recalcula el costo de lo que ya llegó.";
 }
 
-export function EditPurchaseOrderDialog({ order, onClose }: { order: PurchaseOrder | null; onClose: () => void }) {
+export function EditPurchaseOrderDialog({
+  order,
+  onClose,
+}: {
+  order: PurchaseOrder | null;
+  onClose: () => void;
+}) {
   const [updateOrder] = useUpdatePurchaseOrderMutation();
   const { data: suppliers = [] } = useGetSuppliersQuery(undefined, { skip: !order });
   const { data: ordersData } = useGetPurchaseOrdersQuery(undefined, { skip: !order });
@@ -82,7 +92,10 @@ export function EditPurchaseOrderDialog({ order, onClose }: { order: PurchaseOrd
     reset,
     getValues,
     formState: { errors, isDirty, isSubmitting },
-  } = useForm<{ header: OrderHeaderState }>({ resolver: zodResolver(headerSchema), defaultValues: { header: emptyOrderHeader() } });
+  } = useForm<{ header: OrderHeaderState }>({
+    resolver: zodResolver(headerSchema),
+    defaultValues: { header: emptyOrderHeader() },
+  });
 
   useEffect(() => {
     if (!order) return;
@@ -181,8 +194,11 @@ export function EditPurchaseOrderDialog({ order, onClose }: { order: PurchaseOrd
 }
 
 function orderTaxText(order: PurchaseOrder): string {
-  if (order.taxUnit == null) return order.lineCount ? "sin impuesto, porque sus productos tienen distintos" : "sin impuesto";
-  return order.taxUnit === 0 ? "sin impuesto" : `${formatUsd(order.taxUnit, 4)} de impuesto por unidad`;
+  if (order.taxUnit == null)
+    return order.lineCount ? "sin impuesto, porque sus productos tienen distintos" : "sin impuesto";
+  return order.taxUnit === 0
+    ? "sin impuesto"
+    : `${formatUsd(order.taxUnit, 4)} de impuesto por unidad`;
 }
 
 function linesSchema(templates: AdminTemplate[]) {
@@ -195,10 +211,21 @@ function linesSchema(templates: AdminTemplate[]) {
   });
 }
 
-export function AddOrderLinesDialog({ order, onClose }: { order: PurchaseOrder | null; onClose: () => void }) {
+export function AddOrderLinesDialog({
+  order,
+  onClose,
+}: {
+  order: PurchaseOrder | null;
+  onClose: () => void;
+}) {
   const [addLines] = useAddPurchaseOrderLinesMutation();
   const { data: purchases = [] } = useGetPurchasesQuery(undefined, { skip: !order });
-  const { data: templates = [] } = useGetTemplatesQuery(undefined, { skip: !order });
+  const {
+    data: templates = [],
+    isLoading: templatesLoading,
+    isError: templatesFailed,
+    refetch: refetchTemplates,
+  } = useGetTemplatesQuery(undefined, { skip: !order });
   const { data: categories = [] } = useGetCategoriesQuery(undefined, { skip: !order });
   const [serverError, setServerError] = useState<string | null>(null);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
@@ -211,7 +238,10 @@ export function AddOrderLinesDialog({ order, onClose }: { order: PurchaseOrder |
     reset,
     watch,
     formState: { errors, isDirty, isSubmitting },
-  } = useForm<{ lines: OrderLineState[] }>({ resolver, defaultValues: { lines: [emptyOrderLine()] } });
+  } = useForm<{ lines: OrderLineState[] }>({
+    resolver,
+    defaultValues: { lines: [emptyOrderLine()] },
+  });
 
   useEffect(() => {
     if (!order) return;
@@ -240,7 +270,9 @@ export function AddOrderLinesDialog({ order, onClose }: { order: PurchaseOrder |
     try {
       await addLines({ id: order.id, lines: orderLinesPayload(values.lines, templates) }).unwrap();
       toast.success(values.lines.length === 1 ? "Producto agregado" : "Productos agregados", {
-        description: `Orden ${order.orderNumber}: ${values.lines.length === 1 ? "1 producto" : `${values.lines.length} productos`} en tránsito.`,
+        description: `Orden ${order.orderNumber}: ${
+          values.lines.length === 1 ? "1 producto" : `${values.lines.length} productos`
+        } en tránsito.`,
       });
       onClose();
     } catch (err) {
@@ -280,6 +312,10 @@ export function AddOrderLinesDialog({ order, onClose }: { order: PurchaseOrder |
                     categories={categories}
                     taxUnit={taxUnit}
                     alreadyInOrder={order ? purchases.filter((p) => p.orderId === order.id) : []}
+                    loading={templatesLoading}
+                    failed={templatesFailed}
+                    onRetry={() => void refetchTemplates()}
+                    disabled={isSubmitting}
                   />
                 )}
               />
@@ -288,7 +324,7 @@ export function AddOrderLinesDialog({ order, onClose }: { order: PurchaseOrder |
               <Button type="button" variant="cancel" onClick={() => requestClose(false)}>
                 Cancelar
               </Button>
-              <Button type="submit" disabled={isSubmitting}>
+              <Button type="submit" disabled={isSubmitting || templatesLoading || templatesFailed}>
                 {isSubmitting ? "Guardando…" : "Agregar a la orden"}
               </Button>
             </FormActions>

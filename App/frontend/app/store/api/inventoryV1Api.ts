@@ -176,6 +176,25 @@ export interface InventoryRow {
   gananciaUnitCordobas?: number;
   catalogItemId?: string | null;
   variantKey?: string | null;
+  /** Producto y color del lote, para ponerle oferta; null si no está vinculado. */
+  offerTarget?: OfferTarget | null;
+  /** Oferta vigente de ese color. */
+  offer?: ColorOffer | null;
+  /** Link de fotos y videos del producto. */
+  spoLink?: string | null;
+}
+
+export interface OfferTarget {
+  catalogItemId: string;
+  color: string;
+  label: string;
+  normalPrice: number | null;
+}
+
+export interface ColorOffer {
+  id: string;
+  price: number;
+  endsAt: string;
 }
 
 export interface InventoryKpis {
@@ -240,9 +259,10 @@ export const inventoryApi = baseApi.injectEndpoints({
         body: { shippingUnit, exchangeRate },
       }),
     }),
-    updatePurchase: build.mutation<{ ok: boolean }, { id: string; body: Partial<Purchase> }>({
+    // Con `templateId` el servidor puede crear (sin publicar) el producto de la plantilla.
+    updatePurchase: build.mutation<{ ok: boolean }, { id: string; body: Partial<Purchase> & { templateId?: string } }>({
       query: ({ id, body }) => ({ url: `/inventory/purchases/${id}`, method: "PUT", body }),
-      invalidatesTags: ["Purchase", "Product", "Catalog"],
+      invalidatesTags: ["Purchase", "Product", "Catalog", "Templates"],
     }),
     revertPurchase: build.mutation<{ ok: boolean }, string>({
       query: (id) => ({ url: `/inventory/purchases/${id}/revert`, method: "PATCH" }),
@@ -260,6 +280,15 @@ export const inventoryApi = baseApi.injectEndpoints({
       query: ({ id, body }) => ({ url: `/inventory/purchases/${id}/adjust`, method: "POST", body }),
       invalidatesTags: ["Purchase", "Product", "Catalog"],
     }),
+    // Oferta por color (migración 0027): reemplaza la que hubiera.
+    setColorOffer: build.mutation<ColorOffer, { catalogItemId: string; color: string; price: number; endsAt: string }>({
+      query: (body) => ({ url: "/inventory/offers", method: "PUT", body }),
+      invalidatesTags: ["Product", "Catalog"],
+    }),
+    removeColorOffer: build.mutation<{ ok: boolean }, string>({
+      query: (id) => ({ url: `/inventory/offers/${id}`, method: "DELETE" }),
+      invalidatesTags: ["Product", "Catalog"],
+    }),
     getStockMovements: build.query<StockMovement[], string>({
       query: (purchaseId) => ({ url: "/inventory/movements", params: { purchaseId } }),
       providesTags: ["Purchase"],
@@ -275,7 +304,7 @@ export const inventoryApi = baseApi.injectEndpoints({
     // Registrar crea (sin publicar) los productos de plantillas nuevas en el catálogo.
     createPurchaseOrder: build.mutation<PurchaseOrder, NewPurchaseOrderPayload>({
       query: (body) => ({ url: "/inventory/orders", method: "POST", body }),
-      invalidatesTags: ["Purchase", "Templates", "AdminCatalog"],
+      invalidatesTags: ["Purchase", "Templates"],
     }),
     updatePurchaseOrder: build.mutation<PurchaseOrder, { id: string; body: PurchaseOrderHeaderPayload }>({
       query: ({ id, body }) => ({ url: `/inventory/orders/${id}`, method: "PUT", body }),
@@ -287,7 +316,7 @@ export const inventoryApi = baseApi.injectEndpoints({
     }),
     addPurchaseOrderLines: build.mutation<PurchaseOrder, { id: string; lines: PurchaseOrderLinePayload[]; taxUnit?: number }>({
       query: ({ id, lines, taxUnit }) => ({ url: `/inventory/orders/${id}/lines`, method: "POST", body: { lines, taxUnit } }),
-      invalidatesTags: ["Purchase", "Templates", "AdminCatalog"],
+      invalidatesTags: ["Purchase", "Templates"],
     }),
     simulateOrderReceipt: build.mutation<ReceiptPreview, { id: string; body: Omit<ReceiveOrderPayload, "arrivalDate"> }>({
       query: ({ id, body }) => ({ url: `/inventory/orders/${id}/simulate-receipt`, method: "POST", body }),
@@ -342,6 +371,8 @@ export const {
   useRevertPurchaseMutation,
   useDeletePurchaseMutation,
   useAdjustStockMutation,
+  useSetColorOfferMutation,
+  useRemoveColorOfferMutation,
   useGetStockMovementsQuery,
   useGetPurchaseOrdersQuery,
   useCreatePurchaseOrderMutation,

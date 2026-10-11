@@ -4,7 +4,7 @@
 // El <main> lo pone cada ruta porque los anchos varían.
 import type { ReactNode } from 'react';
 import { useSearchParams } from '@remix-run/react';
-import { LandingEditor } from '~/components/store/landing-editor';
+import { StoreEditorGate } from '~/components/store/store-editor-gate';
 import { LandingPreviewBridge } from '~/components/store/landing-preview';
 
 import { CartDrawer } from '~/components/cart/cart-drawer';
@@ -19,7 +19,7 @@ export function StorefrontShell({ children }: { children: ReactNode }) {
   const isAdmin = useAppSelector(selectIsAdmin);
   const [params] = useSearchParams();
   const preview = params.get('landing-preview') === '1';
-  if (editMode && isAdmin && !preview) return <LandingEditor />;
+  if (editMode && isAdmin && !preview) return <StoreEditorGate />;
 
   return (
     <div className={cn("flex min-h-dvh flex-col pb-[var(--consent-height,0px)] transition-all duration-300", editMode && "editing-mode")}>

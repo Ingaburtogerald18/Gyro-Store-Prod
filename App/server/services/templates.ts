@@ -5,6 +5,8 @@
 import { db } from '../supabase';
 import type { AdminTemplate, SpecRow, TemplateAxis, TemplateInput } from '../../shared/schemas';
 import { normalizeAxes, normalizeSpecs } from './catalogPresenter';
+import { templateNameKey } from '../../shared/templateNames';
+import { BadRequestError, ConflictError } from '../utils/httpError';
 
 const TEMPLATE_COLUMNS =
   'id, name, description, internal_note, category_id, axes, specs, updated_at, products:catalog_items(id, name, published)';
@@ -31,7 +33,11 @@ function toAdminTemplate(row: TemplateRow): AdminTemplate {
     axes: normalizeAxes(row.axes),
     specs: normalizeSpecs(row.specs),
     updatedAt: row.updated_at,
-    products: (row.products ?? []).map((p) => ({ id: p.id, name: p.name ?? row.name ?? 'Sin nombre', published: p.published })),
+    products: (row.products ?? []).map((p) => ({
+      id: p.id,
+      name: p.name ?? row.name ?? 'Sin nombre',
+      published: p.published,
+    })),
   };
 }
 
@@ -67,13 +73,19 @@ function toRow(input: TemplateInput) {
 }
 
 export async function listTemplates(): Promise<AdminTemplate[]> {
-  const { data, error } = await db
-    .from('templates')
-    .select(TEMPLATE_COLUMNS)
-    .order('name', { ascending: true });
-
-  if (error) throw error;
-  return ((data ?? []) as unknown as TemplateRow[]).map(toAdminTemplate);
+  const templates: AdminTemplate[] = [];
+  for (let offset = 0; ; offset += 1000) {
+    const { data, error } = await db
+      .from('templates')
+      .select(TEMPLATE_COLUMNS)
+      .order('name', { ascending: true })
+      .order('id', { ascending: true })
+      .range(offset, offset + 999);
+    if (error) throw error;
+    const rows = (data ?? []) as unknown as TemplateRow[];
+    templates.push(...rows.map(toAdminTemplate));
+    if (rows.length < 1000) return templates;
+  }
 }
 
 export async function getTemplate(id: string): Promise<AdminTemplate | null> {
@@ -87,18 +99,58 @@ export async function getTemplate(id: string): Promise<AdminTemplate | null> {
   return data ? toAdminTemplate(data as unknown as TemplateRow) : null;
 }
 
+async function assertUniqueName(name: string, excludedId?: string): Promise<void> {
+  const key = templateNameKey(name);
+  if (!key) throw new BadRequestError('Escribí el nombre del modelo.');
+  for (let offset = 0; ; offset += 1000) {
+    const { data, error } = await db
+      .from('templates')
+      .select('id, name')
+      .order('id')
+      .range(offset, offset + 999);
+    if (error) throw error;
+    if (
+      data?.some(
+        (template) => template.id !== excludedId && templateNameKey(template.name ?? '') === key,
+      )
+    ) {
+      throw new ConflictError(
+        'Ya existe una plantilla para este modelo. Seleccionala en la búsqueda.',
+      );
+    }
+    if (!data || data.length < 1000) return;
+  }
+}
+
+function templateWriteError(error: { code?: string } & object): never {
+  if (error.code === '23505')
+    throw new ConflictError(
+      'Ya existe una plantilla para este modelo. Seleccionala en la búsqueda.',
+    );
+  throw error;
+}
+
 export async function createTemplate(input: TemplateInput): Promise<AdminTemplate> {
+  await assertUniqueName(input.name);
   const { data, error } = await db
     .from('templates')
     .insert(toRow(input))
     .select(TEMPLATE_COLUMNS)
     .single();
 
-  if (error) throw error;
+  if (error) templateWriteError(error);
   return toAdminTemplate(data as unknown as TemplateRow);
 }
 
-export async function updateTemplate(id: string, input: TemplateInput): Promise<AdminTemplate | null> {
+export async function updateTemplate(
+  id: string,
+  input: TemplateInput,
+): Promise<AdminTemplate | null> {
+  // Las plantillas antiguas duplicadas se pueden editar sin cambiar su nombre.
+  const previous = await getTemplate(id);
+  if (!previous) return null;
+  if (templateNameKey(previous.name) !== templateNameKey(input.name))
+    await assertUniqueName(input.name, id);
   const { data, error } = await db
     .from('templates')
     .update(toRow(input))
@@ -106,7 +158,7 @@ export async function updateTemplate(id: string, input: TemplateInput): Promise<
     .select(TEMPLATE_COLUMNS)
     .maybeSingle();
 
-  if (error) throw error;
+  if (error) templateWriteError(error);
   return data ? toAdminTemplate(data as unknown as TemplateRow) : null;
 }
 

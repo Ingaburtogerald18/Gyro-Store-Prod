@@ -1,6 +1,7 @@
 import { Delete02Icon, Edit02Icon } from "@hugeicons/core-free-icons";
+import { useSearchParams } from "@remix-run/react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import type { AdminTemplate } from "@shared/schemas";
@@ -40,6 +41,23 @@ export function TemplatesView({
   const [deleteTemplate] = useDeleteTemplateMutation();
   const [editing, setEditing] = useState<AdminTemplate | null>(null);
   const [toDelete, setToDelete] = useState<AdminTemplate | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const linked = searchParams.get("plantilla");
+
+  // «Editar en Plantillas» desde el modo edición abre esa plantilla.
+  useEffect(() => {
+    if (!linked || templates.length === 0) return;
+    const template = templates.find((t) => t.id === linked);
+    if (template) setEditing(template);
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("plantilla");
+        return next;
+      },
+      { replace: true },
+    );
+  }, [linked, templates, setSearchParams]);
 
   const categoryName = useMemo(
     () => new Map(categories.map((c) => [c.id, c.name])),
@@ -61,7 +79,7 @@ export function TemplatesView({
               {row.original.name}
             </p>
             <p className="truncate text-xs text-muted-foreground">
-              {row.original.description.trim() || "Sin descripción"}
+              {row.original.description?.trim() || "Sin descripción"}
             </p>
           </div>
         ),

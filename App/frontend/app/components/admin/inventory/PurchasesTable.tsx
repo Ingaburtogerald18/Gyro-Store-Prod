@@ -317,6 +317,7 @@ export function PurchasesTable({
                     <colgroup>
                       <col className="w-[140px]" />
                       <col />
+                      <col className="w-28" />
                       <col className="w-[156px]" />
                       <col className="w-[132px]" />
                       <col className="w-[132px]" />
@@ -326,6 +327,7 @@ export function PurchasesTable({
                       <tr>
                         <TableHead scope="col">Código</TableHead>
                         <TableHead scope="col">Producto</TableHead>
+                        <TableHead scope="col" className="text-right">Cantidad</TableHead>
                         <TableHead scope="col" className="text-right">Costo unit. USD</TableHead>
                         <TableHead scope="col" className="text-right">Total USD</TableHead>
                         <TableHead scope="col">Estado</TableHead>
@@ -346,6 +348,14 @@ export function PurchasesTable({
                               </div>
                             </TableCell>
                             <TableCell className="text-right">
+                              <div className="flex flex-col items-end">
+                                <span className="font-medium text-foreground">{p.quantity.toLocaleString('es-NI')}</span>
+                                {p.quantityOrdered != null && p.quantityOrdered !== p.quantity && (
+                                  <span className="text-xs text-warning">de {p.quantityOrdered.toLocaleString('es-NI')} pedidas</span>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-right">
                               <div className="flex flex-col items-end" title={`Base ${formatUsd(p.costUnit, 4)} + impuesto ${formatUsd(p.taxUnit, 4)}`}>
                                 <span className="font-medium text-foreground">{formatUsd(p.priceUnit)}</span>
                                 <span className="text-xs text-muted-foreground">
@@ -354,15 +364,7 @@ export function PurchasesTable({
                               </div>
                             </TableCell>
                             <TableCell className="text-right">
-                              <div className="flex flex-col items-end">
-                                <span className="font-heading font-extrabold text-foreground">{formatUsd(p.total)}</span>
-                                <span className="text-xs text-muted-foreground">
-                                  {p.quantity.toLocaleString('es-NI')} {p.quantity === 1 ? 'unidad' : 'unidades'}
-                                </span>
-                                {p.quantityOrdered != null && p.quantityOrdered !== p.quantity && (
-                                  <span className="text-xs text-warning">de {p.quantityOrdered} pedidas</span>
-                                )}
-                              </div>
+                              <span className="font-heading font-extrabold text-foreground">{formatUsd(p.total)}</span>
                             </TableCell>
                             <TableCell>
                               <StatusPill tone={tone} />
@@ -395,8 +397,9 @@ export function PurchasesTable({
                     <TableFooter className="static">
                       <tr>
                         <th scope="row" colSpan={2} className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">
-                          Subtotal mostrado · {lot.items.length} productos · {lot.items.reduce((sum, item) => sum + (item.quantity ?? 0), 0).toLocaleString('es-NI')} unidades
+                          Subtotal mostrado · {lot.items.length} productos
                         </th>
+                        <td className="px-4 py-3 text-right font-semibold text-foreground">{lot.items.reduce((sum, item) => sum + (item.quantity ?? 0), 0).toLocaleString('es-NI')}</td>
                         <td />
                         <td className="px-4 py-3 text-right font-heading font-extrabold text-foreground">{formatUsd(lot.items.reduce((sum, item) => sum + (item.total ?? 0), 0))}</td>
                         <td colSpan={2} />
