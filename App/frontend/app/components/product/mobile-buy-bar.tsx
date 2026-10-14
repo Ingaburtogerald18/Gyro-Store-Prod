@@ -78,26 +78,28 @@ export function MobileBuyBar({
             Consultar
           </Button>
         ) : (
+          // Igual que la ficha: WhatsApp principal y el carrito como secundaria.
           <>
             <Button
-              variant="whatsappOutline"
+              variant="outline"
               size="icon"
-              onClick={onWhatsApp}
-              aria-label={`Consultar por ${name} por WhatsApp`}
+              onClick={onAdd}
+              aria-label={addLabel}
               // 48px: objetivo táctil cómodo al lado del CTA.
               className="size-12 shrink-0"
               tabIndex={hidden ? -1 : undefined}
             >
-              <WhatsappIcon className="size-[18px]" />
+              <HugeIcon icon={ShoppingCart02Icon} size={18} strokeWidth={2} aria-hidden />
             </Button>
 
             <Button
-              onClick={onAdd}
-              className="h-12 shrink-0 px-5 text-base"
+              variant="whatsapp"
+              onClick={onWhatsApp}
+              className="h-12 shrink-0 px-4 text-base"
               tabIndex={hidden ? -1 : undefined}
             >
-              <HugeIcon icon={ShoppingCart02Icon} size={18} strokeWidth={2} aria-hidden />
-              {addLabel}
+              <WhatsappIcon className="size-[18px]" />
+              Consultar
             </Button>
           </>
         )}

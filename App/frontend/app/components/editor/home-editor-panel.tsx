@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { ArrowLeft01Icon, ArrowRight01Icon, Image01Icon } from '@hugeicons/core-free-icons';
-import type { LandingConfig, HeroSlide } from '@shared/schemas';
+import { presentationSlideId, type LandingConfig, type HeroSlide } from '@shared/schemas';
 import { Button } from '~/components/ui/button';
 import { Chip } from '~/components/ui/chip';
 import { HugeIcon } from '~/components/ui/icon';
@@ -12,7 +12,7 @@ export type HomeSection = 'banners' | 'navigation' | 'products';
 const TITLES: Record<HomeSection, string> = {
   banners: 'Editar banner',
   navigation: 'Menú de categorías',
-  products: 'Secciones del inicio',
+  products: 'Productos del inicio',
 };
 
 export function HomeEditorPanel({
@@ -49,6 +49,7 @@ export function HomeEditorPanel({
   children: ReactNode;
 }) {
   const index = draft?.heroSlides.findIndex((item) => item.id === slide?.id) ?? -1;
+  const presentationId = draft ? presentationSlideId(draft.heroSlides) : undefined;
   return (
     <aside
       aria-label="Editar la portada"
@@ -81,11 +82,15 @@ export function HomeEditorPanel({
           <>
             <section className="space-y-3" aria-label="Banners de la portada">
               <div className="flex items-center justify-between gap-3">
-                <h3 className="font-semibold">Banners</h3>
+                <h3 className="font-semibold">Presentación y novedades</h3>
                 <span className="text-xs text-muted-foreground">
                   {draft?.heroSlides.length ?? 0} bloques
                 </span>
               </div>
+              <p className="text-xs text-muted-foreground">
+                La presentación va fija al principio y es el título de la portada. Las novedades se muestran todas
+                juntas más abajo, sin rotar.
+              </p>
               <ul className="space-y-3">
                 {draft?.heroSlides.map((item, position) => (
                   <li key={item.id}>
@@ -103,9 +108,11 @@ export function HomeEditorPanel({
                         )}
                       </span>
                       <span className="min-w-0 space-y-1">
+                        <span className="block text-xs text-muted-foreground">
+                          {item.id === presentationId ? 'Presentación' : 'Novedad'}
+                        </span>
                         <span className="block font-semibold">
-                          {item.title ||
-                            (item.locked ? 'Banner principal' : `Banner ${position + 1}`)}
+                          {item.title || (item.id === presentationId ? 'Presentación sin título' : `Novedad ${position}`)}
                         </span>
                         <Chip
                           variant="status"
@@ -134,7 +141,7 @@ export function HomeEditorPanel({
                 disabled={disabled || !canAdd}
                 onClick={onAdd}
               >
-                Agregar banner
+                Agregar novedad
               </Button>
             </section>
             <section className="space-y-3 border-t pt-5" aria-label="Organización de categorías">
@@ -148,8 +155,8 @@ export function HomeEditorPanel({
                   },
                   {
                     id: 'products',
-                    title: 'Secciones del inicio',
-                    description: 'Qué grupos de productos aparecen y en qué orden.',
+                    title: 'Productos del inicio',
+                    description: 'Destacados y filas por categoría.',
                   },
                 ] as const
               ).map((item) => (
@@ -183,11 +190,11 @@ export function HomeEditorPanel({
                 errors={errors?.slides[slide.id]}
               />
               <section className="space-y-3 border-t pt-5" aria-label="Orden del banner">
-                <h3 className="font-semibold">Posición del banner</h3>
+                <h3 className="font-semibold">Posición</h3>
                 <p className="text-xs text-muted-foreground">
                   {slide.locked
-                    ? 'El banner principal conserva su posición.'
-                    : `Posición ${index + 1} de ${draft?.heroSlides.length ?? 0}.`}
+                    ? 'La presentación va siempre primero, fija.'
+                    : `Novedad ${index} de ${(draft?.heroSlides.length ?? 1) - 1}.`}
                 </p>
                 {!slide.locked && (
                   <>

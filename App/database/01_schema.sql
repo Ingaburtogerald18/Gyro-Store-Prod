@@ -627,6 +627,9 @@ create index spo_outbox_pending_idx on spo_outbox (created_at) where status = 'p
 
 -- Pedido del checkout público. Se cierra por WhatsApp, pero el panel guarda el
 -- destino. `sale_id`: la venta en que se convirtió (evita convertirlo dos veces).
+-- Entrega: 'managua', 'cargo_trans' o 'retiro'; 'envio' es de los pedidos anteriores a la 0032.
+-- Pago del producto, pago del transporte y recepción son datos separados que registra el panel:
+-- ninguno se deduce de otro ni del estado.
 create table public_orders (
   id               uuid primary key default gen_random_uuid(),
   contact_id       uuid references contacts(id) on delete set null,
@@ -634,13 +637,19 @@ create table public_orders (
   customer_name    text,
   total            numeric(12,2),
   status           text not null default 'new',
-  delivery_method  text check (delivery_method in ('retiro', 'envio')),
+  delivery_method  text constraint public_orders_delivery_method_check
+                   check (delivery_method in ('retiro', 'envio', 'managua', 'cargo_trans')),
   address          text,
   location_url     text,
   note             text,
   discount_code    text,
   code_discount    numeric(12,2) default 0,
   sale_id          uuid references orders(id) on delete set null,
+  shipping_quote     numeric(12,2) check (shipping_quote is null or shipping_quote >= 0),
+  product_paid_date  date,
+  shipping_paid_date date,
+  carrier_reference  text,
+  received_date      date,
   created_at       timestamptz not null default now()
 );
 
@@ -887,7 +896,7 @@ create table analytics_events (
   payload     jsonb default '{}',
   created_at  timestamptz not null default now(),
   constraint analytics_events_type_check
-    check (type in ('page_view', 'product_view', 'search', 'checkout_start', 'order_created'))
+    check (type in ('page_view', 'product_view', 'search', 'checkout_start', 'order_created', 'add_to_cart', 'whatsapp_open'))
 );
 
 create index analytics_events_created_at_idx on analytics_events (created_at desc);

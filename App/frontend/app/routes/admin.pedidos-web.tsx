@@ -16,7 +16,9 @@ import { selectIsAdmin } from '~/state/slices/auth-slice';
 import { Button } from '~/components/ui/button';
 import { Spinner } from '~/components/ui/spinner';
 import { toast } from 'sonner';
-import { PUBLIC_ORDER_STATUSES, type PublicOrderStatus } from '@shared/schemas';
+import { DELIVERY_LABELS, PUBLIC_ORDER_STATUSES, type PublicOrderStatus } from '@shared/schemas';
+import { OrderOperationForm } from '~/components/admin/orders/order-operation-form';
+import { Chip } from '~/components/ui/chip';
 
 import { pageTitle } from '~/lib/brand';
 import { PageHeader } from '~/components/admin/page-header';
@@ -175,8 +177,12 @@ export default function AdminPedidosWeb() {
                           </div>
                           <p className="mt-0.5 truncate text-xs text-muted-foreground">
                             {formatLongDate(o.createdAt)} · {units} {units === 1 ? 'producto' : 'productos'} ·{' '}
-                            {o.deliveryMethod === 'envio' ? 'Envío' : 'Retiro en tienda'}
+                            {o.deliveryMethod ? DELIVERY_LABELS[o.deliveryMethod] : 'Sin entrega'}
                           </p>
+                          {/* La garantía corre desde la recepción: un pedido entregado sin esa fecha queda a la vista. */}
+                          {o.status === 'delivered' && !o.operation.receivedDate && (
+                            <Chip variant="status" tone="warning" className="mt-1">Falta la fecha de recepción</Chip>
+                          )}
                         </div>
                       </button>
 
@@ -305,13 +311,13 @@ function OrderDetail({ order, onCopyTracking }: { order: AdminPublicOrder; onCop
       <div className="space-y-3 text-sm">
         <div className="flex items-start gap-2 text-foreground">
           <HugeIcon
-            icon={order.deliveryMethod === 'envio' ? TruckIcon : Store01Icon}
+            icon={order.deliveryMethod === 'retiro' ? Store01Icon : TruckIcon}
             size={16}
             className="mt-0.5 shrink-0 text-muted-foreground"
             aria-hidden
           />
           <div>
-            <p>{order.deliveryMethod === 'envio' ? 'Envío a domicilio' : 'Retiro en tienda'}</p>
+            <p>{order.deliveryMethod ? DELIVERY_LABELS[order.deliveryMethod] : 'Sin entrega'}</p>
             {order.address && <p className="text-muted-foreground">{order.address}</p>}
             {order.locationUrl && (
               <a
@@ -350,6 +356,10 @@ function OrderDetail({ order, onCopyTracking }: { order: AdminPublicOrder; onCop
           </button>
           <ConvertToSale order={order} />
         </div>
+      </div>
+
+      <div className="md:col-span-2">
+        <OrderOperationForm order={order} />
       </div>
     </div>
   );

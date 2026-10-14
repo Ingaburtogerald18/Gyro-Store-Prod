@@ -1,5 +1,5 @@
 // Sesión (quién soy) y config pública del negocio: casi todas las pantallas los piden al montar.
-import type { StoreBankAccount, Category } from '@shared/schemas';
+import type { BusinessHoursRow, Category, PublicStorePolicies, StoreBankAccount } from '@shared/schemas';
 import { baseApi } from './base-api';
 import { sessionResolved, signedOut } from '../slices/auth-slice';
 
@@ -34,6 +34,9 @@ export interface StoreConfig {
     tiktok?: string;
   };
   bankAccounts?: StoreBankAccount[];
+  businessHours?: BusinessHoursRow[];
+  // Configuración → Atención, sin borradores (ver toPublicPolicies).
+  policies?: PublicStorePolicies;
   categories: Category[];
   images?: {
     logoStatic?: string;

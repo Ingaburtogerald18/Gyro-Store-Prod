@@ -32,6 +32,9 @@ export function summarizeOverview(events: RawEvent[]): AnalyticsOverview {
   const productViews = countType('product_view');
   const checkoutStarts = countType('checkout_start');
   const orders = countType('order_created');
+  const addToCart = countType('add_to_cart');
+  // Aperturas, no mensajes: WhatsApp no avisa si se envió. Por eso no entra al embudo de pedidos.
+  const whatsappOpens = countType('whatsapp_open');
 
   const visitors = byType.get('page_view')?.size ?? 0;
 
@@ -40,6 +43,8 @@ export function summarizeOverview(events: RawEvent[]): AnalyticsOverview {
     pageViews,
     searches,
     productViews,
+    addToCart,
+    whatsappOpens,
     checkoutStarts,
     orders,
     viewToOrderRate: productViews > 0 ? orders / productViews : 0,
@@ -47,6 +52,7 @@ export function summarizeOverview(events: RawEvent[]): AnalyticsOverview {
       { step: 'Visitas', sessions: byType.get('page_view')?.size ?? 0 },
       { step: 'Búsquedas', sessions: byType.get('search')?.size ?? 0 },
       { step: 'Vistas de producto', sessions: byType.get('product_view')?.size ?? 0 },
+      { step: 'Agregar al carrito', sessions: byType.get('add_to_cart')?.size ?? 0 },
       { step: 'Checkout', sessions: byType.get('checkout_start')?.size ?? 0 },
       { step: 'Pedidos', sessions: byType.get('order_created')?.size ?? 0 },
     ],

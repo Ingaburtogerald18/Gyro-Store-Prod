@@ -1,19 +1,12 @@
 // El mismo resultado alimenta el conteo, la grilla y los chips: cuando filtraban por separado, el conteo mentía.
+// Se lee de la URL y no de Redux: así el HTML del servidor ya sale filtrado y una ruta nueva no pinta
+// los filtros de la anterior. Redux sigue alimentando los campos mientras se escribe.
 import { useMemo } from 'react';
+import { useLocation } from '@remix-run/react';
 import { normalizeSearch } from '~/lib/search';
-import { findCategory, priceRangeError } from '~/lib/catalog-query';
+import { findCategory, inCategory, parseCatalogLocation, priceRangeError, type CatalogFilters } from '~/lib/catalog-query';
 
 import type { CatalogProduct, Category } from '@shared/schemas';
-import { useAppSelector } from '~/state/hooks';
-import {
-  selectActiveCategory,
-  selectOnlyInStock,
-  selectOnlyOnSale,
-  selectPriceMax,
-  selectPriceMin,
-  selectSearch,
-  selectSort,
-} from '~/state/slices/ui-slice';
 
 /**
  * En oferta: alguna variante COMPRABLE tiene promoción vigente, o el producto
@@ -32,14 +25,15 @@ export interface CatalogFilterResult {
   unknownCategory: boolean;
 }
 
-export function useCatalogFilter(products: CatalogProduct[], categories: Category[] = []): CatalogFilterResult {
-  const search = useAppSelector(selectSearch);
-  const category = useAppSelector(selectActiveCategory);
-  const priceMin = useAppSelector(selectPriceMin);
-  const priceMax = useAppSelector(selectPriceMax);
-  const sort = useAppSelector(selectSort);
-  const onlyOnSale = useAppSelector(selectOnlyOnSale);
-  const onlyInStock = useAppSelector(selectOnlyInStock);
+const NO_CATEGORIES: Category[] = [];
+
+export function useCatalogFilters(categories: Category[] = NO_CATEGORIES): CatalogFilters {
+  const { pathname, search } = useLocation();
+  return useMemo(() => parseCatalogLocation(pathname, new URLSearchParams(search), categories), [pathname, search, categories]);
+}
+
+export function useCatalogFilter(products: CatalogProduct[], categories: Category[] = NO_CATEGORIES): CatalogFilterResult {
+  const { search, category, priceMin, priceMax, sort, onlyOnSale, onlyInStock } = useCatalogFilters(categories);
 
   const query = search.trim();
 
@@ -66,8 +60,7 @@ export function useCatalogFilter(products: CatalogProduct[], categories: Categor
       }
       if (category) {
         // Una categoría que ya no existe no coincide con nada (se avisa aparte).
-        if (!selectedCategory) return false;
-        if (p.categoryId !== selectedCategory.id && p.category !== selectedCategory.name) return false;
+        if (!selectedCategory || !inCategory(p, selectedCategory)) return false;
       }
       // El precio del filtro es el mismo que se muestra (el menor comprable).
       if (rangeOk && priceMin != null && p.price < priceMin) return false;

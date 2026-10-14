@@ -6,9 +6,8 @@ import { Link } from '@remix-run/react';
 import { toast } from 'sonner';
 
 import { Button } from '~/components/ui/button';
-import { categoryHref } from '~/components/storefront/category-nav';
+import { categoryHref, findCategory } from '~/lib/catalog-query';
 import { useStoreConfig } from '~/hooks/use-store-config';
-import { findCategory } from '~/lib/catalog-query';
 
 import {
   Breadcrumb,

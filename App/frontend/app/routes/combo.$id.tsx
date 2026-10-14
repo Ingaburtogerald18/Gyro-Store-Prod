@@ -17,6 +17,8 @@ import type { StoreConfig } from '~/state/api/session-api';
 import { useAppDispatch } from '~/state/hooks';
 import { addItem, openCart } from '~/state/slices/cart-slice';
 import { buildWhatsappUrl, comboName, formatCordobas, getComboUrl } from "~/lib/formatters";
+import { CATALOG_PATH } from '~/lib/catalog-query';
+import { trackAddToCart, trackWhatsappOpen } from '~/lib/analytics.client';
 
 export const headers: HeadersFunction = () => ({
   'Cache-Control': 'public, max-age=60, stale-while-revalidate=300',
@@ -109,19 +111,21 @@ export default function ComboDetail() {
     );
     dispatch(openCart());
     toast.success('Combo agregado al carrito');
+    trackAddToCart(combo.id, 1, 'combo');
   }
 
   function handleWhatsApp() {
     const url = typeof window !== 'undefined' ? window.location.href : '';
     const message = `Hola, quiero el combo: ${name} — ${formatCordobas(price, config?.currency)}. ${url}`;
     window.open(buildWhatsappUrl(config?.whatsapp ?? '', message), '_blank', 'noopener,noreferrer');
+    trackWhatsappOpen('consult');
   }
 
   return (
     <StorefrontShell>
       <main className="mx-auto w-full max-w-7xl px-4 py-6">
         <Button variant="ghost" size="sm" asChild className="mb-4 -ml-2 text-muted-foreground">
-          <Link to="/#catalogo" prefetch="intent">
+          <Link to={CATALOG_PATH} prefetch="intent">
             <HugeIcon icon={ArrowLeft01Icon} size={16} strokeWidth={2} aria-hidden /> Volver al catálogo
           </Link>
         </Button>

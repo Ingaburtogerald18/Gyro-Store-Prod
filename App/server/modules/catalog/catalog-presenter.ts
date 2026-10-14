@@ -60,6 +60,12 @@ export function includedOptions(item: PublicCatalogItem, axis: Axis): string[] {
   return axis.options;
 }
 
+/** La fecha más reciente entre el producto y su plantilla; sin fechas, nada. */
+function latestUpdate(...dates: (string | null | undefined)[]): { updatedAt?: string } {
+  const latest = dates.filter((d): d is string => Boolean(d)).sort().at(-1);
+  return latest ? { updatedAt: latest } : {};
+}
+
 // Pills de la tarjeta: opciones NO-color que ofrece el producto (los colores ya
 // se ven en las fotos, repetirlos como texto es ruido).
 function buildAxesSummary(item: PublicCatalogItem, axes: Axis[]): string[] {
@@ -379,6 +385,8 @@ export function toCatalogProduct(
     specs: normalizeSpecs(item.template?.specs),
     axesSummary: buildAxesSummary(item, axes),
     variantCount: countCombos(item, axes),
+    colorCount: axes.filter((axis) => axis.isColor).reduce((n, axis) => n + includedOptions(item, axis).length, 0),
+    ...latestUpdate(item.updated_at, item.template?.updated_at),
     ...(variants.length === 1 && variants[0] ? { singleVariant: variants[0].variantName } : {}),
     templateId: item.template_id,
   };

@@ -28,6 +28,8 @@ interface BuilderState {
 }
 
 const emptyProducts = (): StoreDraftProducts => ({ items: {}, combos: {} });
+// Referencia estable: un `[]` nuevo en cada lectura re-renderiza a quien lo selecciona.
+const EMPTY_IDS: string[] = [];
 
 const initialState: BuilderState = {
   draftLandingConfig: null,
@@ -92,6 +94,12 @@ const builderSlice = createSlice({
         remember(state);
         state.draftLandingConfig.homeCategories = action.payload;
       }
+    },
+    // Destacados de la portada, en orden.
+    updateFeaturedProducts(state, action: PayloadAction<string[]>) {
+      if (!state.draftLandingConfig) return;
+      remember(state);
+      state.draftLandingConfig.featuredProductIds = action.payload;
     },
     // Cambios de productos que trae el borrador del servidor; no entran a la historia.
     initDraftProducts(state, action: PayloadAction<StoreDraftProducts>) {
@@ -182,6 +190,7 @@ const builderSlice = createSlice({
     selectCanRedoBuilder: (state) => state.future.length > 0,
     selectDraftHeaderCategories: (state) => state.draftLandingConfig?.headerCategories || [],
     selectDraftHomeCategories: (state) => state.draftLandingConfig?.homeCategories || [],
+    selectDraftFeaturedProducts: (state) => state.draftLandingConfig?.featuredProductIds || EMPTY_IDS,
   },
 });
 
@@ -190,6 +199,7 @@ export const {
   initBuilderSession,
   updateHeaderCategories,
   updateHomeCategories,
+  updateFeaturedProducts,
   setCategoryMode,
   clearBuilderSession,
   updateHeroSlides,
@@ -214,6 +224,7 @@ export const {
   selectCanRedoBuilder,
   selectDraftHeaderCategories,
   selectDraftHomeCategories,
+  selectDraftFeaturedProducts,
 } = builderSlice.selectors;
 
 export const builderReducer = builderSlice.reducer;

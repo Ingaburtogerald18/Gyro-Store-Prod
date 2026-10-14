@@ -49,12 +49,13 @@ export function StoreChangeReview({
     },
     {
       id: 'products',
-      title: 'Secciones del inicio',
+      title: 'Productos del inicio',
+      // `?? []`: sin destacados elegidos y con la lista vacía es lo mismo.
       changed: !same(
-        [draft?.homeCategories, draft?.homeCategoriesMode],
-        [published?.homeCategories, published?.homeCategoriesMode],
+        [draft?.homeCategories, draft?.homeCategoriesMode, draft?.featuredProductIds ?? []],
+        [published?.homeCategories, published?.homeCategoriesMode, published?.featuredProductIds ?? []],
       ),
-      description: 'Se actualizarán las secciones de categorías y su orden.',
+      description: 'Se actualizarán los destacados, las filas por categoría y su orden.',
     },
     {
       id: 'cart',

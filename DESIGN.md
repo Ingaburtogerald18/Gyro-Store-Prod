@@ -267,10 +267,6 @@ Lo que este documento pide y el código todavía no tiene. Cada línea se borra 
 - Atajo de teclado de la acción principal en Pedidos web, Usuarios e Inicio.
 - Reportería: el selector de periodo (`PeriodPicker`) usa pestañas animadas; pasarlo a botones con borde.
 - Contadores animados (`CountUp`) en las métricas del panel: el panel solo mueve el botón principal, bordes y flechas.
-- Portada: Presentación fija, Destacados y Novedades sin rotar. Hoy los banners se pasan con flechas y no hay Destacados.
-- Catálogo en `/catalogo` y categorías en `/categoria/<slug>`. Hoy todo vive en `/` con filtros en la URL.
-- Ficha y barra del celular con WhatsApp como acción principal; tarjeta sin botones (hoy «Agregar» amarillo y WhatsApp).
-- Footer por grupos, «Acceso del personal» fuera del menú del header, horarios en Negocio y pestaña Atención en Configuración.
 
 ## Registro de decisiones
 

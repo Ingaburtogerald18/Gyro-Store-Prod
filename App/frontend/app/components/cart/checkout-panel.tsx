@@ -7,6 +7,7 @@ import {
   CheckmarkCircle02Icon,
   Location01Icon,
   PackageIcon,
+  RoadLocation01Icon,
   Store01Icon,
   TruckIcon,
 } from '@hugeicons/core-free-icons';
@@ -30,8 +31,7 @@ import { WhatsappIcon } from '~/components/ui/whatsapp-icon';
 import { useStoreConfig } from '~/hooks/use-store-config';
 import { useCartContent } from '~/hooks/use-cart-content';
 import { saveOrder } from '~/lib/order-history';
-import { getAnalyticsSessionId, trackCheckoutStart } from '~/lib/analytics.client';
-import { STORE_POLICIES } from '~/lib/store-policies';
+import { getAnalyticsSessionId, trackCheckoutStart, trackWhatsappOpen } from '~/lib/analytics.client';
 import { lineCeiling, variantText } from '~/lib/cart';
 import {
   useCreatePublicOrderMutation,
@@ -116,6 +116,7 @@ export function CheckoutPanel({
   const items = useAppSelector(selectCartItems);
   const subtotal = useAppSelector(selectCartSubtotal);
   const config = useStoreConfig();
+  const policies = config?.policies;
   const cartContent = useCartContent();
   const currency = config?.currency;
   const [createOrder, { isLoading }] = useCreatePublicOrderMutation();
@@ -222,7 +223,10 @@ export function CheckoutPanel({
     dispatch(checkoutCleared());
     onPlaced(order);
     if (!unchanged) toast.info('Recuperamos el pedido anterior. Los cambios del carrito siguen guardados.');
-    if (openWhatsapp) window.open(order.whatsappUrl, '_blank', 'noopener,noreferrer');
+    if (openWhatsapp) {
+      window.open(order.whatsappUrl, '_blank', 'noopener,noreferrer');
+      trackWhatsappOpen('order');
+    }
   }
 
   // Una recarga consulta el resultado existente sin crear pedidos automáticamente.
@@ -362,11 +366,12 @@ export function CheckoutPanel({
 
           <fieldset className="space-y-2">
             <legend className="mb-2 text-sm font-medium text-foreground">¿Cómo lo recibís?</legend>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid gap-2 sm:grid-cols-3">
               {(
                 [
-                  { value: 'retiro', label: 'Retiro en tienda', icon: Store01Icon },
-                  { value: 'envio', label: 'Envío', icon: TruckIcon },
+                  { value: 'managua', label: 'Delivery en Managua', icon: TruckIcon },
+                  { value: 'cargo_trans', label: 'Cargo Trans (resto del país)', icon: RoadLocation01Icon },
+                  { value: 'retiro', label: 'Retiro', icon: Store01Icon },
                 ] as const
               ).map(({ value, label, icon }) => (
                 <label
@@ -384,12 +389,23 @@ export function CheckoutPanel({
                     className="sr-only"
                     {...register('deliveryMethod')}
                   />
-                  <HugeIcon icon={icon} size={18} strokeWidth={2} aria-hidden />
+                  <HugeIcon icon={icon} size={18} strokeWidth={2} aria-hidden className="shrink-0" />
                   {label}
                 </label>
               ))}
             </div>
+            <FieldError errors={[errors.deliveryMethod]} />
           </fieldset>
+
+          {/* Antes de registrar, cómo se paga y se cobra el transporte de cada entrega (Configuración → Atención). */}
+          {policies && deliveryMethod !== 'retiro' && (
+            <p className="rounded-xl bg-muted/60 p-3 text-sm text-muted-foreground">
+              <span className="font-medium text-foreground">
+                {(deliveryMethod === 'managua' ? policies.managua : policies.outside).title}.
+              </span>{' '}
+              {(deliveryMethod === 'managua' ? policies.managua : policies.outside).text}
+            </p>
+          )}
 
           {deliveryMethod === 'retiro' && config?.address && (
             <p className="flex items-start gap-2 rounded-xl bg-muted/60 p-3 text-sm text-muted-foreground">
@@ -401,7 +417,8 @@ export function CheckoutPanel({
                 className="mt-0.5 shrink-0"
               />
               <span>
-                Retirás en <span className="font-medium text-foreground">{config.address}</span>.
+                Retirás en el punto de retiro: <span className="font-medium text-foreground">{config.address}</span>.
+                {policies?.pickup.text && <> {policies.pickup.text}</>}
                 {config.locationUrl && (
                   <>
                     {' '}
@@ -419,37 +436,38 @@ export function CheckoutPanel({
             </p>
           )}
 
-          {deliveryMethod === 'envio' && (
+          {deliveryMethod !== 'retiro' && (
             <Field data-invalid={Boolean(errors.address)}>
-              <FieldLabel htmlFor={`${ids}-address`}>Dirección</FieldLabel>
+              <FieldLabel htmlFor={`${ids}-address`}>
+                {deliveryMethod === 'cargo_trans' ? 'Departamento, ciudad y dirección' : 'Dirección de entrega'}
+              </FieldLabel>
               <Textarea
                 id={`${ids}-address`}
                 rows={2}
-                placeholder="Ciudad, barrio, calle y referencias"
+                placeholder={deliveryMethod === 'cargo_trans' ? 'Departamento, ciudad, barrio y referencias' : 'Barrio, calle y referencias'}
                 aria-invalid={Boolean(errors.address)}
                 className="min-h-20 rounded-xl text-base md:text-base"
                 {...register('address')}
               />
               <FieldError errors={[errors.address]} />
               <input type="hidden" {...register('locationUrl')} />
-              <Button
-                type="button"
-                variant="outline"
-                onClick={captureLocation}
-                disabled={geoLoading}
-                className="h-12 w-full justify-center gap-2"
-              >
-                <HugeIcon icon={Location01Icon} size={18} strokeWidth={2} aria-hidden />
-                {locationUrl
-                  ? 'Ubicación agregada · tocá para actualizar'
-                  : geoLoading
-                  ? 'Obteniendo ubicación…'
-                  : 'Compartir mi ubicación'}
-              </Button>
-              <p className="text-xs leading-relaxed text-muted-foreground">
-                {STORE_POLICIES.managua.title}: {STORE_POLICIES.managua.text.toLowerCase()}{' '}
-                {STORE_POLICIES.outside.title}: {STORE_POLICIES.outside.text.toLowerCase()}
-              </p>
+              {/* El pin sirve para el delivery en Managua; a otra ciudad el envío va por Cargo Trans. */}
+              {deliveryMethod === 'managua' && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={captureLocation}
+                  disabled={geoLoading}
+                  className="h-12 w-full justify-center gap-2"
+                >
+                  <HugeIcon icon={Location01Icon} size={18} strokeWidth={2} aria-hidden />
+                  {locationUrl
+                    ? 'Ubicación agregada · tocá para actualizar'
+                    : geoLoading
+                    ? 'Obteniendo ubicación…'
+                    : 'Compartir mi ubicación'}
+                </Button>
+              )}
             </Field>
           )}
 
@@ -577,19 +595,21 @@ export function CheckoutPanel({
                 <span className="tabular-nums">−{formatCordobas(codeDiscount, currency)}</span>
               </div>
             )}
-            {deliveryMethod === 'envio' && (
+            {/* El transporte nunca se suma ni se muestra como C$0: se cotiza o se paga aparte. */}
+            {deliveryMethod !== 'retiro' && (
               <div className="flex justify-between text-muted-foreground">
-                <span>Envío</span>
-                <span>por confirmar</span>
+                <span>{deliveryMethod === 'cargo_trans' ? 'Transporte Cargo Trans' : 'Delivery'}</span>
+                <span>{deliveryMethod === 'cargo_trans' ? 'se paga aparte' : 'a cotizar'}</span>
               </div>
             )}
             <div className="flex justify-between pt-1 text-base font-bold text-foreground">
-              <span>{deliveryMethod === 'envio' ? 'Total de productos' : 'Total'}</span>
+              <span>{deliveryMethod === 'retiro' ? 'Total' : 'Total de productos'}</span>
               <span className="tabular-nums">{formatCordobas(totalWithDiscount, currency)}</span>
             </div>
           </div>
           <p className="text-xs text-muted-foreground">
-            Pagás en efectivo o por transferencia al coordinar el pedido.
+            {policies?.payment.title ?? 'Efectivo o transferencia'}. Nada se cobra en línea: el pago se coordina por
+            WhatsApp.
           </p>
         </section>
 
@@ -770,7 +790,7 @@ export function OrderPlaced({
 
       <div className="flex flex-col gap-2">
         <Button variant="whatsapp" className="min-h-12 h-auto w-full whitespace-normal py-3 text-sm sm:text-base" asChild>
-          <a href={order.whatsappUrl} target="_blank" rel="noopener noreferrer">
+          <a href={order.whatsappUrl} target="_blank" rel="noopener noreferrer" onClick={() => trackWhatsappOpen('order')}>
             <WhatsappIcon className="size-4" />
             Abrir WhatsApp con el pedido
           </a>

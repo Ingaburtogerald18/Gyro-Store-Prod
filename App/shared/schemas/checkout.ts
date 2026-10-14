@@ -31,6 +31,20 @@ export const publicOrderItemInputSchema = z
     }
   });
 
+// Entrega de un pedido nuevo. 'envio' es de los pedidos anteriores a la 0032 (no distinguían Managua
+// del resto del país): se sigue leyendo y se acepta al reintentar un pedido guardado en el navegador.
+export const DELIVERY_METHODS = ['managua', 'cargo_trans', 'retiro'] as const;
+export type DeliveryMethod = (typeof DELIVERY_METHODS)[number];
+export const STORED_DELIVERY_METHODS = [...DELIVERY_METHODS, 'envio'] as const;
+export type StoredDeliveryMethod = (typeof STORED_DELIVERY_METHODS)[number];
+
+export const DELIVERY_LABELS: Record<StoredDeliveryMethod, string> = {
+  managua: 'Delivery en Managua',
+  cargo_trans: 'Envío por Cargo Trans',
+  retiro: 'Retiro',
+  envio: 'Envío',
+};
+
 // Lo que llena la persona, sin los ítems: el formulario del checkout deriva de acá.
 export const publicOrderFieldsSchema = z.object({
   phone: z
@@ -41,7 +55,7 @@ export const publicOrderFieldsSchema = z.object({
 
   // ── Contacto y entrega ── Se guardan en `public_orders` y arman el mensaje de WhatsApp.
   customerName: z.string().min(2, 'Ingresá tu nombre.').max(80),
-  deliveryMethod: z.enum(['retiro', 'envio']),
+  deliveryMethod: z.enum(DELIVERY_METHODS, { message: 'Elegí cómo lo recibís.' }),
   address: z.string().max(200).optional(),
   // Link de Google Maps con el pin del cliente (opcional, lo llena el botón GPS).
   locationUrl: z.string().max(300).optional(),
@@ -51,19 +65,21 @@ export const publicOrderFieldsSchema = z.object({
   discountCode: z.string().max(30).optional(),
 });
 
-// Envío necesita dirección o ubicación; sin ninguna no es despachable. La usan el endpoint y el formulario.
+// Toda entrega que no sea retiro necesita dirección o ubicación; sin ninguna no es despachable. La usan
+// el endpoint y el formulario.
 export const hasDeliveryDestination = (d: {
-  deliveryMethod: 'retiro' | 'envio';
+  deliveryMethod: StoredDeliveryMethod;
   address?: string;
   locationUrl?: string;
 }) =>
-  d.deliveryMethod !== 'envio' || (d.address ?? '').trim().length > 4 || Boolean(d.locationUrl);
+  d.deliveryMethod === 'retiro' || (d.address ?? '').trim().length > 4 || Boolean(d.locationUrl);
 
 export const DELIVERY_DESTINATION_MESSAGE =
   'Agregá tu dirección o compartí tu ubicación para el envío.';
 
 export const publicOrderInputSchema = publicOrderFieldsSchema
   .extend({
+    deliveryMethod: z.enum(STORED_DELIVERY_METHODS, { message: 'Elegí cómo lo recibís.' }),
     // Techo de líneas por pedido: acota el trabajo que un request anónimo puede
     // pedirle a la DB (el service consulta y luego inserta una fila por ítem).
     items: z
@@ -115,6 +131,40 @@ export type PublicOrderStatus = (typeof PUBLIC_ORDER_STATUSES)[number];
 export const updatePublicOrderStatusSchema = z.object({
   status: z.enum(PUBLIC_ORDER_STATUSES),
 });
+
+// ── Operación del pedido (solo panel) ── Producto pagado no implica transporte pagado, y registrar el
+// pedido o marcarlo entregado no confirma ningún pago ni la recepción: cada dato lo carga el personal.
+const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Fecha inválida.');
+export const publicOrderOperationSchema = z.object({
+  shippingQuote: z.number().min(0, 'El monto no puede ser negativo.').max(999_999, 'Monto demasiado alto.').nullable(),
+  productPaidDate: isoDate.nullable(),
+  shippingPaidDate: isoDate.nullable(),
+  carrierReference: z.string().trim().max(80, 'Máximo 80 caracteres.').nullable(),
+  // Desde esta fecha corre la garantía: es la de recepción real, no la del pedido, el pago o el despacho.
+  receivedDate: isoDate.nullable(),
+});
+export type PublicOrderOperation = z.infer<typeof publicOrderOperationSchema>;
+
+/** Día calendario en Managua (yyyy-MM-dd): el día de un pago o una entrega no depende de dónde esté el servidor. */
+export function managuaDate(date: Date): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Managua', year: 'numeric', month: '2-digit', day: '2-digit' }).format(date);
+}
+
+/** Fechas imposibles: en el futuro o antes de que existiera el pedido. Las mismas reglas en el panel y en el servidor. */
+export function operationDateIssues(
+  op: Pick<PublicOrderOperation, 'productPaidDate' | 'shippingPaidDate' | 'receivedDate'>,
+  orderCreatedOn: string,
+  today: string,
+): { path: 'productPaidDate' | 'shippingPaidDate' | 'receivedDate'; message: string }[] {
+  const fields = ['productPaidDate', 'shippingPaidDate', 'receivedDate'] as const;
+  return fields.flatMap((path) => {
+    const value = op[path];
+    if (!value) return [];
+    if (value > today) return [{ path, message: 'No puede ser una fecha futura.' }];
+    if (value < orderCreatedOn) return [{ path, message: 'No puede ser anterior al pedido.' }];
+    return [];
+  });
+}
 
 // Rastreo sin cuenta: número corto (#A1B2C3D4) más teléfono; ninguno de los dos alcanza solo.
 export const trackPublicOrderSchema = z.object({

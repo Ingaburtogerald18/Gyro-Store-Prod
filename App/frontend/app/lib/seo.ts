@@ -28,7 +28,13 @@ export function productOffers(product: Pick<CatalogDetail, 'availability' | 'pri
       : product.availability === 'sold_out'
         ? 'https://schema.org/OutOfStock'
         : undefined;
-  const base = { priceCurrency: 'NIO', url, ...(availability ? { availability } : {}) };
+  // Todo se vende nuevo en caja (confirmado por el dueño el 14 oct 2026).
+  const base = {
+    priceCurrency: 'NIO',
+    itemCondition: 'https://schema.org/NewCondition',
+    url,
+    ...(availability ? { availability } : {}),
+  };
 
   const priced = product.variants.filter((v) => v.availability !== 'coming_soon' && v.price > 0);
   const buyable = priced.filter((v) => v.availability === 'available');
@@ -53,18 +59,21 @@ function httpUrl(value: string | null | undefined): string | null {
   }
 }
 
-// Identidad del negocio con datos de Configuración. Sin dirección: no es un local abierto al público.
+// Identidad del negocio con datos de Configuración. Ciudad y país, sin calle: es un punto de retiro, no un
+// local abierto al público.
 export function storeJsonLd({
   origin,
   brand,
   logo,
   email,
+  telephone,
   socialLinks = [],
 }: {
   origin: string;
   brand: string;
   logo?: string | null;
   email?: string | null;
+  telephone?: string | null;
   socialLinks?: (string | null | undefined)[];
 }) {
   const home = `${origin}/`;
@@ -81,6 +90,11 @@ export function storeJsonLd({
         url: home,
         ...(logoUrl ? { logo: logoUrl } : {}),
         ...(email?.trim() ? { email: email.trim() } : {}),
+        address: { '@type': 'PostalAddress', addressLocality: 'Managua', addressCountry: 'NI' },
+        areaServed: { '@type': 'Country', name: 'Nicaragua' },
+        ...(telephone?.trim()
+          ? { contactPoint: { '@type': 'ContactPoint', contactType: 'customer service', telephone: telephone.trim(), availableLanguage: 'es' } }
+          : {}),
         ...(sameAs.length ? { sameAs } : {}),
       },
       { '@type': 'WebSite', '@id': `${home}#sitio`, name: brand, url: home, inLanguage: 'es-NI', publisher: { '@id': organizationId } },
@@ -88,12 +102,30 @@ export function storeJsonLd({
   };
 }
 
+/** El mismo recorrido que muestra la página, en orden. */
+export function breadcrumbJsonLd(items: { name: string; url: string }[]) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: items.map((item, index) => ({ '@type': 'ListItem', position: index + 1, name: item.name, item: item.url })),
+  };
+}
+
 const XML_ESCAPES: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' };
 
-/** Solo URLs públicas y canónicas. Sin lastmod: el catálogo no guarda una fecha de cambio confiable. */
-export function buildSitemap(urls: string[]): string {
-  const body = [...new Set(urls)]
-    .map((loc) => `  <url><loc>${loc.replace(/[&<>"']/g, (c) => XML_ESCAPES[c] ?? c)}</loc></url>`)
+const escapeXml = (value: string) => value.replace(/[&<>"']/g, (c) => XML_ESCAPES[c] ?? c);
+
+/** Solo URLs públicas y canónicas. `lastmod` solo donde hay una fecha real de cambio (productos), nunca la hora actual. */
+export function buildSitemap(entries: (string | { loc: string; lastmod?: string })[]): string {
+  const seen = new Set<string>();
+  const body = entries
+    .map((entry) => (typeof entry === 'string' ? { loc: entry } : entry))
+    .filter(({ loc }) => (seen.has(loc) ? false : (seen.add(loc), true)))
+    .map(({ loc, lastmod }) => {
+      const date = lastmod ? new Date(lastmod) : null;
+      const mod = date && !Number.isNaN(date.getTime()) ? `<lastmod>${date.toISOString()}</lastmod>` : '';
+      return `  <url><loc>${escapeXml(loc)}</loc>${mod}</url>`;
+    })
     .join('\n');
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${body}\n</urlset>\n`;
 }

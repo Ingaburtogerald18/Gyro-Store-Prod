@@ -10,14 +10,16 @@ export function SlideMedia({
   className,
   paused = false,
   freeze = false,
+  priority = true,
 }: {
   slide: Pick<HeroSlide, 'mediaUrl' | 'mediaType' | 'title'>;
   className?: string;
-  /** Pausa el video y congela GIF/WebP. El botón de pausa del hero y el
-   *  movimiento reducido detenían la rotación, pero la media seguía en bucle. */
+  /** Pausa el video (fuera de pantalla o con movimiento reducido). */
   paused?: boolean;
   /** Congela GIF/WebP animados (movimiento reducido). */
   freeze?: boolean;
+  /** La presentación es lo primero que se ve: carga ya. Las novedades, más abajo, cuando hacen falta. */
+  priority?: boolean;
 }) {
   if (!slide.mediaUrl) {
     return (
@@ -37,7 +39,11 @@ export function SlideMedia({
   }
 
   // React 18 requiere el atributo HTML en minúsculas para evitar un warning.
-  return <img src={slide.mediaUrl} alt={slide.title || ''} {...{ fetchpriority: 'high' }} loading="eager" width={1200} height={900} className={className} />;
+  return priority ? (
+    <img src={slide.mediaUrl} alt={slide.title || ''} {...{ fetchpriority: 'high' }} loading="eager" width={1200} height={900} className={className} />
+  ) : (
+    <img src={slide.mediaUrl} alt={slide.title || ''} loading="lazy" decoding="async" width={1200} height={900} className={className} />
+  );
 }
 
 /** Primer cuadro de una imagen animada, quieto. */

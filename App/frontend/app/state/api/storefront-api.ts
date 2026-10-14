@@ -1,6 +1,5 @@
 // Tienda pública (sin sesión): catálogo, combos, pedidos, portada y contacto.
 import type {
-  CatalogDetail,
   CatalogProduct,
   Combo,
   LandingConfig,
@@ -8,6 +7,7 @@ import type {
   PublicOrderInput,
   PublicOrderStatus,
   StockNoticeInput,
+  StoredDeliveryMethod,
   TrackPublicOrderInput,
 } from '@shared/schemas';
 import { baseApi } from './base-api';
@@ -51,8 +51,10 @@ export interface PublicOrderLine {
 export interface PublicOrderTracking {
   id: string;
   status: PublicOrderStatus;
-  deliveryMethod: 'retiro' | 'envio' | null;
+  deliveryMethod: StoredDeliveryMethod | null;
   firstName: string | null;
+  /** Fecha real de recepción (inicio de la garantía); null mientras no se registre. */
+  receivedDate: string | null;
   total: number;
   codeDiscount: number;
   createdAt: string;
@@ -66,11 +68,6 @@ export const storefrontApi = baseApi.injectEndpoints({
       query: () => 'catalog',
       transformResponse: (response: ItemsResponse<CatalogProduct>) => response.items,
       providesTags: ['Catalog'],
-    }),
-    // La ficha carga el detalle por SSR; este hook es para el selector rápido de la tarjeta.
-    getCatalogDetail: build.query<CatalogDetail, string>({
-      query: (id) => `catalog/${id}`,
-      providesTags: (_res, _err, id) => [{ type: 'Catalog' as const, id }],
     }),
     getCombos: build.query<Combo[], void>({
       query: () => 'combos',
@@ -122,7 +119,6 @@ export const storefrontApi = baseApi.injectEndpoints({
 
 export const {
   useGetCatalogQuery,
-  useGetCatalogDetailQuery,
   useGetCombosQuery,
   useCreatePublicOrderMutation,
   useRecoverPublicOrderMutation,

@@ -13,10 +13,12 @@ import {
   findPublicOrderByCode,
   getPublicOrderTracking,
   listPublicOrders,
+  updatePublicOrderOperation,
   updatePublicOrderStatus,
 } from './orders';
 import {
   publicOrderInputSchema,
+  publicOrderOperationSchema,
   trackPublicOrderSchema,
   updatePublicOrderStatusSchema,
 } from '../../../shared/schemas';
@@ -116,6 +118,18 @@ router.patch(
     // vuelta a nuevo lo libera. `stock` dice qué no se pudo apartar.
     const stock = await syncPublicOrderReservation(id, status);
     res.json({ ...updated, stock });
+  }),
+);
+
+// Pagos, transporte y recepción: datos del personal, nunca de la vista pública. Cambiarlos no toca el
+// estado ni el stock.
+router.patch(
+  '/admin/:id/operation',
+  requireSeller,
+  asyncHandler(async (req, res) => {
+    const id = parseUuidParam(req.params.id, 'El pedido no existe.');
+    const input = publicOrderOperationSchema.parse(req.body);
+    res.json({ operation: await updatePublicOrderOperation(id, input, req.user?.uid ?? null) });
   }),
 );
 

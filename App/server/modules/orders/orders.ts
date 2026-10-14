@@ -10,13 +10,19 @@ import { listPublishedCatalogByIds } from '../catalog/catalog';
 import { getLotsByCodes } from '../inventory/inventory-links';
 import { getActiveOffers } from '../catalog/offers';
 import { resolveOrderLines, type ResolvedComboInfo } from './order-lines';
+import { buildWhatsappMessage, type MessageBusiness, type MessageLine } from './order-message';
 import { isMissingColumn, persistOrder, restoreOrderAttempt, type OrderAttemptStore } from './order-persistence';
 import { createAttemptRegistry, OrderAttemptConflict, orderRequestHash } from './order-idempotency';
-import { NotFoundError } from '../../utils/http-error';
+import { BadRequestError, NotFoundError } from '../../utils/http-error';
+import { getBusinessInfo } from '../settings/app-config';
 import { logger } from '../../utils/logger';
 import {
   PUBLIC_ORDER_STATUSES,
+  managuaDate,
+  operationDateIssues,
   type CatalogDetail,
+  type PublicOrderOperation,
+  type StoredDeliveryMethod,
   type OrderIssue,
   type PublicOrderInput,
   type PublicOrderStatus,
@@ -59,59 +65,6 @@ const comboSku = (comboId: string) => `combo:${comboId}`;
 
 /** Link público de seguimiento. Va en el mensaje de WhatsApp para que quede en el chat del cliente. */
 const trackingUrl = (orderId: string) => `${config.appUrl.replace(/\/$/, '')}/pedido/${orderId}`;
-
-interface MessageLine {
-  name: string;
-  variantName?: string;
-  quantity: number;
-  lineTotal: number;
-}
-
-// El mensaje se arma en el servidor: lleva el total recalculado y el número de la tienda de la config.
-function buildWhatsappMessage(
-  input: PublicOrderInput,
-  lines: MessageLine[],
-  total: number,
-  discount?: { code: string; amount: number } | null,
-  trackUrl?: string,
-): string {
-  const money = (n: number) => `${config.currency}${Number(n || 0).toLocaleString('es-NI')}`;
-  const div = '━━━━━━━━━━━━━━━';
-
-  let msg = `🛒 *NUEVO PEDIDO — ${config.brandName}*\n`;
-  msg += `${div}\n`;
-  msg += `👤 *${input.customerName}*\n`;
-  msg += `📞 ${input.phone}\n`;
-  if (input.deliveryMethod === 'envio') {
-    msg += '🚚 *Envío a domicilio*\n';
-    if (input.address) msg += `📍 ${input.address}\n`;
-    if (input.locationUrl) msg += `🗺️ Ubicación: ${input.locationUrl}\n`;
-  } else {
-    msg += '🏬 *Retiro en tienda*\n';
-  }
-  if (input.note) msg += `📝 _${input.note}_\n`;
-
-  msg += `${div}\n`;
-  msg += '🛍️ *Mi pedido*\n\n';
-  for (const line of lines) {
-    const variant =
-      line.variantName && line.variantName !== 'Estándar' ? `  _(${line.variantName})_` : '';
-    msg += `🔹 *${line.name}*${variant}  ×${line.quantity}\n`;
-    msg += `   💵 ${money(line.lineTotal)}\n\n`;
-  }
-
-  msg += `${div}\n`;
-  if (discount && discount.amount > 0) {
-    msg += `🎟️ Código ${discount.code}:  -${money(discount.amount)}\n`;
-  }
-  msg += `💰 *TOTAL PRODUCTOS:  ${money(total)}*\n`;
-  if (input.deliveryMethod === 'envio') msg += '🚚 Envío: por confirmar\n';
-  msg += `${div}\n`;
-  if (trackUrl) msg += `📦 Seguimiento: ${trackUrl}\n`;
-  msg += '_¡Gracias! Quedo atento(a) para coordinar el pago y la entrega._ 🙌';
-
-  return `https://wa.me/${config.whatsapp.replace(/\D/g, '')}?text=${encodeURIComponent(msg)}`;
-}
 
 export class OrderCheckoutUnavailable extends Error {
   status = 503;
@@ -229,13 +182,17 @@ async function createPublicOrderOnce(input: PublicOrderInput, key: string, hash:
   // 6. Registrar/enlazar al COMPRADOR en el CRM (best-effort). Si falla,
   // devuelve null y el pedido igual se guarda.
   const contactId = await findOrCreateOrderContact(input.phone, input.customerName);
+  // El número y el nombre que el dueño editó en Configuración; si la lectura falla, los del entorno.
+  const business: MessageBusiness = await getBusinessInfo()
+    .then((info) => ({ brandName: info.brandName, whatsapp: info.whatsapp, currency: info.currency }))
+    .catch(() => ({ brandName: config.brandName, whatsapp: config.whatsapp, currency: config.currency }));
 
   // Una transacción registra pedido, variantes, nombres/fotos, cupón y respuesta.
   // Un error revierte TODO; no hay fallback que pierda opciones ni pedidos parciales.
   const id = randomUUID();
   const response: CreatedPublicOrder = {
     id, phone: input.phone, total, status: 'new', items: orderItems,
-    whatsappUrl: buildWhatsappMessage(input, messageLines, total,
+    whatsappUrl: buildWhatsappMessage(input, messageLines, total, business,
       discountCode ? { code: discountCode, amount: codeDiscount } : null, trackingUrl(id)),
   };
   const result = await persistOrder(orderStore, key, hash, {
@@ -279,9 +236,11 @@ export interface PublicOrderLine {
 export interface PublicOrderTracking {
   id: string;
   status: PublicOrderStatus;
-  deliveryMethod: 'retiro' | 'envio' | null;
+  deliveryMethod: StoredDeliveryMethod | null;
   /** Solo el primer nombre: alcanza para saludar, no identifica a nadie. */
   firstName: string | null;
+  /** Fecha real de recepción (inicio de la garantía); null mientras no se registre. */
+  receivedDate: string | null;
   total: number;
   codeDiscount: number;
   createdAt: string;
@@ -293,7 +252,7 @@ export interface AdminPublicOrder {
   status: PublicOrderStatus;
   customerName: string | null;
   phone: string | null;
-  deliveryMethod: 'retiro' | 'envio' | null;
+  deliveryMethod: StoredDeliveryMethod | null;
   address: string | null;
   locationUrl: string | null;
   note: string | null;
@@ -304,6 +263,28 @@ export interface AdminPublicOrder {
   items: PublicOrderLine[];
   /** Venta en que se convirtió, o null. */
   saleId: string | null;
+  /** Pagos, transporte y recepción; todo null en una base sin la 0032. */
+  operation: PublicOrderOperation;
+}
+
+const OPERATION_COLUMNS = 'shipping_quote, product_paid_date, shipping_paid_date, carrier_reference, received_date';
+
+type OperationRow = {
+  shipping_quote?: number | string | null;
+  product_paid_date?: string | null;
+  shipping_paid_date?: string | null;
+  carrier_reference?: string | null;
+  received_date?: string | null;
+};
+
+function toOperation(row: OperationRow): PublicOrderOperation {
+  return {
+    shippingQuote: row.shipping_quote == null ? null : Number(row.shipping_quote),
+    productPaidDate: row.product_paid_date ?? null,
+    shippingPaidDate: row.shipping_paid_date ?? null,
+    carrierReference: row.carrier_reference ?? null,
+    receivedDate: row.received_date ?? null,
+  };
 }
 
 const isKnownStatus = (s: unknown): s is PublicOrderStatus =>
@@ -386,13 +367,17 @@ async function linesFor(orderIds: string[]): Promise<Map<string, PublicOrderLine
 
 /** Vista pública de un pedido por su id completo (el link de seguimiento). */
 export async function getPublicOrderTracking(id: string): Promise<PublicOrderTracking> {
-  const { data: order, error } = await db
-    .from('public_orders')
-    .select('id, status, delivery_method, customer_name, total, code_discount, created_at')
-    .eq('id', id)
-    .maybeSingle();
+  const TRACKING = 'id, status, delivery_method, customer_name, total, code_discount, created_at';
+  const read = (columns: string) => db.from('public_orders').select(columns).eq('id', id).maybeSingle();
+  // La fecha de recepción llega con la 0032; sin ella el seguimiento sale igual.
+  let { data, error } = await read(`${TRACKING}, received_date`);
+  if (isMissingColumn(error)) ({ data, error } = await read(TRACKING));
   if (error) throw error;
-  if (!order) throw new NotFoundError('No encontramos ese pedido.');
+  if (!data) throw new NotFoundError('No encontramos ese pedido.');
+  const order = data as unknown as {
+    id: string; status: string; delivery_method: StoredDeliveryMethod | null; customer_name: string | null;
+    total: number | null; code_discount: number | null; created_at: string; received_date?: string | null;
+  };
 
   const lines = await linesFor([order.id]);
   return {
@@ -400,6 +385,7 @@ export async function getPublicOrderTracking(id: string): Promise<PublicOrderTra
     status: toStatus(order.status),
     deliveryMethod: order.delivery_method,
     firstName: order.customer_name?.trim().split(/\s+/)[0] || null,
+    receivedDate: order.received_date ?? null,
     total: Number(order.total ?? 0),
     codeDiscount: Number(order.code_discount ?? 0),
     createdAt: order.created_at,
@@ -443,17 +429,18 @@ export async function listPublicOrders(limit = 300): Promise<AdminPublicOrder[]>
     'id, status, customer_name, phone, delivery_method, address, location_url, note, total, discount_code, code_discount, created_at';
   const run = (columns: string) =>
     db.from('public_orders').select(columns).order('created_at', { ascending: false }).limit(limit);
-  // `sale_id` llega con la 0023; sin ella se lista igual.
-  let { data, error } = await run(`${BASE}, sale_id`);
+  // `sale_id` llega con la 0023 y la operación con la 0032; sin ellas se lista igual.
+  let { data, error } = await run(`${BASE}, sale_id, ${OPERATION_COLUMNS}`);
+  if (isMissingColumn(error)) ({ data, error } = await run(`${BASE}, sale_id`));
   if (isMissingColumn(error)) ({ data, error } = await run(BASE));
   if (error) throw error;
 
-  const orders = (data ?? []) as unknown as {
+  const orders = (data ?? []) as unknown as (OperationRow & {
     id: string;
     status: string;
     customer_name: string | null;
     phone: string | null;
-    delivery_method: 'retiro' | 'envio' | null;
+    delivery_method: StoredDeliveryMethod | null;
     address: string | null;
     location_url: string | null;
     note: string | null;
@@ -462,7 +449,7 @@ export async function listPublicOrders(limit = 300): Promise<AdminPublicOrder[]>
     code_discount: number | null;
     created_at: string;
     sale_id?: string | null;
-  }[];
+  })[];
   const lines = await linesFor(orders.map((o) => o.id));
   return orders.map((o) => ({
     id: o.id,
@@ -479,6 +466,7 @@ export async function listPublicOrders(limit = 300): Promise<AdminPublicOrder[]>
     createdAt: o.created_at,
     items: lines.get(o.id) ?? [],
     saleId: o.sale_id ?? null,
+    operation: toOperation(o),
   }));
 }
 
@@ -495,4 +483,55 @@ export async function updatePublicOrderStatus(
   if (error) throw error;
   if (!data) throw new NotFoundError('El pedido no existe.');
   return { id: data.id, status: toStatus(data.status) };
+}
+
+const OPERATION_LABELS = {
+  productPaidDate: 'Pago del producto',
+  shippingPaidDate: 'Pago del transporte',
+  receivedDate: 'Recepción',
+} as const;
+
+/**
+ * Pagos, transporte y recepción de un pedido web. Cada dato lo registra el personal: cambiar el estado no
+ * marca pagos ni recepción. Queda el rastro de quién cambió qué en audit_logs.
+ */
+export async function updatePublicOrderOperation(
+  id: string,
+  input: PublicOrderOperation,
+  authorUid: string | null,
+): Promise<PublicOrderOperation> {
+  const { data, error } = await db.from('public_orders').select(`id, created_at, ${OPERATION_COLUMNS}`).eq('id', id).maybeSingle();
+  if (isMissingColumn(error)) throw new BadRequestError('Falta aplicar la migración 0032 en la base de datos.');
+  if (error) throw error;
+  if (!data) throw new NotFoundError('El pedido no existe.');
+  const current = data as unknown as OperationRow & { created_at: string };
+
+  const issues = operationDateIssues(input, managuaDate(new Date(current.created_at)), managuaDate(new Date()));
+  if (issues.length) {
+    throw new BadRequestError(issues.map((issue) => `${OPERATION_LABELS[issue.path]}: ${issue.message}`).join(' '));
+  }
+
+  const next = {
+    shipping_quote: input.shippingQuote,
+    product_paid_date: input.productPaidDate,
+    shipping_paid_date: input.shippingPaidDate,
+    carrier_reference: input.carrierReference?.trim() || null,
+    received_date: input.receivedDate,
+  };
+  const { data: updated, error: updateError } = await db
+    .from('public_orders').update(next).eq('id', id).select(OPERATION_COLUMNS).maybeSingle();
+  if (updateError) throw updateError;
+  if (!updated) throw new NotFoundError('El pedido no existe.');
+
+  await db.from('audit_logs').insert({
+    entity: 'public_orders',
+    entity_id: id,
+    action: 'operation',
+    reason: 'Pagos, transporte o recepción del pedido web',
+    author_uid: authorUid,
+    before: toOperation(current),
+    after: toOperation(updated as unknown as OperationRow),
+  });
+
+  return toOperation(updated as unknown as OperationRow);
 }

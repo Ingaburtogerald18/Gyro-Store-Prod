@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { CatalogDetail } from '@shared/schemas';
 import { originFromEnv } from '../../shared/site-url';
-import { buildRobots, buildSitemap, metaDescription, productOffers, storeJsonLd } from '../app/lib/seo';
+import { breadcrumbJsonLd, buildRobots, buildSitemap, metaDescription, productOffers, storeJsonLd } from '../app/lib/seo';
 
 type Variant = CatalogDetail['variants'][number];
 const variant = (price: number, availability: Variant['availability']) =>
@@ -31,13 +31,13 @@ test('el rango no toma variantes próximas ni sin precio', () => {
   );
   assert.deepEqual(offers, {
     '@type': 'AggregateOffer', lowPrice: 900, highPrice: 1200, offerCount: 2,
-    priceCurrency: 'NIO', url: URL_FICHA, availability: 'https://schema.org/InStock',
+    priceCurrency: 'NIO', itemCondition: 'https://schema.org/NewCondition', url: URL_FICHA, availability: 'https://schema.org/InStock',
   });
 });
 
 test('un solo precio es una oferta simple; disponibilidad desconocida no declara stock', () => {
   const offers = productOffers({ availability: 'unknown', price: 700, variants: [variant(700, 'unknown'), variant(700, 'unknown')] }, URL_FICHA);
-  assert.deepEqual(offers, { '@type': 'Offer', price: 700, priceCurrency: 'NIO', url: URL_FICHA });
+  assert.deepEqual(offers, { '@type': 'Offer', price: 700, priceCurrency: 'NIO', itemCondition: 'https://schema.org/NewCondition', url: URL_FICHA });
 });
 
 test('sin ningún precio real no hay oferta', () => {
@@ -52,12 +52,29 @@ test('la descripción usa el texto real o el respaldo si viene vacío', () => {
   assert.ok(long.length <= 160 && long.endsWith('…'));
 });
 
-test('el negocio se describe sin dirección y solo con redes válidas', () => {
-  const ld = storeJsonLd({ origin: 'https://gyrostorenic.com', brand: 'Gyro Store', socialLinks: ['https://instagram.com/gyro', '', 'no-es-url'] });
+test('el negocio se ubica en Managua sin calle y solo con redes válidas', () => {
+  const ld = storeJsonLd({
+    origin: 'https://gyrostorenic.com', brand: 'Gyro Store', telephone: '+505 8594 4758',
+    socialLinks: ['https://instagram.com/gyro', '', 'no-es-url'],
+  });
   const organization: Record<string, unknown> = ld['@graph'][0];
   assert.deepEqual(organization.sameAs, ['https://instagram.com/gyro']);
   assert.equal(organization.url, 'https://gyrostorenic.com/');
-  assert.equal('address' in organization, false);
+  // Punto de retiro, no local abierto: ciudad y país, nunca la calle.
+  assert.deepEqual(organization.address, { '@type': 'PostalAddress', addressLocality: 'Managua', addressCountry: 'NI' });
+  assert.equal((organization.contactPoint as { telephone: string }).telephone, '+505 8594 4758');
+  assert.equal('contactPoint' in storeJsonLd({ origin: 'https://x.test', brand: 'G' })['@graph'][0], false);
+});
+
+test('el sitemap pone lastmod solo donde hay una fecha real', () => {
+  const xml = buildSitemap([
+    'https://gyrostorenic.com/',
+    { loc: 'https://gyrostorenic.com/producto/kz--1', lastmod: '2026-10-14T18:00:00.000+00:00' },
+    { loc: 'https://gyrostorenic.com/producto/kz--2', lastmod: 'no-es-fecha' },
+  ]);
+  assert.ok(xml.includes('<loc>https://gyrostorenic.com/producto/kz--1</loc><lastmod>2026-10-14T18:00:00.000Z</lastmod>'));
+  assert.ok(xml.includes('<loc>https://gyrostorenic.com/producto/kz--2</loc></url>'));
+  assert.ok(xml.includes('<loc>https://gyrostorenic.com/</loc></url>'));
 });
 
 test('el sitemap escapa las URLs y no repite entradas', () => {
@@ -73,4 +90,13 @@ test('robots deja rastrear la tienda y la API, cierra el panel y anuncia el site
   assert.ok(!robots.includes('Disallow: /\n'));
   assert.ok(!robots.includes('/api'));
   assert.ok(robots.includes('Sitemap: https://gyrostorenic.com/sitemap.xml'));
+});
+
+test('el recorrido estructurado numera los pasos en el orden visible', () => {
+  const ld = breadcrumbJsonLd([
+    { name: 'Inicio', url: 'https://gyrostorenic.com/' },
+    { name: 'Catálogo', url: 'https://gyrostorenic.com/catalogo' },
+  ]);
+  assert.equal(ld['@type'], 'BreadcrumbList');
+  assert.deepEqual(ld.itemListElement.map((i) => [i.position, i.name]), [[1, 'Inicio'], [2, 'Catálogo']]);
 });

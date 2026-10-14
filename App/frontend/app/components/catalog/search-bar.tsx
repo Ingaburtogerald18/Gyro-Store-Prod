@@ -12,7 +12,8 @@ import {
 import { useAppDispatch, useAppSelector } from '~/state/hooks';
 import { searchSet, selectSearch } from '~/state/slices/ui-slice';
 import { cn } from '~/lib/utils';
-import { useNavigate } from '@remix-run/react';
+import { catalogHref, DEFAULT_FILTERS, isCatalogPath } from '~/lib/catalog-query';
+import { useLocation, useNavigate } from '@remix-run/react';
 
 export function SearchBar({ 
   className,
@@ -26,21 +27,13 @@ export function SearchBar({
   const dispatch = useAppDispatch();
   const search = useAppSelector(selectSearch);
   const navigate = useNavigate();
+  const { pathname } = useLocation();
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (search.trim()) {
-      navigate(`/?q=${encodeURIComponent(search.trim())}#catalogo`);
-    } else {
-      navigate('/#catalogo');
-    }
-    
-    if (window.location.pathname === '/') {
-      setTimeout(() => {
-        document.getElementById('catalogo')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }, 80);
-    }
-    // Also trigger blur/close on submit so the overlay closes
+    // En un listado la URL ya sigue a lo que se escribe (CatalogUrlSync); fuera de él, se va al catálogo.
+    if (!isCatalogPath(pathname)) navigate(catalogHref({ ...DEFAULT_FILTERS, search }));
+    // Cerrar el buscador del celular al buscar.
     if (onBlur) onBlur();
   }
 

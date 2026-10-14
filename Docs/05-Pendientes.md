@@ -15,21 +15,20 @@ borra de acá y se describe en el documento que corresponda.
   muestra Ventas, Pedidos web, Personal y CRM: no llega a Facturación.
 - **Tramos de mayoreo en Configuración.** Configuración → Finanzas deja editar los tramos de mayoreo,
   pero el cotizador no los usa (03-Finanzas §5). O se ocultan o se reactiva el mayoreo.
-- **robots.txt con el servicio dormido.** El dominio no pasa por el Cloudflare de la cuenta (registros
-  en «solo DNS»): lo sirve Render, que tiene su propio Cloudflare delante. Con el servicio despierto,
-  `/robots.txt` no bloquea nada. El 14 oct 2026 a las 15:30 UTC, con el servicio dormido, respondió
-  `User-agent: *` / `Disallow: /` y esa respuesta quedó en caché 4 horas. Mientras el plan free duerma
-  el servicio, un buscador puede toparse con ese bloqueo. Después del deploy, verificar el dominio en
-  Search Console y enviar `/sitemap.xml`.
+- **Search Console.** Verificar `gyrostorenic.com` como propiedad de dominio (el TXT de Google ya está
+  en Cloudflare), enviar `/sitemap.xml` y pedir la indexación de la portada.
 - **Plan free de Render.** El servicio se duerme sin tráfico y la primera visita tardó más de 20 s
-  (14 oct 2026). Afecta al rastreo, al robots.txt de arriba y a la velocidad medida; subir de plan es
-  decisión de costo.
-- **`APP_URL` en Render.** Cargar `APP_URL=https://gyrostorenic.com`. Hoy `appUrl` es
-  `https://gyro-store-3sr6.onrender.com`: el enlace de seguimiento de los pedidos y el QR del ticket
-  llevan al dominio de Render.
-- **Servicios viejos en Render.** El servicio real es `gyro-store-3sr6`. `gyro-store.onrender.com` sirve
-  una versión anterior de la tienda y `gyro-store-prod.onrender.com` no tiene servidor, pero es el destino
-  del CNAME de `www`. Suspender lo que no se use y apuntar `www` al destino que indique Render.
+  (14 oct 2026). Con el servicio dormido, `/robots.txt` llegó a responder `Disallow: /`; la regla de
+  caché de Cloudflare evita que esa respuesta quede guardada, pero no que un buscador la reciba en ese
+  momento. Subir de plan es decisión de costo.
+- **Servicio viejo en Render.** `gyro-store.onrender.com` sirve una versión anterior de la tienda.
+  Revisar si tiene las llaves de Supabase de producción y suspenderlo.
+- **Garantía y cambios.** La página nace en borrador en Configuración → Atención con lo que el dueño
+  confirmó. Faltan definir quién paga el transporte de cambios y garantías, qué pasa con un cambio del
+  mismo día cuando Cargo Trans entrega después, las alternativas cuando no hay el mismo modelo y las
+  cancelaciones de pedidos pagados, y revisarlo contra la Ley 842 antes de publicar.
+- **Nosotros, Términos y Privacidad.** No existen: faltan textos reales (historia y forma de trabajar,
+  datos legales, conservación de datos). No se publican páginas vacías.
 - **Imagen para compartir.** La portada usa el logo como imagen social; falta una propia de 1200×630.
 - **Ficha del combo.** Muestra el combo como una unidad (nombre, precio, foto y cantidad de
   artículos). Podría listar su contenido: cada combo ya guarda el nombre y la cantidad de cada

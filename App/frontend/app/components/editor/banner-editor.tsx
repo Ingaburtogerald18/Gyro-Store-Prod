@@ -373,7 +373,7 @@ export function BannerEditor({
                 {...form.register('actionTarget')}
                 id={`${ids}-link`}
                 value={slide.actionTarget}
-                placeholder="/#catalogo o https://…"
+                placeholder="/catalogo o https://…"
                 aria-invalid={Boolean(errors.actionTarget)}
                 onChange={(event) => set('actionTarget', event.target.value)}
               />

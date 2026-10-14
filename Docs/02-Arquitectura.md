@@ -120,12 +120,32 @@ se guarda en Postgres. Ninguna dirección de imagen está escrita en el código.
 **Pedido de la tienda.** `POST /api/orders/public` recibe ids y cantidades, nunca precios. El
 servidor recalcula el total, registra el intento con una clave de idempotencia
 (`public_order_attempts`) y crea el pedido en una sola función SQL. Una recarga o un doble clic no
-duplican el pedido.
+duplican el pedido. La entrega es `managua`, `cargo_trans` o `retiro` (`envio` queda en los pedidos
+anteriores a la 0032 y se acepta al reintentar uno guardado). El mensaje de WhatsApp
+(`modules/orders/order-message.ts`) usa el número de Configuración → Negocio. Pago del producto,
+costo y pago del transporte, comprobante de Cargo Trans y fecha de recepción los carga el panel
+(`PATCH /api/orders/admin/:id/operation`), cada uno por separado y con rastro en `audit_logs`; el
+estado del pedido no los completa y la vista pública solo muestra la fecha de recepción.
 
 **Buscadores.** `/robots.txt` y `/sitemap.xml` son rutas de Remix (`lib/seo.ts`). Canonical, `og:url`,
 sitemap y robots usan `APP_URL`; un producto o combo pedido con otro slug redirige con 301 a su URL.
 Panel, login y la vista previa del modo edición llevan `noindex` desde `root.tsx`; Mis pedidos y el
-seguimiento, el suyo. Si el catálogo no responde, la portada sale con 503 y sin caché.
+seguimiento, el suyo. Si el catálogo no responde, portada y listados salen con 503 y sin caché.
+
+**Catálogo.** `/catalogo` y `/categoria/:slug` comparten loader (`lib/catalog-listing.server.ts`) y
+página (`components/catalog/catalog-listing.tsx`). La categoría se resuelve en el servidor: el HTML
+inicial trae solo sus productos, y un id o nombre viejo en la ruta redirige al slug. Los demás filtros
+viven en la query y la grilla los lee de la URL, así que también salen filtrados desde el servidor;
+Redux solo acompaña a los campos mientras se escribe (`CatalogUrlSync`). Indexación: la portada, el
+catálogo y cada categoría con productos tienen canonical propio; con búsqueda, filtros u orden en la
+query, o sin productos, llevan `noindex, follow`. No hay paginación: el catálogo entra en una página.
+
+**Contenido editable.** Horarios en `app_config.business_info` (`businessHours`); pagos, entregas y
+garantía en `app_config.store_policies` (Configuración → Atención, solo admin). `GET /api/config` las
+entrega con `toPublicPolicies`: la página de garantía en borrador nunca sale en la respuesta pública ni
+en su caché. Ayuda (`routes/ayuda.*`) y Por mayor tienen estructura fija y leen esos datos
+(`lib/info-page.server.ts`); sin config responden 503. Los destacados de la portada son
+`featuredProductIds` en la configuración de portada (borrador, versiones y publicación como el resto).
 
 ## 5. Patrones obligatorios
 
@@ -192,6 +212,10 @@ trust proxy → nonce de CSP → helmet (CSP) → cors → json/urlencoded (5 MB
 - **Start**: `npm start` → `tsx server/index.ts`. En producción Express sirve también el build de Remix.
 - **Health check**: `GET /api/health`.
 - `autoDeploy: true`: cada push a la rama desplegada publica.
+- **Dominio**: el DNS está en Cloudflare. `gyrostorenic.com` y `www` son CNAME en *Proxied* a
+  `gyro-store-3sr6.onrender.com`; como Render también usa Cloudflare, primero aplica la zona propia y
+  después la de Render (O2O). Una regla de caché de la zona no guarda `/robots.txt`, para que una
+  respuesta de un mal momento no quede fija por horas. `APP_URL` es `https://gyrostorenic.com`.
 
 **En desarrollo** son dos procesos: `npm run dev` en `App/` (API en :3000) y `npm run dev:frontend`
 (Vite en :5173, que redirige `/api` a :3000).

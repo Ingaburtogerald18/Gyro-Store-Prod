@@ -28,6 +28,7 @@ export const templateSchema = z.object({
   category: z.object({ id: z.string(), name: z.string() }).nullable().optional(),
   axes: z.unknown(),
   specs: z.unknown(),
+  updated_at: z.string().nullable().optional(),
 });
 
 // Vista pública: lo único que sale a la tienda. Es la base y la interna la extiende, así una columna
@@ -111,6 +112,10 @@ export const catalogProductSchema = z.object({
   axesSummary: z.array(z.string()),
   // Nº de combinaciones: si es >1 hay que elegir variante antes de agregar.
   variantCount: z.number().int(),
+  // Colores ofrecidos: la tarjeta dice «3 colores» sin repetir los nombres, que se ven en las fotos.
+  colorCount: z.number().int().default(0),
+  // Último cambio real del producto o su plantilla: el sitemap lo usa como lastmod.
+  updatedAt: z.string().optional(),
   // Con UNA sola combinación, su identidad: la tarjeta agrega directo sin
   // inventar una variante «Estándar».
   singleVariant: z.string().optional(),
@@ -185,6 +190,13 @@ export const storeBankAccountSchema = z.object({
 });
 export type StoreBankAccount = z.infer<typeof storeBankAccountSchema>;
 
+// Horario de atención en texto, una fila por grupo de días («Lunes a viernes» · «8:00 a. m. a 5:00 p. m.»).
+export const businessHoursRowSchema = z.object({
+  days: z.string().trim().min(1, 'Escribí los días.').max(40, 'Máximo 40 caracteres.'),
+  hours: z.string().trim().min(1, 'Escribí el horario.').max(60, 'Máximo 60 caracteres.'),
+});
+export type BusinessHoursRow = z.infer<typeof businessHoursRowSchema>;
+
 // Datos del negocio editables en General (`app_config.business_info`). Sin .default() a propósito:
 // divergiría input y output y rompe zodResolver.
 export const businessInfoSchema = z
@@ -202,6 +214,7 @@ export const businessInfoSchema = z
       tiktok: z.string().max(300).optional().default(''),
     }).optional().default({ instagram: '', facebook: '', tiktok: '' }),
     bankAccounts: z.array(storeBankAccountSchema).optional().default([]),
+    businessHours: z.array(businessHoursRowSchema).max(7, 'Máximo 7 filas.').optional().default([]),
   })
   // El error va a la fila exacta para que salga bajo su select.
   .superRefine((data, ctx) => {

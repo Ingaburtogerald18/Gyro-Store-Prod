@@ -1,21 +1,23 @@
-// Footer con datos reales de la configuración; no se inventan horarios ni datos que falten.
-// Sin logo cargado, la bolsa de Gyro con el nombre.
+// Footer en cuatro grupos (DESIGN.md §10): Gyro Store, Comprar, Ayuda y Contacto, con datos de
+// Configuración. Lo extenso vive en Ayuda; acá solo enlaces y datos de contacto.
 import { Link } from '@remix-run/react';
 import { HugeIcon } from '~/components/ui/icon';
-import { Location01Icon, Mail01Icon } from '@hugeicons/core-free-icons';
+import { Clock01Icon, Location01Icon, Mail01Icon } from '@hugeicons/core-free-icons';
 
 import gyroBag from '~/assets/brand/gyro-bag.png';
-import { categoryHref, inCategory } from '~/components/storefront/category-nav';
+import { categoryHref, inCategory } from '~/lib/catalog-query';
+import { STORE_PAGES, storeMapsUrl } from '~/lib/store-pages';
+import { INFO_LINK } from '~/components/storefront/store-details';
 import { FacebookIcon, InstagramIcon, TikTokIcon } from '~/components/ui/social-icons';
 import { WhatsappIcon } from '~/components/ui/whatsapp-icon';
 import { useStoreCatalog, useStoreConfig } from '~/hooks/use-store-config';
 import { getBrandName } from '~/lib/brand';
 import { buildWhatsappUrl } from '~/lib/formatters';
-import { STORE_POLICIES } from '~/lib/store-policies';
+import { trackWhatsappOpen } from '~/lib/analytics.client';
 
 const HEADING = 'mb-3 text-sm font-bold text-foreground';
 const LINK =
-  'inline-flex min-h-11 max-w-full items-center justify-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:rounded-xl focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none md:min-h-8 md:justify-start';
+  'inline-flex min-h-11 max-w-full items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:rounded-xl focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none md:min-h-8';
 
 export function PublicFooter() {
   const config = useStoreConfig();
@@ -25,10 +27,8 @@ export function PublicFooter() {
   const logo = config?.images?.logoStatic;
   const email = config?.contactEmail?.trim();
   const address = config?.address?.trim();
-  // La ubicación del panel manda; si no hay, se busca la dirección en Maps.
-  const mapsUrl =
-    config?.locationUrl?.trim() ||
-    (address ? `https://maps.google.com/?q=${encodeURIComponent(address)}` : '');
+  const hours = config?.businessHours ?? [];
+  const mapsUrl = storeMapsUrl(config);
   const whatsappUrl = config?.whatsapp
     ? buildWhatsappUrl(config.whatsapp, `Hola ${brand}, tengo una consulta`)
     : '';
@@ -50,12 +50,12 @@ export function PublicFooter() {
       id="public-footer"
       className="relative mt-12 border-t-2 border-t-foreground bg-card text-foreground dark:border-t dark:border-t-border"
     >
-      <div className="mx-auto grid max-w-7xl gap-6 px-4 pt-8 pb-6 text-center md:grid-cols-[1.3fr_1fr_1fr_1.2fr] md:gap-8 md:pt-10 md:pb-8 md:text-left">
-        {/* Marca y redes */}
-        <div className="flex flex-col items-center gap-3 md:items-start">
+      <div className="mx-auto grid max-w-7xl grid-cols-2 gap-x-6 gap-y-8 px-4 pt-8 pb-6 md:grid-cols-[1.4fr_1fr_1fr_1.4fr] md:gap-8 md:pt-10 md:pb-8">
+        {/* Gyro Store: qué vende y dónde, con datos confirmados. */}
+        <div className="col-span-2 flex flex-col items-start gap-3 md:col-span-1">
           <Link to="/" className="inline-flex items-center gap-2 rounded-xl focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none" aria-label={`Ir al inicio de ${brand}`}>
             {logo ? (
-              <img src={logo} alt="" height={40} loading="lazy" decoding="async" className="h-10 w-auto max-w-[160px] object-contain object-center md:object-left" />
+              <img src={logo} alt="" height={40} loading="lazy" decoding="async" className="h-10 w-auto max-w-[160px] object-contain object-left" />
             ) : (
               <>
                 <img src={gyroBag} alt="" width={40} height={40} loading="lazy" decoding="async" className="size-10" />
@@ -64,10 +64,11 @@ export function PublicFooter() {
             )}
           </Link>
           <p className="max-w-xs text-sm leading-relaxed text-muted-foreground">
-            Comprar con confianza nunca estuvo tan cerca de vos. Todo lo que necesitás, a un clic de distancia
+            Tienda en línea de accesorios tecnológicos en Managua, Nicaragua. Importación directa, asesoría y
+            garantía por fallas de fábrica.
           </p>
           {socialItems.length > 0 && (
-            <ul className="flex items-center justify-center gap-2 md:justify-start" aria-label="Redes sociales">
+            <ul className="flex items-center gap-2" aria-label="Redes sociales">
               {socialItems.map(({ key, label, href, Icon }) => (
                 <li key={key}>
                   <a
@@ -85,87 +86,94 @@ export function PublicFooter() {
           )}
         </div>
 
-        {/* En móvil, enlaces cortos en dos columnas y contacto a todo el ancho.
-            En escritorio, Ayuda y contacto comparten su columna original. */}
-        <div className="grid grid-cols-2 gap-x-6 gap-y-5 md:contents">
-          <nav aria-label="Categorías de la tienda">
-            <p className={HEADING}>Tienda</p>
-            <ul className="md:space-y-1">
-              <li><Link to="/#catalogo" className={LINK}>Todo el catálogo</Link></li>
-              {categories.slice(0, 6).map((c) => (
-                <li key={c.id}>
-                  <Link to={categoryHref(c.slug)} className={LINK}>{c.name}</Link>
-                </li>
-              ))}
-            </ul>
-          </nav>
+        <nav aria-label="Comprar">
+          <p className={HEADING}>Comprar</p>
+          <ul className="md:space-y-1">
+            <li><Link to={categoryHref(null)} className={LINK}>Todo el catálogo</Link></li>
+            {categories.slice(0, 5).map((c) => (
+              <li key={c.id}>
+                <Link to={categoryHref(c.slug)} className={LINK}>{c.name}</Link>
+              </li>
+            ))}
+            <li><Link to={STORE_PAGES.wholesale} className={LINK}>Por mayor</Link></li>
+          </ul>
+        </nav>
 
-          <div className="contents md:block">
-            <nav aria-label="Ayuda">
-              <p className={HEADING}>Ayuda</p>
-              <ul className="md:space-y-1">
-                <li><Link to="/mis-pedidos" className={LINK}>Mis pedidos</Link></li>
-                <li><Link to="/contacto" className={LINK}>Contacto</Link></li>
-              </ul>
-            </nav>
-            {(whatsappUrl || email || address || mapsUrl) && (
-              <ul aria-label="Contacto de la tienda" className="col-span-2 border-t border-border pt-4 text-left md:mt-1 md:space-y-1 md:border-0 md:pt-0">
-                {whatsappUrl && (
-                  <li>
-                    <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" className={LINK}>
-                      <WhatsappIcon aria-hidden className="size-4 shrink-0" />
-                      WhatsApp
-                    </a>
-                  </li>
-                )}
-                {email && (
-                  <li>
-                    <a href={`mailto:${email}`} className={LINK}>
-                      <HugeIcon icon={Mail01Icon} size={16} strokeWidth={2} aria-hidden className="shrink-0" />
-                      <span className="min-w-0 [overflow-wrap:anywhere]">{email}</span>
-                    </a>
-                  </li>
-                )}
-                {(address || mapsUrl) && (
-                  <li>
-                    {mapsUrl ? (
-                      <a href={mapsUrl} target="_blank" rel="noopener noreferrer" className={`${LINK} mx-auto max-w-xs py-2 max-md:items-start md:mx-0 md:max-w-full md:py-0`}>
-                        <HugeIcon icon={Location01Icon} size={16} strokeWidth={2} aria-hidden className="mt-0.5 shrink-0 md:mt-0" />
-                        <span className="min-w-0 [overflow-wrap:anywhere]">{address || 'Cómo llegar'}</span>
-                      </a>
-                    ) : (
-                      <span className={`${LINK} mx-auto max-w-xs py-2 max-md:items-start md:mx-0 md:max-w-full md:py-0`}>
-                        <HugeIcon icon={Location01Icon} size={16} strokeWidth={2} aria-hidden className="mt-0.5 shrink-0 md:mt-0" />
-                        <span className="min-w-0 [overflow-wrap:anywhere]">{address}</span>
-                      </span>
-                    )}
-                  </li>
-                )}
-              </ul>
+        <nav aria-label="Ayuda">
+          <p className={HEADING}>Ayuda</p>
+          <ul className="md:space-y-1">
+            <li><Link to={STORE_PAGES.howToBuy} className={LINK}>Cómo comprar</Link></li>
+            <li><Link to={STORE_PAGES.paymentsDelivery} className={LINK}>Pagos y entregas</Link></li>
+            {config?.policies?.warrantyPage && (
+              <li><Link to={STORE_PAGES.warranty} className={LINK}>Garantía y cambios</Link></li>
             )}
-          </div>
-        </div>
+            <li><Link to={STORE_PAGES.orders} className={LINK}>Mis pedidos</Link></li>
+            <li><Link to={STORE_PAGES.contact} className={LINK}>Contacto</Link></li>
+          </ul>
+        </nav>
 
-        {/* Información comercial reunida en un bloque, siempre visible. */}
-        <div className="text-left">
-          <p className={HEADING}>Información adicional</p>
-          <div className="max-w-sm space-y-3 pb-1 text-left text-sm leading-relaxed text-muted-foreground md:max-w-none md:space-y-2">
-            <p><span className="font-medium text-foreground">{STORE_POLICIES.warranty.title}</span> {STORE_POLICIES.warranty.text.toLowerCase()}</p>
-            <p><span className="font-medium text-foreground">Pago:</span> {STORE_POLICIES.payment.title.toLowerCase()}.</p>
-            <p><span className="font-medium text-foreground">{STORE_POLICIES.managua.title}.</span> {STORE_POLICIES.managua.text}</p>
-            <p><span className="font-medium text-foreground">{STORE_POLICIES.outside.title}.</span> {STORE_POLICIES.outside.text}</p>
-            <p>{STORE_POLICIES.shippingNote}</p>
-          </div>
+        <div className="col-span-2 md:col-span-1">
+          <p className={HEADING}>Contacto</p>
+          <ul aria-label="Contacto de la tienda" className="md:space-y-1">
+            {whatsappUrl && (
+              <li>
+                <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" className={LINK} onClick={() => trackWhatsappOpen('consult')}>
+                  <WhatsappIcon aria-hidden className="size-4 shrink-0" />
+                  <span>WhatsApp {config?.whatsapp}</span>
+                </a>
+              </li>
+            )}
+            {email && (
+              <li>
+                <a href={`mailto:${email}`} className={LINK}>
+                  <HugeIcon icon={Mail01Icon} size={16} strokeWidth={2} aria-hidden className="shrink-0" />
+                  <span className="min-w-0 [overflow-wrap:anywhere]">{email}</span>
+                </a>
+              </li>
+            )}
+            {address && (
+              // Punto de retiro, no un local abierto al público.
+              <li className="flex gap-2 py-2 text-sm text-muted-foreground md:py-1">
+                <HugeIcon icon={Location01Icon} size={16} strokeWidth={2} aria-hidden className="mt-0.5 shrink-0" />
+                <span className="min-w-0">
+                  <span className="font-medium text-foreground">Punto de retiro: </span>
+                  <span className="[overflow-wrap:anywhere]">{address}</span>
+                  {mapsUrl && (
+                    <>
+                      {' · '}
+                      <a href={mapsUrl} target="_blank" rel="noopener noreferrer" className={INFO_LINK}>
+                        Cómo llegar
+                      </a>
+                    </>
+                  )}
+                </span>
+              </li>
+            )}
+            {hours.length > 0 && (
+              <li className="flex gap-2 py-2 text-sm text-muted-foreground md:py-1">
+                <HugeIcon icon={Clock01Icon} size={16} strokeWidth={2} aria-hidden className="mt-0.5 shrink-0" />
+                <dl className="min-w-0">
+                  <dt className="font-medium text-foreground">Horario de atención</dt>
+                  {hours.map((row) => (
+                    <dd key={row.days}>{row.days}: {row.hours}</dd>
+                  ))}
+                </dl>
+              </li>
+            )}
+          </ul>
         </div>
       </div>
 
       {/* ── Barra inferior ─────────────────────────────────────────────────── */}
       <div className="border-t border-border">
-        <div className="mx-auto flex max-w-7xl flex-col items-start justify-between gap-2 px-4 py-4 text-left text-xs text-muted-foreground md:flex-row md:items-center md:gap-1 md:py-3 md:text-center">
-          <p>Todos los derechos reservados · {brand} {year}</p>
-          <p>
-            Diseñado por <span className="font-medium text-foreground">Ing. Gerald Aburto</span>
-          </p>
+        <div className="mx-auto flex max-w-7xl flex-col gap-1 px-4 py-4 text-xs text-muted-foreground md:flex-row md:items-center md:justify-between md:py-3">
+          <p>© {year} {brand}. Todos los derechos reservados.</p>
+          <div className="flex flex-wrap items-center gap-x-4">
+            <p>Diseñado por Ing. Gerald Aburto</p>
+            <Link to="/login" className="inline-flex min-h-11 items-center hover:text-foreground focus-visible:rounded-xl focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none md:min-h-8">
+              Acceso del personal
+            </Link>
+          </div>
         </div>
       </div>
     </footer>

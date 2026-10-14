@@ -1,7 +1,7 @@
-// Sin filtros: ofertas y un carrusel por categoría. Con búsqueda o filtro: grilla uniforme, todas
-// las tarjetas del mismo tamaño. El filtrado lo hace useCatalogFilter.
+// Portada: destacados y, con más de 8 productos, ofertas y una fila por categoría, sin filtros (viven en
+// /catalogo). Listado: grilla uniforme, todas las tarjetas del mismo tamaño, filtrada por useCatalogFilter.
 import { useMemo } from 'react';
-import { useRevalidator } from '@remix-run/react';
+import { Link, useRevalidator } from '@remix-run/react';
 import { HugeIcon } from '~/components/ui/icon';
 import { PackageSearchIcon, WifiError01Icon } from '@hugeicons/core-free-icons';
 import { Button } from '~/components/ui/button';
@@ -11,25 +11,17 @@ import type { StoreCategory } from '~/state/api/session-api';
 import { ProductCard } from '~/components/product/product-card';
 import { ProductCarousel } from '~/components/product/product-carousel';
 import { Skeleton } from '~/components/ui/skeleton';
-import { isDeal, useCatalogFilter } from '~/hooks/use-catalog-filter';
-import { useSearchTelemetry } from '~/hooks/use-search-telemetry';
+import { isDeal, useCatalogFilter, useCatalogFilters } from '~/hooks/use-catalog-filter';
 
 import { useAppDispatch, useAppSelector } from '~/state/hooks';
 import { selectEditMode } from '~/state/slices/auth-slice';
-import { filtersClearedAll, searchSet, selectActiveCategory, selectSearch } from '~/state/slices/ui-slice';
-import { findCategory } from '~/lib/catalog-query';
+import { filtersClearedAll, searchSet } from '~/state/slices/ui-slice';
+import { CATALOG_PATH, categoryHref, findCategory, inCategory } from '~/lib/catalog-query';
 import { categoryMode } from '@shared/schemas';
 import { selectDraftLandingConfig } from '~/state/slices/builder-slice';
 import { useStoreLanding } from '~/hooks/use-store-config';
-import { categoryHref } from '~/components/storefront/category-nav';
 
 export { isDeal };
-
-// Un producto pertenece a la categoría tanto si guarda el id como el nombre
-// (el contrato trae `category` como texto y `categoryId` opcional).
-function inCategory(p: CatalogProduct, c: StoreCategory) {
-  return p.categoryId === c.id || p.category === c.id || p.category === c.name;
-}
 
 interface ProductGridProps {
   products: CatalogProduct[];
@@ -37,21 +29,18 @@ interface ProductGridProps {
   isLoading?: boolean;
   /** El API no respondió: no es un catálogo vacío. */
   error?: boolean;
+  layout?: 'home' | 'listing';
 }
 
 /** Con pocos productos, una grilla compacta en vez de filas casi vacías. */
 const FEW_PRODUCTS = 8;
 
-export function ProductGrid({ products, categories = [], isLoading, error }: ProductGridProps) {
+export function ProductGrid({ products, categories = [], isLoading, error, layout = 'home' }: ProductGridProps) {
   const dispatch = useAppDispatch();
   const revalidator = useRevalidator();
-  const search = useAppSelector(selectSearch);
-  const activeCategory = useAppSelector(selectActiveCategory);
-  const { filtered, isDefault, unknownCategory } = useCatalogFilter(products, categories);
-  useSearchTelemetry(filtered.length);
-  // En la vista por defecto `filtered` es el catálogo completo ya ordenado: los
-  // carriles salen de ahí para que el selector de orden también los ordene.
-  const deals = useMemo(() => filtered.filter(isDeal), [filtered]);
+  const { search, category: activeCategory } = useCatalogFilters(categories);
+  const { filtered, unknownCategory } = useCatalogFilter(products, categories);
+  const deals = useMemo(() => products.filter(isDeal), [products]);
 
   const editMode = useAppSelector(selectEditMode);
   const draftLanding = useAppSelector(selectDraftLandingConfig);
@@ -68,7 +57,6 @@ export function ProductGrid({ products, categories = [], isLoading, error }: Pro
 
   // Una fila por categoría con productos; las ofertas siguen también en su categoría.
   const rows = useMemo(() => {
-    const rest = filtered;
     let orderedCategories = categories;
 
     if (railMode === 'hidden') return [];
@@ -79,15 +67,15 @@ export function ProductGrid({ products, categories = [], isLoading, error }: Pro
     }
 
     return orderedCategories
-      .map((c) => ({ category: c, items: rest.filter((p) => inCategory(p, c)) }))
+      .map((c) => ({ category: c, items: products.filter((p) => inCategory(p, c)) }))
       .filter((row) => row.items.length > 0);
-  }, [filtered, categories, railCategoriesIds, railMode]);
+  }, [products, categories, railCategoriesIds, railMode]);
 
   // Productos que no caen en ninguna categoría de la config
   const uncategorized = useMemo(() => {
     if (categories.length === 0 || railMode !== 'auto') return [];
-    return filtered.filter((p) => !categories.some((c) => inCategory(p, c)));
-  }, [filtered, categories, railMode]);
+    return products.filter((p) => !categories.some((c) => inCategory(p, c)));
+  }, [products, categories, railMode]);
 
   if (isLoading) return <GridSkeleton />;
 
@@ -107,23 +95,42 @@ export function ProductGrid({ products, categories = [], isLoading, error }: Pro
     );
   }
   if (products.length === 0) {
+    const emptyCategory = layout === 'listing' ? findCategory(categories, activeCategory) : undefined;
+    if (emptyCategory) {
+      return (
+        <EmptyState
+          title={`Todavía no hay productos en ${emptyCategory.name}`}
+          text="Mirá el resto del catálogo mientras tanto."
+          action={
+            <Button asChild className="h-12 px-6">
+              <Link to={CATALOG_PATH}>Ver todo el catálogo</Link>
+            </Button>
+          }
+        />
+      );
+    }
     return <EmptyState title="Todavía no hay productos publicados" text="Volvé pronto o escribinos por WhatsApp." />;
   }
 
-  if (isDefault) {
-    if (products.length <= FEW_PRODUCTS || railMode === 'hidden') {
-      return (
-        <section aria-labelledby="catalog-all" className="space-y-4 pb-2 md:pb-12">
-          <h2 id="catalog-all" className="font-heading text-2xl font-bold tracking-tight text-foreground md:text-3xl">
-            Catálogo
-          </h2>
-          <ProductResultsGrid products={filtered} />
-        </section>
-      );
-    }
+  if (layout === 'home') {
+    // Destacados elegidos en el modo edición (los que siguen publicados); sin elección, los primeros
+    // de la vitrina: la portada siempre muestra productos temprano.
+    const featured = (landingToUse?.featuredProductIds ?? [])
+      .map((id) => products.find((p) => p.id === id))
+      .filter((p): p is CatalogProduct => Boolean(p));
+    const highlight = featured.length ? featured : products.slice(0, FEW_PRODUCTS);
+    // Con pocos productos ya están todos a la vista: las filas solo repetirían los mismos.
+    const showRows = products.length > FEW_PRODUCTS && railMode !== 'hidden';
     return (
-      <div className="space-y-2 pb-2 md:space-y-6 md:pb-12">
-        {deals.length > 0 && (
+      <div className="space-y-2 pb-2 md:space-y-6 md:pb-8">
+        <section aria-labelledby="home-highlight" className="space-y-4">
+          <h2 id="home-highlight" className="font-heading text-2xl font-bold tracking-tight text-foreground md:text-3xl">
+            {featured.length ? 'Destacados' : 'Productos'}
+          </h2>
+          <ProductResultsGrid products={highlight} />
+        </section>
+
+        {showRows && deals.length > 0 && (
           <ProductCarousel
             title="Ofertas"
             subtitle="Productos con precio rebajado."
@@ -132,29 +139,25 @@ export function ProductGrid({ products, categories = [], isLoading, error }: Pro
           />
         )}
 
-        {rows.map((row) => (
-          <ProductCarousel
-            key={row.category.id}
-            title={row.category.name}
-            href={categoryHref(row.category.slug)}
-            products={row.items}
-            variant="showcase"
-          />
-        ))}
+        {showRows &&
+          rows.map((row) => (
+            <ProductCarousel
+              key={row.category.id}
+              title={row.category.name}
+              href={categoryHref(row.category.slug)}
+              products={row.items}
+              variant="showcase"
+            />
+          ))}
 
-        {uncategorized.length > 0 && (
+        {showRows && uncategorized.length > 0 && (
           <ProductCarousel title="Más productos" products={uncategorized} variant="showcase" />
-        )}
-
-        {/* Sin categorías configuradas no hay filas que armar: se cae a la
-            grilla completa antes que dejar la home en blanco. */}
-        {rows.length === 0 && uncategorized.length === 0 && deals.length === 0 && (
-          <ProductResultsGrid products={products} />
         )}
       </div>
     );
   }
 
+  // Listado: el título y el conteo los pone la página (catalog-listing.tsx).
   const category = findCategory(categories, activeCategory);
   const query = search.trim();
   let empty: { title: string; text: string; action: React.ReactNode } | null = null;
@@ -184,14 +187,7 @@ export function ProductGrid({ products, categories = [], isLoading, error }: Pro
   }
 
   return (
-    <div className="space-y-4 pb-2 md:pb-12">
-      <h2 className="font-heading text-2xl font-bold tracking-tight text-foreground md:text-3xl">
-        {category?.name ?? 'Resultados'}{' '}
-        <span className="ml-1 text-sm font-medium text-muted-foreground tabular-nums">
-          ({filtered.length})
-        </span>
-      </h2>
-
+    <div className="pb-2 md:pb-12">
       {empty ? <EmptyState {...empty} /> : <ProductResultsGrid products={filtered} />}
     </div>
   );

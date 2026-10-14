@@ -13,6 +13,7 @@ export function LandingPreviewBridge() {
   useEffect(() => {
     let interactive = false;
     let selectedSection = '';
+    let selectedSlide = '';
     function receive(event: MessageEvent) {
       if (event.origin !== window.location.origin || event.source !== window.parent || window.parent === window) return;
       if (event.data?.type !== 'gyro:landing-preview') return;
@@ -35,8 +36,14 @@ export function LandingPreviewBridge() {
       // Productos con los cambios del borrador; sin ellos, el catálogo publicado.
       const products = catalogProductSchema.array().safeParse(event.data.products);
       dispatch(setPreviewCatalog(products.success ? products.data : null));
-      dispatch(selectHeroSlide(typeof event.data.slideId === 'string' ? event.data.slideId : null));
+      const slideId = typeof event.data.slideId === 'string' ? event.data.slideId : null;
+      dispatch(selectHeroSlide(slideId));
       if (!editingRef.current) dispatch(toggleEditMode());
+      // Las novedades van más abajo que la presentación: se baja hasta la que se edita, ya pintada.
+      if (!interactive && slideId && slideId !== selectedSlide) {
+        selectedSlide = slideId;
+        setTimeout(() => document.querySelector(`[data-landing-slide="${CSS.escape(slideId)}"]`)?.scrollIntoView({ block: 'center' }), 60);
+      }
     }
     window.addEventListener('message', receive);
     function select(event: MouseEvent) {

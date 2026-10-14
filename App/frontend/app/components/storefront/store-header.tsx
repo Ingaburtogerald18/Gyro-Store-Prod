@@ -6,7 +6,7 @@ import { Link } from '@remix-run/react';
 import { motion, AnimatePresence, useAnimationControls, useReducedMotion } from 'framer-motion';
 import { GridViewIcon, ShoppingCart02Icon, Search01Icon, Cancel01Icon } from '@hugeicons/core-free-icons';
 import { categoryMode } from '@shared/schemas';
-import { inCategory } from '~/components/storefront/category-nav';
+import { inCategory } from '~/lib/catalog-query';
 import { SearchBar } from '~/components/catalog/search-bar';
 import { CategoriesDrawer } from '~/components/storefront/categories-drawer';
 import { CategoryNav } from '~/components/storefront/category-nav';

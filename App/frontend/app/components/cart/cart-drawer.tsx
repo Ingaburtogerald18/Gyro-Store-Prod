@@ -34,6 +34,7 @@ import {
 } from '~/state/slices/cart-slice';
 import type { CreatedPublicOrder } from '~/state/api/storefront-api';
 import { formatCordobas } from "~/lib/formatters";
+import { CATALOG_PATH } from '~/lib/catalog-query';
 import { selectCheckoutDraft } from '~/state/slices/checkout-slice';
 
 type Step = 'cart' | 'checkout';
@@ -71,11 +72,10 @@ export function CartDrawer() {
     }
   }
 
-  // "Seguir comprando": cierra el carrito y baja a la grilla del catálogo.
+  // "Seguir comprando": cierra el carrito y lleva al catálogo.
   function keepShopping() {
     close();
-    navigate('/#catalogo');
-    setTimeout(() => document.getElementById('catalogo')?.scrollIntoView({ block: 'start' }), 120);
+    navigate(CATALOG_PATH);
   }
 
   const inCheckout = step === 'checkout' && (items.length > 0 || placed || attempt);

@@ -5,9 +5,12 @@ import { Notification03Icon, ShoppingCart02Icon } from "@hugeicons/core-free-ico
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { redirect, type HeadersFunction, type LoaderFunctionArgs, type MetaFunction } from '@remix-run/node';
 import { getBrandName, pageTitle } from '~/lib/brand';
-import { canonicalLink, metaDescription, productOffers } from '~/lib/seo';
+import { breadcrumbJsonLd, canonicalLink, metaDescription, productOffers } from '~/lib/seo';
+import { categoryHref, findCategory } from '~/lib/catalog-query';
 import { siteOrigin } from '~/lib/site-url.server';
-import { useLoaderData } from '@remix-run/react';
+import { Link, useLoaderData } from '@remix-run/react';
+import { STORE_PAGES } from '~/lib/store-pages';
+import { INFO_LINK } from '~/components/storefront/store-details';
 import { useReducedMotion } from 'framer-motion';
 
 import type { CatalogDetail, CatalogProduct } from '@shared/schemas';
@@ -31,7 +34,7 @@ import type { StoreConfig } from '~/state/api/session-api';
 import { useAppDispatch } from '~/state/hooks';
 import { addItem, openCart } from '~/state/slices/cart-slice';
 import { buildWhatsappUrl, formatCordobas, getProductUrl, htmlToText, productWhatsappMessage } from "~/lib/formatters";
-import { trackProductView } from '~/lib/analytics.client';
+import { trackAddToCart, trackProductView, trackWhatsappOpen } from '~/lib/analytics.client';
 
 export const headers: HeadersFunction = () => ({
   'Cache-Control': 'public, max-age=60, stale-while-revalidate=300',
@@ -90,7 +93,8 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
   const canonicalPath = getProductUrl(product.id, product.name);
   if (url.pathname !== canonicalPath) throw redirect(`${canonicalPath}${url.search}`, 301);
 
-  return { product, related, products, config, canonicalUrl: `${siteOrigin(request)}${canonicalPath}` };
+  const siteUrl = siteOrigin(request);
+  return { product, related, products, config, siteUrl, canonicalUrl: `${siteUrl}${canonicalPath}` };
 }
 
 export const meta: MetaFunction<typeof loader> = ({ data }) => {
@@ -101,6 +105,14 @@ export const meta: MetaFunction<typeof loader> = ({ data }) => {
   const title = pageTitle(product.name);
   const description = metaDescription(product.description, `${product.name} en ${brand}, Managua, Nicaragua.`);
   const canonicalUrl = data.canonicalUrl;
+  // Mismo recorrido que la barra de la ficha (ProductTopNav): Inicio › categoría › producto.
+  const categories = data.config?.categories ?? [];
+  const category = findCategory(categories, product.categoryId) ?? findCategory(categories, product.category);
+  const trail = [
+    { name: 'Inicio', url: `${data.siteUrl}/` },
+    ...(category ? [{ name: category.name, url: `${data.siteUrl}${categoryHref(category.slug)}` }] : []),
+    { name: product.name, url: canonicalUrl },
+  ];
 
   return [
     { title },
@@ -121,9 +133,15 @@ export const meta: MetaFunction<typeof loader> = ({ data }) => {
         image: product.images,
         description,
         url: canonicalUrl,
+        ...(category ? { category: category.name } : {}),
+        // La ficha técnica de la plantilla: los mismos datos que se ven en la página.
+        ...(product.specs.length
+          ? { additionalProperty: product.specs.map((s) => ({ '@type': 'PropertyValue', name: s.label, value: s.value })) }
+          : {}),
         offers: productOffers(product, canonicalUrl),
       },
     },
+    { 'script:ld+json': breadcrumbJsonLd(trail) },
   ];
 };
 
@@ -200,27 +218,20 @@ export default function ProductDetail() {
     if (state.kind !== 'ready') return;
     dispatch(addItem(cartItemFor(product, state.variant, activeImages[0], safeQuantity)));
     dispatch(openCart());
+    trackAddToCart(product.id, safeQuantity, 'ficha');
   }
 
+  // Consultar no es pedir: el mensaje lleva producto, opción elegida y enlace, sin cantidades ni total.
   function handleWhatsApp() {
     const url = typeof window !== 'undefined' ? window.location.href : '';
-    const message =
-      state.kind === 'ready'
-        ? productWhatsappMessage({
-            kind: 'order',
-            name: product.name,
-            variant: selectedLabel || undefined,
-            quantity: safeQuantity,
-            total: formatCordobas(price * safeQuantity, currency),
-            url,
-          })
-        : productWhatsappMessage({
-            kind: isConsultOnly(state.kind) ? 'availability' : 'info',
-            name: product.name,
-            variant: selectedLabel || undefined,
-            url,
-          });
+    const message = productWhatsappMessage({
+      kind: isConsultOnly(state.kind) ? 'availability' : 'info',
+      name: product.name,
+      variant: selectedLabel || undefined,
+      url,
+    });
     window.open(buildWhatsappUrl(config?.whatsapp ?? '', message), '_blank', 'noopener,noreferrer');
+    trackWhatsappOpen('consult');
   }
 
   // Agotado, próximamente o sin stock verificable: la acción principal es consultar,
@@ -228,7 +239,6 @@ export default function ProductDetail() {
   const consultOnly = isConsultOnly(state.kind);
   const notifyVariant = state.kind === 'sold_out' || state.kind === 'coming_soon' ? state.variant : null;
   const comingSoon = variant ? variant.availability === 'coming_soon' : product.availability === 'coming_soon';
-  const whatsappLabel = state.kind === 'ready' ? 'Pedir por WhatsApp' : 'Consultar por WhatsApp';
 
   return (
     <StorefrontShell>
@@ -240,7 +250,8 @@ export default function ProductDetail() {
         />
 
         <div className="grid gap-5 py-5 md:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] md:grid-rows-[auto_1fr] md:gap-x-10 md:gap-y-5 md:py-6">
-          {/* En móvil, nombre y precio identifican el producto antes de la foto. */}
+          {/* En móvil la foto va primero (order-first en la galería) y debajo nombre y precio; la descripción
+              completa está en Detalles. El H1 sigue primero en el HTML. */}
           <div className="min-w-0 space-y-2.5 md:col-start-2 md:row-start-1">
             {showPromoBadge && (
               <Badge variant="promo" className="tabular-nums">{onSale ? `−${discountPct}%` : 'Oferta'}</Badge>
@@ -249,7 +260,7 @@ export default function ProductDetail() {
               {product.name}
             </h1>
             {description && (
-              <p className="line-clamp-2 text-base leading-relaxed text-muted-foreground">
+              <p className="hidden text-base leading-relaxed text-muted-foreground md:line-clamp-2">
                 {description}
               </p>
             )}
@@ -276,7 +287,7 @@ export default function ProductDetail() {
             )}
           </div>
 
-          <div className="min-w-0 md:sticky md:top-28 md:col-start-1 md:row-start-1 md:row-span-2 md:self-start">
+          <div className="order-first min-w-0 md:sticky md:top-28 md:order-none md:col-start-1 md:row-start-1 md:row-span-2 md:self-start">
             <ProductGallery images={activeImages} name={product.name} soldOut={state.kind === 'sold_out'} />
           </div>
 
@@ -348,25 +359,40 @@ export default function ProductDetail() {
                   Consultar por WhatsApp
                 </Button>
               ) : (
+                // WhatsApp es la acción principal; el carrito, el camino para registrar el pedido en línea.
                 <>
                   <Button
-                    onClick={handleAddToCart}
+                    variant="whatsapp"
+                    onClick={handleWhatsApp}
                     className="h-12 min-h-12 w-full shrink-0 text-base sm:flex-1 md:flex-none lg:flex-1"
+                  >
+                    <WhatsappIcon className="size-4" />
+                    Consultar por WhatsApp
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={handleAddToCart}
+                    className="h-12 min-h-12 w-full shrink-0 justify-center text-base sm:w-auto sm:px-4 md:w-full lg:w-auto"
                   >
                     <HugeIcon icon={ShoppingCart02Icon} size={18} strokeWidth={2} aria-hidden />
                     {addLabel(state)}
                   </Button>
-                  <Button
-                    variant="whatsappOutline"
-                    onClick={handleWhatsApp}
-                    className="h-12 min-h-12 w-full shrink-0 justify-center text-base sm:w-auto sm:px-4 md:w-full lg:w-auto"
-                  >
-                    <WhatsappIcon className="size-4" />
-                    {whatsappLabel}
-                  </Button>
                 </>
               )}
             </div>
+
+            {/* Junto a la decisión: cuándo responden y las condiciones en una línea, con el enlace a las completas. */}
+            {(config?.businessHours?.length ?? 0) > 0 && (
+              <p className="text-xs text-muted-foreground">
+                Te respondemos por WhatsApp: {config?.businessHours?.map((row) => `${row.days} ${row.hours}`).join(' · ')}.
+              </p>
+            )}
+            {config?.policies && (
+              <p className="text-xs text-muted-foreground">
+                {[config.policies.warranty.title, config.policies.managua.title, config.policies.outside.title].join(' · ')}.{' '}
+                <Link to={STORE_PAGES.paymentsDelivery} className={INFO_LINK}>Ver condiciones</Link>
+              </p>
+            )}
           </div>
         </div>
 

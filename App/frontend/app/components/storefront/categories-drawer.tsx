@@ -1,5 +1,5 @@
 // Categorías en móvil: el mega-menú no cabe en 360 px. Sobre <Sheet>.
-import { useNavigate } from '@remix-run/react';
+import { Link, useLocation } from '@remix-run/react';
 import { HugeIcon } from '~/components/ui/icon';
 import { ArrowRight02Icon } from '@hugeicons/core-free-icons';
 
@@ -12,11 +12,8 @@ import {
   SheetHeader,
   SheetTitle,
 } from '~/components/ui/sheet';
-import { inCategory } from '~/components/storefront/category-nav';
-import { useAppSelector } from '~/state/hooks';
-import { selectActiveCategory } from '~/state/slices/ui-slice';
+import { CATALOG_PATH, categoryFromPath, categoryHref, inCategory } from '~/lib/catalog-query';
 import { cn } from '~/lib/utils';
-import { useReducedMotion } from 'framer-motion';
 
 export function CategoriesDrawer({
   open,
@@ -29,34 +26,20 @@ export function CategoriesDrawer({
   categories: Category[];
   products: CatalogProduct[];
 }) {
-  const navigate = useNavigate();
-  const activeCategory = useAppSelector(selectActiveCategory);
-  const reduce = useReducedMotion();
-
-  function pick(slug: string | null) {
-    // El filtro lo aplica la URL (CatalogUrlSync); acá solo se baja al catálogo.
-    onOpenChange(false);
-    if (slug) {
-      navigate(`/?categoria=${encodeURIComponent(slug)}#catalogo`);
-    } else {
-      navigate('/#catalogo');
-    }
-    setTimeout(
-      () => document.getElementById('catalogo')?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' }),
-      120,
-    );
-  }
+  const { pathname } = useLocation();
+  const activeCategory = categoryFromPath(pathname);
+  const close = () => onOpenChange(false);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="left" className="w-[min(88vw,20rem)] p-0">
         <SheetHeader className="border-b border-border p-4">
           <SheetTitle>Categorías</SheetTitle>
-          <SheetDescription>Elegí una gama para filtrar el catálogo.</SheetDescription>
+          <SheetDescription>Elegí una categoría para ver sus productos.</SheetDescription>
         </SheetHeader>
 
         <nav aria-label="Categorías" className="overflow-y-auto p-2">
-          <CategoryRow label="Todo el catálogo" selected={activeCategory === null} onSelect={() => pick(null)} />
+          <CategoryRow label="Todo el catálogo" to={categoryHref(null)} selected={pathname === CATALOG_PATH} onSelect={close} />
 
           {/* Las categorías sin productos no se listan: un "0" en el menú es un
               callejón sin salida. Mientras el catálogo no cargó, se muestran todas. */}
@@ -69,8 +52,9 @@ export function CategoriesDrawer({
                 key={c.id}
                 label={c.name}
                 count={products.length ? count : undefined}
+                to={categoryHref(c.slug)}
                 selected={activeCategory === c.slug}
-                onSelect={() => pick(c.slug)}
+                onSelect={close}
               />
             );
           })}
@@ -83,19 +67,21 @@ export function CategoriesDrawer({
 function CategoryRow({
   label,
   count,
+  to,
   selected,
   onSelect,
 }: {
   label: string;
   count?: number;
+  to: string;
   selected: boolean;
   onSelect: () => void;
 }) {
   return (
-    <button
-      type="button"
+    <Link
+      to={to}
       onClick={onSelect}
-      aria-current={selected ? 'true' : undefined}
+      aria-current={selected ? 'page' : undefined}
       // min-h-12: fila cómoda para el pulgar, no un enlace de 20px.
       className={cn(
         'group flex min-h-12 w-full items-center justify-between gap-3 rounded-xl px-3 text-left text-sm transition-colors',
@@ -116,6 +102,6 @@ function CategoryRow({
         aria-hidden
         className="shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
       />
-    </button>
+    </Link>
   );
 }

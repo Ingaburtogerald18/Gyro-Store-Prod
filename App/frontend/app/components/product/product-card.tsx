@@ -1,22 +1,18 @@
-// La tarjeta entera enlaza a la ficha y la acción va aparte: una opción → «Agregar»; varias →
-// «Elegir opciones»; agotado o sin stock verificable → «Consultar por WhatsApp».
+// Foto, nombre, precio y estado, sin botones (DESIGN.md §10): toda la tarjeta abre la ficha, donde se
+// eligen las opciones y están WhatsApp y el carrito.
 import { HugeIcon } from "~/components/ui/icon";
-import { ImageNotFound01Icon, ShoppingCart02Icon } from "@hugeicons/core-free-icons";
+import { ImageNotFound01Icon } from "@hugeicons/core-free-icons";
 import { useEffect, useRef, useState } from 'react';
 import { Link } from '@remix-run/react';
 import { motion, useReducedMotion } from 'framer-motion';
 
 import type { CatalogProduct } from '@shared/schemas';
 import { Badge } from '~/components/ui/badge';
-import { Button } from '~/components/ui/button';
-import { QuickAddSheet } from '~/components/product/quick-add-sheet';
+import { Chip } from '~/components/ui/chip';
 import { useStoreConfig } from '~/hooks/use-store-config';
-import { WhatsappIcon } from '~/components/ui/whatsapp-icon';
-import { useAppDispatch } from '~/state/hooks';
-import { addItem, openCart } from '~/state/slices/cart-slice';
 import { AVAILABILITY_LABEL } from '~/lib/purchase';
 import { cn } from "~/lib/utils"
-import { buildWhatsappUrl, formatCordobas, getProductUrl, productWhatsappMessage } from "~/lib/formatters";
+import { formatCordobas, getProductUrl } from "~/lib/formatters";
 
 /**
  * Hasta dos datos de la ficha, CON su etiqueta ("Driver: 10 mm"). Los valores
@@ -39,13 +35,8 @@ export function ProductCard({
   /** Posición en la grilla: las primeras 4 fotos cargan sin lazy. */
   index?: number;
 }) {
-  const dispatch = useAppDispatch();
   const config = useStoreConfig();
   const reduce = useReducedMotion();
-  const [quickAddOpen, setQuickAddOpen] = useState(false);
-  // El sheet se monta recién en el primer uso: con 40 tarjetas en pantalla, 40
-  // portales vacíos son 40 nodos y 40 suscripciones que nadie pidió.
-  const [quickAddMounted, setQuickAddMounted] = useState(false);
   // onLoad puede ocurrir antes de hidratar: comprobar también la imagen del DOM.
   const [imageLoaded, setImageLoaded] = useState(false);
   const imageRef = useRef<HTMLImageElement>(null);
@@ -67,41 +58,9 @@ export function ProductCard({
   const currency = config?.currency;
   const productUrl = getProductUrl(product.id, product.name);
   const specs = cardSpecs(product.specs);
-  const needsChoice = product.variantCount > 1 || product.singleVariant === undefined;
-
-  function handleCta(e: React.MouseEvent) {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!available) return;
-    // Con más de una combinación hay que elegir variante: selector, no carrito.
-    if (needsChoice) {
-      setQuickAddMounted(true);
-      setQuickAddOpen(true);
-      return;
-    }
-    dispatch(
-      addItem({
-        catalogId: product.id,
-        name: product.name,
-        variantName: product.singleVariant ?? '',
-        price: product.price,
-        image: image || '',
-        quantity: 1,
-        maxQuantity: product.stock > 0 ? product.stock : undefined,
-      }),
-    );
-    dispatch(openCart());
-  }
-
-  // Consulta por WhatsApp: no requiere elegir opciones ni promete stock.
-  function handleWhatsApp(e: React.MouseEvent) {
-    e.preventDefault();
-    e.stopPropagation();
-    const url = typeof window !== 'undefined' ? window.location.origin + productUrl : '';
-    const message = productWhatsappMessage({ kind: available ? 'info' : 'availability', name: product.name, url });
-    window.open(buildWhatsappUrl(config?.whatsapp ?? '', message), '_blank', 'noopener,noreferrer');
-  }
-
+  const options = [product.colorCount > 1 ? `${product.colorCount} colores` : null, ...product.axesSummary.slice(0, 2)]
+    .filter(Boolean)
+    .join(' · ');
   const Stage = (
     <div
       className={cn(
@@ -176,6 +135,8 @@ export function ProductCard({
       <h3 className="line-clamp-2 text-sm leading-snug font-semibold text-foreground sm:text-base">
         {product.name}
       </h3>
+      {/* Qué opciones hay, sin abrir la ficha: es lo primero que preguntan por WhatsApp. */}
+      {options && <p className="line-clamp-1 text-xs text-muted-foreground">{options}</p>}
       {specs.length > 0 && (
         // Dato completo con su etiqueta, sin recortar; en móvil chico, uno solo.
         <dl className="space-y-0.5 text-xs leading-snug text-muted-foreground sm:text-sm">
@@ -202,50 +163,15 @@ export function ProductCard({
           )}
         </div>
       )}
-      {!available && (
+      {available ? (
+        <Chip variant="status" tone="success" className="mt-1 self-start">
+          {AVAILABILITY_LABEL.available}
+        </Chip>
+      ) : (
         <p className={cn('text-xs font-medium', soldOut ? 'text-destructive' : 'text-foreground')}>
           {AVAILABILITY_LABEL[product.availability]}
         </p>
       )}
-    </div>
-  );
-
-  const Cta = !available ? (
-    <Button
-      variant="whatsappOutline"
-      onClick={handleWhatsApp}
-      aria-label={`Consultar por WhatsApp la disponibilidad de ${product.name}`}
-      className="h-11 w-full text-sm"
-    >
-      <WhatsappIcon aria-hidden className="size-4" />
-      Consultar
-    </Button>
-  ) : (
-    <div className="flex items-center gap-2">
-      <Button
-        onClick={handleCta}
-        aria-label={needsChoice ? `Elegir opciones de ${product.name}` : `Agregar ${product.name} al carrito`}
-        className="h-auto min-h-11 min-w-0 flex-1 px-2 py-1 text-sm leading-tight whitespace-normal"
-      >
-        {needsChoice ? (
-          'Elegir opciones'
-        ) : (
-          <>
-            <HugeIcon icon={ShoppingCart02Icon} size={16} strokeWidth={2} aria-hidden />
-            Agregar
-          </>
-        )}
-      </Button>
-      <Button
-        variant="whatsappOutline"
-        size="icon"
-        onClick={handleWhatsApp}
-        aria-label={`Consultar por ${product.name} por WhatsApp`}
-        title="Consultar por WhatsApp"
-        className="size-11 shrink-0"
-      >
-        <WhatsappIcon aria-hidden className="size-[18px]" />
-      </Button>
     </div>
   );
 
@@ -257,36 +183,23 @@ export function ProductCard({
 
   const shell = 'group relative flex w-full';
 
-  // El sheet se monta junto a la tarjeta pero renderiza por portal (Radix).
-  const quickAdd = quickAddMounted && (
-    <QuickAddSheet product={product} open={quickAddOpen} onOpenChange={setQuickAddOpen} />
-  );
-
   if (isList) {
     return (
-      <>
-        <motion.article {...motionProps} data-landing-product={product.id} className={cn(shell, 'flex-col gap-3')}>
-          <Link to={productUrl} prefetch="intent" className="flex w-full gap-3 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:gap-4">
-            <div className="relative w-[38%] max-w-[180px] shrink-0 self-start">{Stage}</div>
-            {Info}
-          </Link>
-          {Cta}
-        </motion.article>
-        {quickAdd}
-      </>
+      <motion.article {...motionProps} data-landing-product={product.id} className={cn(shell, 'flex-col gap-3')}>
+        <Link to={productUrl} prefetch="intent" className="flex w-full gap-3 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:gap-4">
+          <div className="relative w-[38%] max-w-[180px] shrink-0 self-start">{Stage}</div>
+          {Info}
+        </Link>
+      </motion.article>
     );
   }
 
   return (
-    <>
-      <motion.article {...motionProps} data-landing-product={product.id} className={cn(shell, 'h-full flex-col')}>
-        <Link to={productUrl} prefetch="intent" className="flex flex-1 flex-col rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background">
-          {Stage}
-          {Info}
-        </Link>
-        <div className="pt-3">{Cta}</div>
-      </motion.article>
-      {quickAdd}
-    </>
+    <motion.article {...motionProps} data-landing-product={product.id} className={cn(shell, 'h-full flex-col')}>
+      <Link to={productUrl} prefetch="intent" className="flex flex-1 flex-col rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background">
+        {Stage}
+        {Info}
+      </Link>
+    </motion.article>
   );
 }

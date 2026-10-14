@@ -8,18 +8,27 @@ Esquema de Gyro Store sobre Supabase/Postgres.
 |---|---|
 | `01_schema.sql` | **Todo el esquema, en su estado final**, ordenado por módulo (Personal, Catálogo, Clientes, Compras, Ventas, Tienda web, Stock, Descuentos, Finanzas, Sistema, Reportes, Seguridad). Cada tabla está completa en un solo `create table`. |
 | `02_seed.sql` | Datos de arranque: categorías, las 8 plantillas iniciales y la configuración financiera. |
-| `migrations/` | Lo que **falta correr** en producción. Hoy solo `0018_loan_payments_a_gastos.sql`. |
+| `migrations/` | Lo que **falta correr** en producción: `0018_loan_payments_a_gastos.sql` y `0032_entregas_y_pagos_de_pedidos.sql`. |
 | `historial/` | El esquema anterior y las migraciones ya aplicadas (0015–0031, salvo la 0018). Solo como registro: **no se corren**. |
 
 ## Base de producción (la que ya tiene datos)
 
-Producción está igual a `01_schema.sql`: la 0025 la ordenó y la 0026–0031 se
-corrieron después en el SQL Editor de Supabase.
+Producción está igual a `01_schema.sql` salvo lo que agregan las migraciones
+pendientes de abajo: la 0025 la ordenó y la 0026–0031 se corrieron después en el
+SQL Editor de Supabase.
 
-La única pendiente es **`migrations/0018_loan_payments_a_gastos.sql`**, que pasa
-los pagos de préstamo a `expenses` como gastos del pozo Préstamos. Necesita el OK
-del dueño. Mientras no corra, la app lee los pagos de las dos tablas y no los
-cuenta dos veces. Los pasos están en `Docs/03-Finanzas.md` §13.
+Quedan dos pendientes:
+
+- **`migrations/0032_entregas_y_pagos_de_pedidos.sql`**: entrega en Managua, por
+  Cargo Trans o retiro; pagos, transporte y recepción de los pedidos web; y los
+  eventos `add_to_cart` y `whatsapp_open`. Solo agrega valores y columnas
+  opcionales, así que **se corre antes de publicar el código** que la usa: el
+  código anterior sigue andando con la base migrada, pero el nuevo no puede
+  registrar pedidos de Managua o Cargo Trans sin ella.
+- **`migrations/0018_loan_payments_a_gastos.sql`**: pasa los pagos de préstamo a
+  `expenses` como gastos del pozo Préstamos. Necesita el OK del dueño. Mientras no
+  corra, la app lee los pagos de las dos tablas y no los cuenta dos veces. Los
+  pasos están en `Docs/03-Finanzas.md` §13.
 
 Caja y Bancos (`accounts`, `account_movements`, `cash_closures`) quedaron
 archivados en el esquema `archivo`, con sus datos. Para devolver una tabla:
@@ -38,7 +47,7 @@ la configuración que ya se ajustó desde el panel.
 
 ## Cambios futuros
 
-1. Un archivo nuevo en `migrations/` con el número siguiente (`0032_…`), que se
+1. Un archivo nuevo en `migrations/` con el número siguiente (`0033_…`), que se
    pueda correr dos veces sin romper (`if not exists`, `create or replace`).
 2. El mismo cambio en `01_schema.sql`, en su módulo, para que una base nueva
    nazca igual.

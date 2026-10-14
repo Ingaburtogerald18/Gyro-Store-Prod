@@ -7,12 +7,13 @@ import { SegmentedControl } from '~/components/admin/workspace';
 import { GeneralConfig } from '~/components/admin/config/general-config';
 import { FinanzasConfig } from '~/components/admin/config/finanzas-config';
 import { ImagesConfig } from '~/components/admin/config/images-config';
+import { AttentionConfig } from '~/components/admin/config/attention-config';
 
 // Sin esto la pestaña del navegador mostraba la URL: era la única sección
 // del panel sin título.
 export const meta: MetaFunction = () => [{ title: pageTitle('Configuración', { admin: true }) }];
 
-type Tab = 'general' | 'variables' | 'recursos';
+type Tab = 'general' | 'atencion' | 'variables' | 'recursos';
 
 export default function AdminConfiguracion() {
   const [currentTab, setCurrentTab] = useState<Tab>('general');
@@ -33,6 +34,7 @@ export default function AdminConfiguracion() {
         onChange={setCurrentTab}
         options={[
           { value: 'general', label: 'Negocio' },
+          { value: 'atencion', label: 'Atención' },
           { value: 'variables', label: 'Finanzas' },
           { value: 'recursos', label: 'Imágenes' },
         ]}
@@ -40,6 +42,7 @@ export default function AdminConfiguracion() {
 
       <div>
         {currentTab === 'general' && <GeneralConfig />}
+        {currentTab === 'atencion' && <AttentionConfig />}
         {currentTab === 'variables' && <FinanzasConfig />}
         {currentTab === 'recursos' && <ImagesConfig />}
       </div>

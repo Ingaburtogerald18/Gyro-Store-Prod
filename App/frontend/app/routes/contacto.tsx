@@ -24,6 +24,8 @@ import { PaymentAccounts } from '~/components/storefront/payment-accounts';
 import { useSendContactMutation } from '~/state/api/storefront-api';
 import type { StoreConfig } from '~/state/api/session-api';
 import { useStoreConfig } from '~/hooks/use-store-config';
+import { BusinessHoursList } from '~/components/storefront/store-details';
+import { storeMapsUrl } from '~/lib/store-pages';
 
 export const meta: MetaFunction<typeof loader> = ({ data }) => [
   { title: pageTitle('Contacto') },
@@ -56,6 +58,7 @@ export default function Contacto() {
   // Sin dirección cargada todavía, se cae al literal de siempre en vez de dejar
   // un enlace a Maps vacío.
   const address = config?.address?.trim() || 'Managua, Nicaragua';
+  const policies = config?.policies;
   const {
     register,
     handleSubmit,
@@ -158,20 +161,25 @@ export default function Contacto() {
           </FormLayout>
 
           <div className="space-y-4">
-            <div className="rounded-2xl border bg-card p-5 shadow-xs">
-              <h2 className="font-heading text-lg font-bold text-foreground">Visitanos</h2>
-              {/* La dirección sale de la configuración del panel, no de un texto fijo. */}
+            {/* Punto de retiro coordinado, no un local abierto: la dirección y el horario salen de Configuración. */}
+            <div className="space-y-3 rounded-2xl border bg-card p-5 shadow-xs">
+              <h2 className="font-heading text-lg font-bold text-foreground">Retiro y horario</h2>
               <a
-                href={
-                  config?.locationUrl?.trim() ||
-                  `https://maps.google.com/?q=${encodeURIComponent(address)}`
-                }
+                href={storeMapsUrl({ address, locationUrl: config?.locationUrl })}
                 target="_blank"
                 rel="noreferrer"
-                className="mt-2 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+                className="inline-flex items-start gap-1.5 text-sm text-muted-foreground hover:text-foreground"
               >
-                <HugeIcon icon={Location01Icon} size={16} strokeWidth={2} aria-hidden /> {address}
+                <HugeIcon icon={Location01Icon} size={16} strokeWidth={2} aria-hidden className="mt-0.5 shrink-0" />
+                <span>
+                  <span className="font-medium text-foreground">Punto de retiro: </span>
+                  {address}
+                </span>
               </a>
+              {policies?.pickup.text && <p className="text-sm text-muted-foreground">{policies.pickup.text}</p>}
+              <div className="text-sm text-muted-foreground">
+                <BusinessHoursList />
+              </div>
             </div>
 
             {/* No renderiza nada si el admin no cargó ninguna cuenta. */}

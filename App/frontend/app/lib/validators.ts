@@ -16,23 +16,6 @@ export const contactSchema = z.object({
 });
 export type ContactInput = z.infer<typeof contactSchema>;
 
-export const checkoutSchema = z
-  .object({
-    customerName: z.string().min(2, "Ingresá tu nombre").max(80),
-    customerPhone: z.string().min(7, "Teléfono inválido").max(20),
-    deliveryMethod: z.enum(["retiro", "envio"]),
-    address: z.string().max(200).optional().or(z.literal("")),
-    // Link de Google Maps con el pin GPS del cliente (opcional, lo llena el botón).
-    locationUrl: z.string().max(300).optional().or(z.literal("")),
-    note: z.string().max(500).optional().or(z.literal("")),
-  })
-  // En envío pedimos dirección escrita O ubicación GPS (al menos una).
-  .refine(
-    (d) => d.deliveryMethod !== "envio" || (d.address && d.address.length > 4) || !!d.locationUrl,
-    { message: "Agrega tu dirección o comparte tu ubicación", path: ["address"] },
-  );
-export type CheckoutInput = z.infer<typeof checkoutSchema>;
-
 // Convierte string a número; "" / null / undefined → NaN para que Zod lo rechace.
 const requiredPositiveNumber = (msg = "Requerido") =>
   z.preprocess(

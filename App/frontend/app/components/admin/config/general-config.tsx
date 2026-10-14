@@ -40,6 +40,7 @@ export function GeneralConfig() {
       currency: "C$",
       socialLinks: { instagram: "", facebook: "", tiktok: "" },
       bankAccounts: [],
+      businessHours: [],
     },
     successMessage: "Información del negocio guardada correctamente.",
     loadErrorMessage: "No se pudo cargar la información del negocio.",
@@ -53,6 +54,7 @@ export function GeneralConfig() {
   } = form;
 
   const bankAccounts = useFieldArray({ control, name: "bankAccounts" });
+  const businessHours = useFieldArray({ control, name: "businessHours" });
 
   if (loading || loadError) {
     return (
@@ -149,7 +151,7 @@ export function GeneralConfig() {
               <FieldLabel htmlFor="biz-address">Dirección física</FieldLabel>
               <Input
                 id="biz-address"
-                placeholder="Ciudad, país"
+                placeholder="Barrio, referencia, ciudad"
                 aria-invalid={!!errors.address}
                 {...register("address")}
               />
@@ -167,6 +169,60 @@ export function GeneralConfig() {
               />
               <FieldError errors={[(errors as any).locationUrl]} />
             </Field>
+          </div>
+        </Section>
+
+        <Section
+          title="Horarios de atención"
+          description="Se muestran en el pie de página, Contacto y Ayuda. Son horarios de atención, no de despacho."
+        >
+          <div className="space-y-4">
+            {businessHours.fields.map((row, index) => (
+              <div key={row.id} className="flex items-end gap-4">
+                <div className="grid flex-1 gap-4 sm:grid-cols-2">
+                  <Field data-invalid={!!errors.businessHours?.[index]?.days}>
+                    <FieldLabel htmlFor={`hours-days-${row.id}`} required>
+                      Días
+                    </FieldLabel>
+                    <Input
+                      id={`hours-days-${row.id}`}
+                      placeholder="Lunes a viernes"
+                      aria-invalid={!!errors.businessHours?.[index]?.days}
+                      {...register(`businessHours.${index}.days`)}
+                    />
+                    <FieldError errors={[errors.businessHours?.[index]?.days]} />
+                  </Field>
+                  <Field data-invalid={!!errors.businessHours?.[index]?.hours}>
+                    <FieldLabel htmlFor={`hours-time-${row.id}`} required>
+                      Horario
+                    </FieldLabel>
+                    <Input
+                      id={`hours-time-${row.id}`}
+                      placeholder="8:00 a. m. a 5:00 p. m."
+                      aria-invalid={!!errors.businessHours?.[index]?.hours}
+                      {...register(`businessHours.${index}.hours`)}
+                    />
+                    <FieldError errors={[errors.businessHours?.[index]?.hours]} />
+                  </Field>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  aria-label={`Quitar la fila de horario ${index + 1}`}
+                  className="mb-0.5 shrink-0 text-destructive"
+                  onClick={() => businessHours.remove(index)}
+                >
+                  <HugeIcon icon={Delete02Icon} size={16} strokeWidth={2} />
+                </Button>
+              </div>
+            ))}
+
+            {businessHours.fields.length < 7 && (
+              <Button type="button" variant="outline" size="sm" onClick={() => businessHours.append({ days: "", hours: "" })}>
+                Agregar horario
+              </Button>
+            )}
           </div>
         </Section>
 

@@ -1,7 +1,20 @@
 // Contrato URL ↔ filtros del catálogo.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { DEFAULT_FILTERS, filtersKey, parseCatalogParams, priceRangeError, writeCatalogParams } from '../app/lib/catalog-query';
+import {
+  DEFAULT_FILTERS,
+  catalogHref,
+  categoryFromPath,
+  categoryHref,
+  filtersKey,
+  hasCatalogParams,
+  isCatalogPath,
+  legacyCatalogRedirect,
+  parseCatalogLocation,
+  parseCatalogParams,
+  priceRangeError,
+  writeCatalogParams,
+} from '../app/lib/catalog-query';
 
 const categories = [{ id: '3f1c0b1e-0000-4000-8000-000000000001', slug: 'kz-audifonos', name: 'Audífonos KZ' }];
 
@@ -34,4 +47,47 @@ test('escribir filtros quita los parámetros vacíos y respeta los ajenos', () =
   // Ida y vuelta estable: sin bucles entre URL y estado.
   const f = parseCatalogParams(next);
   assert.equal(filtersKey(f), filtersKey(parseCatalogParams(writeCatalogParams(f))));
+});
+
+test('la categoría vive en la ruta y el resto en la query', () => {
+  assert.equal(categoryHref('kz-audifonos'), '/categoria/kz-audifonos');
+  assert.equal(categoryHref(null), '/catalogo');
+  assert.equal(categoryFromPath('/categoria/kz-audifonos'), 'kz-audifonos');
+  assert.equal(categoryFromPath('/categoria/kz%20audifonos/'), 'kz audifonos');
+  assert.equal(categoryFromPath('/catalogo'), null);
+  assert.equal(categoryFromPath('/categoria/%E0%A4%A'), null);
+  assert.ok(isCatalogPath('/catalogo') && isCatalogPath('/categoria/mouses'));
+  assert.ok(!isCatalogPath('/') && !isCatalogPath('/producto/x--1'));
+
+  const f = parseCatalogLocation('/categoria/kz-audifonos', new URLSearchParams('q=edx&orden=precio-asc&categoria=otra'), categories);
+  assert.equal(f.category, 'kz-audifonos');
+  assert.equal(f.search, 'edx');
+  assert.equal(parseCatalogLocation('/catalogo', new URLSearchParams('categoria=kz-audifonos'), categories).category, null);
+});
+
+test('la URL del listado sale de los filtros y respeta parámetros ajenos', () => {
+  const base = new URLSearchParams('utm_source=ig&categoria=vieja');
+  assert.equal(catalogHref({ ...DEFAULT_FILTERS, category: 'kz-audifonos', search: 'edx' }, base), '/categoria/kz-audifonos?utm_source=ig&q=edx');
+  assert.equal(catalogHref(DEFAULT_FILTERS), '/catalogo');
+  // Ida y vuelta: lo que se escribe es lo que se vuelve a leer.
+  const filters = { ...DEFAULT_FILTERS, category: 'kz-audifonos', priceMax: 900, onlyInStock: true };
+  const href = new URL(catalogHref(filters), 'https://x.test');
+  assert.equal(filtersKey(parseCatalogLocation(href.pathname, href.searchParams, categories)), filtersKey(filters));
+});
+
+test('los enlaces viejos del catálogo redirigen a su página nueva', () => {
+  const at = (path: string, query: string) => legacyCatalogRedirect(path, new URLSearchParams(query), categories);
+  assert.equal(at('/', 'categoria=kz-audifonos&q=edx'), '/categoria/kz-audifonos?q=edx');
+  assert.equal(at('/', `categoria=${categories[0]!.id}`), '/categoria/kz-audifonos');
+  assert.equal(at('/', 'q=kz%20negro&orden=precio-asc'), '/catalogo?q=kz+negro&orden=precio-asc');
+  assert.equal(at('/', 'categoria=no-existe'), '/catalogo');
+  assert.equal(at('/catalogo', 'categoria=kz-audifonos'), '/categoria/kz-audifonos');
+  // Sin categorías cargadas se confía en el valor; la página de la categoría decide si existe.
+  assert.equal(legacyCatalogRedirect('/', new URLSearchParams('categoria=mouses'), []), '/categoria/mouses');
+  // Lo que no es del catálogo no redirige: la vista previa del editor sigue en la portada.
+  assert.equal(at('/', 'landing-preview=1'), null);
+  assert.equal(at('/catalogo', 'q=kz'), null);
+  assert.equal(at('/categoria/kz-audifonos', 'min=100'), null);
+  assert.ok(hasCatalogParams(new URLSearchParams('orden=precio-asc')));
+  assert.ok(!hasCatalogParams(new URLSearchParams('utm_source=ig')));
 });

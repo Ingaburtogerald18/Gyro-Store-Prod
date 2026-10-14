@@ -5,7 +5,7 @@ import { useAppSelector } from '~/state/hooks';
 import { selectDraftLandingConfig, selectPreviewCatalog } from '~/state/slices/builder-slice';
 import { selectEditMode } from '~/state/slices/auth-slice';
 
-import type { CatalogProduct, LandingConfig } from '@shared/schemas';
+import type { CatalogProduct, LandingConfig, PublicStorePolicies } from '@shared/schemas';
 import { useGetConfigQuery, type StoreConfig } from '~/state/api/session-api';
 import { useGetCatalogQuery, useGetLandingConfigQuery } from '~/state/api/storefront-api';
 
@@ -21,6 +21,11 @@ export function useStoreConfig(): StoreConfig | undefined {
   const { data } = useGetConfigQuery();
   const matches = useMatches();
   return data ?? configFromMatches(matches);
+}
+
+/** Pagos, entregas y garantía de Configuración → Atención (sin borradores). */
+export function useStorePolicies(): PublicStorePolicies | undefined {
+  return useStoreConfig()?.policies;
 }
 
 /** Igual que useStoreConfig, para la config de la landing (categorías del

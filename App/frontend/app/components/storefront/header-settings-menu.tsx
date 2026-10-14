@@ -9,9 +9,10 @@ import {
   Menu01Icon,
   Moon02Icon,
   PackageIcon,
-  User02Icon,
+  PackageMovingIcon,
 } from "@hugeicons/core-free-icons";
 import { Link, useLocation } from "@remix-run/react";
+import { STORE_PAGES } from "~/lib/store-pages";
 import { toast } from "sonner";
 
 import {
@@ -44,7 +45,6 @@ export function HeaderSettingsMenu() {
   const isHome = location.pathname === "/" && !new URLSearchParams(location.search).has("landing-preview");
   const isAuthed = status === "authenticated";
   const isDark = theme === "dark";
-  const loginTo = `/login?redirectTo=${encodeURIComponent(location.pathname + location.search)}`;
 
   const firstName = user?.name?.split(" ")[0] || user?.email?.split("@")[0] || "Staff";
   const initial = firstName.charAt(0).toUpperCase();
@@ -90,9 +90,15 @@ export function HeaderSettingsMenu() {
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild className={ITEM}>
-          <Link to="/contacto">
+          <Link to={STORE_PAGES.help}>
             <HugeIcon icon={CustomerSupportIcon} size={18} strokeWidth={2} className="text-muted-foreground" />
-            Ayuda y contacto
+            Ayuda
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild className={ITEM}>
+          <Link to={STORE_PAGES.wholesale}>
+            <HugeIcon icon={PackageMovingIcon} size={18} strokeWidth={2} className="text-muted-foreground" />
+            Compras por mayor
           </Link>
         </DropdownMenuItem>
 
@@ -108,10 +114,10 @@ export function HeaderSettingsMenu() {
           Tema oscuro
         </DropdownMenuCheckboxItem>
 
-        <DropdownMenuSeparator />
-
-        {isAuthed ? (
+        {/* «Acceso del personal» vive en el pie (DESIGN.md §10); con sesión, el menú suma lo del panel. */}
+        {isAuthed && (
           <>
+            <DropdownMenuSeparator />
             <DropdownMenuItem asChild className={ITEM}>
               <Link to="/admin">
                 <HugeIcon icon={DashboardSquare01Icon} size={18} strokeWidth={2} className="text-muted-foreground" />
@@ -130,13 +136,6 @@ export function HeaderSettingsMenu() {
               Cerrar sesión
             </DropdownMenuItem>
           </>
-        ) : (
-          <DropdownMenuItem asChild className={ITEM}>
-            <Link to={loginTo}>
-              <HugeIcon icon={User02Icon} size={18} strokeWidth={2} className="text-muted-foreground" />
-              Acceso del personal
-            </Link>
-          </DropdownMenuItem>
         )}
       </DropdownMenuContent>
     </DropdownMenu>

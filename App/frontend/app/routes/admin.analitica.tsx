@@ -26,6 +26,9 @@ export default function AdminAnalitica() {
     { label: 'Vistas de página', value: o ? fmt(o.pageViews) : '—' },
     { label: 'Búsquedas', value: o ? fmt(o.searches) : '—' },
     { label: 'Vistas de producto', value: o ? fmt(o.productViews) : '—' },
+    { label: 'Agregados al carrito', value: o ? fmt(o.addToCart) : '—' },
+    // Aperturas: WhatsApp no informa si el mensaje se envió.
+    { label: 'WhatsApp abierto', value: o ? fmt(o.whatsappOpens) : '—' },
     { label: 'Pedidos', value: o ? fmt(o.orders) : '—' },
     { label: 'Vista → pedido', value: o ? pct(o.viewToOrderRate) : '—' },
   ];
@@ -46,7 +49,7 @@ export default function AdminAnalitica() {
         onRetry={() => { void dashboard.refetch(); }}
         loadingFallback={<BrandLoader text="Cargando analítica..." />}
       >
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {stats.map((s) => (
             <Card key={s.label}>
               <CardContent className="p-4">

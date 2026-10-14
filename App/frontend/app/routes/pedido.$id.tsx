@@ -19,6 +19,7 @@ import { WhatsappIcon } from '~/components/ui/whatsapp-icon';
 import { cn } from '~/lib/utils';
 import { buildWhatsappUrl, formatCordobas, formatLongDate } from '~/lib/formatters';
 import { PUBLIC_ORDER_STEPS, publicOrderStatusLabel } from '~/lib/status';
+import { DELIVERY_LABELS } from '@shared/schemas';
 import { saveOrder } from '~/lib/order-history';
 import { useStoreConfig } from '~/hooks/use-store-config';
 import { useGetPublicOrderQuery, type PublicOrderTracking } from '~/state/api/storefront-api';
@@ -52,7 +53,8 @@ function stepHint(status: string, deliveryMethod: string | null): string {
     case 'preparing':
       return 'Estamos alistando tus productos.';
     case 'shipped':
-      return deliveryMethod === 'retiro' ? 'Ya podés pasar a retirarlo a la tienda.' : 'Tu pedido va en camino.';
+      if (deliveryMethod === 'retiro') return 'Ya podés coordinar el retiro por WhatsApp.';
+      return deliveryMethod === 'cargo_trans' ? 'Tu pedido va por Cargo Trans.' : 'Tu pedido va en camino.';
     case 'delivered':
       return '¡Listo! Gracias por tu compra.';
     case 'cancelled':
@@ -132,11 +134,16 @@ function OrderView({
           {order.firstName ? `Hola ${order.firstName} · ` : ''}Pedido{' '}
           <span className="font-spec font-semibold text-foreground">{shortId(order.id)}</span> ·{' '}
           {formatLongDate(order.createdAt)}
+          {order.deliveryMethod && <> · {DELIVERY_LABELS[order.deliveryMethod]}</>}
         </p>
         <h1 className="mt-1 font-heading text-3xl font-extrabold tracking-tight text-foreground">
           {publicOrderStatusLabel(order.status, order.deliveryMethod)}
         </h1>
         {cancelled && <p className="mt-1 text-muted-foreground">{stepHint(order.status, order.deliveryMethod)}</p>}
+        {/* Desde esta fecha corre la garantía; la registra la tienda al confirmar la entrega. */}
+        {order.receivedDate && (
+          <p className="mt-1 text-sm text-muted-foreground">Recibido el {formatLongDate(order.receivedDate)}</p>
+        )}
       </div>
 
       {cancelled ? (
