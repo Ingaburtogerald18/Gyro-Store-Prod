@@ -1,15 +1,10 @@
 import { z } from 'zod';
 
-// Contrato de entrada de server/modules/inventory/inventory-routes.ts. Los shapes de salida
-// (Purchase, InventoryRow, InventoryKpis) viven como interfaces
-// TS en server/modules/inventory/inventory.ts, no acá: son datos derivados que arma el
-// servicio, no algo que un cliente mande y haya que validar en el borde.
+// Contrato de entrada de inventory-routes.ts. Las salidas (Purchase, InventoryRow…) son interfaces
+// en inventory.ts: las arma el servicio, no hay que validarlas en el borde.
 
-// Edición post-creación. Deliberadamente NO es un `Partial<Purchase>` real:
-// solo expone los campos de negocio editables a mano (insumos de costeo,
-// identificación del lote). `status`, `quantitySold`, `quantityReserved`,
-// `priceUnit`/`total` (derivados) quedan fuera — esos los mueven
-// reportArrival/revertPurchase/el FIFO, no una edición libre.
+// Solo los campos editables a mano. Estado, vendidas, reservadas y derivados los mueven
+// la recepción, la reversión y el FIFO.
 export const updatePurchaseInputSchema = z.object({
   purchaseDate: z.iso.date().optional(),
   lot: z.string().min(1).max(40).optional(),
@@ -41,9 +36,8 @@ export const arrivalInputSchema = z.object({
 });
 export type ArrivalInput = z.infer<typeof arrivalInputSchema>;
 
-// ── Órdenes de compra (Alibaba) — migración 0024 ──
-// Una orden agrupa varias líneas (`purchases`, una por variante) con su número
-// de Alibaba, el proveedor, la factura y las fotos del empaque.
+// ── Órdenes de compra ── Agrupan líneas (una por variante) con número de orden, proveedor, factura
+// y fotos del empaque.
 
 export const supplierInputSchema = z.object({
   name: z.string().trim().min(1, 'El nombre del proveedor es obligatorio.').max(120),
@@ -68,9 +62,8 @@ export const purchaseInvoiceInputSchema = z
   });
 export type PurchaseInvoiceInput = z.infer<typeof purchaseInvoiceInputSchema>;
 
-// Cada línea es una variante de una plantilla. El nombre del lote y la
-// categoría salen de la plantilla; `catalogItemId` solo hace falta cuando una
-// plantilla vieja compartida tiene varios productos.
+// Nombre del lote y categoría salen de la plantilla; `catalogItemId` solo hace falta si una
+// plantilla vieja tiene varios productos.
 export const purchaseOrderLineInputSchema = z.object({
   templateId: z.uuid('Elegí la plantilla.'),
   variantKey: z.string().max(200).default(''),
@@ -130,11 +123,8 @@ export const addPurchaseOrderLinesInputSchema = z.object({
 });
 export type AddPurchaseOrderLinesInput = z.infer<typeof addPurchaseOrderLinesInputSchema>;
 
-// Recibir en Nicaragua. El envío se escribe TOTAL y se reparte por unidades
-// recibidas (decisión 2026-10-09; el reparto por peso/CBM queda para después).
-// Las líneas que no se mandan siguen en tránsito: así se recibe por partes.
-// Un mismo envío del agente suele traer varias órdenes: `extraOrderIds` suma
-// las otras órdenes que llegaron juntas, y el envío se reparte entre todas.
+// El envío se escribe total y se reparte por unidades recibidas, entre todas las órdenes de la llegada
+// (`extraOrderIds`). Las líneas que no se mandan siguen en tránsito: se recibe por partes.
 const receiptLineFields = {
   purchaseId: z.uuid(),
   receivedQuantity: z.number().int().positive('Lo recibido debe ser mayor a 0.').max(1_000_000),
@@ -161,8 +151,7 @@ export const simulatePurchaseOrderReceiptInputSchema = receivePurchaseOrderInput
   .extend({ lines: receiptLines(z.number().min(0).max(10_000_000).optional()) });
 export type SimulatePurchaseOrderReceiptInput = z.infer<typeof simulatePurchaseOrderReceiptInputSchema>;
 
-// ── Ofertas por color (migración 0027) ──
-// Una por producto y color ('' si el producto no tiene colores). Solo la ve la tienda.
+// ── Ofertas por color ── Una por producto y color ('' si no tiene colores). Solo la ve la tienda.
 export const colorOfferInputSchema = z.object({
   catalogItemId: z.uuid(),
   color: z.string().max(200),

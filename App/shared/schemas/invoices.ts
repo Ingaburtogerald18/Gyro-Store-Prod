@@ -1,9 +1,6 @@
 import { z } from 'zod';
 
-// Modelo delgado: la factura numera una venta YA aprobada
-// (server/modules/sales/) — no tiene líneas propias, esas viven en
-// order_items. `invoiceNumber` nunca lo manda el cliente: lo asigna el
-// `nextval()` de la secuencia en server/modules/invoices/invoices.ts.
+// La factura numera una venta y su correlativo lo asigna la base, nunca el cliente.
 export const invoiceItemInputSchema = z.object({
   productName: z.string().min(1, 'El producto es obligatorio.').max(160),
   quantity: z.number().int().positive('La cantidad debe ser mayor a 0.'),
@@ -21,9 +18,7 @@ export const createInvoiceInputSchema = z.object({
   // Código de descuento opcional: el servidor lo canjea y suma su monto al
   // descuento manual (topado al subtotal). Ver server/modules/discount-codes/discount-codes.ts.
   discountCode: z.string().max(30).optional(),
-  // Vendedor al que Caja le asigna esta factura (opcional: un ticket de
-  // mostrador puede no tener uno). Es lo que después le permite a ESE
-  // vendedor verla en "Mis Facturas" antes de que exista una venta vinculada.
+  // Vendedor al que Caja asigna la factura (opcional): así la ve en «Mis Facturas» antes de la venta.
   sellerUid: z.string().uuid().optional(),
   issuedAt: z.string().datetime().optional(),
   items: z.array(invoiceItemInputSchema).min(1, 'La factura necesita al menos un producto.'),
@@ -37,14 +32,8 @@ export const voidInvoiceInputSchema = z.object({
 });
 export type VoidInvoiceInput = z.infer<typeof voidInvoiceInputSchema>;
 
-// Corrección de datos de cobro. `orderId` no se puede cambiar: reasignar una
-// factura a otra venta rompería la trazabilidad del correlativo.
-// Corregir una factura huérfana con el MISMO formulario con que se emitió,
-// líneas incluidas. Solo aplica a facturas `unlinked`: una vez ligada a una
-// venta, el snapshot financiero ya se calculó sobre estos números.
-//
-// El CÓDIGO de descuento no se puede cambiar acá: ya se canjeó al emitir, y
-// volver a aplicarlo consumiría otro uso. El monto `discount` se conserva.
+// Corrige una factura huérfana con sus líneas; una ligada ya alimentó el snapshot de su venta.
+// El código de descuento no se cambia: ya se canjeó y reaplicarlo gastaría otro uso.
 export const updateInvoiceInputSchema = z.object({
   method: z.enum(['efectivo', 'transferencia', 'tarjeta']).optional(),
   deliveryFee: z.number().min(0).max(9_999_999).optional(),

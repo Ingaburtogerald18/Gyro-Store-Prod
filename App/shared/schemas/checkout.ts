@@ -4,9 +4,7 @@ import { PHONE_RE } from './staff';
 // ── Checkout público (Docs/02-Arquitectura.md §4: server SIEMPRE recalcula el
 // precio, nunca confía en lo que manda el cliente) ──
 
-// Una línea del pedido es UN producto suelto O UN combo, nunca ambos. Los dos
-// ids son opcionales en el objeto y el `superRefine` de abajo exige exactamente
-// uno: así el tipo refleja que son excluyentes sin partir el schema en dos.
+// Una línea es un producto o un combo, nunca ambos: el superRefine exige exactamente un id.
 export const publicOrderItemInputSchema = z
   .object({
     catalogItemId: z.uuid().optional(),
@@ -16,18 +14,13 @@ export const publicOrderItemInputSchema = z
     // Techo por línea: sin él, un `quantity` absurdo (1e9) infla el total y puede
     // desbordar los cálculos financieros. El mayoreo real se cotiza con un vendedor.
     quantity: z.number().int().positive().max(999, 'Máximo 999 unidades por producto.'),
-    // Identidad de la variante elegida (`CatalogVariant.variantName`, ej.
-    // "Negro / Con micrófono"). El servidor la resuelve contra las combinaciones
-    // del producto para obtener precio y disponibilidad; una etiqueta que no
-    // corresponde a ninguna combinación se rechaza en vez de adivinarse.
+    // La variante elegida ("Negro / Con micrófono"): una que no coincide con ninguna se rechaza.
     variantName: z.string().max(200).optional(),
     // Precio unitario que el cliente vio. NO fija el precio: si difiere del que
     // calcula el servidor, el pedido no se crea y se pide revisar el cambio.
     unitPrice: z.number().min(0).max(9_999_999).optional(),
   })
-  // Sin esta regla, una línea sin ningún id pasaría la validación y el service
-  // la descartaría en silencio — que es exactamente el bug que esto cierra: el
-  // combo se veía en el carrito y desaparecía del pedido.
+  // Sin esto una línea sin id pasaba y se descartaba en silencio (el combo desaparecía del pedido).
   .superRefine((item, ctx) => {
     if (Boolean(item.catalogItemId) === Boolean(item.comboId)) {
       ctx.addIssue({
@@ -38,9 +31,7 @@ export const publicOrderItemInputSchema = z
     }
   });
 
-// Los campos que llena la PERSONA, sin los ítems. Se exporta aparte para que el
-// formulario del checkout derive de acá
-// en vez de mantener una copia de las mismas reglas.
+// Lo que llena la persona, sin los ítems: el formulario del checkout deriva de acá.
 export const publicOrderFieldsSchema = z.object({
   phone: z
     .string()
@@ -48,10 +39,7 @@ export const publicOrderFieldsSchema = z.object({
     .max(20, 'El teléfono es demasiado largo.')
     .regex(PHONE_RE, 'Ingresá un teléfono válido: 8 a 15 dígitos, con + opcional.'),
 
-  // ── Datos de contacto y entrega ──
-  // Alimentan el mensaje de WhatsApp, que es el canal donde se cierra el pedido
-  // en el MVP. Hoy la tabla `public_orders` solo guarda teléfono y
-  // total; persistirlos requiere una migración pendiente (ver 0005 propuesta).
+  // ── Contacto y entrega ── Se guardan en `public_orders` y arman el mensaje de WhatsApp.
   customerName: z.string().min(2, 'Ingresá tu nombre.').max(80),
   deliveryMethod: z.enum(['retiro', 'envio']),
   address: z.string().max(200).optional(),
@@ -63,10 +51,7 @@ export const publicOrderFieldsSchema = z.object({
   discountCode: z.string().max(30).optional(),
 });
 
-// Para envío hace falta dirección escrita O ubicación GPS: sin ninguna de las
-// dos, el pedido no es despachable y solo generaría una ida y vuelta por chat.
-// Exportada porque la aplican los dos: el contrato del endpoint y el formulario
-// del checkout. Una sola definición, un solo mensaje.
+// Envío necesita dirección o ubicación; sin ninguna no es despachable. La usan el endpoint y el formulario.
 export const hasDeliveryDestination = (d: {
   deliveryMethod: 'retiro' | 'envio';
   address?: string;
@@ -85,13 +70,9 @@ export const publicOrderInputSchema = publicOrderFieldsSchema
       .array(publicOrderItemInputSchema)
       .min(1, 'El pedido necesita al menos un ítem.')
       .max(50, 'El pedido no puede tener más de 50 productos distintos.'),
-    // Sesión anónima de analítica (opcional, sin PII). El cliente la manda para
-    // enlazar el pedido con el resto del embudo (evento `order_created`). No
-    // influye en precios ni en nada del pedido; si no vino, el pedido igual se crea.
+    // Sesión anónima de analítica para enlazar el pedido con el embudo. No influye en nada del pedido.
     sessionId: z.string().max(64).optional(),
-    // Clave de idempotencia de ESTE intento de pedido (la genera el checkout una
-    // vez por envío). Un doble clic o un reintento con la misma clave devuelve el
-    // mismo pedido en vez de crear otro.
+    // Clave de este intento: un doble clic o reintento con la misma clave devuelve el mismo pedido.
     idempotencyKey: z.uuid().optional(),
   })
   .refine(hasDeliveryDestination, {
@@ -103,9 +84,7 @@ export type PublicOrderItemInput = z.infer<typeof publicOrderItemInputSchema>;
 export type PublicOrderFields = z.infer<typeof publicOrderFieldsSchema>;
 export type PublicOrderInput = z.infer<typeof publicOrderInputSchema>;
 
-// Motivos por los que el servidor pide revisar el carrito antes de crear el
-// pedido (respuesta 409). El checkout los muestra por línea; nada se borra ni se
-// reemplaza en silencio.
+// Motivos de revisión del carrito (409): el checkout los muestra por línea, nada se cambia en silencio.
 export const ORDER_ISSUE_REASONS = [
   'not_found',        // el producto o combo ya no está publicado
   'variant_required', // falta elegir opciones (carrito viejo sin variante)
@@ -128,11 +107,8 @@ export interface OrderIssue {
   maxQuantity?: number;
 }
 
-// ── Seguimiento del pedido web ──
-//
-// `public_orders.status` es texto libre en la base (default 'new'); este enum es
-// el contrato de qué valores escribe el panel. 'shipped' se muestra como "En
-// camino" o "Listo para retiro" según `delivery_method`: es el mismo paso.
+// ── Seguimiento ── `status` es texto libre en la base; este enum es lo que escribe el panel.
+// 'shipped' se muestra «En camino» o «Listo para retiro» según la entrega.
 export const PUBLIC_ORDER_STATUSES = ['new', 'preparing', 'shipped', 'delivered', 'cancelled'] as const;
 export type PublicOrderStatus = (typeof PUBLIC_ORDER_STATUSES)[number];
 
@@ -140,9 +116,7 @@ export const updatePublicOrderStatusSchema = z.object({
   status: z.enum(PUBLIC_ORDER_STATUSES),
 });
 
-// Rastreo sin cuenta: el número corto que ve el cliente (#A1B2C3D4, los
-// primeros 8 caracteres del id) + el teléfono con el que compró. Ninguno de los
-// dos alcanza solo.
+// Rastreo sin cuenta: número corto (#A1B2C3D4) más teléfono; ninguno de los dos alcanza solo.
 export const trackPublicOrderSchema = z.object({
   code: z
     .string()

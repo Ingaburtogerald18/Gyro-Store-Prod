@@ -1,10 +1,7 @@
 import { z } from 'zod';
 
-// Una diapositiva del hero. `actionType` "modal" abre "Quiénes Somos";
-// "social" abre un menú con las redes de la config (Facebook, Instagram,
-// TikTok) y no usa `actionTarget`;
-// "link" navega a `actionTarget`. `locked` (la de marca) impide mover o
-// eliminar, pero sí editar.
+// `actionType`: "modal" abre «Quiénes somos», "social" el menú de redes y "link" navega a `actionTarget`.
+// `locked` (la de marca) se edita pero no se mueve ni se borra.
 export const heroSlideSchema = z.object({
   id: z.string().min(1).max(64),
   eyebrow: z.string().max(60),
@@ -23,11 +20,8 @@ export const heroSlideSchema = z.object({
 // Techo de diapositivas: el hero es una vitrina, no un carrusel infinito.
 export const MAX_HERO_SLIDES = 12;
 
-// Textos e imágenes del carrito, editables desde el modo edición de la tienda.
-// Las imágenes NO guardan una URL: guardan QUÉ recurso de "Recursos de
-// imágenes" usar. Así, si el admin cambia esa imagen en Recursos, el carrito la
-// toma sola, y el borrado de huérfanas de Recursos nunca deja el carrito roto.
-// Todos los campos son opcionales: vacío = el texto o ícono por defecto.
+// Las imágenes del carrito guardan qué recurso usar, no la URL: si cambia el recurso, el carrito
+// lo toma solo. Vacío = el texto o ícono por defecto.
 export const CART_IMAGE_KEYS = ['cartEmpty', 'cartBanner', 'orderSuccess', 'logoStatic'] as const;
 const cartImageKeySchema = z.enum(CART_IMAGE_KEYS).or(z.literal('')).optional();
 
@@ -50,12 +44,8 @@ export const cartContentSchema = z.object({
 export type CartContent = z.infer<typeof cartContentSchema>;
 export type CartImageKey = (typeof CART_IMAGE_KEYS)[number];
 
-// Cómo se eligen las categorías de una zona de la portada:
-//   · auto   → todas las que tienen productos, en su orden natural;
-//   · custom → solo las elegidas, en ese orden;
-//   · hidden → la zona no muestra categorías.
-// Opcional para que las configuraciones guardadas antes sigan valiendo: sin
-// modo, una lista vacía es «auto» y una con elementos es «custom».
+// auto = las que tienen productos; custom = las elegidas, en ese orden; hidden = ninguna.
+// Sin modo (configuraciones viejas), lista vacía es auto y con elementos es custom.
 export const CATEGORY_MODES = ['auto', 'custom', 'hidden'] as const;
 export type CategoryMode = (typeof CATEGORY_MODES)[number];
 

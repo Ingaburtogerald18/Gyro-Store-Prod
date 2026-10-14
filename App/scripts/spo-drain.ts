@@ -1,15 +1,5 @@
-// Fuerza UN ciclo de sincronización del outbox y muestra el estado de la cola.
-//
-// El worker corre solo cada 60 s dentro del server, pero esperar un minuto entre
-// cada prueba (y leer el resultado en los logs mezclado con los requests) es
-// horrible. Esto hace lo mismo, a demanda, con la salida a la vista.
-//
-//   npx tsx scripts/spo-drain.ts           → estado + un ciclo
-//   npx tsx scripts/spo-drain.ts --status  → solo el estado, sin tocar Graph
-//   npx tsx scripts/spo-drain.ts --retry   → devuelve a `pending` las filas en
-//                                            `error` y drena (tras arreglar la
-//                                            causa: un nombre de columna, un
-//                                            permiso que faltaba conceder…)
+// Fuerza un ciclo del outbox y muestra la cola. `--status`: solo el estado.
+// `--retry`: vuelve a `pending` las filas en `error` y drena.
 import '../server/core/load-env'; // Fuente única de variables de entorno. Debe ir primero.
 import { config } from '../server/core/config';
 import { db } from '../server/core/supabase';

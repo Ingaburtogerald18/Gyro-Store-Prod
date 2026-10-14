@@ -1,11 +1,8 @@
 import { z } from 'zod';
 import { specRowSchema, type templateSchema } from './catalog';
 
-// ── Plantillas (el molde reutilizable) ──
-//
-// Un eje es una dimensión de variante: "Color" con opciones ["Negro", "Azul"].
-// `key` es el id interno (llave en `axis_options`), `label` lo que ve el
-// cliente. `isColor` marca el eje que se representa con fotos en vez de texto.
+// ── Plantillas ── Un eje es una dimensión de variante ("Color": ["Negro", "Azul"]). `key` es la llave
+// en `axis_options`, `label` lo que ve el cliente; `isColor` se muestra con fotos.
 export const templateAxisSchema = z.object({
   key: z.string().min(1, 'La clave del eje es obligatoria.').max(40),
   label: z.string().min(1, 'La etiqueta del eje es obligatoria.').max(60),
@@ -43,21 +40,12 @@ export const adminTemplateSchema = z.object({
 });
 export type AdminTemplate = z.infer<typeof adminTemplateSchema>;
 
-// ── Vínculo variante ↔ bodega ──
-//
-// Cada combinación exacta de opciones ("Negro / Con micrófono") apunta a uno o
-// más lotes de `purchases` POR SU CÓDIGO. Se guardan varios porque un lote se
-// agota y entra otro del mismo artículo: mientras alguno tenga disponible, la
-// variante se vende. El stock mostrado es la SUMA de los lotes vinculados.
-//
-// `price` es un override opcional: si falta, la variante usa el precio del
-// producto. Nunca se guarda la disponibilidad a mano — se deriva del stock.
+// ── Vínculo variante ↔ bodega ── Cada combinación apunta a uno o más códigos de lote: mientras alguno
+// tenga unidades se vende, y el stock es la suma. La disponibilidad nunca se guarda a mano.
 export const variantMappingSchema = z.object({
   codes: z.array(z.string().min(1).max(40)).max(20),
   price: z.number().min(0).max(9_999_999).optional(),
-  // Promoción de ESTA variante (contrato mínimo, sin editor propio todavía):
-  // solo aplica si es mayor que 0 y menor que su precio regular. Se configura en
-  // `catalog_items.variant_mappings` → { "<variante>": { codes, price, promoPrice } }.
+  // Solo aplica si es mayor que 0 y menor que el precio regular.
   promoPrice: z.number().min(0).max(9_999_999).optional(),
 });
 export type VariantMapping = z.infer<typeof variantMappingSchema>;
@@ -65,9 +53,7 @@ export type VariantMapping = z.infer<typeof variantMappingSchema>;
 export const variantMappingsSchema = z.record(z.string().max(200), variantMappingSchema);
 export type VariantMappings = z.infer<typeof variantMappingsSchema>;
 
-// Entrada del formulario de producto del panel. Los precios, imágenes y el
-// vínculo con bodega viven en `catalog_items`; los ejes y las specs base vienen
-// del molde (`templates`), que el producto solo referencia.
+// Formulario de producto del panel: precios, fotos y vínculo con bodega; ejes y specs vienen de la plantilla.
 export const adminProductInputSchema = z.object({
   name: z.string().min(2, 'El nombre es obligatorio.').max(120),
   description: z.string().max(2000).optional(),
@@ -75,20 +61,12 @@ export const adminProductInputSchema = z.object({
   price: z.number().min(0, 'El precio no puede ser negativo.').max(9_999_999),
   // Precio "antes": habilita el badge de descuento cuando es mayor que price.
   basePrice: z.number().min(0).max(9_999_999).optional(),
-  // `.default([])`: cuando el producto usa un eje de COLOR, el editor oculta la
-  // caja de "fotos generales" (muestra fotos por color en su lugar) y react-hook-form
-  // deja `images` en `undefined` al desmontar ese campo. Sin el default, la validación
-  // fallaba con "expected array, received undefined" y NO dejaba crear productos con
-  // template de color. Vacío es lo correcto: la portada sale de la primera foto por color.
+  // `.default([])`: con un eje de color el editor oculta las fotos generales y el campo queda undefined.
+  // Vacío es lo correcto: la portada sale de la primera foto por color.
   images: z.array(z.string().max(2048)).max(8, 'Máximo 8 imágenes por producto.').default([]),
-  // Fotos asignadas por variante de color (ej. "Negro": ["url1", "url2"])
-  // `.default([])` en el valor: un color sin fotos llega como `undefined` desde el
-  // editor (react-hook-form registra la caja vacía así); sin el default, la validación
-  // reventaba con "expected array, received undefined" para ese color.
+  // Fotos por color. `.default([])`: un color sin fotos llega undefined desde el editor.
   colorImages: z.record(z.string().max(60), z.array(z.string().max(2048)).max(8).default([])).optional(),
-  // `.default([])` por robustez: las specs vienen del molde, no de este form, así
-  // que el campo nunca se registra en react-hook-form; un `undefined` no debe tumbar
-  // la validación.
+  // `.default([])`: las specs vienen de la plantilla y el formulario nunca registra el campo.
   specs: z.array(specRowSchema).max(30).default([]),
   categoryId: z.string().uuid().nullable().optional(),
   published: z.boolean(),
@@ -100,8 +78,7 @@ export const adminProductInputSchema = z.object({
 
   // ── Molde y variantes ──
   templateId: z.string().uuid().nullable().optional(),
-  // Recorte de opciones: qué ofrece ESTE producto por eje. Vacío = todas las
-  // del molde (misma convención que v1, la respeta `includedOptions`).
+  // Opciones que ofrece este producto por eje; vacío = todas las de la plantilla.
   axisOptions: z.record(z.string().max(40), z.array(z.string().max(60))).optional(),
   variantMappings: variantMappingsSchema.optional(),
 });

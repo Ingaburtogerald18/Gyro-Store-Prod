@@ -1,7 +1,5 @@
-// Reglas críticas del pedido público: precio por variante, disponibilidad,
-// resolución de líneas, orden de escritura con el cupón e idempotencia.
-// Sin red ni base: el presentador y la resolución son puros y la persistencia
-// recibe un almacén en memoria.
+// Reglas críticas del pedido público, sin red ni base: el presentador y la resolución son puros y
+// la persistencia usa un almacén en memoria.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { CatalogDetail, PublicCatalogItem } from '../shared/schemas';

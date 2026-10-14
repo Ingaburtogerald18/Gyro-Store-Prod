@@ -1,8 +1,6 @@
 import { z } from 'zod';
 
-// Un componente del combo: un producto del catálogo con su cantidad. `name` es
-// un snapshot para mostrar el contenido sin re-pedir el catálogo. El precio del
-// combo es PLANO (lo fija el admin), NO se calcula de acá.
+// `name` es una copia para mostrar el contenido sin pedir el catálogo. El precio del combo es plano.
 export const comboItemSchema = z.object({
   catalogItemId: z.string().uuid('Elegí el producto.'),
   name: z.string().min(1).max(120),
@@ -21,9 +19,7 @@ export const comboSchema = z.object({
   sort_order: z.number().int(),
 });
 
-// ── Combos (ADMIN) ──
-// Entrada de la vista Combos de Inventario (POST/PUT /api/admin/combos). El
-// precio es el del PAQUETE. Las fotos y si se muestra van en el modo edición.
+// ── Combos (admin) ── El precio es el del paquete; fotos y visibilidad van en el modo edición.
 export const adminComboInputSchema = z.object({
   name: z.string().trim().min(2, 'Escribí el nombre del combo.').max(120),
   price: z.number().positive('Escribí el precio del combo.').max(9_999_999),

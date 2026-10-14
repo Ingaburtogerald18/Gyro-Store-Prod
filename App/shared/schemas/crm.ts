@@ -1,11 +1,9 @@
 import { z } from 'zod';
 import { PHONE_RE } from './staff';
 
-// Ficha 360, agenda de seguimientos y gestión de contactos. El inbox/bot de
-// WhatsApp es CRM-B/C y depende de Meta — NO entra acá. Las tablas ya existen
-// (migración 0001): contacts, contact_activities, follow_ups.
+// Ficha 360, seguimientos y contactos. La bandeja de WhatsApp depende de Meta (Docs/05-Pendientes.md §4).
 
-// 'store' = pidió «Avisame cuando haya» en la tienda (migración 0028).
+// 'store' = pidió «Avisame cuando haya» en la tienda.
 export const CONTACT_ORIGINS = ['fb_ads', 'organic', 'whatsapp_link', 'referral', 'store', 'other'] as const;
 export type ContactOrigin = (typeof CONTACT_ORIGINS)[number];
 export const CONTACT_ORIGIN_LABELS: Record<ContactOrigin, string> = {
@@ -17,9 +15,7 @@ export const CONTACT_ORIGIN_LABELS: Record<ContactOrigin, string> = {
   other: 'Otro',
 };
 
-// El pipeline (Docs/05-Pendientes.md §4 lo deja a definir): se arranca con estas etapas. En
-// la base `stage` es texto libre, así que una lectura vieja con otro valor no
-// rompe (se muestra tal cual).
+// Etapas iniciales del pipeline. `stage` es texto libre en la base: un valor viejo se muestra tal cual.
 export const CONTACT_STAGES = ['nuevo', 'contactado', 'cotizado', 'ganado', 'perdido'] as const;
 export type ContactStage = (typeof CONTACT_STAGES)[number];
 export const CONTACT_STAGE_LABELS: Record<ContactStage, string> = {
@@ -122,12 +118,8 @@ export const contact360Schema = z.object({
 });
 export type Contact360 = z.infer<typeof contact360Schema>;
 
-// El formulario público de "Contacto" captura el lead directo en el CRM
-// (contacts/contact_activities) — v1 solo mandaba un correo (sin servicio de
-// email en v2 todavía). Teléfono obligatorio: es la clave de `contacts.phone`
-// (unique) — mismo criterio que Docs/05-Pendientes.md §5 ("teléfono siempre obligatorio, es la
-// llave"). `contacts` no tiene columna de email; si lo mandan, viaja dentro
-// de la nota de la actividad en vez de perderse.
+// El formulario de contacto entra directo al CRM. Teléfono obligatorio (es la llave de `contacts`);
+// el email, si viene, va en la nota de la actividad porque `contacts` no tiene esa columna.
 export const publicContactInputSchema = z.object({
   name: z.string().min(2, 'Ingresá tu nombre.').max(80),
   phone: z
@@ -149,7 +141,7 @@ export const nicaraguaWhatsappSchema = z
   .transform((v) => v.replace(/[\s().-]/g, '').replace(/^\+?505(?=\d{8}$)/, ''))
   .pipe(z.string().regex(/^[578]\d{7}$/, 'Escribí un WhatsApp de Nicaragua: 8 dígitos que empiezan con 5, 7 u 8.'));
 
-// «Avisame cuando haya» (migración 0028): el producto y la variante los pone la ficha.
+// «Avisame cuando haya»: el producto y la variante los pone la ficha.
 export const stockNoticeInputSchema = z.object({
   name: z.string().trim().min(2, 'Escribí tu nombre.').max(80),
   phone: nicaraguaWhatsappSchema,

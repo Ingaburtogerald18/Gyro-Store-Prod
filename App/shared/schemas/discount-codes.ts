@@ -1,12 +1,9 @@
 import { z } from 'zod';
 
-// Portado de v1 (server/utils/validators.js → discountCodeSchema). El admin
-// emite el código; el canje real (que consume un uso) lo hace el servidor
-// atómicamente en server/modules/discount-codes/discount-codes.ts. `maxUses = 0` = ilimitado.
+// El canje real, que gasta un uso, lo hace el servidor en una función atómica. `maxUses = 0` = ilimitado.
 export const DISCOUNT_TYPES = ['percent', 'fixed'] as const;
 
-// `code` NO está en el input: lo genera la base con la secuencia `GS-DC-N`
-// (migración 0011). El cliente no lo manda ni lo puede elegir.
+// `code` no está en el input: lo genera la base con la secuencia `GS-DC-N`.
 export const discountCodeSchema = z
   .object({
     type: z.enum(DISCOUNT_TYPES),

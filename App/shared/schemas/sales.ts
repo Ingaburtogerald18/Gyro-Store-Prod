@@ -1,9 +1,6 @@
 import { z } from 'zod';
 
-// Cotizar, registrar, aprobar, rechazar y
-// listar. Sin fotos de recibo, sin venta vía ticket de factura, sin edición
-// post-aprobación ni pago de comisiones por lotes — ver Docs/03-Finanzas.md §4-5 para la
-// cadena financiera que server/modules/sales/ arma con estos datos.
+// Cadena financiera que arma el servidor con estos datos: Docs/03-Finanzas.md §4.
 
 export const saleLineInputSchema = z.object({
   // Mismo límite que inventario: sin un catalog_item_id real
@@ -23,9 +20,7 @@ export const quoteInputSchema = z.object({
 export type QuoteInput = z.infer<typeof quoteInputSchema>;
 
 export const registerSaleInputSchema = z.object({
-  // Código de la factura tal como se imprime (`GS-PR-12`). Se acepta string
-  // porque es lo que el vendedor copia del ticket; `parseInvoiceCode` en
-  // modules/invoices/invoices.ts lo resuelve al correlativo numérico (y tolera "12").
+  // El código como se imprime (`GS-PR-12`): es lo que el vendedor copia; el servidor lo resuelve.
   invoiceNumber: z.union([z.string().trim().max(20), z.number().int().positive()]).optional(),
   customerName: z.string().max(100).optional(),
   phone: z.string().max(20).optional(),
@@ -60,14 +55,8 @@ export const rejectSaleInputSchema = z.object({
 });
 export type RejectSaleInput = z.infer<typeof rejectSaleInputSchema>;
 
-// ── Pago de comisiones (Docs/03-Finanzas.md §4) ──
-// El comprobante viaja como URL ya subida a `POST /api/upload`, no como
-// multipart: v2 centraliza las subidas ahí y así esta ruta queda siendo JSON.
-//
-// El `refine` es la regla de auditoría: un pago sin comprobante Y sin
-// justificación es un movimiento de dinero sin rastro. La base lo repite como
-// CHECK constraint — el borde valida para dar un mensaje útil, la tabla para
-// que no entre por ninguna otra puerta.
+// ── Pago de comisiones ── El comprobante llega como URL ya subida. Sin comprobante ni justificación
+// no hay pago: el borde da el mensaje y un CHECK de la base lo repite.
 const payoutProofSchema = {
   paymentMethod: z.enum(['efectivo', 'transferencia', 'tarjeta']),
   receiptUrl: z.string().max(2048).optional(),

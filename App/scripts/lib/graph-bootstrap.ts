@@ -1,12 +1,5 @@
-// Cliente mínimo de Graph para el script de configuración de SharePoint
-// (`spo-ids`). NO lo usa el servidor.
-//
-// ── Por qué no reusa modules/sharepoint/graph-token.ts ──
-// Huevo y gallina: `getGraphToken` exige `config.spo.enabled`, que a su vez exige
-// los ids del sitio y la biblioteca — que es justamente lo que este script viene
-// a averiguar. Relajar ese guard debilitaría la protección del worker, que SÍ
-// debe negarse a correr con la configuración a medias. Se paga con este archivo,
-// de un solo uso, en vez de con el camino de producción.
+// Cliente mínimo de Graph para `spo-ids`; el servidor no lo usa. No reusa graph-token.ts porque
+// este exige los ids que el script viene a averiguar.
 import * as jose from 'jose';
 
 export const GRAPH = 'https://graph.microsoft.com/v1.0';
@@ -15,12 +8,7 @@ export const tenantId = (process.env.AZURE_TENANT_ID || '').trim();
 export const clientId = (process.env.AZURE_CLIENT_ID || '').trim();
 export const clientSecret = (process.env.AZURE_CLIENT_SECRET || '').trim();
 
-/**
- * `fetch` de Node envuelve TODO fallo de red en un `TypeError: fetch failed` sin
- * detalle; el motivo real (ENOTFOUND, timeout, certificado rechazado por un
- * proxy) viaja en `.cause`, a veces anidado. Sin desenrollarlo, el mensaje no
- * distingue "no hay internet" de "el tenant id está mal escrito".
- */
+/** `fetch` envuelve todo fallo de red en «fetch failed»; el motivo real viaja en `.cause`, a veces anidado. */
 export function explain(err: unknown): string {
   const parts: string[] = [];
   let current: any = err;
@@ -33,16 +21,7 @@ export function explain(err: unknown): string {
   return parts.join('\n    ↳ ');
 }
 
-/**
- * Reintenta solo los fallos de CONEXIÓN (el socket nunca se abrió). Cualquier
- * respuesta HTTP —incluido un 401 o un 403— se devuelve tal cual: son
- * diagnósticos, no accidentes, y reintentarlos solo tardaría más en dar la misma
- * respuesta.
- *
- * Existe porque este enlace demostró ser intermitente: la misma llamada dio
- * `AADSTS7000215` (llegó a Entra) y `UND_ERR_CONNECT_TIMEOUT` (no llegó) con
- * minutos de diferencia.
- */
+/** Reintenta solo fallos de conexión: un 401 o 403 es un diagnóstico y se devuelve tal cual. */
 export async function fetchWithRetry(
   url: string,
   init: RequestInit,
@@ -64,10 +43,8 @@ export async function fetchWithRetry(
 }
 
 /**
- * Corta ANTES de gastar un viaje a Entra si las credenciales tienen forma
- * inválida. Los dos errores de este paso (pegar el Secret ID en vez del Value,
- * pegar una URL como tenant) producen mensajes de Entra que no todo el mundo
- * asocia con la causa.
+ * Corta antes de ir a Entra si las credenciales tienen forma inválida (Secret ID en vez del Value,
+ * una URL como tenant): los mensajes de Entra no dicen la causa.
  */
 export function assertCredentials(): void {
   const missing = [
@@ -137,14 +114,8 @@ export async function getToken(): Promise<string> {
 }
 
 /**
- * Verifica que el token traiga permisos de aplicación de SharePoint y los
- * informa. Se DECODIFICA, no se verifica: no estamos confiando en el token (lo
- * acaba de emitir Entra a este mismo proceso), solo lo leemos para diagnosticar.
- *
- * El claim `roles` refleja los permisos concedidos PARA EL RECURSO del claim
- * `aud`. Con `aud = graph.microsoft.com` solo cuentan los permisos agregados bajo
- * la API «Microsoft Graph»; los de la API «SharePoint» son de otro recurso y
- * nunca aparecen acá — es el error que más cuesta ver.
+ * Lee (no verifica) el token para informar sus permisos. `roles` solo trae los del recurso de `aud`:
+ * con Graph no aparecen los permisos agregados bajo la API «SharePoint».
  */
 export function assertSharePointRoles(token: string): void {
   const claims = jose.decodeJwt(token) as { roles?: string[]; appid?: string; aud?: string };
