@@ -35,7 +35,7 @@ stock por fuera de la app. Así, **toda la lógica y la autorización viven en e
 | Datos | Supabase Postgres vía `@supabase/supabase-js` con `service_role`; funciones SQL para lo atómico |
 | Validación | Zod 4, con los esquemas compartidos en `App/shared/schemas/` (un archivo por tema) |
 | Seguridad HTTP | helmet (CSP con nonce), cors, express-rate-limit, `sanitizeBody` |
-| Archivos | multer (hasta 25 MB) → sharp (WebP, lado mayor 1200 px) → R2 con `@aws-sdk/client-s3` |
+| Archivos | multer (hasta 25 MB) → sharp (WebP, lado mayor 1200 px, y miniatura de 480) → R2 con `@aws-sdk/client-s3` |
 | PDF | pdf-lib (comprobantes) |
 | Tienda y panel | Remix 2 sobre Vite 6, React 18, Tailwind 4, shadcn/ui (Radix), Redux Toolkit + RTK Query |
 | UI | React Hook Form, TanStack Table, dnd-kit, Recharts, Framer Motion, Hugeicons, Sonner, cmdk, letra Chivo |
@@ -115,7 +115,10 @@ sin columnas de costo.
 Lo que oculta el frontend según el rol es solo comodidad: la barrera es el servidor.
 
 **Subida de imagen.** multer → sharp (WebP) → R2 con nombre por hash del contenido → la URL pública
-se guarda en Postgres. Ninguna dirección de imagen está escrita en el código.
+se guarda en Postgres. Ninguna dirección de imagen está escrita en el código. Al lado de cada foto se
+sube su miniatura de 480 px (`<hash>-480.webp`, nombre en `shared/image-variants.ts`), que usan las
+tarjetas, las miniaturas de la galería y el carrito; si no existe, la tienda pide la original. Borrar
+una foto borra también su miniatura. `npm run thumbnails:backfill` genera las que faltan.
 
 **Pedido de la tienda.** `POST /api/orders/public` recibe ids y cantidades, nunca precios. El
 servidor recalcula el total, registra el intento con una clave de idempotencia

@@ -32,6 +32,9 @@ borra de acá y se describe en el documento que corresponda.
 - **Textos de la tienda.** Cargar el texto de cada categoría (Inventario → Plantillas → Categorías),
   la marca de cada plantilla y las descripciones que faltan (el 14 oct 2026, 4 de 7 productos no
   tenían). Es lo que leen los buscadores y los asistentes de IA. Antes, correr la migración 0033.
+- **Miniaturas de las fotos viejas.** Las fotos subidas antes del 14 oct 2026 no tienen miniatura y
+  las tarjetas bajan la de 1200 px. Desde `App/`, con las credenciales de R2: `npm run
+  thumbnails:backfill` cuenta las que faltan y `npm run thumbnails:backfill -- --apply` las genera.
 - **Imagen para compartir.** La portada usa el logo como imagen social; falta una propia de 1200×630.
 - **Ficha del combo.** Muestra el combo como una unidad (nombre, precio, foto y cantidad de
   artículos). Podría listar su contenido: cada combo ya guarda el nombre y la cantidad de cada

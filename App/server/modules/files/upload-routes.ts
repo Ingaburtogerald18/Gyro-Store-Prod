@@ -1,14 +1,15 @@
 import { Router } from 'express';
 import multer from 'multer';
 import crypto from 'crypto';
-import { uploadFile, optimizeImageBuffer, sanitizePathSegment, deleteFileByUrl } from './storage';
+import { uploadFile, optimizeImageBuffer, makeThumbnail, sanitizePathSegment, deleteFileByUrl } from './storage';
+import { thumbnailUrl } from '../../../shared/image-variants';
 import { requireAdmin } from '../../middleware/auth';
 import { logger } from '../../utils/logger';
 
 const router = Router();
 
 // 25 MB porque los GIF sin fondo que exporta Canva pasan fácil los 10 MB.
-// No se guarda ese peso: todo se convierte a WebP de hasta 1200 px.
+// No se guarda ese peso: todo se convierte a WebP de hasta 1200 px, con su miniatura de 480 al lado.
 const MAX_UPLOAD_MB = 25;
 
 // Configure multer to store files in memory
@@ -70,6 +71,17 @@ router.post('/', requireAdmin, acceptUpload, async (req, res) => {
     const uniqueFilename = `${hash}${ext}`;
 
     const url = await uploadFile(bufferToUpload, folder, uniqueFilename, contentType);
+
+    // Sin miniatura la tienda usa la foto completa, así que un fallo acá no frena la subida.
+    const thumbUrl = thumbnailUrl(url);
+    if (thumbUrl) {
+      try {
+        const thumb = await makeThumbnail(bufferToUpload);
+        if (thumb) await uploadFile(thumb, folder, thumbUrl.slice(thumbUrl.lastIndexOf('/') + 1), 'image/webp');
+      } catch (err: any) {
+        logger.error('No se pudo subir la miniatura', { message: err?.message });
+      }
+    }
 
     res.json({ url });
   } catch (error: any) {

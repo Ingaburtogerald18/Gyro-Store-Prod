@@ -2,14 +2,17 @@
 // eligen las opciones y están WhatsApp y el carrito.
 import { HugeIcon } from "~/components/ui/icon";
 import { ImageNotFound01Icon } from "@hugeicons/core-free-icons";
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from '@remix-run/react';
 import { motion, useReducedMotion } from 'framer-motion';
 
 import type { CatalogProduct } from '@shared/schemas';
+import { THUMBNAIL_WIDTH } from '@shared/image-variants';
+import { ThumbnailImg } from '~/components/product/thumbnail-img';
 import { Badge } from '~/components/ui/badge';
 import { Chip } from '~/components/ui/chip';
 import { useStoreConfig } from '~/hooks/use-store-config';
+import { useThumbnail } from '~/hooks/use-thumbnail';
 import { AVAILABILITY_LABEL } from '~/lib/purchase';
 import { cn } from "~/lib/utils"
 import { formatCordobas, getProductUrl } from "~/lib/formatters";
@@ -39,13 +42,14 @@ export function ProductCard({
   const reduce = useReducedMotion();
   // onLoad puede ocurrir antes de hidratar: comprobar también la imagen del DOM.
   const [imageLoaded, setImageLoaded] = useState(false);
-  const imageRef = useRef<HTMLImageElement>(null);
 
   const image = product.images[0];
+  // La tarjeta se ve a unos 200 px: el celular baja la miniatura y no la foto de 1200.
+  const { ref: imageRef, thumb, fallback } = useThumbnail(image);
   useEffect(() => {
     const img = imageRef.current;
     setImageLoaded(Boolean(img?.complete && img.naturalWidth > 0));
-  }, [image]);
+  }, [image, thumb, imageRef]);
   // Segunda foto: si existe, hace crossfade al pasar el mouse.
   const hoverImage = product.images[1];
   const available = product.availability === 'available';
@@ -86,7 +90,7 @@ export function ProductCard({
 
       {/* Crossfade a la 2da foto: se monta debajo y sube su opacidad al hover. */}
       {hoverImage && available && (
-        <img
+        <ThumbnailImg
           src={hoverImage}
           alt=""
           aria-hidden
@@ -100,14 +104,18 @@ export function ProductCard({
         <img
           ref={imageRef}
           src={image}
+          srcSet={thumb ? `${thumb} ${THUMBNAIL_WIDTH}w, ${image} 1200w` : undefined}
+          sizes={isList ? '180px' : '(min-width: 1024px) 300px, (min-width: 640px) 33vw, 50vw'}
           alt={product.name}
           width={400}
           height={400}
           loading={index < 4 ? 'eager' : 'lazy'}
           decoding="async"
           onLoad={() => setImageLoaded(true)}
-          // Si la foto falla, el blur permanente sería peor que mostrarla rota.
-          onError={() => setImageLoaded(true)}
+          // Sin miniatura se pide la original; si la foto falla, el blur permanente sería peor que mostrarla rota.
+          onError={() => {
+            if (!fallback()) setImageLoaded(true);
+          }}
           className={cn(
             // Misma escala en todas las tarjetas: la foto completa, sin recortes.
             'ease-expo relative h-full w-full object-contain transition duration-500 motion-reduce:transition-none',
