@@ -4,7 +4,7 @@
 import type { StoreCategory } from '~/state/api/session-api';
 import { Button } from '~/components/ui/button';
 import { Chip } from '~/components/ui/chip';
-import { useGetConfigQuery } from '~/state/api/session-api';
+import { useStoreConfig } from '~/hooks/use-store-config';
 import { useAppDispatch } from '~/state/hooks';
 import {
   categorySet,
@@ -27,7 +27,7 @@ interface ActiveFilter {
 
 export function ActiveFilters({ categories = [] }: { categories?: StoreCategory[] }) {
   const dispatch = useAppDispatch();
-  const { data: config } = useGetConfigQuery();
+  const config = useStoreConfig();
   const currency = config?.currency;
 
   // Lo que se muestra sale de la URL (igual que la grilla); quitar un chip pasa por Redux y CatalogUrlSync.

@@ -17,10 +17,14 @@ borra de acá y se describe en el documento que corresponda.
   pero el cotizador no los usa (03-Finanzas §5). O se ocultan o se reactiva el mayoreo.
 - **Search Console.** Verificar `gyrostorenic.com` como propiedad de dominio (el TXT de Google ya está
   en Cloudflare), enviar `/sitemap.xml` y pedir la indexación de la portada.
-- **Plan free de Render.** El servicio se duerme sin tráfico y la primera visita tardó más de 20 s
-  (14 oct 2026). Con el servicio dormido, `/robots.txt` llegó a responder `Disallow: /`; la regla de
-  caché de Cloudflare evita que esa respuesta quede guardada, pero no que un buscador la reciba en ese
-  momento. Subir de plan es decisión de costo.
+- **Plan de Render en `render.yaml`.** El servicio ya está en un plan pago, pero el archivo dice
+  `plan: free`. Poner el plan contratado, para que un despliegue desde el archivo no lo baje.
+- **Llaves y región de Supabase.** Revisar en Supabase si el proyecto firma con el secreto (HS256,
+  necesita `SUPABASE_JWT_SECRET` en Render) o con las llaves nuevas (se validan solas con JWKS), y en
+  qué región está (Render corre en Oregon). Si el log muestra `[auth] El token se valida preguntando a
+  Supabase`, falta una de las dos.
+- **Revisar el log después de publicar.** `[límite]` dice a quién frenó un límite de uso y `[lento]`
+  qué página o consulta tardó 1,5 s o más.
 - **Servicio viejo en Render.** `gyro-store.onrender.com` sirve una versión anterior de la tienda.
   Revisar si tiene las llaves de Supabase de producción y suspenderlo.
 - **Garantía y cambios.** La página nace en borrador en Configuración → Atención con lo que el dueño
@@ -63,8 +67,14 @@ piezas grandes de lógica:
   facturación, inventario). Solución: `limit`/`cursor` en los endpoints y `manualPagination` en
   TanStack.
 - **Periodo en todos los módulos.** Solo Reportería e Inventario filtran por fechas. Ventas y
-  Facturación no aceptan fechas ni en el panel ni en sus endpoints. Primero el filtro en el backend;
-  después, un selector de periodo común.
+  Facturación no aceptan fechas en el panel (el endpoint de ventas ya acepta `from` y `to`). Primero
+  el filtro en el backend; después, un selector de periodo común. Abrir Ventas con los últimos 90 días
+  cambia lo que ve el dueño: es decisión suya. Cuotas y el pago de comisiones necesitan todas las
+  ventas aprobadas, sin recorte.
+- **Stock actual con más de 1000 lotes.** `fetchPurchaseRows` (`modules/inventory/inventory.ts`) no
+  pagina: PostgREST corta en 1000 filas sin avisar. Pasarlo a `fetchAllRows` antes de llegar ahí.
+- **Compilar el servidor.** Corre con `tsx`; compilarlo solo acelera el arranque después de cada
+  despliegue. Hay que revisar las rutas que `serve-frontend.ts` arma desde `import.meta.url`.
 - **Comparación con el periodo anterior** (`<Delta>`): solo `get_financial_kpis` la devuelve. Faltan
   los KPIs de inventario, vendedores y desglose de ventas.
 - **Datos viejos atenuados durante una recarga** (`fetching` de `QueryState`): solo está en Ventas.

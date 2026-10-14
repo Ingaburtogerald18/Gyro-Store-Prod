@@ -1,4 +1,4 @@
-import { getSupabaseClient } from '~/lib/supabase.client';
+import { getAccessToken } from '~/lib/session.client';
 
 export const uploadQueue = new Map<string, File>();
 
@@ -16,10 +16,7 @@ export function queueFile(file: File): string {
  * Sube un único archivo al bucket/carpeta especificada vía el endpoint `/api/upload`.
  */
 export async function uploadOne(file: File, folder: string): Promise<string> {
-  const supabase = getSupabaseClient();
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
+  const token = await getAccessToken();
 
   const body = new FormData();
   body.append('file', file);
@@ -27,7 +24,7 @@ export async function uploadOne(file: File, folder: string): Promise<string> {
 
   const res = await fetch('/api/upload', {
     method: 'POST',
-    headers: session ? { Authorization: `Bearer ${session.access_token}` } : {},
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
     body,
   });
 

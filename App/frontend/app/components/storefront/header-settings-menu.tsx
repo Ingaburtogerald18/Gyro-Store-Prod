@@ -30,7 +30,7 @@ import { selectAuthStatus, selectIsAdmin, selectEditMode, selectUser, toggleEdit
 import { useMediaQuery } from "~/hooks/use-media-query";
 import { useTheme } from "~/hooks/use-theme";
 import { cn } from "~/lib/utils";
-import { signOut } from "~/lib/supabase.client";
+import { signOut } from "~/lib/session.client";
 
 // Filas cómodas (44px) y foco neutro: el amarillo queda para comprar.
 const ITEM = "min-h-11 gap-3 rounded-xl px-3 text-sm focus:bg-muted focus:text-foreground not-data-[variant=destructive]:focus:**:text-foreground";

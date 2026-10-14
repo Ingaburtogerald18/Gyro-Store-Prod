@@ -217,18 +217,102 @@ export async function getSaleById(id: string): Promise<SaleWithItems | null> {
   };
 }
 
-// Ids por consulta en los `.in(...)`: con cientos de ventas la URL de
-// PostgREST se pasa de largo y la consulta falla.
+// Ids por consulta en los `.in(...)`: con cientos de ventas la URL de PostgREST se pasa de largo y
+// la consulta falla. Van de a 4 tandas a la vez: en fila, miles de ventas eran decenas de esperas.
 const IN_CHUNK = 150;
+const IN_PARALLEL = 4;
 
 async function inChunks<T>(ids: string[], run: (chunk: string[]) => PromiseLike<{ data: T[] | null; error: unknown }>): Promise<T[]> {
+  const chunks: string[][] = [];
+  for (let k = 0; k < ids.length; k += IN_CHUNK) chunks.push(ids.slice(k, k + IN_CHUNK));
   const out: T[] = [];
-  for (let k = 0; k < ids.length; k += IN_CHUNK) {
-    const { data, error } = await run(ids.slice(k, k + IN_CHUNK));
-    if (error) throw error;
-    out.push(...(data ?? []));
+  for (let k = 0; k < chunks.length; k += IN_PARALLEL) {
+    const results = await Promise.all(chunks.slice(k, k + IN_PARALLEL).map((chunk) => run(chunk)));
+    for (const { data, error } of results) {
+      if (error) throw error;
+      out.push(...(data ?? []));
+    }
   }
   return out;
+}
+
+// Segunda consulta en vez de embed: si PostgREST no tiene la FK en caché, se lleva puesto el listado.
+async function sellerNamesByUid(sellerUids: (string | null)[]): Promise<Map<string, string>> {
+  const uids = [...new Set(sellerUids.filter((id): id is string => !!id))];
+  const namesByUid = new Map<string, string>();
+  if (uids.length === 0) return namesByUid;
+  try {
+    const profiles = await inChunks<{ id: string; name: string | null }>(uids, (chunk) =>
+      db.from('profiles').select('id, name').in('id', chunk) as unknown as PromiseLike<{
+        data: { id: string; name: string | null }[] | null;
+        error: unknown;
+      }>,
+    );
+    for (const p of profiles) {
+      if (p.name?.trim()) namesByUid.set(p.id, p.name.trim());
+    }
+  } catch (err) {
+    console.error('[sales] No se pudieron resolver los nombres de vendedor:', err);
+  }
+  return namesByUid;
+}
+
+// Totales por venta. Un error acá no se traga: mostrar 0 sin aviso falseaba las métricas.
+async function lineTotalsByOrder(orderIds: string[]) {
+  const totals = {
+    salary: new Map<string, number>(),
+    comision: new Map<string, number>(),
+    gananciaTienda: new Map<string, number>(),
+    belowMin: new Set<string>(),
+  };
+  if (orderIds.length === 0) return totals;
+  type ItemRow = {
+    order_id: string;
+    salary: number | null;
+    comision: number | null;
+    ganancia_tienda: number | null;
+    precio_unit: number | null;
+    coste_final_snap: number | null;
+  };
+  const [minMargin, items] = await Promise.all([
+    getFinancialConfig().then((config) => config.minMarginMultiplier ?? 1.15),
+    inChunks<ItemRow>(orderIds, (chunk) =>
+      db
+        .from('order_items')
+        .select('order_id, salary, comision, ganancia_tienda, precio_unit, coste_final_snap')
+        .in('order_id', chunk) as unknown as PromiseLike<{ data: ItemRow[] | null; error: unknown }>,
+    ),
+  ]);
+  for (const it of items) {
+    totals.salary.set(it.order_id, (totals.salary.get(it.order_id) ?? 0) + (it.salary ?? 0));
+    totals.comision.set(it.order_id, (totals.comision.get(it.order_id) ?? 0) + (it.comision ?? 0));
+    totals.gananciaTienda.set(it.order_id, (totals.gananciaTienda.get(it.order_id) ?? 0) + (it.ganancia_tienda ?? 0));
+    if (isBelowMinMargin(it.precio_unit ?? 0, it.coste_final_snap ?? 0, minMargin)) totals.belowMin.add(it.order_id);
+  }
+  return totals;
+}
+
+// Nº de factura con que se registró cada venta (`invoices.sale_id`). Mismo criterio: si falla, se
+// corta (el total sin delivery depende de esto).
+async function invoicesBySale(orderIds: string[]) {
+  const invoiceBySaleId = new Map<string, { number: number; code: string; deliveryFee: number }>();
+  if (orderIds.length === 0) return invoiceBySaleId;
+  type InvRow = { sale_id: string | null; invoice_number: number; invoice_code: string | null; delivery_fee: number | null };
+  const invoices = await inChunks<InvRow>(orderIds, (chunk) =>
+    db
+      .from('invoices')
+      .select('sale_id, invoice_number, invoice_code, delivery_fee')
+      .in('sale_id', chunk) as unknown as PromiseLike<{ data: InvRow[] | null; error: unknown }>,
+  );
+  for (const inv of invoices) {
+    if (!inv.sale_id) continue;
+    invoiceBySaleId.set(inv.sale_id, {
+      number: inv.invoice_number,
+      code: inv.invoice_code ?? formatInvoiceCode(inv.invoice_number),
+      deliveryFee: inv.delivery_fee ?? 0,
+    });
+  }
+  return invoiceBySaleId;
 }
 
 export async function listSales(filters: {
@@ -264,76 +348,13 @@ export async function listSales(filters: {
     return query.range(from, to) as unknown as PromiseLike<{ data: OrderRow[] | null; error: unknown }>;
   });
 
-  // Segunda consulta en vez de embed: si PostgREST no tiene la FK en caché, se lleva puesto el listado.
-  const uids = [...new Set(rows.map((r) => r.seller_uid).filter((id): id is string => !!id))];
-  const namesByUid = new Map<string, string>();
-
-  if (uids.length > 0) {
-    try {
-      const profiles = await inChunks<{ id: string; name: string | null }>(uids, (chunk) =>
-        db.from('profiles').select('id, name').in('id', chunk) as unknown as PromiseLike<{
-          data: { id: string; name: string | null }[] | null;
-          error: unknown;
-        }>,
-      );
-      for (const p of profiles) {
-        if (p.name?.trim()) namesByUid.set(p.id, p.name.trim());
-      }
-    } catch (err) {
-      console.error('[sales] No se pudieron resolver los nombres de vendedor:', err);
-    }
-  }
-
-  // Totales por venta. Un error acá no se traga: mostrar 0 sin aviso falseaba las métricas.
   const orderIds = rows.map((r) => r.id);
-  const salaryByOrderId = new Map<string, number>();
-  const comisionByOrderId = new Map<string, number>();
-  const gananciaTiendaByOrderId = new Map<string, number>();
-  const belowMinByOrderId = new Set<string>();
-  if (orderIds.length > 0) {
-    const minMargin = (await getFinancialConfig()).minMarginMultiplier ?? 1.15;
-    type ItemRow = {
-      order_id: string;
-      salary: number | null;
-      comision: number | null;
-      ganancia_tienda: number | null;
-      precio_unit: number | null;
-      coste_final_snap: number | null;
-    };
-    const items = await inChunks<ItemRow>(orderIds, (chunk) =>
-      db
-        .from('order_items')
-        .select('order_id, salary, comision, ganancia_tienda, precio_unit, coste_final_snap')
-        .in('order_id', chunk) as unknown as PromiseLike<{ data: ItemRow[] | null; error: unknown }>,
-    );
-    for (const it of items) {
-      salaryByOrderId.set(it.order_id, (salaryByOrderId.get(it.order_id) ?? 0) + (it.salary ?? 0));
-      comisionByOrderId.set(it.order_id, (comisionByOrderId.get(it.order_id) ?? 0) + (it.comision ?? 0));
-      gananciaTiendaByOrderId.set(it.order_id, (gananciaTiendaByOrderId.get(it.order_id) ?? 0) + (it.ganancia_tienda ?? 0));
-      if (isBelowMinMargin(it.precio_unit ?? 0, it.coste_final_snap ?? 0, minMargin)) belowMinByOrderId.add(it.order_id);
-    }
-  }
-
-  // Nº de factura con que se registró cada venta (`invoices.sale_id`). Mismo
-  // criterio: si falla, se corta (el total sin delivery depende de esto).
-  const invoiceBySaleId = new Map<string, { number: number; code: string; deliveryFee: number }>();
-  if (orderIds.length > 0) {
-    type InvRow = { sale_id: string | null; invoice_number: number; invoice_code: string | null; delivery_fee: number | null };
-    const invoices = await inChunks<InvRow>(orderIds, (chunk) =>
-      db
-        .from('invoices')
-        .select('sale_id, invoice_number, invoice_code, delivery_fee')
-        .in('sale_id', chunk) as unknown as PromiseLike<{ data: InvRow[] | null; error: unknown }>,
-    );
-    for (const inv of invoices) {
-      if (!inv.sale_id) continue;
-      invoiceBySaleId.set(inv.sale_id, {
-        number: inv.invoice_number,
-        code: inv.invoice_code ?? formatInvoiceCode(inv.invoice_number),
-        deliveryFee: inv.delivery_fee ?? 0,
-      });
-    }
-  }
+  // Nombres, líneas y facturas no dependen entre sí: se piden a la vez.
+  const [namesByUid, lines, invoiceBySaleId] = await Promise.all([
+    sellerNamesByUid(rows.map((r) => r.seller_uid)),
+    lineTotalsByOrder(orderIds),
+    invoicesBySale(orderIds),
+  ]);
 
   return rows.map((row) => ({
     id: row.id,
@@ -345,14 +366,14 @@ export async function listSales(filters: {
     weekOf: row.week_of,
     phone: row.phone,
     total: row.total ?? 0,
-    totalSalary: salaryByOrderId.get(row.id) ?? 0,
-    totalComision: comisionByOrderId.get(row.id) ?? 0,
+    totalSalary: lines.salary.get(row.id) ?? 0,
+    totalComision: lines.comision.get(row.id) ?? 0,
     // Solo admin: la ruta la recorta para un vendedor.
-    totalGananciaTienda: gananciaTiendaByOrderId.get(row.id) ?? 0,
+    totalGananciaTienda: lines.gananciaTienda.get(row.id) ?? 0,
     invoiceNumber: invoiceBySaleId.get(row.id)?.number ?? null,
     invoiceCode: invoiceBySaleId.get(row.id)?.code ?? null,
     deliveryFee: invoiceBySaleId.get(row.id)?.deliveryFee ?? 0,
     createdAt: row.created_at,
-    belowMinMargin: belowMinByOrderId.has(row.id),
+    belowMinMargin: lines.belowMin.has(row.id),
   }));
 }

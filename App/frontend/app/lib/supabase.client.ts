@@ -1,5 +1,6 @@
 // Cliente de Supabase solo para la sesión del personal: los datos van siempre por la API de Express.
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { supabaseCreated } from '~/lib/session.client';
 
 let client: SupabaseClient | null = null;
 
@@ -26,6 +27,7 @@ export function getSupabaseClient(): SupabaseClient {
         flowType: 'pkce',
       },
     });
+    supabaseCreated(client);
   }
   return client;
 }

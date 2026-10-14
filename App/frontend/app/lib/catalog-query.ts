@@ -102,6 +102,20 @@ export function inCategory(p: { categoryId?: string | null; category: string }, 
   return p.categoryId === c.id || p.category === c.id || p.category === c.name;
 }
 
+/** Productos por categoría (id → cantidad): lo único que header, menú y pie necesitan del catálogo. */
+export function countByCategory(
+  products: { categoryId?: string | null; category: string }[],
+  categories: { id: string; name: string }[],
+): Record<string, number> {
+  return Object.fromEntries(categories.map((c) => [c.id, products.filter((p) => inCategory(p, c)).length]));
+}
+
+/** Las categorías con productos. Sin conteos, o con el catálogo vacío, van todas. */
+export function categoriesWithProducts<T extends { id: string }>(categories: T[], counts: Record<string, number> | undefined): T[] {
+  if (!counts || !Object.values(counts).some((n) => n > 0)) return categories;
+  return categories.filter((c) => (counts[c.id] ?? 0) > 0);
+}
+
 export function categoryHref(slug: string | null): string {
   return slug ? `${CATEGORY_PREFIX}${encodeURIComponent(slug)}` : CATALOG_PATH;
 }

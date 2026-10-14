@@ -10,6 +10,7 @@ import {
 import { useEffect } from 'react';
 import { Link, useParams } from '@remix-run/react';
 import type { LoaderFunctionArgs, MetaFunction } from '@remix-run/node';
+import { readStoreFrame, storeReader } from '~/lib/store-reader.server';
 
 import { pageTitle } from '~/lib/brand';
 import { StorefrontShell } from '~/components/storefront/storefront-shell';
@@ -23,7 +24,6 @@ import { DELIVERY_LABELS } from '@shared/schemas';
 import { saveOrder } from '~/lib/order-history';
 import { useStoreConfig } from '~/hooks/use-store-config';
 import { useGetPublicOrderQuery, type PublicOrderTracking } from '~/state/api/storefront-api';
-import type { StoreConfig } from '~/state/api/session-api';
 
 export const meta: MetaFunction = () => [
   { title: pageTitle('Seguimiento de pedido') },
@@ -31,16 +31,10 @@ export const meta: MetaFunction = () => [
   { name: 'robots', content: 'noindex, nofollow' },
 ];
 
-export async function loader({ request }: LoaderFunctionArgs) {
-  const origin = new URL(request.url).origin;
-  let config: StoreConfig | null = null;
-  try {
-    const res = await fetch(`${origin}/api/config`);
-    if (res.ok) config = (await res.json()) as StoreConfig;
-  } catch {
-    // Sin config la página sale igual.
-  }
-  return { config };
+export async function loader({ request, context }: LoaderFunctionArgs) {
+  // Sin config la página sale igual.
+  const frame = await readStoreFrame(storeReader(context, request));
+  return frame;
 }
 
 const shortId = (id: string) => `#${id.slice(0, 8).toUpperCase()}`;

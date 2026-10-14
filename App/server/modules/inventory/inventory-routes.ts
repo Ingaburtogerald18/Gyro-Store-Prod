@@ -26,7 +26,7 @@ import { getInvoiceFile, getPackagePhoto } from './purchase-order-files';
 import { getPurchaseOrder, listPurchaseOrders } from './purchase-orders';
 import { receivePurchaseOrder, simulatePurchaseOrderReceipt } from './purchase-receipts';
 import { updatePurchaseInvoice } from './purchase-invoices';
-import { removeColorOffer, setColorOffer, withOffers } from '../catalog/offers';
+import { loadOfferContext, removeColorOffer, setColorOffer, withOffers } from '../catalog/offers';
 
 const router = Router();
 
@@ -46,7 +46,11 @@ router.get(
   '/current',
   requireSeller,
   asyncHandler(async (req, res) => {
-    const rows = await withMediaLinks(await withOffers(await getCurrentInventory(parsePeriod(req.query.period))));
+    const [inventory, offerContext] = await Promise.all([
+      getCurrentInventory(parsePeriod(req.query.period)),
+      loadOfferContext(),
+    ]);
+    const rows = await withMediaLinks(withOffers(inventory, offerContext));
     if (isAdminUser(req.user)) {
       res.json(rows);
       return;

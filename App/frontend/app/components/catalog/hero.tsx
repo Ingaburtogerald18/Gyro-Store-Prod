@@ -10,7 +10,7 @@ import { SlideMedia } from '~/components/catalog/slide-media';
 import { Button } from '~/components/ui/button';
 import { WhatsappIcon } from '~/components/ui/whatsapp-icon';
 import { useAppSelector } from '~/state/hooks';
-import { selectEditMode, selectIsAdmin } from '~/state/slices/auth-slice';
+import { selectEditMode, selectIsAdmin, selectIsStaff } from '~/state/slices/auth-slice';
 import { selectDraftLandingConfig, selectActiveHeroSlideId } from '~/state/slices/builder-slice';
 import { useStoreConfig } from '~/hooks/use-store-config';
 import { useGetLandingConfigQuery } from '~/state/api/storefront-api';
@@ -23,7 +23,9 @@ const EMPTY_LANDING: LandingConfig = { headerCategories: [], heroSlides: [] };
 /** La portada que se pinta: el borrador en el modo edición; si no, la publicada. */
 export function useShownLanding(initialLanding?: LandingConfig | null) {
   const [params] = useSearchParams();
-  const { data: landingData } = useGetLandingConfigQuery();
+  // Mismo criterio que useStoreLanding: el visitante usa lo que trajo la página.
+  const isStaff = useAppSelector(selectIsStaff);
+  const { data: landingData } = useGetLandingConfigQuery(undefined, { skip: Boolean(initialLanding) && !isStaff });
   const isAdmin = useAppSelector(selectIsAdmin);
   const editMode = useAppSelector(selectEditMode);
   const editing = (isAdmin || params.get('landing-preview') === '1') && editMode;

@@ -1,10 +1,6 @@
 import { Router } from 'express';
-import { z } from 'zod';
 import { asyncHandler } from '../../utils/async-handler';
-import { getPublishedCatalogItem, listPublishedCatalog } from './catalog';
-import { collectMappedCodes, toCatalogDetail, toCatalogProduct } from './catalog-presenter';
-import { getLotsByCodes } from '../inventory/inventory-links';
-import { getActiveOffers } from './offers';
+import { readCatalog, readProduct } from '../storefront/store-reader';
 
 const router = Router();
 
@@ -12,34 +8,23 @@ const router = Router();
 router.get(
   '/',
   asyncHandler(async (_req, res) => {
-    const rows = await listPublishedCatalog();
-    // Una sola consulta a bodega para todo el listado, en vez de una por producto.
-    const [lots, offers] = await Promise.all([getLotsByCodes(rows.flatMap(collectMappedCodes)), getActiveOffers()]);
+    const items = await readCatalog();
     res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
-    res.json({ items: rows.map((row) => toCatalogProduct(row, lots, offers.get(row.id))) });
+    res.json({ items });
   })
 );
 
-// Detalle público de un producto. El id se valida como uuid antes de tocar la
-// base: sin eso, un id mal formado sale como error 500 de Postgres.
+// Detalle público de un producto. Un id que no es uuid también es 404 (ver readProduct).
 router.get(
   '/:id',
   asyncHandler(async (req, res) => {
-    const id = z.uuid().safeParse(req.params.id);
-    if (!id.success) {
+    const product = await readProduct(String(req.params.id));
+    if (!product) {
       res.status(404).json({ error: 'Producto no encontrado.' });
       return;
     }
-
-    const item = await getPublishedCatalogItem(id.data);
-    if (!item) {
-      res.status(404).json({ error: 'Producto no encontrado.' });
-      return;
-    }
-
-    const [lots, offers] = await Promise.all([getLotsByCodes(collectMappedCodes(item)), getActiveOffers()]);
     res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
-    res.json(toCatalogDetail(item, lots, offers.get(item.id)));
+    res.json(product);
   }),
 );
 

@@ -1,7 +1,6 @@
 // Cada categoría es un enlace real a su página (`/categoria/slug`): se puede compartir e indexar.
 import { Link, useLocation } from '@remix-run/react';
 
-import type { CatalogProduct } from '@shared/schemas';
 import type { StoreCategory } from '~/state/api/session-api';
 import { CATALOG_PATH, categoryFromPath, categoryHref } from '~/lib/catalog-query';
 import { cn } from '~/lib/utils';
@@ -10,7 +9,6 @@ export function CategoryNav({
   categories,
 }: {
   categories: StoreCategory[];
-  products?: CatalogProduct[];
 }) {
   // Lo elegido sale de la ruta: el HTML del servidor ya marca dónde estás.
   const { pathname } = useLocation();

@@ -1,7 +1,7 @@
 import type { LoaderFunctionArgs } from '@remix-run/node';
 import { loadCatalogListing } from '~/lib/catalog-listing.server';
 
-export const loader = ({ request, params }: LoaderFunctionArgs) => loadCatalogListing(request, params.slug ?? '');
+export const loader = (args: LoaderFunctionArgs) => loadCatalogListing(args, args.params.slug ?? '');
 
 export {
   CatalogListing as default,

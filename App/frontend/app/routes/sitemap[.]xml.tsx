@@ -1,28 +1,19 @@
 // Solo páginas públicas con contenido: portada, catálogo, categorías con productos, Ayuda, Por mayor,
 // contacto, productos y combos publicados. Pedidos, panel, login, búsquedas y borradores quedan fuera.
 import type { LoaderFunctionArgs } from '@remix-run/node';
-import type { CatalogProduct, Combo } from '@shared/schemas';
-import type { StoreConfig } from '~/state/api/session-api';
 import { categoryHref, inCategory } from '~/lib/catalog-query';
 import { comboName, getComboUrl, getProductUrl } from '~/lib/formatters';
 import { buildSitemap } from '~/lib/seo';
 import { STORE_PAGES } from '~/lib/store-pages';
 import { siteOrigin } from '~/lib/site-url.server';
+import { storeReader } from '~/lib/store-reader.server';
 
-export async function loader({ request }: LoaderFunctionArgs) {
-  const origin = new URL(request.url).origin;
+export async function loader({ request, context }: LoaderFunctionArgs) {
   const site = siteOrigin(request);
-  const [catalogRes, combosRes, configRes] = await Promise.all([
-    fetch(`${origin}/api/catalog`).catch(() => null),
-    fetch(`${origin}/api/combos`).catch(() => null),
-    fetch(`${origin}/api/config`).catch(() => null),
-  ]);
+  const store = storeReader(context, request);
 
   try {
-    if (!catalogRes?.ok || !combosRes?.ok || !configRes?.ok) throw new Error('catálogo no disponible');
-    const products = ((await catalogRes.json()) as { items?: CatalogProduct[] }).items ?? [];
-    const combos = ((await combosRes.json()) as { items?: Combo[] }).items ?? [];
-    const config = (await configRes.json()) as StoreConfig;
+    const [products, combos, config] = await Promise.all([store.catalog(), store.combos(), store.config()]);
     const categories = config.categories ?? [];
     const xml = buildSitemap([
       `${site}/`,

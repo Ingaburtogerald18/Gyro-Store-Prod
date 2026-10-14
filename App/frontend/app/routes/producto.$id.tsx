@@ -8,12 +8,12 @@ import { getBrandName, pageTitle } from '~/lib/brand';
 import { breadcrumbJsonLd, canonicalLink, metaDescription, productOffers } from '~/lib/seo';
 import { categoryHref, findCategory } from '~/lib/catalog-query';
 import { siteOrigin } from '~/lib/site-url.server';
+import { categoryCountsOf, storeReader } from '~/lib/store-reader.server';
 import { Link, useLoaderData } from '@remix-run/react';
 import { STORE_PAGES } from '~/lib/store-pages';
 import { INFO_LINK } from '~/components/storefront/store-details';
 import { useReducedMotion } from 'framer-motion';
 
-import type { CatalogDetail, CatalogProduct } from '@shared/schemas';
 import { StorefrontShell } from '~/components/storefront/storefront-shell';
 import { ProductCarousel } from '~/components/product/product-carousel';
 import { ProductDetailTabs } from '~/components/product/product-detail-tabs';
@@ -30,7 +30,6 @@ import { autoSelection, isConsultOnly, pickableAxes, purchaseState, variantLabel
 import { Badge } from '~/components/ui/badge';
 import { Button } from '~/components/ui/button';
 import { Separator } from '~/components/ui/separator';
-import type { StoreConfig } from '~/state/api/session-api';
 import { useAppDispatch } from '~/state/hooks';
 import { addItem, openCart } from '~/state/slices/cart-slice';
 import { buildWhatsappUrl, formatCordobas, getProductUrl, htmlToText, productWhatsappMessage, specsWithBrand } from "~/lib/formatters";
@@ -40,61 +39,42 @@ export const headers: HeadersFunction = () => ({
   'Cache-Control': 'public, max-age=60, stale-while-revalidate=300',
 });
 
-export async function loader({ params, request }: LoaderFunctionArgs) {
+export async function loader({ params, request, context }: LoaderFunctionArgs) {
   const url = new URL(request.url);
-  const origin = url.origin;
   const raw = params.id ?? '';
   const productId = raw.split('--').pop() ?? '';
+  const store = storeReader(context, request);
 
-  let product: CatalogDetail | null = null;
-  let related: CatalogProduct[] = [];
-  // El catálogo completo viaja con la ficha: header, footer y conteos leen el
-  // mismo dato que el servidor ya pidió (sin repetir la consulta en el cliente).
-  let products: CatalogProduct[] = [];
-  let config: StoreConfig | null = null;
-  // «No existe» y «no se pudo cargar» son cosas distintas: solo un 404 real
-  // del API es «Producto no encontrado»; una caída es un error reintentable.
-  let detailStatus = 0;
+  // El catálogo arma los relacionados y los conteos del header y el pie; no viaja entero al navegador.
+  // Catálogo y config son accesorios: si fallan, la ficha sale igual.
+  const [product, catalog, config, landing] = await Promise.all([
+    store.product(productId).catch(() => 'error' as const),
+    store.catalog().catch(() => null),
+    store.config().catch(() => null),
+    store.landing().catch(() => null),
+  ]);
 
-  try {
-    const [detailRes, catalogRes, configRes] = await Promise.all([
-      fetch(`${origin}/api/catalog/${productId}`),
-      fetch(`${origin}/api/catalog`).catch(() => null),
-      fetch(`${origin}/api/config`).catch(() => null),
-    ]);
-    detailStatus = detailRes.status;
-    if (detailRes.ok) product = (await detailRes.json()) as CatalogDetail;
-    if (catalogRes?.ok) {
-      const items = ((await catalogRes.json()) as { items?: CatalogProduct[] }).items ?? [];
-      products = items;
-      // "Tal vez te pueda interesar": productos de la misma categoría; solo si
-      // son pocos se completa con el resto del catálogo.
-      const others = items.filter((p) => p.id !== productId);
-      const category = product?.category;
-      const sameCategory = category ? others.filter((p) => p.category === category) : [];
-      // Primero lo que se puede comprar: no se llena con agotados si hay
-      // alternativas disponibles.
-      const pool = sameCategory.length >= 4 ? sameCategory : others;
-      related = [...pool]
-        .sort((a, b) => Number(b.availability === 'available') - Number(a.availability === 'available'))
-        .slice(0, 12);
-    }
-    if (configRes?.ok) config = (await configRes.json()) as StoreConfig;
-  } catch {
-    // Relacionados y config son accesorios: si fallan, la ficha sale igual.
-  }
+  // «No existe» y «no se pudo cargar» son cosas distintas: una caída es un error reintentable.
+  if (product === 'error') throw new Response('No pudimos cargar este producto. Probá de nuevo en un momento.', { status: 503 });
+  if (!product) throw new Response('Producto no encontrado', { status: 404 });
 
-  if (!product) {
-    if (detailStatus === 404) throw new Response('Producto no encontrado', { status: 404 });
-    throw new Response('No pudimos cargar este producto. Probá de nuevo en un momento.', { status: 503 });
-  }
+  const products = catalog ?? [];
+  // "Tal vez te pueda interesar": productos de la misma categoría; solo si son pocos se completa con
+  // el resto del catálogo. Primero lo que se puede comprar, no se llena con agotados.
+  const others = products.filter((p) => p.id !== productId);
+  const sameCategory = product.category ? others.filter((p) => p.category === product.category) : [];
+  const pool = sameCategory.length >= 4 ? sameCategory : others;
+  const related = [...pool]
+    .sort((a, b) => Number(b.availability === 'available') - Number(a.availability === 'available'))
+    .slice(0, 12);
 
   // Un nombre viejo o un slug cualquiera delante del id lleva, con 301, a la única URL de la ficha.
   const canonicalPath = getProductUrl(product.id, product.name);
   if (url.pathname !== canonicalPath) throw redirect(`${canonicalPath}${url.search}`, 301);
 
   const siteUrl = siteOrigin(request);
-  return { product, related, products, config, siteUrl, canonicalUrl: `${siteUrl}${canonicalPath}` };
+  const categoryCounts = categoryCountsOf(catalog, config);
+  return { product, related, categoryCounts, config, landing, siteUrl, canonicalUrl: `${siteUrl}${canonicalPath}` };
 }
 
 export const meta: MetaFunction<typeof loader> = ({ data }) => {

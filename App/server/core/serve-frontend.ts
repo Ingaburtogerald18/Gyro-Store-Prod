@@ -10,6 +10,7 @@ import {
   type ServerBuild,
 } from '@remix-run/node';
 import { logger } from '../utils/logger';
+import { storeReader } from '../modules/storefront/store-reader';
 
 // Express req → Web Request. Los loaders de Remix son GET; los datos con body van
 // por /api (RTK), no por acciones de Remix, así que no reenviamos cuerpo.
@@ -50,9 +51,9 @@ export async function serveFrontend(app: Express): Promise<void> {
   // Lo que no es /api ni un asset lo resuelve Remix. En Express 5 el catch-all es un middleware sin ruta.
   app.use(async (req: ExRequest, res: ExResponse, next: NextFunction) => {
     try {
-      // El nonce lo genera el middleware de CSP (ver index.ts) y lo consume
-      // root.tsx para firmar sus <script> inline; ambos leen el mismo valor.
-      const response = await handleRemix(toWebRequest(req), { cspNonce: res.locals.cspNonce });
+      // El nonce (middleware de CSP en index.ts) firma los <script> inline de root.tsx. Con `store` los
+      // loaders leen los datos en este proceso en vez de pedirse /api a sí mismos por internet.
+      const response = await handleRemix(toWebRequest(req), { cspNonce: res.locals.cspNonce, store: storeReader });
       res.status(response.status);
       response.headers.forEach((value, key) => {
         if (key.toLowerCase() !== 'set-cookie') res.append(key, value);

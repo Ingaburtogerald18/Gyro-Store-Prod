@@ -4,7 +4,26 @@ import { thumbnailUrl, THUMBNAIL_WIDTH } from '../../../shared/image-variants';
 
 // sharp es opcional: sin él las fotos se suben como llegan. Se espera la carga para que un script que
 // optimiza apenas arranca no suba originales por llegar antes que el import.
-const sharpReady: Promise<any> = import('sharp').then((m) => m.default || m).catch(() => null);
+const sharpReady: Promise<any> = import('sharp')
+  .then((m) => {
+    const sharp = m.default || m;
+    // Poca memoria en el servidor: sin caché de libvips y un hilo por imagen.
+    sharp.cache(false);
+    sharp.concurrency(1);
+    return sharp;
+  })
+  .catch(() => null);
+
+// De a una imagen por vez: varias fotos grandes en paralelo pueden pasar la memoria del servidor.
+let imageQueue: Promise<unknown> = Promise.resolve();
+function oneImageAtATime<T>(task: () => Promise<T>): Promise<T> {
+  const run = imageQueue.then(task, task);
+  imageQueue = run.catch(() => undefined);
+  return run;
+}
+
+// Tope de píxeles de entrada (una foto de 48 MP pasa): frena imágenes armadas para reventar la memoria.
+const MAX_INPUT_PIXELS = 100_000_000;
 
 const R2_ACCOUNT_ID = (process.env.R2_ACCOUNT_ID || '').trim();
 const R2_ACCESS_KEY_ID = (process.env.R2_ACCESS_KEY_ID || '').trim();
@@ -42,11 +61,13 @@ export async function optimizeImageBuffer(buffer: Buffer, { maxDim = 1200, quali
   const sharp = await sharpReady;
   if (!sharp) return { buffer, contentType: null, ext: null };
   try {
-    const out = await sharp(buffer, { animated: true })
-      .rotate()
-      .resize(maxDim, maxDim, { fit: 'inside', withoutEnlargement: true })
-      .webp({ quality })
-      .toBuffer();
+    const out: Buffer = await oneImageAtATime(() =>
+      sharp(buffer, { animated: true, limitInputPixels: MAX_INPUT_PIXELS })
+        .rotate()
+        .resize(maxDim, maxDim, { fit: 'inside', withoutEnlargement: true })
+        .webp({ quality })
+        .toBuffer(),
+    );
     return { buffer: out, contentType: 'image/webp', ext: '.webp' };
   } catch (err: any) {
     logger.error('optimizeImageBuffer falló, se sube el original', { message: err.message });

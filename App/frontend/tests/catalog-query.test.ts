@@ -5,7 +5,9 @@ import {
   DEFAULT_FILTERS,
   catalogHref,
   categoryFromPath,
+  categoriesWithProducts,
   categoryHref,
+  countByCategory,
   filtersKey,
   hasCatalogParams,
   isCatalogPath,
@@ -90,4 +92,23 @@ test('los enlaces viejos del catálogo redirigen a su página nueva', () => {
   assert.equal(at('/categoria/kz-audifonos', 'min=100'), null);
   assert.ok(hasCatalogParams(new URLSearchParams('orden=precio-asc')));
   assert.ok(!hasCatalogParams(new URLSearchParams('utm_source=ig')));
+});
+
+test('header, menú y pie cuentan productos por categoría y esconden las vacías', () => {
+  const categories = [
+    { id: 'c1', name: 'Audífonos' },
+    { id: 'c2', name: 'Cables' },
+    { id: 'c3', name: 'Fundas' },
+  ];
+  const products = [
+    { categoryId: 'c1', category: 'Audífonos' },
+    { categoryId: null, category: 'Audífonos' },
+    { categoryId: null, category: 'c2' },
+  ];
+  const counts = countByCategory(products, categories);
+  assert.deepEqual(counts, { c1: 2, c2: 1, c3: 0 });
+  assert.deepEqual(categoriesWithProducts(categories, counts).map((c) => c.id), ['c1', 'c2']);
+  // Sin conteos o con el catálogo vacío se muestran todas: un menú vacío no orienta.
+  assert.equal(categoriesWithProducts(categories, undefined).length, 3);
+  assert.equal(categoriesWithProducts(categories, countByCategory([], categories)).length, 3);
 });

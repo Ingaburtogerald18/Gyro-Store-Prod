@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { HugeIcon } from '~/components/ui/icon';
 import { Location01Icon } from '@hugeicons/core-free-icons';
 import type { LoaderFunctionArgs, MetaFunction } from '@remix-run/node';
+import { readStoreFrame, storeReader } from '~/lib/store-reader.server';
 import { getBrandName, pageTitle } from '~/lib/brand';
 import { canonicalLink } from '~/lib/seo';
 import { siteOrigin } from '~/lib/site-url.server';
@@ -22,7 +23,6 @@ import { Textarea } from '~/components/ui/textarea';
 
 import { PaymentAccounts } from '~/components/storefront/payment-accounts';
 import { useSendContactMutation } from '~/state/api/storefront-api';
-import type { StoreConfig } from '~/state/api/session-api';
 import { useStoreConfig } from '~/hooks/use-store-config';
 import { BusinessHoursList } from '~/components/storefront/store-details';
 import { storeMapsUrl } from '~/lib/store-pages';
@@ -38,16 +38,10 @@ export const meta: MetaFunction<typeof loader> = ({ data }) => [
 
 // La config va en el loader para que el header (logo), el pie y la dirección
 // salgan en el HTML del servidor, como en el resto de las rutas públicas.
-export async function loader({ request }: LoaderFunctionArgs) {
-  const origin = new URL(request.url).origin;
-  let config: StoreConfig | null = null;
-  try {
-    const res = await fetch(`${origin}/api/config`);
-    if (res.ok) config = (await res.json()) as StoreConfig;
-  } catch {
-    // Sin config la página sale igual, con la dirección por defecto.
-  }
-  return { config, canonicalUrl: `${siteOrigin(request)}/contacto` };
+export async function loader({ request, context }: LoaderFunctionArgs) {
+  // Sin config la página sale igual, con la dirección por defecto.
+  const frame = await readStoreFrame(storeReader(context, request));
+  return { ...frame, canonicalUrl: `${siteOrigin(request)}/contacto` };
 }
 
 

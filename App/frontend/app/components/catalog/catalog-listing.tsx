@@ -21,7 +21,7 @@ import {
 import { useCatalogFilter } from '~/hooks/use-catalog-filter';
 import { useSearchTelemetry } from '~/hooks/use-search-telemetry';
 import { getBrandName, pageTitle } from '~/lib/brand';
-import { CATALOG_PATH, categoryHref, inCategory } from '~/lib/catalog-query';
+import { CATALOG_PATH, categoryHref } from '~/lib/catalog-query';
 import type { CatalogListingLoader } from '~/lib/catalog-listing.server';
 import { breadcrumbJsonLd, canonicalLink } from '~/lib/seo';
 
@@ -42,7 +42,7 @@ function joinNames(names: string[]): string {
 
 export const catalogListingMeta: MetaFunction<CatalogListingLoader> = ({ data }) => {
   if (!data) return [{ title: pageTitle('Catálogo') }];
-  const { category, listing, products, siteUrl } = data;
+  const { category, listing, categoryCounts, siteUrl } = data;
   const brand = data.config?.brandName || getBrandName();
   const home = `${siteUrl}/`;
   const catalogUrl = `${siteUrl}${CATALOG_PATH}`;
@@ -52,7 +52,7 @@ export const catalogListingMeta: MetaFunction<CatalogListingLoader> = ({ data })
   // El texto propio de la categoría manda; sin él, uno armado con datos reales (qué productos o
   // categorías hay), sin texto de relleno.
   const firstNames = listing.slice(0, 3).map((p) => p.name);
-  const withProducts = (data.config?.categories ?? []).filter((c) => products.some((p) => inCategory(p, c))).map((c) => c.name);
+  const withProducts = (data.config?.categories ?? []).filter((c) => (categoryCounts[c.id] ?? 0) > 0).map((c) => c.name);
   const categoryText = category?.description?.trim();
   const description = category
     ? categoryText ||

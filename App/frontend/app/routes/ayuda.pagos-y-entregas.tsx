@@ -14,7 +14,7 @@ const TRAIL: Crumb[] = [
   { name: 'Pagos y entregas', to: STORE_PAGES.paymentsDelivery },
 ];
 
-export const loader = ({ request }: LoaderFunctionArgs) => loadInfoPage(request, STORE_PAGES.paymentsDelivery);
+export const loader = (args: LoaderFunctionArgs) => loadInfoPage(args, STORE_PAGES.paymentsDelivery);
 export const headers = infoPageHeaders;
 
 export const meta: MetaFunction<typeof loader> = ({ data }) =>

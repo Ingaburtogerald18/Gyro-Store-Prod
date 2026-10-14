@@ -5,7 +5,6 @@ import { Link, useLocation } from '@remix-run/react';
 import { HugeIcon } from '~/components/ui/icon';
 import { ArrowRight02Icon, Moon02Icon } from '@hugeicons/core-free-icons';
 
-import type { CatalogProduct } from '@shared/schemas';
 import type { Category } from '@shared/schemas';
 import {
   Sheet,
@@ -18,7 +17,7 @@ import {
 import { Separator } from '~/components/ui/separator';
 import { Switch } from '~/components/ui/switch';
 import { useTheme } from '~/hooks/use-theme';
-import { CATALOG_PATH, categoryFromPath, categoryHref, inCategory } from '~/lib/catalog-query';
+import { CATALOG_PATH, categoriesWithProducts, categoryFromPath, categoryHref } from '~/lib/catalog-query';
 import { STORE_PAGES } from '~/lib/store-pages';
 import { cn } from '~/lib/utils';
 
@@ -33,11 +32,11 @@ const HELP_LINKS = [
 export function StoreMenu({
   children,
   categories,
-  products,
+  counts,
 }: {
   children: ReactNode;
   categories: Category[];
-  products: CatalogProduct[];
+  counts?: Record<string, number>;
 }) {
   const [open, setOpen] = useState(false);
   const { pathname } = useLocation();
@@ -46,8 +45,9 @@ export function StoreMenu({
   const close = () => setOpen(false);
 
   // Las categorías sin productos no se listan: un "0" en el menú es un callejón sin salida.
-  // Mientras el catálogo no cargó, se muestran todas.
-  const listed = categories.filter((c) => products.length === 0 || products.some((p) => inCategory(p, c)));
+  // Sin conteos, se muestran todas y sin número.
+  const listed = categoriesWithProducts(categories, counts);
+  const showCounts = Boolean(counts && Object.values(counts).some((n) => n > 0));
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -65,7 +65,7 @@ export function StoreMenu({
               <MenuRow
                 key={c.id}
                 label={c.name}
-                count={products.length ? products.filter((p) => inCategory(p, c)).length : undefined}
+                count={showCounts ? (counts?.[c.id] ?? 0) : undefined}
                 to={categoryHref(c.slug)}
                 selected={activeCategory === c.slug}
                 onSelect={close}

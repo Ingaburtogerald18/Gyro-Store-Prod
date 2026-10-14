@@ -14,8 +14,8 @@ const TRAIL: Crumb[] = [
   { name: 'Garantía y cambios', to: STORE_PAGES.warranty },
 ];
 
-export async function loader({ request }: LoaderFunctionArgs) {
-  const data = await loadInfoPage(request, STORE_PAGES.warranty);
+export async function loader(args: LoaderFunctionArgs) {
+  const data = await loadInfoPage(args, STORE_PAGES.warranty);
   const page = data.config.policies?.warrantyPage;
   if (!page) throw new Response('Página no encontrada', { status: 404 });
   return { ...data, page };

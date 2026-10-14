@@ -16,7 +16,7 @@ import {
   SheetTitle,
 } from '~/components/ui/sheet';
 import { Switch } from '~/components/ui/switch';
-import { useGetConfigQuery } from '~/state/api/session-api';
+import { useStoreConfig } from '~/hooks/use-store-config';
 import { useAppDispatch, useAppSelector } from '~/state/hooks';
 import {
   filterSheetSet,
@@ -34,7 +34,7 @@ import {
 
 export function FilterSheet() {
   const dispatch = useAppDispatch();
-  const { data: config } = useGetConfigQuery();
+  const config = useStoreConfig();
   const open = useAppSelector(selectFilterSheetOpen);
   const priceMin = useAppSelector(selectPriceMin);
   const priceMax = useAppSelector(selectPriceMax);

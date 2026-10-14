@@ -17,7 +17,7 @@ const TRAIL: Crumb[] = [
   { name: 'Compras por mayor', to: STORE_PAGES.wholesale },
 ];
 
-export const loader = ({ request }: LoaderFunctionArgs) => loadInfoPage(request, STORE_PAGES.wholesale);
+export const loader = (args: LoaderFunctionArgs) => loadInfoPage(args, STORE_PAGES.wholesale);
 export const headers = infoPageHeaders;
 
 export const meta: MetaFunction<typeof loader> = ({ data }) =>

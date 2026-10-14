@@ -5,12 +5,12 @@ import { HugeIcon } from '~/components/ui/icon';
 import { Clock01Icon, Location01Icon, Mail01Icon } from '@hugeicons/core-free-icons';
 
 import gyroBag from '~/assets/brand/gyro-bag.png';
-import { categoryHref, inCategory } from '~/lib/catalog-query';
+import { categoriesWithProducts, categoryHref } from '~/lib/catalog-query';
 import { STORE_PAGES, storeMapsUrl } from '~/lib/store-pages';
 import { INFO_LINK } from '~/components/storefront/store-details';
 import { FacebookIcon, InstagramIcon, TikTokIcon } from '~/components/ui/social-icons';
 import { WhatsappIcon } from '~/components/ui/whatsapp-icon';
-import { useStoreCatalog, useStoreConfig } from '~/hooks/use-store-config';
+import { useCategoryCounts, useStoreConfig } from '~/hooks/use-store-config';
 import { getBrandName } from '~/lib/brand';
 import { buildWhatsappUrl } from '~/lib/formatters';
 import { trackWhatsappOpen } from '~/lib/analytics.client';
@@ -29,7 +29,7 @@ const CONTACT =
 
 export function PublicFooter() {
   const config = useStoreConfig();
-  const products = useStoreCatalog();
+  const counts = useCategoryCounts();
   const year = new Date().getFullYear();
   const brand = config?.brandName || getBrandName();
   const logo = config?.images?.logoStatic;
@@ -48,10 +48,8 @@ export function PublicFooter() {
     { key: 'tiktok', label: 'TikTok', href: social?.tiktok?.trim(), Icon: TikTokIcon },
   ].filter((s) => Boolean(s.href));
 
-  // Solo categorías con productos (si el catálogo todavía no cargó, todas).
-  const categories = (config?.categories ?? []).filter(
-    (c) => products.length === 0 || products.some((p) => inCategory(p, c)),
-  );
+  // Solo categorías con productos (sin conteos, todas).
+  const categories = categoriesWithProducts(config?.categories ?? [], counts);
 
   return (
     <footer

@@ -1,30 +1,19 @@
 // Loader de /catalogo y /categoria/:slug. Los productos de la categoría se eligen acá, en el servidor:
 // el HTML inicial ya trae solo los suyos, sin esperar a que el navegador filtre.
 import { json, redirect, type LoaderFunctionArgs } from '@remix-run/node';
-import type { CatalogProduct, LandingConfig } from '@shared/schemas';
-import type { StoreCategory, StoreConfig } from '~/state/api/session-api';
-import { categoryHref, findCategory, hasCatalogParams, inCategory, legacyCatalogRedirect } from '~/lib/catalog-query';
+import type { StoreCategory } from '~/state/api/session-api';
+import { categoryHref, countByCategory, findCategory, hasCatalogParams, inCategory, legacyCatalogRedirect } from '~/lib/catalog-query';
 import { siteOrigin } from '~/lib/site-url.server';
+import { storeReader } from '~/lib/store-reader.server';
 
-async function readJson<T>(res: Response | null): Promise<T | null> {
-  if (!res?.ok) return null;
-  try {
-    return (await res.json()) as T;
-  } catch {
-    return null;
-  }
-}
-
-export async function loadCatalogListing(request: Request, slug: string | null) {
+export async function loadCatalogListing({ request, context }: LoaderFunctionArgs, slug: string | null) {
   const url = new URL(request.url);
-  const [catalogRes, configRes, landingRes] = await Promise.all([
-    fetch(`${url.origin}/api/catalog`).catch(() => null),
-    fetch(`${url.origin}/api/config`).catch(() => null),
-    fetch(`${url.origin}/api/landing-config`).catch(() => null),
+  const store = storeReader(context, request);
+  const [products, config, landing] = await Promise.all([
+    store.catalog().catch(() => null),
+    store.config().catch(() => null),
+    store.landing().catch(() => null),
   ]);
-  const products = (await readJson<{ items?: CatalogProduct[] }>(catalogRes))?.items ?? null;
-  const config = await readJson<StoreConfig>(configRes);
-  const landing = await readJson<LandingConfig>(landingRes);
   const categories = config?.categories ?? [];
 
   const legacy = legacyCatalogRedirect(url.pathname, url.searchParams, categories);
@@ -45,8 +34,8 @@ export async function loadCatalogListing(request: Request, slug: string | null) 
   const listing = category ? all.filter((p) => inCategory(p, category)) : all;
   const data = {
     siteUrl: siteOrigin(request),
-    // El catálogo completo alimenta header y footer; `listing` es lo que muestra esta página.
-    products: all,
+    // Header y pie necesitan solo cuántos hay por categoría; `listing` es lo que muestra esta página.
+    categoryCounts: countByCategory(all, categories),
     listing,
     config,
     landing,

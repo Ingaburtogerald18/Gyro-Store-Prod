@@ -5,6 +5,7 @@ import { db } from '../../core/supabase';
 import { round } from './costing';
 import { businessDateStartIso, toBusinessDate } from '../../utils/business-day';
 import { fetchAllRows } from '../../utils/fetch-all-rows';
+import { createMemo } from '../../utils/memo-cache';
 
 export const RULES_START_MONTH = '2026-08';
 
@@ -245,8 +246,17 @@ function computeMonth(month: string, input: MonthInputs, heredado: Record<Ledger
   };
 }
 
+// Reportería pide el mismo mes varias veces por pantalla y cada cálculo lee todo desde agosto. Con
+// `adjust` es una simulación y no se guarda.
+const ledgerMemo = createMemo(30_000, 50);
+
 /** Libro de pozos de `month` (`YYYY-MM`, hora de Nicaragua), con la herencia desde agosto de 2026. */
-export async function getPozoLedger(month: string, adjust?: LedgerAdjustment): Promise<MonthLedger> {
+export function getPozoLedger(month: string, adjust?: LedgerAdjustment): Promise<MonthLedger> {
+  if (adjust) return computeLedger(month, adjust);
+  return ledgerMemo.get(month, () => computeLedger(month));
+}
+
+async function computeLedger(month: string, adjust?: LedgerAdjustment): Promise<MonthLedger> {
   const from = month < RULES_START_MONTH ? month : RULES_START_MONTH;
   const inputs = await loadInputs(from, month, adjust);
   const empty = (): MonthInputs => ({ recogido: zeros(), gastado: zeros(), gananciaTienda: 0 });

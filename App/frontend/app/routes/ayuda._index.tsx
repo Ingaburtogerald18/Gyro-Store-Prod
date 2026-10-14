@@ -13,7 +13,7 @@ const TRAIL: Crumb[] = [
   { name: 'Ayuda', to: STORE_PAGES.help },
 ];
 
-export const loader = ({ request }: LoaderFunctionArgs) => loadInfoPage(request, STORE_PAGES.help);
+export const loader = (args: LoaderFunctionArgs) => loadInfoPage(args, STORE_PAGES.help);
 export const headers = infoPageHeaders;
 
 export const meta: MetaFunction<typeof loader> = ({ data }) =>

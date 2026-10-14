@@ -16,7 +16,7 @@ import { AuthSync } from '~/state/auth-sync';
 import { GlobalProgress } from '~/components/ui/global-progress';
 import { TooltipProvider } from '~/components/ui/tooltip';
 import { StorefrontAnalytics } from '~/components/storefront/storefront-analytics';
-import { useGetConfigQuery } from '~/state/api/session-api';
+import { useStoreConfig } from '~/hooks/use-store-config';
 import { RouteError } from '~/components/route-error';
 
 import { Toaster } from 'sonner';
@@ -136,7 +136,7 @@ function ThemeSync() {
 
 /** Favicon configurado en Recursos; sin favicon no agrega nada. */
 function DynamicFavicon() {
-  const { data: config } = useGetConfigQuery();
+  const config = useStoreConfig();
   const faviconUrl = config?.images?.favicon;
 
   useEffect(() => {

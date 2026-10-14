@@ -6,13 +6,13 @@ import { Link } from '@remix-run/react';
 import { motion, AnimatePresence, useAnimationControls, useReducedMotion } from 'framer-motion';
 import { Menu01Icon, ShoppingCart02Icon } from '@hugeicons/core-free-icons';
 import { categoryMode } from '@shared/schemas';
-import { inCategory } from '~/lib/catalog-query';
+import { categoriesWithProducts } from '~/lib/catalog-query';
 import { SearchBar } from '~/components/catalog/search-bar';
 import { StoreMenu } from '~/components/storefront/store-menu';
 import { CategoryNav } from '~/components/storefront/category-nav';
 import { Button } from '~/components/ui/button';
 import { HugeIcon } from '~/components/ui/icon';
-import { useStoreCatalog, useStoreConfig, useStoreLanding } from '~/hooks/use-store-config';
+import { useCategoryCounts, useStoreConfig, useStoreLanding } from '~/hooks/use-store-config';
 import { useAppDispatch, useAppSelector } from '~/state/hooks';
 import { selectCartCount, toggleCart } from '~/state/slices/cart-slice';
 import { HeaderSettingsMenu } from './header-settings-menu';
@@ -73,7 +73,7 @@ export function StoreHeader() {
   const animatedIsVideo = Boolean(animated && /\.(webm|mp4|mov|m4v)($|\?)/i.test(animated));
   const logoVideo = animatedIsVideo && !reduceMotion ? animated : undefined;
   const logoImage = config?.images?.logoStatic || (animatedIsVideo ? undefined : animated);
-  const products = useStoreCatalog();
+  const counts = useCategoryCounts();
   const landing = useStoreLanding();
 
   const allCategories = useMemo(
@@ -86,15 +86,12 @@ export function StoreHeader() {
   const mode = categoryMode(landing?.headerCategoriesMode, landing?.headerCategories);
   const headerNavCategories = useMemo(() => {
     if (mode === 'hidden') return [];
-    if (mode === 'auto') {
-      const withProducts = allCategories.filter((c) => products.length === 0 || products.some((p) => inCategory(p, c)));
-      return withProducts.slice(0, 7);
-    }
+    if (mode === 'auto') return categoriesWithProducts(allCategories, counts).slice(0, 7);
     return (landing?.headerCategories ?? [])
       .map(id => allCategories.find(c => c.id === id))
       .filter((c): c is NonNullable<typeof c> => Boolean(c))
       .slice(0, 7);
-  }, [mode, allCategories, products, landing?.headerCategories]);
+  }, [mode, allCategories, counts, landing?.headerCategories]);
   const showCategories = headerNavCategories.length > 0;
 
   return (
@@ -103,7 +100,7 @@ export function StoreHeader() {
         {/* Hasta escritorio ancho: en tablet, la fila de categorías y el buscador se tapaban entre sí. */}
         <StoreMenu
           categories={mode === 'hidden' ? [] : mode === 'custom' ? headerNavCategories : allCategories}
-          products={products}
+          counts={counts}
         >
           <Button variant="ghost" size="icon" aria-label="Abrir menú" className="-ml-2 size-11 shrink-0 text-primary-2 lg:hidden">
             <HugeIcon icon={Menu01Icon} size={20} strokeWidth={2} aria-hidden />
@@ -158,7 +155,7 @@ export function StoreHeader() {
         <div className="hidden min-w-0 flex-1 items-center justify-end gap-3 md:flex">
           {showCategories && (
             <div className="hidden min-w-0 flex-1 items-center gap-1 lg:flex">
-              <CategoryNav categories={headerNavCategories} products={products} />
+              <CategoryNav categories={headerNavCategories} />
             </div>
           )}
 

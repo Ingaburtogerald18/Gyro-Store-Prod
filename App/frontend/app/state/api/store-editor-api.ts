@@ -9,7 +9,7 @@ import type {
   StorePublishInput,
   StoreVersion,
 } from '@shared/schemas';
-import { getAccessToken } from '~/lib/supabase.client';
+import { getAccessToken } from '~/lib/session.client';
 import { baseApi } from './base-api';
 import { storefrontApi } from './storefront-api';
 

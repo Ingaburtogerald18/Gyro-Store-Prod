@@ -5,7 +5,8 @@ import { HugeIcon } from '~/components/ui/icon';
 import { CreditCardIcon, Copy01Icon, Tick02Icon } from '@hugeicons/core-free-icons';
 
 import { Button } from '~/components/ui/button';
-import { useGetConfigQuery, type StoreBankAccount } from '~/state/api/session-api';
+import type { StoreBankAccount } from '~/state/api/session-api';
+import { useStoreConfig } from '~/hooks/use-store-config';
 
 const CURRENCY_LABELS: Record<string, string> = {
   NIO: 'Córdobas',
@@ -66,7 +67,7 @@ function AccountRow({ account }: { account: StoreBankAccount }) {
 }
 
 export function PaymentAccounts({ className }: { className?: string }) {
-  const { data: config } = useGetConfigQuery();
+  const config = useStoreConfig();
   const accounts = config?.bankAccounts ?? [];
 
   if (accounts.length === 0) return null;

@@ -96,31 +96,28 @@ export async function getFinancialKPIs(
   endDate?: string,
   sellerUid?: string
 ): Promise<FinancialKPIs> {
-  // Llama al RPC (SQL puro en el server Postgres)
-  const { data, error } = await db.rpc('get_financial_kpis', {
-    p_start_date: startDate ?? null,
-    p_end_date: endDate ?? null,
-    p_seller_uid: sellerUid ?? null
-  }).single();
+  const prev = previousPeriod(startDate, endDate);
+  const prevStartDate = prev?.startIso;
+  const prevEndDate = prev?.endIso;
+
+  // RPC (SQL puro en el server Postgres). El RPC compara con la misma duración justo antes, que para
+  // un mes no es el mes anterior (septiembre contra 2–31 de agosto): se pide también el mes completo.
+  const kpisOf = (start: string | null, end: string | null) =>
+    db.rpc('get_financial_kpis', { p_start_date: start, p_end_date: end, p_seller_uid: sellerUid ?? null }).single();
+  const [{ data, error }, prevMonth] = await Promise.all([
+    kpisOf(startDate ?? null, endDate ?? null),
+    prev?.isCalendarMonth ? kpisOf(prev.startIso, prev.endIso) : null,
+  ]);
 
   if (error) {
     throw error;
   }
 
-  const prev = previousPeriod(startDate, endDate);
-  const prevStartDate = prev?.startIso;
-  const prevEndDate = prev?.endIso;
-
   const rpcData = { ...((data ?? {}) as Record<string, any>) };
 
-  // El RPC compara con la misma duración justo antes, que para un mes no es el mes anterior
-  // (septiembre contra 2–31 de agosto): se pide el mes anterior completo y se reemplazan los "_prev".
-  if (prev?.isCalendarMonth) {
-    const { data: prevData, error: prevError } = await db.rpc('get_financial_kpis', {
-      p_start_date: prev.startIso,
-      p_end_date: prev.endIso,
-      p_seller_uid: sellerUid ?? null,
-    }).single();
+  // Con el mes anterior completo se reemplazan los "_prev".
+  if (prevMonth) {
+    const { data: prevData, error: prevError } = prevMonth;
     if (prevError) throw prevError;
     const p = (prevData ?? {}) as Record<string, any>;
     for (const key of ['total_ventas', 'total_unidades', 'total_vendido', 'coste_total', 'comision_total', 'ganancia_tienda_total']) {
