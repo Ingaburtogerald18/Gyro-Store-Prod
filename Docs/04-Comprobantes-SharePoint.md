@@ -66,7 +66,7 @@ La carpeta es la semana ISO de aprobación (`2026-W32`) — **la misma clave que
 biblioteca y un período de pago son la misma unidad: cotejar "lo que se pagó"
 contra "los comprobantes de esa semana" es abrir una carpeta.
 
-El cálculo vive en `server/utils/isoWeek.ts`, compartido con `sales.ts`. Dos
+El cálculo vive en `server/utils/iso-week.ts`, compartido con `sales.ts`. Dos
 copias del algoritmo divergirían justo en el borde de fin de año.
 
 ### Garantías
@@ -171,14 +171,14 @@ npm run spo:pdf          # generar el PDF de la última venta aprobada a App/tmp
 | Archivo | Rol |
 |---|---|
 | `database/01_schema.sql` (sección `spo_outbox`) | Tabla del outbox |
-| `server/config.ts` | `config.spo` (`enabled` = todo-o-nada) |
-| `server/services/spoOutbox.ts` | Encolar (best-effort, nunca lanza) |
-| `server/services/graphToken.ts` | Token app-only + caché |
-| `server/services/sharepoint.ts` | Subir el PDF · carpeta semanal · 429/`Retry-After` |
-| `server/services/comprobante.ts` | PDF con `pdf-lib` |
-| `server/services/spoWorker.ts` | Drenado cada 60 s |
-| `server/utils/isoWeek.ts` | Semana ISO, compartida con `sales.ts` |
-| `server/services/sales.ts` | Hook en `approveSale` |
+| `server/core/config.ts` | `config.spo` (`enabled` = todo-o-nada) |
+| `server/modules/sharepoint/spo-outbox.ts` | Encolar (best-effort, nunca lanza) |
+| `server/modules/sharepoint/graph-token.ts` | Token app-only + caché |
+| `server/modules/sharepoint/sharepoint.ts` | Subir el PDF · carpeta semanal · 429/`Retry-After` |
+| `server/modules/sharepoint/comprobante.ts` | PDF con `pdf-lib` |
+| `server/modules/sharepoint/spo-worker.ts` | Drenado cada 60 s |
+| `server/utils/iso-week.ts` | Semana ISO, compartida con `sales.ts` |
+| `server/modules/sales/sales.ts` | Hook en `approveSale` |
 
 ---
 

@@ -25,7 +25,7 @@ export default function handleRequest(
   remixContext: EntryContext,
   loadContext: AppLoadContext,
 ) {
-  // El nonce lo inyecta serveFrontend.ts como loadContext; el mismo valor viaja
+  // El nonce lo inyecta serve-frontend.ts como loadContext; el mismo valor viaja
   // en la cabecera CSP (helmet) y acá a los scripts. En dev no hay Express: será
   // undefined y simplemente no se emite el atributo.
   const nonce = (loadContext as { cspNonce?: string } | undefined)?.cspNonce || undefined;

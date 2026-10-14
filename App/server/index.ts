@@ -1,44 +1,42 @@
-// Entry del backend Express (TS/ESM). Monta la cadena de middleware, expone la
-// API bajo /api y (más adelante) sirve el build del frontend.
+// Arranque del backend: middleware, montaje de la API bajo /api y, en
+// producción, el build del frontend. Cada grupo de rutas vive en modules/<tema>/.
 import express, { type Express, type Request, type Response, type NextFunction } from 'express';
 import { randomBytes } from 'node:crypto';
 import cors from 'cors';
 import helmet from 'helmet';
-import { config } from './config';
-import { asyncHandler } from './utils/asyncHandler';
-import { requireAnyRole } from './middleware/auth';
-import { errorHandler, notFoundHandler } from './middleware/errorHandler';
-import configRouter from './routes/config';
-import adminConfigRouter from './routes/adminConfig';
-import landingRouter from './routes/landing';
-import storeEditorRouter from './routes/storeEditor';
-import catalogRouter from './routes/catalog';
-import adminCatalogRouter from './routes/adminCatalog';
-import adminCombosRouter from './routes/adminCombos';
-import adminUsersRouter from './routes/adminUsers';
-import meRouter from './routes/me';
-import staffRouter from './routes/staff';
-import inventoryRouter from './routes/inventory';
-import salesRouter from './routes/sales';
-import invoicesRouter from './routes/invoices';
-import discountCodesRouter from './routes/discountCodes';
-import installmentsRouter from './routes/installments';
-import uploadRouter from './routes/upload';
-
-import combosRouter from './routes/combos';
-import ordersRouter from './routes/orders';
-import reportsRouter from './routes/reports';
-import contactRouter from './routes/contact';
-import stockNoticesRouter from './routes/stockNotices';
-import crmRouter from './routes/crm';
-import analyticsRouter from './routes/analytics';
-import { apiLimiter, publicOrderLimiter, contactLimiter, stockNoticeLimiter, telemetryLimiter } from './middleware/rateLimiter';
+import { config } from './core/config';
+import { errorHandler, notFoundHandler } from './middleware/error-handler';
+import authRouter from './modules/users/auth-routes';
+import configRouter from './modules/settings/config-routes';
+import adminConfigRouter from './modules/settings/admin-config-routes';
+import landingRouter from './modules/store-editor/landing-routes';
+import storeEditorRouter from './modules/store-editor/store-editor-routes';
+import catalogRouter from './modules/catalog/catalog-routes';
+import adminCatalogRouter from './modules/catalog/admin-catalog-routes';
+import adminCombosRouter from './modules/combos/admin-combos-routes';
+import adminUsersRouter from './modules/users/admin-users-routes';
+import meRouter from './modules/users/me-routes';
+import staffRouter from './modules/users/staff-routes';
+import inventoryRouter from './modules/inventory/inventory-routes';
+import salesRouter from './modules/sales/sales-routes';
+import invoicesRouter from './modules/invoices/invoices-routes';
+import discountCodesRouter from './modules/discount-codes/discount-codes-routes';
+import installmentsRouter from './modules/installments/installments-routes';
+import uploadRouter from './modules/files/upload-routes';
+import combosRouter from './modules/combos/combos-routes';
+import ordersRouter from './modules/orders/orders-routes';
+import reportsRouter from './modules/finance/reports-routes';
+import contactRouter from './modules/crm/contact-routes';
+import stockNoticesRouter from './modules/crm/stock-notices-routes';
+import crmRouter from './modules/crm/crm-routes';
+import analyticsRouter from './modules/analytics/analytics-routes';
+import { apiLimiter, publicOrderLimiter, contactLimiter, stockNoticeLimiter, telemetryLimiter } from './middleware/rate-limiter';
 import { sanitizeBody } from './utils/sanitize';
 import { logger } from './utils/logger';
-import { startUserCleanupCron } from './services/cleanupUsers';
-import { logSpoStatusOnce } from './services/graphToken';
-import { startSpoWorker } from './services/spoWorker';
-import { serveFrontend } from './serveFrontend';
+import { startUserCleanupCron } from './modules/users/cleanup-users';
+import { logSpoStatusOnce } from './modules/sharepoint/graph-token';
+import { startSpoWorker } from './modules/sharepoint/spo-worker';
+import { serveFrontend } from './core/serve-frontend';
 
 const app: Express = express();
 
@@ -117,16 +115,7 @@ app.get('/api/health', (_req: Request, res: Response) => {
   res.status(200).json({ status: 'ok' });
 });
 
-// Prueba de auth end-to-end: devuelve quién sos según tu JWT + rol resuelto.
-// Cualquier rol válido puede consultarlo. (Reemplaza al /api/auth/me de v1.)
-app.get(
-  '/api/auth/me',
-  requireAnyRole,
-  asyncHandler(async (req: Request, res: Response) => {
-    res.json({ user: req.user });
-  }),
-);
-
+app.use('/api/auth', authRouter);
 app.use('/api/config', configRouter);
 app.use('/api/landing-config', landingRouter);
 app.use('/api/admin/store-editor', storeEditorRouter);
@@ -135,8 +124,8 @@ app.use('/api/admin/catalog', adminCatalogRouter);
 app.use('/api/admin/combos', adminCombosRouter);
 app.use('/api/admin/users', adminUsersRouter);
 // Perfil propio (cualquier rol edita SU fila) y directorio del equipo sin datos
-// bancarios. Ver routes/me.ts y routes/staff.ts para por qué no son parte de
-// /api/admin/users.
+// bancarios. Ver modules/users/me-routes.ts y staff-routes.ts para por qué no son
+// parte de /api/admin/users.
 app.use('/api/me', meRouter);
 app.use('/api/staff', staffRouter);
 app.use('/api/admin/config', adminConfigRouter);
@@ -206,7 +195,7 @@ app.listen(Number(config.port), '0.0.0.0', () => {
 
   // Espejo de ventas aprobadas en SharePoint. Se arranca SIEMPRE: si falta
   // configurar Microsoft, cada ciclo es un no-op y las ventas se acumulan en
-  // `spo_outbox` hasta que haya credenciales (ver services/spoWorker.ts).
+  // `spo_outbox` hasta que haya credenciales (ver modules/sharepoint/spo-worker.ts).
   logSpoStatusOnce();
   startSpoWorker();
 });

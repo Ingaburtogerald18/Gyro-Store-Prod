@@ -31,7 +31,7 @@ export interface UserProfile {
 
   /**
    * Lo calcula el backend contra `config.protectedEmail`. Solo sirve para
-   * ocultar acciones en el UI; la denegación real vive en `routes/adminUsers.ts`.
+   * ocultar acciones en el UI; la denegación real vive en `modules/users/admin-users-routes.ts`.
    */
   isProtected?: boolean;
   /**

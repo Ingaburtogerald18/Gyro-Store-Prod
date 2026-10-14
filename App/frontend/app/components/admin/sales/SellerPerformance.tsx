@@ -5,7 +5,7 @@
 // cuánta comisión generó. NO hay coste, ganancia de tienda, pozos, ranking ni
 // delivery — y eso no depende de este archivo: el backend recorta esos campos
 // antes de mandarlos y fuerza el `sellerUid` al del token (ver
-// server/routes/reports.ts). Acá simplemente no se piden.
+// server/modules/finance/reports-routes.ts). Acá simplemente no se piden.
 import { HugeIcon } from '~/components/ui/icon';
 import { DollarSquareIcon, PercentIcon, ShoppingCart02Icon, Analytics01Icon } from '@hugeicons/core-free-icons';
 import { useMemo, useState } from 'react';

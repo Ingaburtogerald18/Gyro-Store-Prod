@@ -105,7 +105,7 @@ export const storefrontApi = baseApi.injectEndpoints({
     }),
 
     // ── Formulario de contacto público → captura el lead en el CRM
-    // (server/services/crm.ts). En v2 escribe en el dominio de contactos.
+    // (server/modules/crm/crm.ts). En v2 escribe en el dominio de contactos.
     sendContact: build.mutation<{ ok: boolean }, PublicContactInput>({
       query: (body) => ({ url: 'contact', method: 'POST', body }),
     }),

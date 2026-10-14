@@ -15,12 +15,12 @@ const CONFIG_CACHE_SECONDS = 300;
 
 // Espejo de lo que responde GET /api/config: `getPublicConfig()` (desde env) +
 // `getBusinessInfo()` (editable en el panel, pisa brandName/whatsapp/contactEmail
-// y agrega ruc/address) + categorías + imágenes. Ver server/routes/config.ts.
+// y agrega ruc/address) + categorías + imágenes. Ver server/modules/settings/config-routes.ts.
 //
 // Los campos de negocio faltaban acá aunque el endpoint ya los devolvía, así que
 // el footer no podía mostrar la dirección y `config.brandName` no compilaba.
 export interface StoreConfig {
-  // ── Desde env (server/services/config.ts) ──
+  // ── Desde env (server/modules/settings/public-config.ts) ──
   brandName: string;
   contactEmail: string;
   internalDomain: string;
@@ -79,7 +79,7 @@ export const sessionApi = baseApi.injectEndpoints({
     }),
 
     // /api/config: constantes de negocio públicas. El
-    // shape espeja PublicConfig de server/services/config.ts.
+    // shape espeja PublicConfig de server/modules/settings/public-config.ts.
     getConfig: builder.query<StoreConfig, void>({
       query: () => 'config',
       providesTags: ['Config'],

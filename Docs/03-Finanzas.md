@@ -3,7 +3,8 @@
 Toda la matemática del negocio: costeo, pozos, precios, comisiones, mayoreo y la reportería de
 pozos mes a mes. Las cifras de las tablas son los **valores iniciales** de `02_seed.sql`; todas se
 editan desde **Configuración → Finanzas** y viven en `app_config` (§9). El código está en
-`server/services/finance.ts`, `commission.ts` y `pozoLedger.ts`.
+`server/modules/finance/costing.ts` (costeo), `server/modules/sales/commission.ts` (comisión y mayoreo)
+y `server/modules/finance/pozo-ledger.ts` (pozos mes a mes).
 
 ## Reglas de oro
 
@@ -198,7 +199,7 @@ En `app_config`, editables desde Configuración → Finanzas:
 ## 12. Pozos mes a mes: herencia, desborde y ganancia real
 
 Reglas acordadas con el dueño el 1 de octubre de 2026. Las aplica `getPozoLedger` en
-`server/services/pozoLedger.ts`.
+`server/modules/finance/pozo-ledger.ts`.
 
 | # | Regla |
 |---|---|
@@ -268,6 +269,6 @@ Orden:
 
 1. Correr la migración en el SQL Editor.
 2. Verificar que agosto siga en ganancia real C$1,954.30.
-3. Quitar la lectura de `loan_payments` del código (`reports.ts`, `pozoLedger.ts`) y las rutas
+3. Quitar la lectura de `loan_payments` del código (`reports.ts`, `pozo-ledger.ts`) y las rutas
    `/api/reports/loan-payments`.
 4. Borrar la tabla.

@@ -262,7 +262,7 @@ Lo que este documento pide y el código todavía no tiene. Cada línea se borra 
 - Reportería: el selector de periodo (`PeriodPicker`) usa pestañas animadas; pasarlo a botones con borde.
 - Contadores animados (`CountUp`) en las métricas del panel: el panel solo mueve el botón principal, bordes y flechas.
 - Comentarios largos: acortar a 1 o 2 líneas los bloques que quedan (unos 340, en casi todos los archivos de `app/`).
-- Renombrar a kebab-case los archivos que no lo cumplen: el panel (`components/admin`), parte de `ui/` y `lib/`, y el servidor.
+- Renombrar a kebab-case los archivos del frontend que no lo cumplen: el panel (`components/admin`), parte de `ui/`, `lib/`, `hooks/` y `store/`.
 
 ## Registro de decisiones
 

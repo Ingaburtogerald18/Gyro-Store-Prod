@@ -1,5 +1,5 @@
 import type { AdminTemplate } from '@shared/schemas';
-import { templateNameKey } from '@shared/templateNames';
+import { templateNameKey } from '@shared/template-names';
 
 function distance(a: string, b: string): number {
   let previous = Array.from({ length: b.length + 1 }, (_, index) => index);

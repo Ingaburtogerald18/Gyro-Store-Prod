@@ -13,14 +13,14 @@ const dirname = path.dirname(fileURLToPath(import.meta.url));
 // Los loaders de Remix corren en Node y leen SUPABASE_URL / SUPABASE_ANON_KEY de
 // `process.env` (no de `VITE_*`), así que hay que cargarlas acá.
 //
-// Se usa la MISMA cadena que `server/loadEnv.ts`, empezando por GYRO_ENV_FILE.
+// Se usa la MISMA cadena que `server/core/load-env.ts`, empezando por GYRO_ENV_FILE.
 // Antes esto era un `import 'dotenv/config'` que solo miraba `frontend/.env`, lo
 // que obligaba a mantener una segunda copia de esas dos claves: el día que se
 // rote la anon key o se cambie de proyecto Supabase, se actualiza el archivo de
 // secretos y esa copia queda atrás — y el frontend le habla al proyecto viejo sin
 // avisar. Con una sola fuente, ese desfase no puede ocurrir.
 //
-// La lógica está replicada (12 líneas) en vez de importar `server/loadEnv.ts`: un
+// La lógica está replicada (12 líneas) en vez de importar `server/core/load-env.ts`: un
 // import cruzado de TS desde la config de Vite es frágil de resolver, y si falla
 // no arranca el dev server. En producción no se ejecuta nada de esto — Render
 // inyecta las variables y Express sirve el build.
@@ -60,7 +60,7 @@ export default defineConfig(({ command }) => {
         // v3_singleFetch DESACTIVADO a propósito. Con single-fetch, el SSR entrega
         // los datos del loader por un stream (`__remixContext.streamController`) que
         // el cliente espera que se CIERRE para hidratar. En prod servimos el SSR con
-        // el adaptador manual Express↔Fetch de server/serveFrontend.ts (no podemos
+        // el adaptador manual Express↔Fetch de server/core/serve-frontend.ts (no podemos
         // usar @remix-run/express porque exige Express 4), y ese adaptador NO emite
         // la cola del stream (el `.close()`): el cliente se queda esperando y la
         // HIDRATACIÓN NUNCA COMPLETA — botones/menús muertos, sin error en consola.
@@ -71,7 +71,7 @@ export default defineConfig(({ command }) => {
         v3_singleFetch: false,
         // v3_lazyRouteDiscovery DESACTIVADO por el mismo motivo. Con esta feature,
         // al navegar el cliente pide `/__manifest?p=…` para "descubrir" la ruta;
-        // pero el adaptador Express↔Fetch de serveFrontend.ts NO responde ese
+        // pero el adaptador Express↔Fetch de serve-frontend.ts NO responde ese
         // endpoint (404), así que la navegación a /admin (tras el login) reventaba
         // con `Error: 404`. En false, Remix incluye TODAS las rutas en el manifest
         // inicial → el cliente nunca pide `/__manifest` y navega cargando el módulo

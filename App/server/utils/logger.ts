@@ -1,4 +1,4 @@
-import { config } from '../config';
+import { config } from '../core/config';
 
 type LogMeta = Record<string, unknown>;
 

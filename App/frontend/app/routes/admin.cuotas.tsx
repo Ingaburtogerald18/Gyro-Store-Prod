@@ -2,7 +2,7 @@ import { FormLayout, FormDialogContent, FormActions, FormBody } from '~/componen
 import { FormErrorBanner, serverErrorMessage } from '~/components/ui/form-feedback';
 // Portal de Cuotas: crear plan sobre una venta aprobada,
 // registrar pagos, ver saldo, cancelar. Solo admin (mismo criterio que v1 y
-// que server/routes/installments.ts).
+// que server/modules/installments/installments-routes.ts).
 //
 // Reciclaje de v1 (admin.cuotas.tsx): se recicla el layout de tarjetas con
 // barra de progreso + historial de pagos expandible — es un patrón sólido y
@@ -10,7 +10,7 @@ import { FormErrorBanner, serverErrorMessage } from '~/components/ui/form-feedba
 // el plan armando sus propias líneas (con FIFO y comisión incluidos); acá el
 // plan solo agenda el cobro de una venta que sales.ts ya aprobó — no hay
 // customerName/customerPhone propios, se usan phone/sellerEmail de la orden
-// vinculada (server/services/installments.ts los agrega vía join). No hay
+// vinculada (server/modules/installments/installments.ts los agrega vía join). No hay
 // nextPaymentDate por cuota (no existe esa columna en v2): se muestra solo la
 // fecha de la primera cuota.
 import { HugeIcon } from '~/components/ui/icon';

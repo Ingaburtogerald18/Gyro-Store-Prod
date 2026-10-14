@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Add01Icon, CheckmarkBadge01Icon } from '@hugeicons/core-free-icons';
 import type { AdminTemplate, Category } from '@shared/schemas';
-import { templateNameKey } from '@shared/templateNames';
+import { templateNameKey } from '@shared/template-names';
 import { Button } from '~/components/ui/button';
 import { Field, FieldDescription, FieldError, FieldLabel } from '~/components/ui/field';
 import { HugeIcon } from '~/components/ui/icon';

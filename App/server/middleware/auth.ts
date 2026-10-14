@@ -3,10 +3,10 @@
 // array de roles. La autorización REAL vive acá; el frontend solo oculta botones.
 import type { Request, Response, NextFunction } from 'express';
 import * as jose from 'jose';
-import { config, VALID_ROLES, type AppRole } from '../config';
-import { db, getUserFromToken } from '../supabase';
+import { config, VALID_ROLES, type AppRole } from '../core/config';
+import { db, getUserFromToken } from '../core/supabase';
 import { logger } from '../utils/logger';
-import { consumePendingGrant } from '../services/pendingRoleGrants';
+import { consumePendingGrant } from '../modules/users/pending-role-grants';
 
 export interface AuthUser {
   uid: string;
@@ -107,7 +107,7 @@ async function fetchProfile(supaUser: any) {
     // Graph (o del `picture` que Entra deja en el metadata) fallaba de formas que
     // el usuario no puede resolver — sin foto en el tenant, permiso denegado, R2
     // sin configurar — y dejaba avatares roto o vacíos sin explicación. Ahora la
-    // sube cada persona a mano desde «Mi perfil» (routes/me.ts).
+    // sube cada persona a mano desde «Mi perfil» (modules/users/me-routes.ts).
     const meta = supaUser.user_metadata || {};
     const name = meta.name || meta.full_name || 'Nuevo Usuario';
 
@@ -126,7 +126,7 @@ async function fetchProfile(supaUser: any) {
 
     // Primer login de verdad: si un admin le había reservado un rol desde
     // Personal ANTES de que esta persona existiera como identidad de Auth
-    // (ver services/pendingRoleGrants.ts), se lo aplica acá y se consume la
+    // (ver modules/users/pending-role-grants.ts), se lo aplica acá y se consume la
     // reserva. Sin esto, el perfil nace con `roles: []` y nadie entra nunca.
     const email = (supaUser.email || '').toLowerCase();
     let profile = newProfile;

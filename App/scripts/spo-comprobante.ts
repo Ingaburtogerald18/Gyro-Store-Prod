@@ -9,15 +9,15 @@
 //   npx tsx scripts/spo-comprobante.ts <orderId>   → una venta puntual
 //
 // El archivo sale en App/tmp/.
-import '../server/loadEnv.js'; // Fuente única de variables de entorno. Debe ir primero.
+import '../server/core/load-env'; // Fuente única de variables de entorno. Debe ir primero.
 import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { db } from '../server/supabase.js';
+import { db } from '../server/core/supabase';
 import {
   buildComprobanteData,
   comprobanteFilename,
   renderComprobantePdf,
-} from '../server/services/comprobante.js';
+} from '../server/modules/sharepoint/comprobante';
 
 async function resolveOrderId(): Promise<string | null> {
   const fromArgs = process.argv[2]?.trim();

@@ -1,5 +1,5 @@
 // Modo edición: bloqueo, latido y borrador compartido en el servidor
-// (server/routes/storeEditor.ts). Publicar actualiza la portada en caché.
+// (server/modules/store-editor/store-editor-routes.ts). Publicar actualiza la portada en caché.
 import type {
   EditorEntry,
   EditorLockHolder,

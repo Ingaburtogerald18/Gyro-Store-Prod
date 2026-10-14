@@ -11,7 +11,7 @@
 // pendientes. En v2 esas fuentes NO existen todavía: de logística y WhatsApp no
 // queda ni la tabla (la migración 0012 dio de baja las que se habían creado por
 // adelantado y nunca se usaron), del CRM hay `contacts`/`follow_ups` pero ni
-// servicio ni rutas, y `routes/orders.ts` solo CREA pedidos públicos, no los
+// servicio ni rutas, y `modules/orders/orders-routes.ts` solo CREA pedidos públicos, no los
 // lista. Se arranca con ventas, que es lo que sí tiene datos, y se amplía
 // cuando esos módulos entren.
 import { HugeIcon } from '~/components/ui/icon';

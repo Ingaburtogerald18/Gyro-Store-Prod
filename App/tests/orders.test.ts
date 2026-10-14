@@ -11,10 +11,10 @@ import {
   resolveVariantPrice,
   summarizeVariants,
   toCatalogProduct,
-} from '../server/services/catalogPresenter';
-import { pickVariant, resolveOrderLines } from '../server/services/orderLines';
-import { restoreOrderAttempt } from '../server/services/orderPersistence';
-import { createAttemptRegistry, orderRequestHash } from '../server/services/orderIdempotency';
+} from '../server/modules/catalog/catalog-presenter';
+import { pickVariant, resolveOrderLines } from '../server/modules/orders/order-lines';
+import { restoreOrderAttempt } from '../server/modules/orders/order-persistence';
+import { createAttemptRegistry, orderRequestHash } from '../server/modules/orders/order-idempotency';
 import type { PublicOrderInput } from '../shared/schemas';
 
 const ID = '11111111-1111-4111-8111-111111111111';

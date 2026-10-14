@@ -55,7 +55,7 @@ export function DashboardDrilldowns({
   const kpis = kpisProp ?? queriedKpis;
 
   // La ganancia real y lo que se tomó de ella salen del libro de pozos del mes
-  // (server/services/pozoLedger.ts), la misma cifra que la pestaña Gastos.
+  // (server/modules/finance/pozo-ledger.ts), la misma cifra que la pestaña Gastos.
   const { data: pozoLedger } = useGetExpensesOverflowQuery(queryParams, {
     skip: drilldown !== 'ganancia',
   });

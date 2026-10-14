@@ -45,13 +45,11 @@ stock por fuera de la app. Así, **toda la lógica y la autorización viven en e
 ```
 App/
 ├── server/
-│   ├── index.ts          arranque, middleware, montaje de rutas, /api/health y /api/auth/me
-│   ├── config.ts         constantes y validación de variables al arrancar
-│   ├── loadEnv.ts        carga del .env (GYRO_ENV_FILE o App/.env)
-│   ├── supabase.ts       cliente con service_role
-│   ├── serveFrontend.ts  sirve el build de Remix en producción
-│   ├── routes/           un archivo por grupo de /api
-│   ├── services/         la lógica de negocio
+│   ├── index.ts          arranque, middleware, montaje de rutas y /api/health
+│   ├── core/             config.ts (variables y constantes), load-env.ts (GYRO_ENV_FILE o App/.env),
+│   │                     supabase.ts (cliente con service_role), serve-frontend.ts (build de Remix en producción)
+│   ├── modules/<tema>/   rutas y servicios de cada tema juntos: los archivos *-routes.ts son
+│   │                     los routers de Express y el resto la lógica
 │   ├── middleware/       auth y roles, errores, rate limit
 │   └── utils/
 ├── shared/               esquemas Zod y tipos compartidos con el frontend
@@ -66,8 +64,30 @@ App/
 └── tests/                tests del servidor (frontend/tests tiene los del cliente)
 ```
 
+Los módulos del servidor:
+
+| Módulo | Monta | Qué tiene |
+|---|---|---|
+| `analytics` | `/api/analytics` | Ingesta de eventos de la tienda y el tablero de Analítica |
+| `catalog` | `/api/catalog`, `/api/admin/catalog` | Catálogo público, presentador, plantillas, categorías y ofertas por color |
+| `combos` | `/api/combos`, `/api/admin/combos` | Combos públicos y su administración |
+| `crm` | `/api/crm`, `/api/contact`, `/api/stock-notices` | Contactos, ficha 360, seguimientos, formulario de contacto y avisos de stock |
+| `discount-codes` | `/api/discount-codes` | Códigos `GS-DC-n` |
+| `files` | `/api/upload` | Subida a R2 (`storage.ts` la usan otros módulos) |
+| `finance` | `/api/reports` | Reportería, gastos, pozos (`pozo-ledger.ts`) y costeo (`costing.ts`) |
+| `installments` | `/api/installments` | Cuotas |
+| `inventory` | `/api/inventory` | Lotes, FIFO, órdenes de compra y proveedores |
+| `invoices` | `/api/invoices` | Facturas `GS-PR-n` y tickets |
+| `orders` | `/api/orders` | Pedidos web: checkout público, seguimiento y gestión en el panel |
+| `sales` | `/api/sales` | Ventas, devoluciones, comisiones y pagos a vendedores |
+| `settings` | `/api/config`, `/api/admin/config` | Configuración pública y del panel (`app_config`) |
+| `sharepoint` | — | Comprobantes PDF y su envío a SharePoint |
+| `store-editor` | `/api/landing-config`, `/api/admin/store-editor` | Portada publicada, borrador del modo edición y versiones |
+| `users` | `/api/auth`, `/api/admin/users`, `/api/me`, `/api/staff` | Sesión, personal, perfil propio, directorio, roles reservados y papelera |
+
 La regla de trabajo es: la tabla antes que la ruta, el servicio antes que la ruta (la ruta es fina)
-y el esquema Zod antes que el handler.
+y el esquema Zod antes que el handler. Un módulo puede importar servicios de otro (ventas usa el
+FIFO de inventario), pero las rutas solo las monta `index.ts`.
 
 ## 4. Flujo de una petición
 
@@ -170,7 +190,7 @@ días en la papelera y el envío de comprobantes a SharePoint cada 60 s.
 
 ## 9. Variables de entorno
 
-En Render se cargan en el panel. En desarrollo, `loadEnv.ts` lee el archivo que indique
+En Render se cargan en el panel. En desarrollo, `load-env.ts` lee el archivo que indique
 `GYRO_ENV_FILE` (por ejemplo en OneDrive) o, si no está, `App/.env`. **Nunca se suben al repo.**
 
 | Variable | Uso |

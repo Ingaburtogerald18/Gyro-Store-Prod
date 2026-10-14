@@ -54,7 +54,7 @@ function areaFor(pathname: string): 'admin' | 'store' {
 // la service_role vive exclusivamente en el backend Express.
 export async function loader({ context }: LoaderFunctionArgs) {
   return {
-    // Nonce de la CSP (lo inyecta el server Express, ver serveFrontend.ts).
+    // Nonce de la CSP (lo inyecta el server Express, ver serve-frontend.ts).
     // En dev (vite sin Express) no hay context: '' desactiva el atributo nonce.
     cspNonce: (context as { cspNonce?: string } | undefined)?.cspNonce ?? '',
     ENV: {

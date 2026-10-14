@@ -3,7 +3,7 @@ import { FormSection, FormPanel, FormBody, FormActions } from '~/components/ui/f
 // (comisión, y para admin el desglose de costos). Portado de `SaleEditor` de v1.
 //
 // Lo que NO se porta, por decisiones ya tomadas en v2 (ver la cabecera de
-// server/services/sales.ts): foto de recibo, admin registrando a nombre de otro
+// server/modules/sales/sales.ts): foto de recibo, admin registrando a nombre de otro
 // vendedor, fecha de venta manual, inventario migrado (modos M1/M2) y cuotas.
 import { HugeIcon } from '~/components/ui/icon';
 import { Alert02Icon, CheckmarkCircle01Icon } from '@hugeicons/core-free-icons';

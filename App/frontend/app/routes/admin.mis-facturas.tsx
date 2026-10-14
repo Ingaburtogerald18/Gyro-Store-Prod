@@ -2,7 +2,7 @@
 // facturas que Caja le asignó (invoices.seller_uid), nunca crea, edita ni
 // anula desde acá. El flujo es abrir el ticket, copiar el número de factura y
 // después ir a Ventas a registrar la venta con ese código (ver
-// server/routes/invoices.ts → /mine, /lookup, /:id/ticket).
+// server/modules/invoices/invoices-routes.ts → /mine, /lookup, /:id/ticket).
 import { HugeIcon } from '~/components/ui/icon';
 import { File01Icon, Time02Icon, ViewIcon } from '@hugeicons/core-free-icons';
 import { useMemo, useState } from 'react';

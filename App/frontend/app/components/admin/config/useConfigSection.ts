@@ -22,7 +22,7 @@ async function authHeaders(): Promise<Record<string, string>> {
  * Traduce la respuesta de error del backend a un mensaje legible.
  *
  * `issues` viene de un `safeParse` de Zod del lado del servidor (ver
- * routes/adminConfig.ts). Sin desglosarlo, un formulario rechazado mostraba
+ * modules/settings/admin-config-routes.ts). Sin desglosarlo, un formulario rechazado mostraba
  * "Error al guardar" y la persona no tenía forma de saber qué campo estaba mal.
  */
 function describeError(payload: unknown, fallback: string): string {

@@ -1,6 +1,6 @@
 import { FormDialogContent, FormBody, FormActions } from '~/components/ui/form-layout';
 // Pago de comisiones a UN vendedor (admin). El servidor ya lo resolvía
-// (`POST /api/sales/pay` y `/settle-balance`, ver server/services/sellerPayments.ts)
+// (`POST /api/sales/pay` y `/settle-balance`, ver server/modules/sales/seller-payments.ts)
 // pero ninguna pantalla lo llamaba: las ventas aprobadas nunca pasaban a
 // "pagada" y los ajustes por editar ventas pagadas nunca se saldaban.
 //

@@ -45,7 +45,7 @@ export function SaleDetailDrawer({
   const meta = sale ? statusMeta(SALE_STATUS, sale.status) : null;
   const pending = sale?.status === 'pending_approval';
   // El backend ya manda `comision` por línea a CUALQUIER rol (solo poda costo
-  // y ganancia de tienda para no-admin, ver server/routes/sales.ts → GET
+  // y ganancia de tienda para no-admin, ver server/modules/sales/sales-routes.ts → GET
   // /:id) — el vendedor necesita ver cuánto va a ganar ANTES de que un admin
   // apruebe, no solo después.
   const hasComision = !!sale?.items.some((it) => it.comision !== undefined);

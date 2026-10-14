@@ -24,22 +24,21 @@ borra de acá y se describe en el documento que corresponda.
 ## 2. Orden del código
 
 Plan acordado para ordenar el repositorio. Cada paso es un commit que pasa `npm run check` y los tests.
+El servidor ya está ordenado por tema y en kebab-case (ver 02-Arquitectura §3).
 
-1. **Servidor por tema**: `server/modules/<tema>/` (catálogo, combos, modo edición, pedidos, ventas,
-   facturas, inventario, finanzas, CRM, analítica, personal, SharePoint, archivos) con sus rutas y
-   servicios juntos; `index.ts` solo arranca y monta. `/api/auth/me` pasa a su módulo.
-2. **Frontend**: `app/store/` (Redux) pasa a `app/state/` para no confundirse con
+1. **Frontend**: `app/store/` (Redux) pasa a `app/state/` para no confundirse con
    `components/store/` (modo edición); separar el editor de la tienda pública; mover
-   `ImageUploader` y `ToneDot` a donde se usan; `inventoryV1Api` pasa a `inventoryApi`.
-3. **Nombres en kebab-case** en todo el código (regla de `DESIGN.md`).
-4. **Partir los archivos gigantes**: `shared/schemas.ts` (1600 líneas) en un archivo por tema;
-   después `services/sales.ts`, `inventory.ts`, `reports.ts` y `purchaseOrders.ts`.
-5. **Comentarios** de 1 o 2 líneas y sin historia (unos 770 bloques largos). Incluye corregir los
+   `ImageUploader` y `ToneDot` a donde se usan; `inventoryV1Api` pasa a `inventoryApi`; nombres en
+   kebab-case (regla de `DESIGN.md`).
+2. **Partir los archivos gigantes**: `shared/schemas.ts` (1600 líneas) en un archivo por tema;
+   después `modules/sales/sales.ts`, `modules/inventory/inventory.ts`, `modules/finance/reports.ts`
+   y `modules/inventory/purchase-orders.ts`.
+3. **Comentarios** de 1 o 2 líneas y sin historia (unos 770 bloques largos). Incluye corregir los
    que dicen algo falso, como el de `lib/brand.ts` que asegura que el servidor exige `BRAND_NAME`.
 
 ## 3. Deuda técnica
 
-- **Reserva de stock con bloqueo.** La reserva FIFO de ventas (`services/inventory.ts`) usa UPDATEs
+- **Reserva de stock con bloqueo.** La reserva FIFO de ventas (`modules/inventory/inventory.ts`) usa UPDATEs
   condicionados y una compensación manual, no una transacción. Con dos ventas simultáneas del mismo
   lote, el `CHECK` de la base evita sobrevender, pero la compensación puede dejar una reserva a
   medias. Pasarla a una función de Postgres con `SELECT … FOR UPDATE` antes de tener tráfico
@@ -76,7 +75,7 @@ Plan acordado para ordenar el repositorio. Cada paso es un commit que pasa `npm 
 
 - **WhatsApp Cloud API oficial de Meta**, con el webhook directo a Express. **Sin n8n** al principio:
   sería otro servicio para mantener (n8n Cloud cuesta unos USD 20/mes y en el plan free de Render no
-  corre bien). El bot vive aislado en `server/services/whatsapp.ts`, así n8n puede entrar después sin
+  corre bien). El bot vive aislado en `server/modules/crm/whatsapp.ts`, así n8n puede entrar después sin
   reescribir nada.
 - **Opción A: el número de la tienda migra a la Cloud API.** Deja de funcionar en la app normal de
   WhatsApp y el equipo responde desde la bandeja del panel. Un solo número para el cliente. El costo:

@@ -2,7 +2,7 @@
 // existe" (404) — un id mal formado nunca debe llegar a golpear la base con
 // una query inválida (antes duplicado en cada ruta como idSchema.safeParse).
 import { z } from 'zod';
-import { NotFoundError } from './httpError';
+import { NotFoundError } from './http-error';
 
 const uuidSchema = z.uuid();
 

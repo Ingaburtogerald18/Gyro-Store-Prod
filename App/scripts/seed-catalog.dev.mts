@@ -13,7 +13,7 @@
 // prueba, y limpiarlos después es a mano. El script imprime a qué proyecto va a
 // escribir ANTES de hacerlo, para que se pueda comparar con el que corresponde.
 // ============================================================================
-import '../server/loadEnv.js'; // Fuente única de variables de entorno. Debe ir primero.
+import '../server/core/load-env'; // Fuente única de variables de entorno. Debe ir primero.
 import { createClient } from '@supabase/supabase-js';
 
 const url = (process.env.SUPABASE_URL || '').trim();

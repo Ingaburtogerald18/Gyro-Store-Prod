@@ -4,7 +4,7 @@
 // useGetConfigQuery() (misma fuente en el server).
 //
 // Los valores reales SIEMPRE vienen de env: el backend hace fail-fast si falta
-// BRAND_NAME (ver server/config.ts). El fallback de abajo es solo una red de
+// BRAND_NAME (ver server/core/config.ts). El fallback de abajo es solo una red de
 // seguridad de render, para que nunca se pinte un título vacío.
 const BRAND_FALLBACK = 'Gyro Store';
 

@@ -1,6 +1,6 @@
-// Ventas (Hito 3 admin). Contrato exacto de server/routes/sales.ts — no
+// Ventas (Hito 3 admin). Contrato exacto de server/modules/sales/sales-routes.ts — no
 // inventar campos: quote/register devuelven lo que el backend realmente
-// manda (ver server/services/sales.ts para los shapes de QuoteResult/
+// manda (ver server/modules/sales/sales.ts para los shapes de QuoteResult/
 // RegisteredSale/SaleListItem).
 import { baseApi } from './baseApi';
 
@@ -26,7 +26,7 @@ export interface SellableProduct {
 }
 
 // Los campos financieros son OPCIONALES porque el backend los recorta por rol:
-// un vendedor no recibe costos ni ganancia de tienda (ver routes/sales.ts).
+// un vendedor no recibe costos ni ganancia de tienda (ver modules/sales/sales-routes.ts).
 export interface QuoteLine {
   productName: string;
   quantity: number;
@@ -83,7 +83,7 @@ export interface RegisteredSale {
 
 // Edición de una venta ya registrada (PUT /api/sales/:id, solo admin).
 // `reason` es OBLIGATORIO cuando la venta ya salió de `pending_approval`:
-// el backend lo rechaza sin él (server/services/sales.ts → updateSale).
+// el backend lo rechaza sin él (server/modules/sales/sales.ts → updateSale).
 export interface UpdateSaleInput {
   id: string;
   customerName?: string;
@@ -163,7 +163,7 @@ export interface SaleListItem {
 // ── Pago de comisiones ──
 // Un lote de pago es inmutable: registra lo que se entregó. Si después se edita
 // una venta ya pagada, la diferencia va a `balance` y se salda en el próximo
-// corte (ver server/services/sellerPayments.ts).
+// corte (ver server/modules/sales/seller-payments.ts).
 
 export interface CommissionPayment {
   id: string;

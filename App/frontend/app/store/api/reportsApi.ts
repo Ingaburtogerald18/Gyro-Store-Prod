@@ -1,7 +1,7 @@
 import { baseApi } from './baseApi';
 
 // Los campos de estructura de costos son OPCIONALES porque el backend los
-// recorta por rol (server/routes/reports.ts): un vendedor recibe su volumen y
+// recorta por rol (server/modules/finance/reports-routes.ts): un vendedor recibe su volumen y
 // su comisión, nunca el coste, la ganancia de la tienda ni los pozos. Marcarlos
 // `?` es lo que obliga al panel a contemplar el caso en vez de imprimir
 // `undefined`.
@@ -100,7 +100,7 @@ export interface ExpenseItem {
   source: 'expense' | 'loan_payment';
 }
 
-/** Una fila del libro de pozos del mes (server/services/pozoLedger.ts). */
+/** Una fila del libro de pozos del mes (server/modules/finance/pozo-ledger.ts). */
 export interface PozoLedgerRow {
   pozo: string;
   label: string;

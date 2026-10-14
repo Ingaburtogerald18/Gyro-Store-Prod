@@ -10,10 +10,10 @@
 //                                            `error` y drena (tras arreglar la
 //                                            causa: un nombre de columna, un
 //                                            permiso que faltaba conceder…)
-import '../server/loadEnv.js'; // Fuente única de variables de entorno. Debe ir primero.
-import { config } from '../server/config.js';
-import { db } from '../server/supabase.js';
-import { drainSpoOutbox } from '../server/services/spoWorker.js';
+import '../server/core/load-env'; // Fuente única de variables de entorno. Debe ir primero.
+import { config } from '../server/core/config';
+import { db } from '../server/core/supabase';
+import { drainSpoOutbox } from '../server/modules/sharepoint/spo-worker';
 
 async function printStatus() {
   const { data, error } = await db

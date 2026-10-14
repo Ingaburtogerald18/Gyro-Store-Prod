@@ -33,7 +33,7 @@ export type CategoryInput = z.infer<typeof categoryInputSchema>;
 // `axes` es un array ordenado ([{ key, label, options, isColor }]), pero en la
 // base conviven filas viejas con forma de diccionario. Fijar acá una de las dos
 // haría que la otra reventara con un 500 en la validación, ANTES de llegar a
-// `services/catalogPresenter.ts`, que es quien sabe normalizar ambas.
+// `modules/catalog/catalog-presenter.ts`, que es quien sabe normalizar ambas.
 export const templateSchema = z.object({
   id: z.uuid(),
   name: z.string().nullable(),
@@ -96,7 +96,7 @@ export const catalogItemSchema = publicCatalogItemSchema.extend({
 // mandarle al navegador: armar el nombre, resolver las variantes desde los ejes y
 // sumar stock es trabajo de servidor (necesita tablas que el cliente no ve).
 //
-// Por eso el backend aplica un presentador (server/services/catalogPresenter.ts)
+// Por eso el backend aplica un presentador (server/modules/catalog/catalog-presenter.ts)
 // y responde ESTE shape: plano, camelCase, listo para pintar. Es el mismo contrato
 // que ya consume el storefront, así que los componentes se reciclan sin tocarse.
 export const specRowSchema = z.object({
@@ -1125,9 +1125,9 @@ export type FinancialConfig = z.infer<typeof financialConfigSchema>;
 // ============================================================================
 // ── SCHEMAS DEL DOMINIO: INVENTARIO (ADMIN) ──
 // ============================================================================
-// Contrato de entrada de server/routes/inventory.ts. Los shapes de salida
+// Contrato de entrada de server/modules/inventory/inventory-routes.ts. Los shapes de salida
 // (Purchase, InventoryRow, InventoryKpis) viven como interfaces
-// TS en server/services/inventory.ts, no acá: son datos derivados que arma el
+// TS en server/modules/inventory/inventory.ts, no acá: son datos derivados que arma el
 // servicio, no algo que un cliente mande y haya que validar en el borde.
 
 // Edición post-creación. Deliberadamente NO es un `Partial<Purchase>` real:
@@ -1302,7 +1302,7 @@ export type ColorOfferInput = z.infer<typeof colorOfferInputSchema>;
 // Cotizar, registrar, aprobar, rechazar y
 // listar. Sin fotos de recibo, sin venta vía ticket de factura, sin edición
 // post-aprobación ni pago de comisiones por lotes — ver Docs/03-Finanzas.md §4-5 para la
-// cadena financiera que server/services/sales.ts arma con estos datos.
+// cadena financiera que server/modules/sales/sales.ts arma con estos datos.
 
 export const saleLineInputSchema = z.object({
   // Mismo límite que inventario: sin un catalog_item_id real
@@ -1324,7 +1324,7 @@ export type QuoteInput = z.infer<typeof quoteInputSchema>;
 export const registerSaleInputSchema = z.object({
   // Código de la factura tal como se imprime (`GS-PR-12`). Se acepta string
   // porque es lo que el vendedor copia del ticket; `parseInvoiceCode` en
-  // services/invoice.ts lo resuelve al correlativo numérico (y tolera "12").
+  // modules/invoices/invoices.ts lo resuelve al correlativo numérico (y tolera "12").
   invoiceNumber: z.union([z.string().trim().max(20), z.number().int().positive()]).optional(),
   customerName: z.string().max(100).optional(),
   phone: z.string().max(20).optional(),
@@ -1405,9 +1405,9 @@ export type SettleBalanceInput = z.infer<typeof settleBalanceInputSchema>;
 // ── SCHEMAS DEL DOMINIO: FACTURACIÓN (ADMIN/CASHIER) ──
 // ============================================================================
 // Modelo delgado: la factura numera una venta YA aprobada
-// (server/services/sales.ts) — no tiene líneas propias, esas viven en
+// (server/modules/sales/sales.ts) — no tiene líneas propias, esas viven en
 // order_items. `invoiceNumber` nunca lo manda el cliente: lo asigna el
-// `nextval()` de la secuencia en server/services/invoice.ts.
+// `nextval()` de la secuencia en server/modules/invoices/invoices.ts.
 export const invoiceItemInputSchema = z.object({
   productName: z.string().min(1, 'El producto es obligatorio.').max(160),
   quantity: z.number().int().positive('La cantidad debe ser mayor a 0.'),
@@ -1423,7 +1423,7 @@ export const createInvoiceInputSchema = z.object({
   deliveryName: z.string().max(100).optional(),
   discount: z.number().min(0).optional(),
   // Código de descuento opcional: el servidor lo canjea y suma su monto al
-  // descuento manual (topado al subtotal). Ver server/services/discountCode.ts.
+  // descuento manual (topado al subtotal). Ver server/modules/discount-codes/discount-codes.ts.
   discountCode: z.string().max(30).optional(),
   // Vendedor al que Caja le asigna esta factura (opcional: un ticket de
   // mostrador puede no tener uno). Es lo que después le permite a ESE
@@ -1474,7 +1474,7 @@ export type UpdateInvoiceInput = z.infer<typeof updateInvoiceInputSchema>;
 // ============================================================================
 // Portado de v1 (server/utils/validators.js → discountCodeSchema). El admin
 // emite el código; el canje real (que consume un uso) lo hace el servidor
-// atómicamente en server/services/discountCode.ts. `maxUses = 0` = ilimitado.
+// atómicamente en server/modules/discount-codes/discount-codes.ts. `maxUses = 0` = ilimitado.
 export const DISCOUNT_TYPES = ['percent', 'fixed'] as const;
 
 // `code` NO está en el input: lo genera la base con la secuencia `GS-DC-N`
@@ -1504,7 +1504,7 @@ export type ValidateDiscountCodeInput = z.infer<typeof validateDiscountCodeSchem
 // ── SCHEMAS DEL DOMINIO: CUOTAS (ADMIN) ──
 // ============================================================================
 // Mismo modelo delgado que facturación: el plan de cuotas envuelve una venta
-// YA aprobada (server/services/sales.ts) — no repite FIFO ni comisión, solo
+// YA aprobada (server/modules/sales/sales.ts) — no repite FIFO ni comisión, solo
 // agenda el cobro. `total` sale de `orders.total`, no lo manda el cliente.
 export const createInstallmentPlanInputSchema = z.object({
   orderId: z.uuid(),

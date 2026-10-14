@@ -7,14 +7,14 @@
 // Necesita solo las tres variables de autenticación (AZURE_TENANT_ID,
 // AZURE_CLIENT_ID, AZURE_CLIENT_SECRET); los dos ids son justamente lo que viene
 // a averiguar. El token y los reintentos viven en lib/graphBootstrap.ts, que
-// explica por qué no se reusa services/graphToken.ts.
-import '../server/loadEnv.js'; // Fuente única de variables de entorno. Debe ir primero.
+// explica por qué no se reusa modules/sharepoint/graph-token.ts.
+import '../server/core/load-env'; // Fuente única de variables de entorno. Debe ir primero.
 import {
   assertCredentials,
   assertSharePointRoles,
   getToken,
   graphGet,
-} from './lib/graphBootstrap.js';
+} from './lib/graph-bootstrap';
 
 async function run() {
   assertCredentials();

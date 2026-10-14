@@ -47,7 +47,7 @@ import { Switch } from "~/components/ui/switch";
 import { Textarea } from "~/components/ui/textarea";
 import { ToneDot } from "~/components/catalog/ToneDot";
 import { cn } from "~/lib/utils";
-import { templateNameKey } from "@shared/templateNames";
+import { templateNameKey } from "@shared/template-names";
 import {
   useCreateTemplateMutation,
   useUpdateTemplateMutation,
