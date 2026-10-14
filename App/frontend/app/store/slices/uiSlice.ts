@@ -1,4 +1,4 @@
-// Estado efímero de UI compartido entre componentes (doc 09 ítem 40).
+// Estado efímero de UI compartido entre componentes.
 // El tema se refleja acá; aplicarlo a <html data-theme> y persistirlo en
 // localStorage es trabajo del hook useTheme (ítem 41).
 //

@@ -9,7 +9,7 @@
 //   fondo vacío     lo que pasa al mes siguiente
 //
 // Si el pozo se pasó, la barra se alarga más allá de su presupuesto y una
-// marca vertical señala dónde terminaba. Reglas: Docs/reporteria-reglas.md.
+// marca vertical señala dónde terminaba. Reglas: Docs/03-Finanzas.md §12.
 import type { CSSProperties, KeyboardEvent, ReactNode } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { HugeIcon } from '~/components/ui/icon';

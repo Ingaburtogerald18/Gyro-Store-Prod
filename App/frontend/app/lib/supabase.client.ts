@@ -1,4 +1,4 @@
-// Cliente singleton de Supabase — SOLO Auth (doc 09 ítem 38).
+// Cliente singleton de Supabase — SOLO Auth.
 // El frontend nunca consulta la base con este cliente: todo dato viaja por la API
 // Express (/api/*), que opera con la service_role. Acá solo se maneja la sesión
 // (login staff con Entra, OTP de comprador) para obtener el JWT que RTK Query

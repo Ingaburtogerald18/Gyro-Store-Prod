@@ -3,7 +3,7 @@ import { comboSchema, type Combo } from '../../shared/schemas';
 import { parseDbRows } from '../utils/parseDbRows';
 
 // Obtiene los combos publicados.
-// TODO(Claude): enriquecer "items" (doc 03) cuando se defina la forma del jsonb — hoy se devuelve tal cual viene de la DB.
+// TODO(Claude): enriquecer "items" (Docs/02-Arquitectura.md) cuando se defina la forma del jsonb — hoy se devuelve tal cual viene de la DB.
 export async function listPublishedCombos(): Promise<Combo[]> {
   const { data, error } = await db
     .from('combos')

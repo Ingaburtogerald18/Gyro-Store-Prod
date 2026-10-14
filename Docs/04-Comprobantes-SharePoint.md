@@ -1,4 +1,4 @@
-# 17 · Archivo de comprobantes en SharePoint Online
+# 04 · Comprobantes en SharePoint
 
 Cada venta que se **aprueba** genera un **comprobante PDF** que se archiva en una
 biblioteca de SharePoint, en la carpeta de su **semana ISO** de aprobación.
@@ -136,7 +136,7 @@ funciona igual (`config.spo.enabled === false`). **No** entran en la validación
 fail-fast de `config.ts`.
 
 ```
-AZURE_TENANT_ID=      # ya existía, pero estaba vacía: este módulo es el 1.er consumidor
+AZURE_TENANT_ID=
 AZURE_CLIENT_ID=
 AZURE_CLIENT_SECRET=  # 🔒 solo backend
 SPO_SITE_ID=
@@ -158,7 +158,7 @@ Al arrancar, el log dice cuál de los dos estados está activo:
 ```bash
 npm run spo:status       # qué hay encolado, sincronizado o en error
 npm run spo:drain        # forzar un ciclo (sin esperar los 60 s)
-npm run spo:drain --retry  # re-encolar las filas en `error` y drenar
+npm run spo:drain -- --retry  # re-encolar las filas en `error` y drenar
 npm run spo:pdf          # generar el PDF de la última venta aprobada a App/tmp/
 ```
 
@@ -196,4 +196,4 @@ npm run spo:pdf          # generar el PDF de la última venta aprobada a App/tmp
   `order_items`. No hay correlativo fiscal (se usa `S-{8 chars del uuid}`),
   método de pago ni desglose de descuento/delivery. El PDF lo dice en el pie.
 - **No hay reintento manual desde el panel.** Una fila en `error` se re-encola
-  con `npm run spo:drain --retry` o con SQL.
+  con `npm run spo:drain -- --retry` o con SQL.

@@ -64,7 +64,7 @@ export interface PublicOrderTracking {
 
 export const storefrontApi = baseApi.injectEndpoints({
   endpoints: (build) => ({
-    // ── Catálogo público (doc 09 ítem 42). Los tipos vienen del contrato
+    // ── Catálogo público. Los tipos vienen del contrato
     // único compartido: el backend valida contra `publicCatalogItemSchema` y
     // presenta `CatalogProduct` (plano, camelCase) antes de responder.
     getCatalog: build.query<CatalogProduct[], void>({

@@ -11,7 +11,7 @@ import { cn } from '~/lib/utils';
 import type { MonthLedger } from '~/store/api/reportsApi';
 
 /**
- * Resumen del mes según las reglas de pozos (Docs/reporteria-reglas.md):
+ * Resumen del mes según las reglas de pozos (Docs/03-Finanzas.md §12):
  * presupuesto de los pozos (heredado + recogido + bolsa extra), lo gastado, lo
  * que queda, y la Ganancia real (la misma cifra que el KPI de Reportería).
  * El fondo salario va aparte: es intocable en el mes.

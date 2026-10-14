@@ -1,6 +1,6 @@
 -- ============================================================================
 -- 0018_loan_payments_a_gastos.sql
--- ⚠️ NO CORRER sin la aprobación del dueño. Ver Docs/reporteria-reglas.md §4.
+-- ⚠️ NO CORRER sin la aprobación del dueño. Ver Docs/03-Finanzas.md §13.
 --
 -- Mueve cada pago de `loan_payments` a `expenses` como gasto del pozo
 -- Préstamos. No borra `loan_payments`: eso va en un paso aparte, cuando el

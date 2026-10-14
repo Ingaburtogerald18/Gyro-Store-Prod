@@ -10,7 +10,7 @@ import type {
   FollowUpUpdate,
 } from '@shared/schemas';
 
-// CRM Fase A (doc 10 §9): contactos, Ficha 360 y agenda. Sin WhatsApp todavía.
+// CRM Fase A (Docs/05-Pendientes.md §4): contactos, Ficha 360 y agenda. Sin WhatsApp todavía.
 export const crmApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     getContacts: builder.query<Contact[], { search?: string; stage?: string } | void>({

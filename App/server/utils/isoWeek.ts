@@ -1,7 +1,7 @@
 // Semana ISO-8601 como string `YYYY-Www` (ej. `2026-W32`).
 //
 // Es la unidad de agrupación del negocio: `orders.week_of` la usa para juntar los
-// pagos de comisión de un vendedor (doc 03 B.4), y las carpetas de comprobantes
+// pagos de comisión de un vendedor (Docs/02-Arquitectura.md §6), y las carpetas de comprobantes
 // en SharePoint la usan para que una carpeta y un período de pago sean lo mismo.
 //
 // Vive acá y no en sales.ts porque tener dos implementaciones del algoritmo

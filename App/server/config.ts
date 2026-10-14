@@ -116,4 +116,4 @@ if (isProd && !config.protectedEmail) {
 
 // NOTA: las tablas financieras (pozos, tiers de Costo F/U, márgenes, comisión,
 // mayoreo) NO viven acá: son editables desde el panel y viven en `app_config`
-// (ver doc 11). Este archivo solo tiene constantes de arranque e infraestructura.
+// (ver Docs/03-Finanzas.md). Este archivo solo tiene constantes de arranque e infraestructura.

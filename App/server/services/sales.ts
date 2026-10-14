@@ -1,4 +1,4 @@
-// Ventas (MVP Hito 3, doc 09 ítem 60): cotizar, registrar, aprobar, rechazar,
+// Ventas: cotizar, registrar, aprobar, rechazar,
 // listar. Sin fotos de recibo, sin venta vía ticket de factura (invoice.ts
 // todavía no existe), sin edición post-aprobación ni pago de comisiones por
 // lotes — eso queda fuera de este pase (ver el plan acordado). Solo
@@ -49,7 +49,7 @@ import { enqueueApprovedSale } from './spoOutbox';
 import { getIsoWeek } from '../utils/isoWeek';
 import { resolveVariantPrice } from './catalogPresenter';
 
-// `getIsoWeek` (doc 03 B.4: orders.week_of agrupa pagos de comisión) vive ahora
+// `getIsoWeek` (Docs/02-Arquitectura.md §6: orders.week_of agrupa pagos de comisión) vive ahora
 // en utils/isoWeek.ts: lo comparte con las carpetas semanales de comprobantes en
 // SharePoint, y dos copias del mismo cálculo terminan divergiendo justo en el
 // borde de fin de año, que es donde más duele.
@@ -638,7 +638,7 @@ export async function registerSale(
         // disponible). Deja ver la comisión apenas se registra, sin esperar la
         // aprobación — es lo que el vendedor/admin necesita para decidir.
         // `approveSale` lo RE-CONGELA con el costo real de los lotes consumidos
-        // (doc 11, regla de oro): el pago siempre sale de esos valores finales,
+        // (Docs/03-Finanzas.md, regla de oro): el pago siempre sale de esos valores finales,
         // nunca de este estimado.
         coste_final_snap: line.snapshot.costeFinalSnap,
         utilidad_bruta: line.snapshot.utilidadBruta,
@@ -697,7 +697,7 @@ interface PurchaseEmbed {
 }
 
 // Consume las reservas (reservado → vendido en purchases, vía inventory.ts) y
-// congela el snapshot financiero de doc 11 §4 en cada order_item. El costo
+// congela el snapshot financiero de Docs/03-Finanzas.md §4 en cada order_item. El costo
 // por línea sale de los lotes que stock_reservations realmente asignó a esa
 // venta (promedio ponderado si abarcó más de un lote).
 export async function approveSale(orderId: string): Promise<boolean> {
@@ -786,7 +786,7 @@ export async function approveSale(orderId: string): Promise<boolean> {
         : 0;
 
     // Mayoreo ya quedó fijado en precio_unit al registrar: acá solo corre la
-    // cadena utilidad→salary→comisión→ganancia (doc 11 §4), no se reevalúa.
+    // cadena utilidad→salary→comisión→ganancia (Docs/03-Finanzas.md §4), no se reevalúa.
     const commission = computeLineCommission(
       { precioUnit: item.precio_unit ?? 0, quantity: item.quantity, costeFinal, costoFU },
       config,
@@ -817,7 +817,7 @@ export async function approveSale(orderId: string): Promise<boolean> {
   if (updateOrderError) throw updateOrderError;
   if (!approvedRow) return true;
 
-  // Espejo en SharePoint (doc: Docs/17 y la sección `spo_outbox` del schema). Solo se
+  // Espejo en SharePoint (Docs/04-Comprobantes-SharePoint.md y la sección `spo_outbox` del schema). Solo se
   // ENCOLA: la subida a Graph la hace un worker aparte. Va después del update
   // porque una venta que no llegó a quedar 'approved' no tiene nada que espejar,
   // y `enqueueApprovedSale` no lanza nunca — si el outbox falla, la aprobación
@@ -905,9 +905,9 @@ export interface SaleListItem {
 /**
  * Una venta con sus líneas. Lo que el drawer de detalle necesita.
  *
- * Las líneas traen la cadena financiera COMPLETA de doc 11 §4 (utilidad bruta →
+ * Las líneas traen la cadena financiera COMPLETA de Docs/03-Finanzas.md §4 (utilidad bruta →
  * salary → utilidad neta → comisión → ganancia) más el reparto en pozos, tal
- * como quedó congelada en `order_items`. No se recalcula nada: doc 11 §1 dice
+ * como quedó congelada en `order_items`. No se recalcula nada: Docs/03-Finanzas.md §1 dice
  * que cambiar un costo o un % después no reescribe ventas viejas, así que el
  * detalle tiene que mostrar lo que pasó ese día, no lo que pasaría hoy.
  */
@@ -931,7 +931,7 @@ export interface SaleWithItems extends SaleListItem {
      */
     comisionPercent?: number;
     gananciaTienda?: number;
-    /** El reparto del Costo F/U de esta línea en los 7 pozos (doc 11 §2). */
+    /** El reparto del Costo F/U de esta línea en los 7 pozos (Docs/03-Finanzas.md §2). */
     pozos?: Record<string, number>;
     /** Precio por debajo del margen mínimo. Solo admin: permite despejar el costo. */
     belowMinMargin?: boolean;

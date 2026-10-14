@@ -219,7 +219,7 @@ export async function authenticate(
   // elige quien se registra. Con la anon key cualquiera puede hacer un signup
   // email/password de `admin@gyrostorenic.com` (o del correo de la whitelist) y
   // obtener un token válido que pasaría el filtro de dominio. El login del staff
-  // SIEMPRE es por Entra/Azure (doc 03), así que exigimos que el token venga de ese
+  // SIEMPRE es por Entra/Azure (Docs/02-Arquitectura.md), así que exigimos que el token venga de ese
   // proveedor: es lo que ata la identidad al tenant de Microsoft y no al string del
   // correo.
   const appMeta = (supaUser.app_metadata ?? {}) as { provider?: string; providers?: unknown };

@@ -1,4 +1,4 @@
-// CRM: captura de leads públicos + actividad inicial (doc 09 ítems 33-34).
+// CRM: captura de leads públicos + actividad inicial.
 // Reemplaza al email de v1 (server/routes/contact.js mandaba un correo — v2
 // no tiene servicio de email todavía): el mensaje del formulario público
 // entra directo al CRM (contacts/contact_activities) para que el staff le dé
@@ -54,7 +54,7 @@ export async function createLead(input: PublicContactInput): Promise<Lead> {
     contactId = created.id;
   }
 
-  // `contacts` no tiene columna de email (doc 03 B.3): si lo mandaron, viaja
+  // `contacts` no tiene columna de email (Docs/02-Arquitectura.md §6): si lo mandaron, viaja
   // dentro de la nota de la actividad en vez de perderse.
   const note = input.email ? `Correo: ${input.email}\n\n${input.message}` : input.message;
 
@@ -123,7 +123,7 @@ export async function findOrCreateOrderContact(
 // ============================================================================
 // ── Panel (admin/seller): contactos, Ficha 360, agenda de seguimientos ──
 // ============================================================================
-// Fase CRM-A (doc 10 §9): sin Meta. La bandeja de WhatsApp es CRM-B/C y se
+// Fase CRM-A (Docs/05-Pendientes.md §4): sin Meta. La bandeja de WhatsApp es CRM-B/C y se
 // agrega cuando se conecte la Cloud API. Sus tablas se habían creado por
 // adelantado, pero la migración 0012 las dio de baja: se volverán a crear con
 // la forma que pida la API real en vez de adivinarla ahora.
@@ -274,7 +274,7 @@ export async function getContact360(id: string): Promise<Contact360 | null> {
   const orders = [...sales, ...web].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
 
   // LTV = ventas reales CONFIRMADAS (aprobadas o pagadas). Los pedidos web sin
-  // cerrar no cuentan (doc 10 §10).
+  // cerrar no cuentan (Docs/05-Pendientes.md §4).
   const ltv = sales
     .filter((o) => o.status === 'approved' || o.status === 'paid')
     .reduce((sum, o) => sum + o.total, 0);

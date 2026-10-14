@@ -1,261 +1,232 @@
-# 02 · Arquitectura — Gyro Store
+# 02 · Arquitectura
 
-> Cómo está armado el sistema, por qué, y qué patrones me obligo a respetar en todo el código.
-> **La arquitectura de v1 era buena y la conservo casi entera; lo que cambia es el motor de datos
-> y de auth: Firebase → Supabase.** El principio "todo pasa por el servidor" queda intacto.
+## 1. Vista general
 
----
-
-## 1. Vista de 10.000 pies
-
-Gyro Store es un **monolito híbrido**: un único servicio Node/Express (ahora en **TypeScript + ESM**)
-que expone la API REST **y** sirve el frontend Remix ya buildeado. Se despliega como **un solo Web
-Service en Render**. [CONFIRMADO — se mantiene de v1]
+Un **monolito**: un solo servicio Node/Express en TypeScript que expone la API (`/api/*`) y sirve la
+tienda Remix ya compilada. Se despliega como un Web Service en Render.
 
 ```
-                    ┌─────────────────────────────────────────────┐
-   Navegador        │              RENDER (1 Web Service)          │
-  (móvil/desktop)   │                                             │
-        │           │   ┌──────────────┐   sirve build   ┌──────┐ │
-        │  HTTPS     │   │   Express    │ ───────────────▶│Remix │ │
-        ├───────────▶│   │  (TS / ESM)  │                 │build │ │
-        │            │   │              │  /api/* (REST)  └──────┘ │
-        │            │   │ service_role │◀─────────────────────────┤
-        │            │   └──────┬───────┘                          │
-        │            └──────────┼──────────────────────────────────┘
-        │                       │
-        │ (solo login staff)    │ service_role (privilegios servidor, ignora RLS)
-        ▼                       ▼
-  ┌───────────┐          ┌──────────────┐   ┌───────────┐   ┌──────────┐
-  │  Supabase │          │  Supabase    │   │Cloudflare │   │Microsoft │
-  │   Auth    │          │  Postgres    │   │    R2     │   │   365    │
-  │(Entra ID) │          │  (datos+RLS) │   │(imágenes) │   │ (email)  │
-  └───────────┘          └──────────────┘   └───────────┘   └──────────┘
+  Navegador ──HTTPS──▶  Render: Express (TS, ESM, corre con tsx)
+     │                    ├── /api/*  → rutas → servicios → Supabase (service_role)
+     │                    └── el resto → build de Remix (SSR)
+     │
+     └── solo para el login del personal ──▶ Supabase Auth (proveedor Microsoft Entra ID)
+
+  Express ──▶ Supabase Postgres   datos (RLS cerrada)
+          ──▶ Cloudflare R2       imágenes (S3)
+          ──▶ Microsoft Graph     comprobantes PDF en SharePoint (opcional)
 ```
 
-### Decisión arquitectónica central [se conserva de v1, reimplementada en Supabase]
-**El navegador nunca lee ni escribe la base de datos.** Solo usa **Supabase Auth** (con Microsoft
-Entra como proveedor) para obtener un JWT. Ese token viaja al backend Express, que lo valida y hace
-**toda** la operación de datos con la **`service_role key`** de Supabase. Las **RLS de Postgres
-quedan en deny-all**.
+### La decisión central
 
-**Por qué:** cualquier miembro del staff logueado tiene un JWT válido; si dejara RLS abiertas,
-alguien podría abrir el cliente de Supabase por fuera de la app y leer costos/utilidades o escribir
-stock. El deny-all cierra esa puerta; la `service_role` **ignora las RLS** (igual que antes el Admin
-SDK ignoraba las security rules), así que el servidor no se ve afectado. → **Toda la lógica y la
-autorización viven en el servidor.** Es exactamente el modelo de v1, traducido a Supabase. [v2]
+**El navegador nunca lee ni escribe la base.** Solo usa Supabase Auth para obtener un JWT. Ese token
+viaja a Express, que lo valida y hace toda la operación de datos con la `service_role`. Todas las
+tablas tienen RLS activo y sin políticas, y las funciones solo las puede llamar `service_role`.
 
-> **Nota de equivalencias mentales:** `Admin SDK` → `service_role key`; `security rules` → `RLS
-> policies`; `ID token de Firebase` → `JWT de Supabase`; `Firestore` → `Postgres`. Si venís de la
-> v1, con este mapa entendés casi todo.
+Por qué: cualquier persona del personal tiene un JWT válido y la llave pública (`anon`) viaja en el
+navegador para el login. Con la base abierta, cualquiera podría leer costos y utilidades o escribir
+stock por fuera de la app. Así, **toda la lógica y la autorización viven en el servidor**.
 
-### 1.1 Dos audiencias de auth, una sola regla de seguridad [v2 · doc 14]
-Con el dominio de cuentas de comprador (doc 14) hay ahora **dos audiencias** que se autentican, y
-conviene dejarlo claro acá porque es arquitectura, no solo dato:
+## 2. Stack
 
-- **Staff** — Microsoft Entra ID, resuelve a `AppRole` (`requireRole`, doc 03 §A.4). Sin cambios.
-- **Comprador** — OTP por teléfono vía Supabase Auth, resuelve a un **contacto**
-  (`requireCustomer`, doc 14 §4), nunca a un `AppRole`.
+| Capa | Tecnología |
+|---|---|
+| Servidor | Node ≥ 20, TypeScript + ESM ejecutado con `tsx` (sin paso de compilación), Express 5 |
+| Datos | Supabase Postgres vía `@supabase/supabase-js` con `service_role`; funciones SQL para lo atómico |
+| Validación | Zod 4, con los esquemas compartidos en `App/shared/schemas.ts` |
+| Seguridad HTTP | helmet (CSP con nonce), cors, express-rate-limit, `sanitizeBody` |
+| Archivos | multer (hasta 25 MB) → sharp (WebP, lado mayor 1200 px) → R2 con `@aws-sdk/client-s3` |
+| PDF | pdf-lib (comprobantes) |
+| Tienda y panel | Remix 2 sobre Vite 6, React 18, Tailwind 4, shadcn/ui (Radix), Redux Toolkit + RTK Query |
+| UI | React Hook Form, TanStack Table, dnd-kit, Recharts, Framer Motion, Hugeicons, Sonner, cmdk, letra Chivo |
 
-La regla que no cambia para ninguna de las dos: **el navegador nunca lee ni escribe la base
-directo**, tenga o no un JWT válido. El comprador logueado consulta "mis pedidos"/"mis códigos" igual
-que el staff consulta el admin — por Express, con `service_role`, contra tablas en **RLS deny-all**.
-Lo único que cambia entre audiencias es a qué middleware llega el request y a qué identidad se
-resuelve el JWT; el patrón de fondo (servidor manda) es el mismo para las dos.
+## 3. Carpetas
 
----
+```
+App/
+├── server/
+│   ├── index.ts          arranque, middleware, montaje de rutas, /api/health y /api/auth/me
+│   ├── config.ts         constantes y validación de variables al arrancar
+│   ├── loadEnv.ts        carga del .env (GYRO_ENV_FILE o App/.env)
+│   ├── supabase.ts       cliente con service_role
+│   ├── serveFrontend.ts  sirve el build de Remix en producción
+│   ├── routes/           un archivo por grupo de /api
+│   ├── services/         la lógica de negocio
+│   ├── middleware/       auth y roles, errores, rate limit
+│   └── utils/
+├── shared/               esquemas Zod y tipos compartidos con el frontend
+├── frontend/app/
+│   ├── routes/           páginas de la tienda y del panel (admin.*)
+│   ├── components/       ui/ (piezas base), admin/, store/ (modo edición), catalog/, product/, cart/, layout/
+│   ├── store/            Redux: api/ (RTK Query por dominio) y slices/
+│   ├── lib/  hooks/      lógica y hooks del cliente
+│   └── tailwind.css      paleta y tokens (ver DESIGN.md)
+├── database/             01_schema.sql, 02_seed.sql, migrations/, historial/
+├── scripts/              seed de desarrollo, SharePoint, prueba de checkout
+└── tests/                tests del servidor (frontend/tests tiene los del cliente)
+```
 
-## 2. Stack técnico [v2]
+La regla de trabajo es: la tabla antes que la ruta, el servicio antes que la ruta (la ruta es fina)
+y el esquema Zod antes que el handler.
 
-### Backend
-| Área | Tecnología | Nota |
+## 4. Flujo de una petición
+
+**Tienda (pública).** `GET /api/catalog` → valida la query con Zod → lee con `service_role` → responde
+sin columnas de costo.
+
+**Panel.** El personal entra con Microsoft (Supabase Auth, proveedor Azure). Cada petición lleva
+`Authorization: Bearer <JWT>` y el servidor:
+
+1. Verifica el token: localmente con `SUPABASE_JWT_SECRET` si está, o preguntándole a Supabase.
+2. Exige un correo `@INTERNAL_DOMAIN` (o el de `PROTECTED_ADMIN_EMAIL`) **y** que la identidad venga
+   del proveedor Azure. Si no se exigiera, cualquiera podría registrarse con correo y contraseña
+   usando un correo del dominio.
+3. Lee los roles de `profiles` (con 30 s de caché). En el primer login crea el perfil y aplica un rol
+   reservado si un administrador lo había dejado en `pending_role_grants`.
+4. `requireRole(...)` decide. `global_admin` pasa siempre. Atajos: `requireAdmin`, `requireSeller`
+   (admin + seller), `requireCashier` (admin + cashier), `requireCashierOrSeller`, `requireAnyRole`.
+
+Lo que oculta el frontend según el rol es solo comodidad: la barrera es el servidor.
+
+**Subida de imagen.** multer → sharp (WebP) → R2 con nombre por hash del contenido → la URL pública
+se guarda en Postgres. Ninguna dirección de imagen está escrita en el código.
+
+**Pedido de la tienda.** `POST /api/orders/public` recibe ids y cantidades, nunca precios. El
+servidor recalcula el total, registra el intento con una clave de idempotencia
+(`public_order_attempts`) y crea el pedido en una sola función SQL. Una recarga o un doble clic no
+duplican el pedido.
+
+## 5. Patrones obligatorios
+
+- **Todo pasa por el servidor.** Si algo del cliente quiere tocar la base, falta un endpoint.
+- **Validación en el borde** con Zod: body, params y query, antes de tocar la base.
+- **Errores centralizados.** `asyncHandler` en cada ruta y un `errorHandler` final: Zod → 400 con
+  detalle, multer → 400, errores de Postgres (FK, `unique`, `CHECK`) → mensaje legible, el resto → 500
+  sin detalles.
+- **Costos privados.** Las respuestas para quien no es admin no traen columnas de costo.
+- **Stock que nunca se sobrevende.** El pedido web y el canje de códigos son funciones SQL atómicas.
+  La reserva FIFO de una venta usa UPDATEs condicionados (solo escriben si el valor no cambió desde
+  que se leyó) con compensación si algo falla a mitad de camino. La última defensa es el
+  `CHECK (quantity_sold + quantity_reserved <= quantity)` de la base. Pasarla a una función con
+  bloqueo está en 05-Pendientes.
+- **Estados explícitos.** Los estados son `enum` de Postgres y las transiciones las valida el servidor.
+- **Snapshot al aprobar.** Una venta aprobada guarda sus números (coste, comisión, pozos) en
+  `order_items`; cambiar la configuración después no reescribe ventas viejas.
+- **El esquema vive en git.** Ver `App/database/README.md`.
+
+## 6. Datos
+
+El esquema completo está en `App/database/01_schema.sql`, ordenado por módulo:
+
+| Módulo | Tablas |
+|---|---|
+| Personal | `profiles` (con baja lógica `deleted_at`), `pending_role_grants` |
+| Catálogo | `categories`, `templates` (una por modelo), `catalog_items`, `combos`, `product_offers` (ofertas por color) |
+| Clientes | `contacts`, `contact_activities`, `follow_ups`, `stock_notices` |
+| Compras | `suppliers`, `purchase_orders`, `purchase_invoices`, `purchases` (lotes) |
+| Ventas | `orders`, `order_items`, `invoices`, `invoice_items`, `installments`, `payments`, `commission_payments`, `commission_adjustments`, `sale_returns`, `spo_outbox` |
+| Tienda web | `public_orders`, `public_order_items`, `public_order_attempts`, `store_draft`, `store_versions` |
+| Stock | `stock_reservations`, `stock_movements`, `losses` |
+| Descuentos | `discount_codes`, `discount_code_redemptions` |
+| Finanzas | `expenses`, `loan_payments` (se migra a `expenses`, ver 03-Finanzas §13) |
+| Sistema | `app_config`, `audit_logs`, `analytics_events` |
+
+Los reportes salen de funciones SQL (`get_financial_kpis`, `get_sales_breakdown`, `get_sales_ledger`,
+`get_top_products`, `get_seller_performance`, `get_delivery_*`). El canje de códigos y el registro de
+pedidos web también son funciones (`redeem_discount_code`, `register_public_order_attempt`).
+
+**Correlativos.** `invoices.invoice_code` (`GS-PR-n`) y `discount_codes.code` (`GS-DC-n`) salen de
+secuencias que no se reinician. Por eso una factura se anula (`void`) y no se borra.
+
+## 7. Seguridad HTTP
+
+Orden del middleware en `server/index.ts`:
+
+```
+trust proxy → nonce de CSP → helmet (CSP) → cors → json/urlencoded (5 MB) → sanitizeBody
+→ apiLimiter → límites propios por ruta → rutas → 404 de /api → frontend (prod) → errorHandler
+```
+
+- **CSP**: scripts solo propios o con el nonce de cada petición; imágenes y video de Supabase y R2.
+- **CORS**: en producción solo `CORS_ORIGIN` (o la URL de Render).
+- **Límites de uso** (por IP): general 300 cada 15 min; telemetría 20 cada 5 min; pedido web,
+  contacto y seguimiento de pedido 10 cada 15 min; avisos de stock 5 cada 15 min.
+- **`trust proxy = 1`**: sin esto el límite vería la IP del proxy de Render.
+
+## 8. Despliegue
+
+`render.yaml` define un Web Service (`rootDir: App`, plan free, Oregon):
+
+- **Build**: instala el servidor con devDependencies, corre `typecheck`, instala y compila el frontend.
+- **Start**: `npm start` → `tsx server/index.ts`. En producción Express sirve también el build de Remix.
+- **Health check**: `GET /api/health`.
+- `autoDeploy: true`: cada push a la rama desplegada publica.
+
+**En desarrollo** son dos procesos: `npm run dev` en `App/` (API en :3000) y `npm run dev:frontend`
+(Vite en :5173, que redirige `/api` a :3000).
+
+**Tareas en segundo plano** (dentro del mismo proceso): la purga diaria de usuarios con más de 30
+días en la papelera y el envío de comprobantes a SharePoint cada 60 s.
+
+## 9. Variables de entorno
+
+En Render se cargan en el panel. En desarrollo, `loadEnv.ts` lee el archivo que indique
+`GYRO_ENV_FILE` (por ejemplo en OneDrive) o, si no está, `App/.env`. **Nunca se suben al repo.**
+
+| Variable | Uso |
+|---|---|
+| `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | Obligatorias: el servidor no arranca sin ellas. 🔒 la service_role |
+| `SUPABASE_ANON_KEY` | Login del personal en el navegador. No da acceso a datos |
+| `SUPABASE_JWT_SECRET` | 🔒 Opcional: verifica el token localmente sin consultar a Supabase en cada petición |
+| `PROTECTED_ADMIN_EMAIL` | El `global_admin`. Obligatoria en producción |
+| `INTERNAL_DOMAIN` | Dominio del personal (`gyrostorenic.com` por defecto) |
+| `NODE_ENV`, `PORT` | |
+| `APP_URL`, `CORS_ORIGIN` | Si faltan se usa `RENDER_EXTERNAL_URL`, que pone Render |
+| `BRAND_NAME` | Opcional: título de las páginas; sin ella se usa «Gyro Store» |
+| `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`, `R2_PUBLIC_URL` (sin barra final), `R2_ENDPOINT` (opcional) | Imágenes. 🔒 las llaves |
+| `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`, `SPO_SITE_ID`, `SPO_DRIVE_ID` | Comprobantes en SharePoint. Opcionales: sin todas, el módulo queda apagado |
+| `SPO_SITE_URL` | Solo para `npm run spo:ids` |
+| `GYRO_ENV_FILE` | Solo en desarrollo: ruta del archivo de variables |
+
+El proveedor Azure del login se configura en el panel de Supabase (Authentication → Providers), no
+con variables de la app. Las variables `WHATSAPP_*` que puedan estar en el archivo de producción no
+las usa el código todavía (ver 05-Pendientes).
+
+## 10. Scripts
+
+En `App/`:
+
+| Script | Qué hace |
+|---|---|
+| `npm run dev` / `npm run dev:frontend` | API en modo watch / frontend con Vite |
+| `npm start` | Producción |
+| `npm run typecheck` · `npm test` | Tipos y tests del servidor |
+| `npm run seed:dev -- --confirm` | Productos y banners de prueba. Se niega a correr en producción |
+| `npm run checkout:check` | Solo lectura: confirma que la base tiene las tablas y funciones del checkout |
+| `npm run spo:ids` · `spo:status` · `spo:drain` · `spo:pdf` | SharePoint (ver 04-Comprobantes-SharePoint) |
+
+En `App/frontend/`: `npm run check` (tipos, lint y reglas de diseño; tiene que pasar antes de cada
+commit), `npm test`, `npm run build`.
+
+## 11. Dependencias externas
+
+| Servicio | Para qué | Si se cae |
 |---|---|---|
-| Runtime | Node.js ≥ 20.19 | igual que v1 |
-| Lenguaje | **TypeScript + ESM** | [v2] antes era JS/CommonJS |
-| Framework | Express | se mantiene |
-| Datos | **`@supabase/supabase-js`** (con `service_role`) sobre **Postgres** | [v2] antes Firebase Admin/Firestore |
-| Auth (verificación) | Supabase Auth — verificación de JWT en el server | [v2] |
-| Validación | **Zod** | se mantiene (contrato compartido front/back) |
-| Imágenes | `@aws-sdk/client-s3` (→ R2) + `sharp` | se mantiene |
-| Seguridad HTTP | helmet, cors, express-rate-limit | se mantiene |
-| Utilidades | compression, morgan, multer, dotenv | se mantiene |
-| Email | **Microsoft 365** (Graph API o SMTP del tenant) | [v2] antes Gmail SMTP |
-| Cron | node-cron | se mantiene |
+| Supabase Auth | Login del personal | Nadie entra al panel; la tienda sigue funcionando |
+| Supabase Postgres | Todos los datos | La API responde 5xx |
+| Cloudflare R2 | Imágenes | No se ven fotos; la tienda muestra el reemplazo |
+| Microsoft Graph | Comprobantes | Las ventas se aprueban igual y los PDF se suben cuando vuelve |
+| Render | Hosting | El plan free duerme el servicio sin tráfico: la primera visita tarda |
 
-### Frontend [se mantiene de v1, + shadcn/ui]
-Remix (React, **TypeScript**) · Tailwind CSS **v4** · **shadcn/ui** (nuevo) · Redux Toolkit + RTK
-Query · Framer Motion · Lucide · TanStack Table · React Hook Form + Zod · dnd-kit · Recharts · Sonner.
+## 12. Decisiones vigentes
 
-> **Ya no hay asimetría de lenguajes:** en v1 el backend era JS/CommonJS y el frontend TS. En v2
-> **todo es TypeScript**, lo que me deja compartir tipos y schemas Zod de punta a punta. [v2]
-
-### Infra
-Supabase (Auth + Postgres) · Microsoft Entra ID (identidad del staff) · Cloudflare R2 (imágenes) ·
-Render (hosting) · Microsoft 365 (email).
-
----
-
-## 3. Estructura de carpetas [PROPUESTO para v2]
-
-```
-gyro-store/
-├── frontend/                 # App Remix (TypeScript)
-│   ├── app/
-│   │   ├── routes/           # rutas (storefront + /admin)
-│   │   ├── components/       # UI — shadcn/ui pintado con tokens (ver DESIGN.md)
-│   │   ├── components/ui/    # primitivas de shadcn/ui (generadas por el CLI)
-│   │   ├── store/            # Redux Toolkit + RTK Query
-│   │   ├── lib/              # supabase.client.ts (solo Auth), helpers
-│   │   └── hooks/            # useTheme, etc.
-│   ├── public/               # estáticos (brands/, mascota)
-│   └── package.json
-│
-├── server/                   # API Express (TypeScript / ESM)
-│   ├── index.ts              # entry: monta Express + sirve Remix build
-│   ├── supabase.ts           # init cliente service_role, exporta { db, auth } [v2]
-│   ├── routes/               # auth, config, catalog, inventory, sales, ... (por dominio)
-│   ├── middleware/           # auth (requireRole), rate limiting
-│   ├── services/             # email (M365), storage (R2), ...
-│   └── utils/                # asyncHandler, sanitize, validators (Zod)
-│
-├── shared/                   # schemas.ts (Zod) — contrato único front/back [v2: .ts]
-├── supabase/
-│   ├── migrations/           # migraciones SQL versionadas [v2]
-│   └── seed.sql              # data de arranque para dev [v2]
-├── scripts/                  # seed de admin/plantillas
-├── render.yaml               # infra as code [se mantiene]
-├── .env.example              # plantilla de entorno [se mantiene, con vars nuevas]
-└── package.json              # backend (root)
-```
-
-> **Cambios de estructura respecto a v1:** desaparecen `firestore.rules`, `firestore.indexes.json`,
-> `firebase.json`, `.firebaserc` y `server/firebase.js`. Aparecen `server/supabase.ts` y la carpeta
-> `supabase/` con **migraciones SQL versionadas** (el schema de la base vive en git). [v2]
-
----
-
-## 4. Flujo de datos (request lifecycle)
-
-### 4.1 Lectura pública del catálogo (storefront)
-```
-Navegador ──GET /api/catalog──▶ Express
-                                  │  (sin auth: el catálogo es público)
-                                  ├─ valida query (Zod)
-                                  ├─ db.from('catalog_items').select(...)  (service_role)
-                                  └─ responde JSON  ──▶ Remix loader / RTK Query ──▶ UI
-```
-
-### 4.2 Operación autenticada (back-office)
-```
-Login (Supabase Auth + Entra en el navegador) ──▶ JWT
-        │
-Navegador ──Authorization: Bearer <JWT>──▶ Express
-                                            ├─ verifica el JWT (Supabase)
-                                            ├─ resuelve rol (tabla profiles / claim en JWT / whitelist env)
-                                            ├─ requireRole('admin'|'seller'|...)
-                                            ├─ valida body (Zod)
-                                            ├─ ejecuta (TRANSACCIÓN Postgres si toca stock)
-                                            └─ responde JSON
-```
-
-### 4.3 Subida de imagen de producto (sin cambios respecto a v1)
-```
-Admin ──multipart──▶ Express (multer) ──▶ sharp (optimiza/redimensiona a WebP)
-                                            └─▶ PutObject a R2 (S3 SDK), nombre por hash
-                                                 └─▶ guarda la URL pública (R2_PUBLIC_URL) en Postgres
-```
-
----
-
-## 5. Patrones transversales (obligatorios en todo el código)
-
-### 5.1 Todo dato pasa por el servidor [se mantiene]
-Ningún componente del frontend habla con Postgres directo. El frontend solo conoce **endpoints REST**
-y **Supabase Auth**. Regla dura, es la base de la seguridad.
-
-### 5.2 Validación en el borde con Zod [se mantiene]
-Todo input que entra al backend (body, params, query) se valida con un **schema Zod** antes de tocar
-la base. Si no valida → `400` con detalle. En v2 el schema Zod se comparte con el front desde
-`shared/schemas.ts`.
-
-### 5.3 Manejo de errores estándar [se mantiene]
-Un único `asyncHandler` envuelve cada handler async y un **error handler central** traduce errores a
-respuestas consistentes:
-```
-{ "error": { "code": "STRING_MACHINE", "message": "humano", "details": {...} } }
-```
-Nada de `try/catch` copiado en cada ruta. Los errores de Postgres (violación de FK, de `CHECK`, de
-`unique`) se mapean a códigos legibles en este handler. [v2]
-
-### 5.4 Autorización solo del lado servidor [se mantiene]
-`requireRole(...)` en el backend es la verdad. El `<RequireRole>` del frontend es solo UX (ocultar
-botones); nunca es la barrera de seguridad.
-
-### 5.5 Concurrencia de inventario con transacciones [MEJORA que ahora es nativa]
-En v1 esto lo resolvía con `runTransaction` de Firestore. En v2 es **una transacción de Postgres**
-con bloqueo de fila (`SELECT ... FOR UPDATE`) o funciones SQL (`plpgsql`) que hacen el decremento
-FIFO atómico. **Es más simple y más fuerte que antes.** Regla: ninguna lectura-modificación-escritura
-de stock sin transacción. [v2]
-
-### 5.6 Idempotencia y estados explícitos [se mantiene, reforzado por la base]
-Los flujos con máquina de estados (inventario `china→pending→received`, ventas, logística) guardan
-el estado como **`enum` de Postgres** y solo permiten transiciones válidas, validadas en el servidor.
-Ahora la base misma ayuda: los estados son tipos `enum`, las relaciones son **FKs reales**, y hay
-**`CHECK constraints`** para invariantes (ej. `quantity_sold + quantity_reserved <= quantity`). [v2]
-
-### 5.7 El schema vive en git [v2 nuevo]
-Cada cambio de estructura de la base es una **migración SQL versionada** en `supabase/migrations/`.
-Nunca toco la base a mano en producción; primero la migración, la pruebo en el proyecto de dev, y
-recién ahí la aplico en prod. Esto no existía en Firestore (schemaless).
-
----
-
-## 6. Límites del sistema y dependencias externas
-
-| Dependencia | Rol | Falla si… | Mitigación v2 |
-|---|---|---|---|
-| Supabase Auth (Entra) | login del staff | cae → nadie entra a `/admin` | el storefront público sigue vivo (no requiere auth) |
-| Supabase Postgres | toda la data | cae → API 5xx | health check + página de estado; catálogo cacheable |
-| Cloudflare R2 | imágenes | cae → sin fotos | las fotos son URLs; placeholder/`onError` |
-| Render | hosting | cold start / caída | health check `/api/health` |
-| Microsoft 365 | emails de logística/invitación | cae → sin email | encolar/reintentar; no bloquear la operación |
-
----
-
-## 7. Decisiones de arquitectura (ADRs)
-
-> La v1 tenía 10 ADRs formales. Acá los repaso y marco cuáles conservo tal cual y cuáles cambian con
-> la migración a Supabase. Esta tabla es mi referencia rápida.
-
-| ADR (v1) | Decisión original | Estado en v2 |
-|---|---|---|
-| 001 | Monolito Express que sirve API + Remix en Render | **MANTENER** |
-| 002 | Firestore (Spark) + Admin SDK | **REEMPLAZADO → Supabase Postgres + service_role.** Desaparece el problema de límites de Spark. [v2] |
-| 003 | Cliente nunca toca la base; todo por el backend | **MANTENER (base de todo)** — ahora con RLS deny-all + service_role |
-| 004 | Checkout manual por WhatsApp (sin pasarela) | MANTENER (reversible) |
-| 005 | Cloudflare R2 + Sharp (WebP) + nombre por hash | **MANTENER** |
-| 006 | Roles resueltos por request (sin custom claims) | **MANTENER, mejorado.** En Postgres la lectura de `profiles` por request es barata; opción de meter el rol en el JWT con un *access token hook* de Supabase (doc 03 §A.5) |
-| 007 | Reservar→consumir stock con transacciones (FIFO atómico) | **MANTENER (excelente)** — ahora con transacciones SQL, más simple |
-| 008 | Reglas deny-all versionadas | **MANTENER → RLS deny-all** + migraciones SQL en git |
-| 009 | Limpieza de imágenes huérfanas en R2 al borrar | MANTENER |
-| 010 | Zod + `fileFilter` en subidas | **MANTENER** |
-| 011 | *(nuevo v2)* Cuentas de comprador: audiencia separada, backend-mediated | **NUEVO.** OTP por teléfono vía Supabase Auth, resuelve a contacto (`requireCustomer`), nunca a `AppRole`. El navegador del comprador tampoco toca la base — mismo patrón deny-all + `service_role` que el resto del sistema. Opcional, capa de lealtad, nunca requisito para comprar. Detalle: doc 14. [v2] |
-
-**Decisiones nuevas de v2 (ADRs a escribir):** backend TypeScript+ESM; auth con Microsoft Entra vía
-Supabase; email por Microsoft 365; dos proyectos Supabase (dev/prod); migraciones SQL versionadas;
-cuentas de comprador (ADR-011, doc 14).
-
-> **Nota — Opción A de WhatsApp (doc 10 §2, §7):** el número de la tienda migra a la Cloud API de
-> Meta. Esto cambia cómo operan los vendedores: ya no responden desde la app normal de WhatsApp en su
-> teléfono, sino desde el **inbox del panel admin** (`/admin/crm`). Es un cambio operativo, no de
-> arquitectura de datos — el patrón "todo por el servidor" no cambia.
-
-### Detalles de arquitectura que no quiero perder en el rebuild
-- **Caché de catálogo en memoria** (`catalogCache`): en v1 era **obligatorio** por los límites de
-  lectura de Spark. En v2 con Postgres pasa a ser **opcional** (optimización, no necesidad). Si lo
-  dejo, invalida al escribir; si no, Postgres aguanta el query directo. [v2]
-- **COOP relajado** (`same-origin-allow-popups`) en helmet — lo necesitaba para el `signInWithPopup`
-  de Firebase. **Verificar si el flujo de Supabase + Entra lo sigue necesitando** (Supabase suele usar
-  redirect en vez de popup; si es redirect, puedo endurecer el COOP). [v2 · a verificar]
-- **`trust proxy = 1`** — imprescindible tras el proxy de Render (rate-limit e IPs correctas). Se mantiene.
-- **Checkout público** recalcula el total en el servidor (`public_orders`), nunca confía en el cliente. Se mantiene.
+| Decisión | Por qué |
+|---|---|
+| Monolito Express + Remix en un servicio | Un solo despliegue y un solo origen (sin CORS en la práctica) |
+| Supabase Postgres con `service_role` y RLS cerrada | Transacciones, FKs, `CHECK` y SQL para reportes; la base no queda expuesta |
+| Login del personal solo con Microsoft Entra | Una sola fuente de identidad; altas y bajas desde Microsoft 365 |
+| Rol leído de `profiles` en cada petición (con caché corta) | Cambiar un rol aplica al instante, sin renovar el token |
+| Pedido por WhatsApp, sin pasarela de pago | Así compra el cliente local; el pago queda como evento futuro del pedido |
+| Imágenes en R2 con WebP y nombre por hash | Sin costo de salida; subir dos veces el mismo archivo no duplica |
+| TypeScript en todo, esquemas Zod compartidos | Un solo contrato entre cliente y servidor |
+| Comprobantes en SharePoint con outbox | Aprobar nunca depende de Microsoft; Postgres sigue siendo la fuente de verdad |

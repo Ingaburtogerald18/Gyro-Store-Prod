@@ -1,5 +1,5 @@
 import { FormDialogContent } from '~/components/ui/form-layout';
-// Portal de Ventas (doc 09 ítem 65): cotizador + registro + aprobar/rechazar
+// Portal de Ventas: cotizador + registro + aprobar/rechazar
 // (admin) + listado scoped por rol (lo scopea el backend, no el frontend).
 //
 // Esta ruta es solo el SHELL: monta el editor y el listado. El armado de la

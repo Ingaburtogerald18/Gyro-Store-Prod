@@ -1,4 +1,4 @@
-// La cadena financiera de una línea (doc 11 §4) y el reparto en pozos (§2),
+// La cadena financiera de una línea (Docs/03-Finanzas.md §4) y el reparto en pozos (§2),
 // dibujados una sola vez para los dos momentos en que se miran:
 //
 //   · el cotizador, ANTES de registrar — números estimados;
@@ -49,7 +49,7 @@ export interface FinancialChainLine {
   comisionUnit?: number;
   gananciaTiendaUnit?: number;
 
-  /** Reparto del Costo F/U de esta línea en los 7 pozos (doc 11 §2). */
+  /** Reparto del Costo F/U de esta línea en los 7 pozos (Docs/03-Finanzas.md §2). */
   pozos?: Record<string, number>;
 }
 
@@ -253,7 +253,7 @@ const POZO_LABELS: Record<string, string> = {
   servicios: 'Servicios básicos',
 };
 
-/** Los 7 pozos del doc 11 §2, en el orden en que se reparte el Costo F/U. */
+/** Los 7 pozos del Docs/03-Finanzas.md §2, en el orden en que se reparte el Costo F/U. */
 export const POZOS = [
   'publicidad',
   'mantenimiento',

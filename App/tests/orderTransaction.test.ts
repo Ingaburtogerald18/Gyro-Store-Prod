@@ -9,7 +9,7 @@ test('esquema, migración y registro atómico de pedidos en PostgreSQL', async t
   const pg = new PGlite();
   try {
     const schema = await readFile(new URL('../database/01_schema.sql', import.meta.url), 'utf8');
-    const migration = await readFile(new URL('../database/migrations/0025_ordenar_base.sql', import.meta.url), 'utf8');
+    const migration = await readFile(new URL('../database/historial/migrations/0025_ordenar_base.sql', import.meta.url), 'utf8');
     // Lo mínimo de Supabase que el esquema da por hecho: roles y auth.users.
     await pg.exec(`
       create role anon; create role authenticated; create role service_role bypassrls;

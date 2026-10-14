@@ -116,7 +116,7 @@ export interface SaleWithItems extends SaleListItem {
      */
     comisionPercent?: number;
     gananciaTienda?: number;
-    /** Reparto del Costo F/U de la línea en los 7 pozos (doc 11 §2). */
+    /** Reparto del Costo F/U de la línea en los 7 pozos (Docs/03-Finanzas.md §2). */
     pozos?: Record<string, number>;
     /** Precio bajo el margen mínimo. Solo admin. */
     belowMinMargin?: boolean;

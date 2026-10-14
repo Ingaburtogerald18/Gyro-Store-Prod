@@ -1,4 +1,4 @@
-// Cuotas (MVP Hito 3, doc 09 ítem 63): agenda el cobro de una venta YA
+// Cuotas: agenda el cobro de una venta YA
 // aprobada (server/services/sales.ts) — modelo delgado, igual que
 // invoice.ts. `installments.order_id` envuelve un `orders` existente; no hay
 // líneas/FIFO/comisión propios acá, eso ya lo congeló sales.ts. `payments`
@@ -30,7 +30,7 @@ export interface InstallmentPayment {
 export interface InstallmentPlan {
   id: string;
   orderId: string;
-  // De la orden vinculada (doc 03: orders.phone/seller_email) — sin esto la
+  // De la orden vinculada (Docs/02-Arquitectura.md §6: orders.phone/seller_email) — sin esto la
   // lista de planes solo mostraría un UUID, nada de a quién le vendieron.
   phone: string | null;
   sellerEmail: string | null;

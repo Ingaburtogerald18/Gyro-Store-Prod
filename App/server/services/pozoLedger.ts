@@ -1,4 +1,4 @@
-// Motor de reglas de los pozos (Docs/reporteria-reglas.md).
+// Motor de reglas de los pozos (Docs/03-Finanzas.md §12).
 //
 // ── Reglas ──
 // R2  El saldo que le sobra a un pozo al cerrar el mes lo hereda el mismo pozo

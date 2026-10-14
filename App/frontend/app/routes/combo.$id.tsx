@@ -1,4 +1,4 @@
-// Detalle de combo (doc 09 ítem 46). SSR igual que producto.$id.tsx (para que
+// Detalle de combo. SSR igual que producto.$id.tsx (para que
 // el link compartido por WhatsApp tenga foto/título/precio en el preview).
 //
 // Reciclaje de v1 (routes/combo.$id.tsx): esa versión mostraba el desglose de

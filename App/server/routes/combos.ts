@@ -14,7 +14,7 @@ router.get(
   })
 );
 
-// Detalle de un combo publicado (página de combo, doc 09 ítem 46).
+// Detalle de un combo publicado (página de combo).
 router.get(
   '/:id',
   asyncHandler(async (req, res) => {

@@ -1,6 +1,6 @@
 import { FormLayout, FormDialogContent, FormActions, FormBody } from '~/components/ui/form-layout';
 import { FormErrorBanner, serverErrorMessage } from '~/components/ui/form-feedback';
-// Portal de Cuotas (doc 09 ítem 67): crear plan sobre una venta aprobada,
+// Portal de Cuotas: crear plan sobre una venta aprobada,
 // registrar pagos, ver saldo, cancelar. Solo admin (mismo criterio que v1 y
 // que server/routes/installments.ts).
 //

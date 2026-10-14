@@ -1,4 +1,4 @@
-// Cadena de costeo del inventario (doc 11 §1-3). Funciones puras, sin DB ni
+// Cadena de costeo del inventario (Docs/03-Finanzas.md §1-3). Funciones puras, sin DB ni
 // Express: dado el detalle de una compra al recibirla y la configuración
 // financiera vigente, derivan costo real → Costo F/U → 7 pozos → coste final →
 // PVP sugerido. `services/inventory.ts` las invoca al procesar una llegada y
@@ -28,7 +28,7 @@ export interface PurchaseCostInput {
   costoChinaUsd: number;
   impuestoUnitUsd: number;
   envioUnitUsd: number;
-  // Se congela por lote al recibir (doc 11 regla 4): quien llama pasa la tasa
+  // Se congela por lote al recibir (Docs/03-Finanzas.md regla 4): quien llama pasa la tasa
   // vigente en ese momento, esta función no la lee de ningún lado.
   exchangeRate: number;
 }
@@ -41,7 +41,7 @@ export interface CostoReal {
   costoRealCs: number;
 }
 
-// Doc 11 §1: Pre-Total → Total compra → Costo unitario origen → Costo real (USD/C$).
+// Docs/03-Finanzas.md §1: Pre-Total → Total compra → Costo unitario origen → Costo real (USD/C$).
 export function computeCostoReal(input: PurchaseCostInput): CostoReal {
   const { quantity, costoChinaUsd, impuestoUnitUsd, envioUnitUsd, exchangeRate } = input;
 
@@ -60,12 +60,12 @@ export function computeCostoReal(input: PurchaseCostInput): CostoReal {
   };
 }
 
-// Doc 11 §2: Costo Fijo Unitario por tramo de Costo real (C$).
+// Docs/03-Finanzas.md §2: Costo Fijo Unitario por tramo de Costo real (C$).
 export function computeCostoFU(costoRealCs: number, scale: FinancialConfig['costoFUScale']): number {
   return findTier(scale, costoRealCs).amount;
 }
 
-// Doc 11 §2: el Costo F/U se reparte en los 7 pozos según sus %. La suma de
+// Docs/03-Finanzas.md §2: el Costo F/U se reparte en los 7 pozos según sus %. La suma de
 // los % ya está validada al 100% por `financialConfigSchema`, así que el
 // reparto cierra con `costoFU` salvo el redondeo a centavos de cada pozo.
 export function distributePozos(costoFU: number, pozos: Pozos): Pozos {
@@ -80,12 +80,12 @@ export function distributePozos(costoFU: number, pozos: Pozos): Pozos {
   };
 }
 
-// Doc 11 §2: Coste final = Costo real (C$) + Costo F/U.
+// Docs/03-Finanzas.md §2: Coste final = Costo real (C$) + Costo F/U.
 export function computeCosteFinal(costoRealCs: number, costoFU: number): number {
   return round(costoRealCs + costoFU, 2);
 }
 
-// Doc 11 §3: PVP sugerido = Coste final / (1 − margen), margen por tramo de
+// Docs/03-Finanzas.md §3: PVP sugerido = Coste final / (1 − margen), margen por tramo de
 // Coste final. El tramo "< 50" del doc es un error de negocio (no vender tan
 // barato); la salvaguarda vive en el dato de config (margin: 0 en ese tramo),
 // no acá — esta función solo aplica el tramo que le llegue.

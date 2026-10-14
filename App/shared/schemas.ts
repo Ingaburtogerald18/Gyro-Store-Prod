@@ -83,7 +83,7 @@ export const publicCatalogItemSchema = z.object({
 
 // Vista INTERNA (panel/admin): agrega los precios calculados de la cadena
 // financiera. `precio_sugerido` y `precio_tentativo` dejan leer el margen del
-// negocio hacia atrás (doc 11 §3), así que NUNCA se sirven en endpoints públicos.
+// negocio hacia atrás (Docs/03-Finanzas.md §3), así que NUNCA se sirven en endpoints públicos.
 export const catalogItemSchema = publicCatalogItemSchema.extend({
   precio_sugerido: z.number().nullable(),
   precio_tentativo: z.number().nullable(),
@@ -667,7 +667,7 @@ export const CONTACT_ORIGIN_LABELS: Record<ContactOrigin, string> = {
   other: 'Otro',
 };
 
-// El pipeline (doc 10 §10 lo deja "a definir"): se arranca con estas etapas. En
+// El pipeline (Docs/05-Pendientes.md §4 lo deja a definir): se arranca con estas etapas. En
 // la base `stage` es texto libre, así que una lectura vieja con otro valor no
 // rompe (se muestra tal cual).
 export const CONTACT_STAGES = ['nuevo', 'contactado', 'cotizado', 'ganado', 'perdido'] as const;
@@ -912,7 +912,7 @@ export type UpdateProfile = z.infer<typeof updateProfileSchema>;
 // ── SCHEMAS DEL DOMINIO: CHECKOUT PÚBLICO ──
 // ============================================================================
 
-// ── Checkout público (doc 04 §6, doc 12: server SIEMPRE recalcula el
+// ── Checkout público (Docs/02-Arquitectura.md §4: server SIEMPRE recalcula el
 // precio, nunca confía en lo que manda el cliente) ──
 
 // Una línea del pedido es UN producto suelto O UN combo, nunca ambos. Los dos
@@ -961,7 +961,7 @@ export const publicOrderFieldsSchema = z.object({
 
   // ── Datos de contacto y entrega ──
   // Alimentan el mensaje de WhatsApp, que es el canal donde se cierra el pedido
-  // en el MVP (doc 06). Hoy la tabla `public_orders` solo guarda teléfono y
+  // en el MVP. Hoy la tabla `public_orders` solo guarda teléfono y
   // total; persistirlos requiere una migración pendiente (ver 0005 propuesta).
   customerName: z.string().min(2, 'Ingresá tu nombre.').max(80),
   deliveryMethod: z.enum(['retiro', 'envio']),
@@ -1299,18 +1299,18 @@ export type ColorOfferInput = z.infer<typeof colorOfferInputSchema>;
 // ============================================================================
 // ── SCHEMAS DEL DOMINIO: VENTAS (ADMIN/SELLER) ──
 // ============================================================================
-// MVP de Hito 3 (doc 09 ítem 60): cotizar, registrar, aprobar, rechazar,
+// Cotizar, registrar, aprobar, rechazar y
 // listar. Sin fotos de recibo, sin venta vía ticket de factura, sin edición
-// post-aprobación ni pago de comisiones por lotes — ver doc 11 §4-5 para la
+// post-aprobación ni pago de comisiones por lotes — ver Docs/03-Finanzas.md §4-5 para la
 // cadena financiera que server/services/sales.ts arma con estos datos.
 
 export const saleLineInputSchema = z.object({
-  // Mismo límite que inventario (doc 09 ítem 51): sin un catalog_item_id real
+  // Mismo límite que inventario: sin un catalog_item_id real
   // en purchases todavía, el producto se identifica por nombre, no por SKU.
   productName: z.string().min(1, 'El producto es obligatorio.').max(160),
   quantity: z.number().int().positive('La cantidad debe ser mayor a 0.'),
   salePrice: z.number().min(0),
-  // Mayoreo es herramienta del cotizador (doc 11 §5), no automático: default
+  // Mayoreo es herramienta del cotizador (Docs/03-Finanzas.md §5), no automático: default
   // true a nivel de servicio, pero el vendedor lo puede desactivar por línea.
   applyWholesale: z.boolean().optional(),
 });
@@ -1359,7 +1359,7 @@ export const rejectSaleInputSchema = z.object({
 });
 export type RejectSaleInput = z.infer<typeof rejectSaleInputSchema>;
 
-// ── Pago de comisiones (doc 11 §4) ──
+// ── Pago de comisiones (Docs/03-Finanzas.md §4) ──
 // El comprobante viaja como URL ya subida a `POST /api/upload`, no como
 // multipart: v2 centraliza las subidas ahí y así esta ruta queda siendo JSON.
 //
@@ -1404,7 +1404,7 @@ export type SettleBalanceInput = z.infer<typeof settleBalanceInputSchema>;
 // ============================================================================
 // ── SCHEMAS DEL DOMINIO: FACTURACIÓN (ADMIN/CASHIER) ──
 // ============================================================================
-// Modelo delgado (doc 09 ítem 61): la factura numera una venta YA aprobada
+// Modelo delgado: la factura numera una venta YA aprobada
 // (server/services/sales.ts) — no tiene líneas propias, esas viven en
 // order_items. `invoiceNumber` nunca lo manda el cliente: lo asigna el
 // `nextval()` de la secuencia en server/services/invoice.ts.
@@ -1521,12 +1521,12 @@ export const registerInstallmentPaymentInputSchema = z.object({
 export type RegisterInstallmentPaymentInput = z.infer<typeof registerInstallmentPaymentInputSchema>;
 
 // ============================================================================
-// ── SCHEMAS DEL DOMINIO: CONTACTO PÚBLICO / CRM (doc 09 ítems 33-34) ──
+// ── SCHEMAS DEL DOMINIO: CONTACTO PÚBLICO / CRM ──
 // ============================================================================
 // El formulario público de "Contacto" captura el lead directo en el CRM
 // (contacts/contact_activities) — v1 solo mandaba un correo (sin servicio de
 // email en v2 todavía). Teléfono obligatorio: es la clave de `contacts.phone`
-// (unique) — mismo criterio que doc 14 ("teléfono siempre obligatorio, es la
+// (unique) — mismo criterio que Docs/05-Pendientes.md §5 ("teléfono siempre obligatorio, es la
 // llave"). `contacts` no tiene columna de email; si lo mandan, viaja dentro
 // de la nota de la actividad en vez de perderse.
 export const publicContactInputSchema = z.object({

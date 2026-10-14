@@ -78,7 +78,7 @@ export const sessionApi = baseApi.injectEndpoints({
       },
     }),
 
-    // /api/config (doc 09 ítems 25-26): constantes de negocio públicas. El
+    // /api/config: constantes de negocio públicas. El
     // shape espeja PublicConfig de server/services/config.ts.
     getConfig: builder.query<StoreConfig, void>({
       query: () => 'config',

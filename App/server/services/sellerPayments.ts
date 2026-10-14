@@ -276,7 +276,7 @@ export async function payCommissions(
   try {
     // La comisión sale del snapshot congelado en `order_items` al aprobar, NO se
     // recalcula: recalcular acá pagaría un monto distinto del que el vendedor vio
-    // aprobado si la config financiera cambió en el medio (doc 11, regla de oro).
+    // aprobado si la config financiera cambió en el medio (Docs/03-Finanzas.md, regla de oro).
     const { data: itemRows, error: itemsError } = await db
       .from('order_items')
       .select('order_id, comision')

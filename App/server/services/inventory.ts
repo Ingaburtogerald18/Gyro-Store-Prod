@@ -165,7 +165,7 @@ function toPurchase(row: PurchaseRow): Purchase {
   const costUnit = row.costo_china_usd ?? 0;
   const taxUnit = row.impuesto_unit_usd ?? 0;
   const shippingUnit = row.envio_unit_usd ?? 0;
-  // Doc 11 §1: "costo unitario origen" = (Cantidad×costo + Cantidad×impuesto) / Cantidad = costo + impuesto.
+  // Docs/03-Finanzas.md §1: "costo unitario origen" = (Cantidad×costo + Cantidad×impuesto) / Cantidad = costo + impuesto.
   const priceUnit = costUnit + taxUnit;
 
   return {
@@ -504,8 +504,8 @@ export async function setPurchaseLink(id: string, link: CatalogLink | null): Pro
   if (error) throw error;
 }
 
-// "Sube stock" (doc 09 ítem 51): pasa el lote a `received` y persiste la
-// cadena de costeo completa de doc 11 §1-3 vía finance.ts. La tasa de cambio
+// "Sube stock": pasa el lote a `received` y persiste la
+// cadena de costeo completa de Docs/03-Finanzas.md §1-3 vía finance.ts. La tasa de cambio
 // se congela acá (regla de oro #4) con la vigente en `app_config` al momento
 // de recibir — no se vuelve a tocar después.
 export async function reportArrival(id: string, input: ArrivalInput): Promise<boolean> {
@@ -799,7 +799,7 @@ export async function deletePurchase(id: string, authorUid: string): Promise<boo
 // nombre que ya usan los lotes de su variante (nameForVariant).
 //
 // Tampoco hay una función de Postgres con locking real (`FOR UPDATE`) como
-// pide doc 09 ("TX SQL"): sin acceso a Supabase para probar una función
+// pide la regla de stock con transacción: sin acceso a Supabase para probar una función
 // plpgsql esta sesión, esto usa UPDATEs condicionados (compare-and-swap sobre
 // el valor leído + el CHECK constraint de la tabla como última defensa) y una
 // compensación manual best-effort si algo falla a mitad de camino. Conviene

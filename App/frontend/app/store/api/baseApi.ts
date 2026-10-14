@@ -8,7 +8,7 @@ export const baseApi = createApi({
   refetchOnMountOrArgChange: true,
   baseQuery: fetchBaseQuery({
     // En dev, Vite proxya /api → Express :3000; en prod es el mismo origen
-    // (monolito híbrido, doc 02): la URL relativa sirve en ambos casos.
+    // (monolito, Docs/02-Arquitectura.md): la URL relativa sirve en ambos casos.
     baseUrl: '/api',
     prepareHeaders: async (headers) => {
       // Sesión de Supabase Auth → Bearer JWT. Sin sesión (visitante anónimo o

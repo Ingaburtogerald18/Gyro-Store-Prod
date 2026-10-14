@@ -7,7 +7,7 @@ import { withLinkedLots } from './inventory';
 // `select('*')`: la tabla `catalog_items` tiene columnas de la cadena financiera
 // (precio_sugerido, precio_tentativo y lo que venga después) y un `*` las publicaría
 // solas, sin que nadie lo note, en cuanto la migración las agregue. Un competidor
-// que lea el JSON del catálogo puede derivar el margen del negocio (doc 11 §3).
+// que lea el JSON del catálogo puede derivar el margen del negocio (Docs/03-Finanzas.md §3).
 const PUBLIC_CATALOG_COLUMNS = [
   'id',
   'template_id',

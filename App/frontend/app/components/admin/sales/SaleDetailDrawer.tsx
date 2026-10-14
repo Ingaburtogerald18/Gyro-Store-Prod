@@ -266,7 +266,7 @@ function FinancialSection({ sale }: { sale: SaleWithItems }) {
 
   // El snapshot de `order_items` se llena DOS veces: al registrar con el costo
   // FIFO estimado, y al aprobar con el de los lotes que realmente se
-  // consumieron (doc 11, regla de oro). Mientras la venta no esté aprobada, lo
+  // consumieron (Docs/03-Finanzas.md, regla de oro). Mientras la venta no esté aprobada, lo
   // que se muestra puede moverse — y quien lo lee tiene derecho a saberlo.
   const definitivo = sale.status === 'approved' || sale.status === 'paid';
 
@@ -371,7 +371,7 @@ function FinancialSection({ sale }: { sale: SaleWithItems }) {
               {/* Sin esta línea, "C$210 en pozos" se lee como plata disponible o
                   como una tajada que compite con la ganancia. Es ninguna de las
                   dos: el Costo F/U ya venía descontado dentro del costo del
-                  producto (doc 11 §2). */}
+                  producto (Docs/03-Finanzas.md §2). */}
               <p className="mt-3 text-2xs leading-snug text-muted-foreground">
                 Ya está incluido en el costo de mercadería de arriba —{' '}
                 <span className="font-medium">no sale de la ganancia</span>. Cada venta recoge el
