@@ -438,6 +438,9 @@ function InvoiceSection({
   const choice = value.invoiceChoice;
   const chosen = invoices.find((i) => i.id === choice) ?? null;
   const draft = value.newInvoice;
+  // El archivo se sube en segundo plano: al terminar, se suma a lo escrito mientras tanto.
+  const latestDraft = useRef(draft);
+  latestDraft.current = draft;
   // Lo de esta orden que la factura elegida todavía no suma.
   const extra = chosen && chosen.id === currentInvoiceId ? 0 : linesTotalUsd;
   const draftTotal = draft.totalUsd.trim() === "" ? null : Number(draft.totalUsd);
@@ -480,7 +483,7 @@ function InvoiceSection({
           <InvoiceDraftFields
             idPrefix="new-invoice"
             draft={draft}
-            onChange={(patch) => onChange({ newInvoice: { ...draft, ...patch } })}
+            onChange={(patch) => onChange({ newInvoice: { ...latestDraft.current, ...patch } })}
             gap={invoiceGapText(Number.isFinite(draftTotal) ? draftTotal : null, linesTotalUsd)}
             numberHint={
               sameNumber && (

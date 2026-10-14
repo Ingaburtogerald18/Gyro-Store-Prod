@@ -76,8 +76,11 @@ function purchaseFormSchema(templates: AdminTemplate[], orders: PurchaseOrder[])
     .object({ header: z.custom<OrderHeaderState>(), lines: z.array(z.custom<OrderLineState>()) })
     .superRefine((values, ctx) => {
       const existing = findOrder(orders, values.header.orderNumber);
+      // En una orden sin productos todavía se escribe el impuesto: también se revisa.
       const headerErrors = existing
-        ? {}
+        ? existing.lineCount === 0 && !(Number(values.header.taxUnit.trim() || 0) >= 0)
+          ? { taxUnit: "Revisá el impuesto: un número desde 0." }
+          : {}
         : validateOrderHeader(values.header, { requireSupplier: true });
       for (const [field, message] of Object.entries(headerErrors))
         ctx.addIssue({ code: "custom", path: ["header", field], message });
