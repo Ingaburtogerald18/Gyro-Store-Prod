@@ -10,7 +10,7 @@ import { Notification03Icon, ShoppingCart02Icon } from '@hugeicons/core-free-ico
 import { WhatsappIcon } from '~/components/ui/whatsapp-icon';
 
 import { Button } from '~/components/ui/button';
-import { useElementInView } from '~/hooks/useElementInView';
+import { useElementInView } from '~/hooks/use-element-in-view';
 
 export function MobileBuyBar({
   name,

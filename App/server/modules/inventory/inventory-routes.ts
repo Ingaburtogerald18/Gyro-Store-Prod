@@ -2,7 +2,7 @@
 // El módulo de inventario migrado se eliminó: nunca se pudo VENDER (sales.ts
 // solo consume `purchases` vía FIFO), así que cargar ítems ahí era registrar
 // stock que el sistema no sabía despachar. Cumple el contrato de
-// frontend/app/store/api/inventoryV1Api.ts (mismos paths/verbos) — no el de
+// frontend/app/state/api/inventory-api.ts (mismos paths/verbos) — no el de
 // inventoryApi.ts, que es un draft sin usar (ver server/modules/inventory/inventory.ts).
 // Solo admin, salvo Stock actual: el vendedor lo ve en solo lectura y sin
 // costos. Comprar y recibir es tarea de administración.

@@ -13,20 +13,20 @@ import {
   useGetStaffDirectoryQuery,
   useGetUsersQuery,
   type UserProfile,
-} from "~/store/api/usersApi";
-import { useAppSelector } from "~/store/hooks";
-import { selectIsAdmin } from "~/store/slices/authSlice";
+} from "~/state/api/users-api";
+import { useAppSelector } from "~/state/hooks";
+import { selectIsAdmin } from "~/state/slices/auth-slice";
 
-import { PageHeader } from "~/components/layout/PageHeader";
+import { PageHeader } from "~/components/admin/page-header";
 import { SegmentedControl, ToolbarSearch, Workspace, WorkspaceToolbar } from "~/components/admin/workspace";
-import { QueryState } from "~/components/ui/QueryState";
+import { QueryState } from "~/components/ui/query-state";
 
-import { UserCard } from "~/components/admin/users/UserCard";
-import { CreateUserDialog } from "~/components/admin/users/CreateUserDialog";
-import { DeleteUserDialog } from "~/components/admin/users/DeleteUserDialog";
-import { UserDetailDialog } from "~/components/admin/users/UserDetailDialog";
-import { StaffDetailDialog } from "~/components/admin/users/StaffDetailDialog";
-import { useUserActions } from "~/components/admin/users/useUserActions";
+import { UserCard } from "~/components/admin/users/user-card";
+import { CreateUserDialog } from "~/components/admin/users/create-user-dialog";
+import { DeleteUserDialog } from "~/components/admin/users/delete-user-dialog";
+import { UserDetailDialog } from "~/components/admin/users/user-detail-dialog";
+import { StaffDetailDialog } from "~/components/admin/users/staff-detail-dialog";
+import { useUserActions } from "~/components/admin/users/use-user-actions";
 
 export const meta: MetaFunction = () => {
   return [{ title: pageTitle('Personal', { admin: true }) }];
@@ -190,4 +190,4 @@ export default function AdminUsuarios() {
 }
 
 // Error dentro de la sección: se muestra en el área de contenido y la barra lateral sigue viva.
-export { AdminRouteError as ErrorBoundary } from '~/components/layout/route-error';
+export { AdminRouteError as ErrorBoundary } from '~/components/route-error';

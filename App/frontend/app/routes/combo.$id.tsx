@@ -10,7 +10,7 @@
 // `z.array(z.unknown())` — forma sin definir (TODO en shared/schemas.ts) — así
 // que esta página no puede desglosar contenido ni calcular ahorro; muestra el
 // combo como una unidad (nombre, precio, imagen si hay una string válida,
-// cantidad de artículos). El carrito YA sabe manejar combos (cartSlice.ts,
+// cantidad de artículos). El carrito YA sabe manejar combos (cart-slice.ts,
 // `comboId`) — no hizo falta tocar nada ahí.
 import { HugeIcon } from "~/components/ui/icon";
 import { ArrowLeft01Icon, Message01Icon, PackageAddIcon, SparklesIcon } from "@hugeicons/core-free-icons";
@@ -20,12 +20,12 @@ import { Link, useLoaderData } from '@remix-run/react';
 
 import { toast } from 'sonner';
 import type { Combo } from '@shared/schemas';
-import { StorefrontShell } from '~/components/layout/storefront-shell';
+import { StorefrontShell } from '~/components/storefront/storefront-shell';
 import { Badge } from '~/components/ui/badge';
 import { Button } from '~/components/ui/button';
-import type { StoreConfig } from '~/store/api/sessionApi';
-import { useAppDispatch } from '~/store/hooks';
-import { addItem, openCart } from '~/store/slices/cartSlice';
+import type { StoreConfig } from '~/state/api/session-api';
+import { useAppDispatch } from '~/state/hooks';
+import { addItem, openCart } from '~/state/slices/cart-slice';
 import { buildWhatsappUrl, formatCordobas, getComboUrl } from "~/lib/formatters";
 
 export const headers: HeadersFunction = () => ({

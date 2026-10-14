@@ -9,8 +9,8 @@ const APP = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "app")
 
 // Archivos que reproducen algo ajeno al sistema: el ticket impreso y los logos de terceros.
 const ALLOWED_FILES = new Set([
-  "components/admin/invoices/Ticket.tsx",
-  "components/admin/invoices/TicketPrintModal.tsx",
+  "components/admin/invoices/ticket.tsx",
+  "components/admin/invoices/ticket-print-modal.tsx",
   "components/ui/social-icons.tsx",
 ]);
 

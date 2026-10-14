@@ -8,7 +8,7 @@ import {
 } from '@hugeicons/core-free-icons';
 import { useState, useMemo } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
-import { QueryState } from '~/components/ui/QueryState';
+import { QueryState } from '~/components/ui/query-state';
 import { BrandLoader } from '~/components/ui/module-loader';
 
 import type { MetaFunction } from '@remix-run/node';
@@ -19,28 +19,28 @@ import {
   useGetSalesTrendQuery,
   useGetDeliverySummaryQuery,
   useGetExpensesOverflowQuery,
-} from '~/store/api/reportsApi';
-import { useAppSelector } from '~/store/hooks';
-import { selectIsAdmin } from '~/store/slices/authSlice';
+} from '~/state/api/reports-api';
+import { useAppSelector } from '~/state/hooks';
+import { selectIsAdmin } from '~/state/slices/auth-slice';
 import { formatCordobas, formatNumber } from '~/lib/formatters';
 import { pageTitle } from '~/lib/brand';
 import { HugeIcon } from '~/components/ui/icon';
 
-import { PageHeader } from '~/components/layout/PageHeader';
-import { SectionLabel } from '~/components/layout/SectionLabel';
-import { CompactKpi, HeroMetric } from '~/components/admin/reports/HeroMetric';
-import { TopProductsTable } from '~/components/admin/reports/TopProductsTable';
-import { SalesBreakdownCards } from '~/components/admin/reports/SalesBreakdownCards';
-import { ExportSalesCsvButton } from '~/components/admin/reports/ExportSalesCsvButton';
-import { PozoFlowBars } from '~/components/admin/expenses/PozoFlowBars';
-import { IncomeWaterfall, type WaterfallInput } from '~/components/admin/reports/IncomeWaterfall';
-import { DashboardDrilldowns, type DrilldownType } from '~/components/admin/reports/DashboardDrilldowns';
-import { MonthSelector, getMonthRange, type MonthYear } from '~/components/admin/reports/MonthSelector';
-import { SalesDailyTrendChart } from '~/components/admin/reports/SalesDailyTrendChart';
-import { SellerRankingTable } from '~/components/admin/reports/SellerRankingTable';
+import { PageHeader } from '~/components/admin/page-header';
+import { SectionLabel } from '~/components/admin/section-label';
+import { CompactKpi, HeroMetric } from '~/components/admin/reports/hero-metric';
+import { TopProductsTable } from '~/components/admin/reports/top-products-table';
+import { SalesBreakdownCards } from '~/components/admin/reports/sales-breakdown-cards';
+import { ExportSalesCsvButton } from '~/components/admin/reports/export-sales-csv-button';
+import { PozoFlowBars } from '~/components/admin/expenses/pozo-flow-bars';
+import { IncomeWaterfall, type WaterfallInput } from '~/components/admin/reports/income-waterfall';
+import { DashboardDrilldowns, type DrilldownType } from '~/components/admin/reports/dashboard-drilldowns';
+import { MonthSelector, getMonthRange, type MonthYear } from '~/components/admin/reports/month-selector';
+import { SalesDailyTrendChart } from '~/components/admin/reports/sales-daily-trend-chart';
+import { SellerRankingTable } from '~/components/admin/reports/seller-ranking-table';
 import { Tabs, TabsContent } from '~/components/ui/tabs';
 import { SegmentedControl } from '~/components/admin/workspace';
-import { ExpensesTab } from '~/components/admin/expenses/ExpensesTab';
+import { ExpensesTab } from '~/components/admin/expenses/expenses-tab';
 
 export const meta: MetaFunction = () => {
   return [{ title: pageTitle('Reportería', { admin: true }) }];
@@ -367,4 +367,4 @@ export default function AdminDashboard() {
 }
 
 // Error dentro de la sección: se muestra en el área de contenido y la barra lateral sigue viva.
-export { AdminRouteError as ErrorBoundary } from '~/components/layout/route-error';
+export { AdminRouteError as ErrorBoundary } from '~/components/route-error';

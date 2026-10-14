@@ -26,10 +26,10 @@ import { PurchaseStatus, addLabel, cartItemFor } from '~/components/product/purc
 import { StockNoticeDialog } from '~/components/product/stock-notice-dialog';
 import { WhatsappIcon } from '~/components/ui/whatsapp-icon';
 import { autoSelection, isConsultOnly, purchaseState, variantLabel, type VariantSelection } from '~/lib/purchase';
-import { useGetCatalogDetailQuery } from '~/store/api/storefrontApi';
-import { useStoreConfig } from '~/hooks/useStoreConfig';
-import { useAppDispatch } from '~/store/hooks';
-import { addItem, openCart } from '~/store/slices/cartSlice';
+import { useGetCatalogDetailQuery } from '~/state/api/storefront-api';
+import { useStoreConfig } from '~/hooks/use-store-config';
+import { useAppDispatch } from '~/state/hooks';
+import { addItem, openCart } from '~/state/slices/cart-slice';
 import { buildWhatsappUrl, formatCordobas, getProductUrl, productWhatsappMessage } from '~/lib/formatters';
 import type { CatalogProduct } from '@shared/schemas';
 

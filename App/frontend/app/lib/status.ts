@@ -1,11 +1,11 @@
 // Mapas de estado → etiqueta + tono, en un solo lugar.
 //
-// Estaban duplicados en `admin.ventas.tsx`, `PurchasesTable.tsx` y
-// `SaleDetailDrawer.tsx`, con las mismas claves y traducciones. Tres copias
+// Estaban duplicados en `admin.ventas.tsx`, `purchases-table.tsx` y
+// `sale-detail-drawer.tsx`, con las mismas claves y traducciones. Tres copias
 // significan que agregar un estado nuevo al enum de la base obliga a acordarse
 // de tres archivos — y el que se olvide muestra el valor crudo de Postgres al
 // usuario.
-import type { BadgeStatus } from '~/components/ui/StatusBadge';
+import type { BadgeStatus } from '~/components/ui/status-badge';
 
 export interface StatusMeta {
   label: string;

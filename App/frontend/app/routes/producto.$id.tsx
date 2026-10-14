@@ -13,7 +13,7 @@ import { useLoaderData } from '@remix-run/react';
 import { useReducedMotion } from 'framer-motion';
 
 import type { CatalogDetail, CatalogProduct } from '@shared/schemas';
-import { StorefrontShell } from '~/components/layout/storefront-shell';
+import { StorefrontShell } from '~/components/storefront/storefront-shell';
 import { ProductCarousel } from '~/components/product/product-carousel';
 import { ProductDetailTabs } from '~/components/product/product-detail-tabs';
 import { ProductGallery } from '~/components/product/product-gallery';
@@ -29,9 +29,9 @@ import { autoSelection, isConsultOnly, pickableAxes, purchaseState, variantLabel
 import { Badge } from '~/components/ui/badge';
 import { Button } from '~/components/ui/button';
 import { Separator } from '~/components/ui/separator';
-import type { StoreConfig } from '~/store/api/sessionApi';
-import { useAppDispatch } from '~/store/hooks';
-import { addItem, openCart } from '~/store/slices/cartSlice';
+import type { StoreConfig } from '~/state/api/session-api';
+import { useAppDispatch } from '~/state/hooks';
+import { addItem, openCart } from '~/state/slices/cart-slice';
 import { buildWhatsappUrl, formatCordobas, getProductUrl, htmlToText, productWhatsappMessage } from "~/lib/formatters";
 import { trackProductView } from '~/lib/analytics.client';
 

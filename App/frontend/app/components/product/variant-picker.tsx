@@ -7,7 +7,7 @@
 // el estado lo explica y «Cambiar selección» limpia los ejes.
 import type { Availability, CatalogAxis, CatalogVariant } from '@shared/schemas';
 import { Button } from '~/components/ui/button';
-import { isLightSwatch, swatchVar } from '~/lib/productColors';
+import { isLightSwatch, swatchVar } from '~/lib/product-colors';
 import {
   AVAILABILITY_LABEL,
   optionAvailability,

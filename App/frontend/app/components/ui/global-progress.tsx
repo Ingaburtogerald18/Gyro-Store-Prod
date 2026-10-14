@@ -4,7 +4,7 @@ import { useNavigation } from '@remix-run/react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useEffect, useRef, useState } from 'react';
 
-import { useAnyQueryPending } from '~/hooks/useAnyQueryPending';
+import { useAnyQueryPending } from '~/hooks/use-any-query-pending';
 
 /** Por debajo de esto no se muestra nada: la carga se percibe instantánea. */
 const APPEARANCE_DELAY_MS = 150;

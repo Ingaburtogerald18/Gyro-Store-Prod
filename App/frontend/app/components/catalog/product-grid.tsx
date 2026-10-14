@@ -18,21 +18,21 @@ import { PackageSearchIcon, WifiError01Icon } from '@hugeicons/core-free-icons';
 import { Button } from '~/components/ui/button';
 
 import type { CatalogProduct } from '@shared/schemas';
-import type { StoreCategory } from '~/store/api/sessionApi';
+import type { StoreCategory } from '~/state/api/session-api';
 import { ProductCard } from '~/components/product/product-card';
 import { ProductCarousel } from '~/components/product/product-carousel';
 import { Skeleton } from '~/components/ui/skeleton';
-import { isDeal, useCatalogFilter } from '~/hooks/useCatalogFilter';
-import { useSearchTelemetry } from '~/hooks/useSearchTelemetry';
+import { isDeal, useCatalogFilter } from '~/hooks/use-catalog-filter';
+import { useSearchTelemetry } from '~/hooks/use-search-telemetry';
 
-import { useAppDispatch, useAppSelector } from '~/store/hooks';
-import { selectEditMode } from '~/store/slices/authSlice';
-import { filtersClearedAll, searchSet, selectActiveCategory, selectSearch } from '~/store/slices/uiSlice';
-import { findCategory } from '~/lib/catalogQuery';
+import { useAppDispatch, useAppSelector } from '~/state/hooks';
+import { selectEditMode } from '~/state/slices/auth-slice';
+import { filtersClearedAll, searchSet, selectActiveCategory, selectSearch } from '~/state/slices/ui-slice';
+import { findCategory } from '~/lib/catalog-query';
 import { categoryMode } from '@shared/schemas';
-import { selectDraftLandingConfig } from '~/store/slices/builderSlice';
-import { useStoreLanding } from '~/hooks/useStoreConfig';
-import { categoryHref } from '~/components/store/category-nav';
+import { selectDraftLandingConfig } from '~/state/slices/builder-slice';
+import { useStoreLanding } from '~/hooks/use-store-config';
+import { categoryHref } from '~/components/storefront/category-nav';
 
 export { isDeal };
 

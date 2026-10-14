@@ -1,11 +1,11 @@
 // Filtros puestos, para que uno aplicado desde el panel del celular no quede
 // invisible al cerrarlo.
 
-import type { StoreCategory } from '~/store/api/sessionApi';
+import type { StoreCategory } from '~/state/api/session-api';
 import { Button } from '~/components/ui/button';
 import { Chip } from '~/components/ui/chip';
-import { useGetConfigQuery } from '~/store/api/sessionApi';
-import { useAppDispatch, useAppSelector } from '~/store/hooks';
+import { useGetConfigQuery } from '~/state/api/session-api';
+import { useAppDispatch, useAppSelector } from '~/state/hooks';
 import {
   categorySet,
   filtersClearedAll,
@@ -20,9 +20,9 @@ import {
   selectPriceMax,
   selectPriceMin,
   selectSearch,
-} from '~/store/slices/uiSlice';
+} from '~/state/slices/ui-slice';
 import { formatCordobas } from '~/lib/formatters';
-import { findCategory, priceRangeError } from '~/lib/catalogQuery';
+import { findCategory, priceRangeError } from '~/lib/catalog-query';
 
 interface ActiveFilter {
   id: string;

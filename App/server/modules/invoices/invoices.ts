@@ -350,7 +350,7 @@ export async function listInvoices(
  * Nota: solo mira `profiles.roles`. Un correo que hoy es vendedor SOLO por la
  * whitelist de env (`SELLER_EMAILS`) y todavía no tiene fila en `profiles`
  * con ese rol no va a aparecer acá — mismo límite que ya tiene el selector de
- * vendedor de SaleEditor.tsx (`useGetUsersQuery`).
+ * vendedor de sale-editor.tsx (`useGetUsersQuery`).
  *
  * Excepción: el correo protegido (`PROTECTED_ADMIN_EMAIL`) es global_admin
  * SIEMPRE, sin importar lo que diga `profiles.roles` (ver middleware/auth.ts

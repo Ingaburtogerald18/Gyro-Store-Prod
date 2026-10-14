@@ -1,0 +1,361 @@
+// Ventas (Hito 3 admin). Contrato exacto de server/modules/sales/sales-routes.ts — no
+// inventar campos: quote/register devuelven lo que el backend realmente
+// manda (ver server/modules/sales/sales.ts para los shapes de QuoteResult/
+// RegisteredSale/SaleListItem).
+import { baseApi } from './base-api';
+
+export type SaleStatus = 'pending_approval' | 'approved' | 'paid' | 'rejected';
+
+export interface SaleLineInput {
+  productName: string;
+  quantity: number;
+  salePrice: number;
+  applyWholesale?: boolean;
+}
+
+export interface SellableProduct {
+  productName: string;
+  price: number;
+  stock: number;
+  /** Código del primer lote disponible. Se muestra junto al nombre. */
+  code: string | null;
+  /** Todos los códigos con stock: el buscador matchea contra cualquiera. */
+  codes: string[];
+  /** De dónde sale `price`: la variante del catálogo, o el lote si no está vinculado. */
+  priceSource?: 'catalog' | 'lot';
+}
+
+// Los campos financieros son OPCIONALES porque el backend los recorta por rol:
+// un vendedor no recibe costos ni ganancia de tienda (ver modules/sales/sales-routes.ts).
+export interface QuoteLine {
+  productName: string;
+  quantity: number;
+  precioUnit: number;
+  /** Costo de UNA unidad. */
+  costeFinalSnap?: number;
+  /** Costo de todas las unidades. */
+  costoTotal?: number;
+  utilidadBruta?: number;
+  salary?: number;
+  utilidadNeta?: number;
+  comision: number;
+  /** Fracción (0.40 = 40%). Su tramo se busca por la utilidad neta UNITARIA. Solo admin. */
+  comisionPercent?: number;
+  gananciaTienda?: number;
+
+  // La misma cadena por unidad: el desglose muestra las dos columnas.
+  utilidadBrutaUnit?: number;
+  salaryUnit?: number;
+  utilidadNetaUnit?: number;
+  comisionUnit?: number;
+  gananciaTiendaUnit?: number;
+
+  wholesale: { discountPercent: number; warning: boolean };
+  available: number;
+  insufficientStock: boolean;
+  /** Solo admin: al vendedor no le llega (permitiría despejar el costo). */
+  belowMinMargin?: boolean;
+}
+
+export interface QuoteResult {
+  lines: QuoteLine[];
+  total: number;
+  totalComision: number;
+  totalGananciaTienda?: number;
+}
+
+export interface RegisterSaleInput {
+  /** Código impreso de la factura (`GS-PR-12`). El backend también acepta "12". */
+  invoiceNumber?: string | number;
+  customerName?: string;
+  phone?: string;
+  overrideSellerId?: string;
+  overrideSellerName?: string;
+  soldAt?: string;
+  items: SaleLineInput[];
+}
+
+export interface RegisteredSale {
+  id: string;
+  status: string;
+  total: number;
+}
+
+// Edición de una venta ya registrada (PUT /api/sales/:id, solo admin).
+// `reason` es OBLIGATORIO cuando la venta ya salió de `pending_approval`:
+// el backend lo rechaza sin él (server/modules/sales/sales.ts → updateSale).
+export interface UpdateSaleInput {
+  id: string;
+  customerName?: string;
+  phone?: string;
+  overrideSellerId?: string;
+  overrideSellerName?: string;
+  soldAt?: string;
+  items: SaleLineInput[];
+  reason?: string;
+}
+
+/**
+ * Una venta con sus líneas. La devuelve `GET /api/sales/:id`.
+ *
+ * Los campos financieros por línea son OPCIONALES porque el backend los recorta
+ * por rol: un vendedor recibe qué vendió y a cuánto, nunca el costo ni la
+ * ganancia de la tienda.
+ */
+export interface SaleWithItems extends SaleListItem {
+  items: (SaleLineInput & {
+    costeFinalSnap?: number;
+    costoTotal?: number;
+    utilidadBruta?: number;
+    salary?: number;
+    utilidadNeta?: number;
+    comision?: number;
+    /**
+     * Fracción (0.40 = 40%). Solo admin: junto con `comision` deja despejar la
+     * utilidad neta y de ahí el costo, así que filtra lo mismo que el costo.
+     */
+    comisionPercent?: number;
+    gananciaTienda?: number;
+    /** Reparto del Costo F/U de la línea en los 7 pozos (Docs/03-Finanzas.md §2). */
+    pozos?: Record<string, number>;
+    /** Precio bajo el margen mínimo. Solo admin. */
+    belowMinMargin?: boolean;
+
+    // La cadena por unidad: es de donde sale el tramo de comisión.
+    utilidadBrutaUnit?: number;
+    salaryUnit?: number;
+    utilidadNetaUnit?: number;
+    comisionUnit?: number;
+    gananciaTiendaUnit?: number;
+  })[];
+}
+
+export interface SaleListItem {
+  id: string;
+  status: SaleStatus;
+  saleOrigin: string;
+  sellerUid: string | null;
+  sellerEmail: string;
+  /** Nombre registrado en `profiles`. Vacío si nunca se completó el perfil. */
+  sellerName: string;
+  weekOf: string | null;
+  customerName: string | null;
+  phone: string | null;
+  total: number;
+  /** Suma de `order_items.salary` (Fondo de Empresa, 20% de utilidad bruta). Ausente para no-admins. */
+  totalSalary?: number;
+  /** Suma de la comisión de TODAS las líneas de la venta. */
+  totalComision: number;
+  /** Suma de la ganancia de tienda de TODAS las líneas. Ausente para no-admins (dato sensible). */
+  totalGananciaTienda?: number;
+  /** Correlativo de la factura con que se registró la venta. Null si no tiene. */
+  invoiceNumber?: number | null;
+  /** Código legible de esa factura: `GS-PR-12`. Null si no tiene. */
+  invoiceCode?: string | null;
+  /** Costo de envío si la venta tiene factura con delivery. 0 si no tiene. */
+  deliveryFee?: number;
+  createdAt: string;
+  isManualDate?: boolean;
+  /** Alguna línea quedó bajo el margen mínimo. Solo admin. */
+  belowMinMargin?: boolean;
+}
+
+// ── Pago de comisiones ──
+// Un lote de pago es inmutable: registra lo que se entregó. Si después se edita
+// una venta ya pagada, la diferencia va a `balance` y se salda en el próximo
+// corte (ver server/modules/sales/seller-payments.ts).
+
+export interface CommissionPayment {
+  id: string;
+  sellerEmail: string;
+  sellerName: string;
+  orderIds: string[];
+  grossComision: number;
+  /** Ajustes arrastrados de cortes anteriores. */
+  saldoAplicado: number;
+  totalComision: number;
+  isSettlement: boolean;
+  paymentMethod: string;
+  receiptUrl: string | null;
+  noReceiptComment: string | null;
+  createdAt: string;
+}
+
+export interface SellerBalance {
+  sellerEmail: string;
+  sellerName: string;
+  /** >0 la tienda le debe · <0 el vendedor debe devolver */
+  balance: number;
+  count: number;
+}
+
+export interface SellerSummary {
+  pendingApproval: { count: number; comision: number };
+  approvedUnpaid: { count: number; comision: number };
+  paid: { count: number; comision: number };
+  balance: number;
+}
+
+export interface SaleReturn {
+  id: string;
+  orderId: string;
+  productName: string;
+  quantity: number;
+  destination: 'stock' | 'merma';
+  refundAmount: number;
+  comisionBefore: number | null;
+  comisionAfter: number | null;
+  reason: string;
+  createdAt: string;
+}
+
+/** El comprobante se sube antes a `POST /api/upload`; acá viaja como URL. */
+export interface PayoutProof {
+  paymentMethod: 'efectivo' | 'transferencia' | 'tarjeta';
+  receiptUrl?: string;
+  noReceiptComment?: string;
+}
+
+export const salesApi = baseApi.injectEndpoints({
+  endpoints: (build) => ({
+    getSellableProducts: build.query<SellableProduct[], void>({
+      query: () => 'sales/products',
+      providesTags: ['Product'],
+    }),
+    quoteSale: build.mutation<QuoteResult, SaleLineInput[]>({
+      query: (items) => ({ url: 'sales/quote', method: 'POST', body: { items } }),
+    }),
+    registerSale: build.mutation<RegisteredSale, RegisterSaleInput>({
+      query: (body) => ({ url: 'sales', method: 'POST', body }),
+      invalidatesTags: ['Sale', 'Purchase', 'Product', 'Invoice'],
+    }),
+    updateSale: build.mutation<RegisteredSale, UpdateSaleInput>({
+      query: ({ id, ...body }) => ({ url: `sales/${id}`, method: 'PUT', body }),
+      // Editar recalcula el snapshot, mueve reservas de stock y puede sincronizar la factura vinculada.
+      invalidatesTags: ['Sale', 'Purchase', 'Product', 'CommissionPayment', 'Invoice'],
+    }),
+    approveSale: build.mutation<{ ok: boolean }, string>({
+      query: (id) => ({ url: `sales/${id}/approve`, method: 'POST' }),
+      // Aprobar mueve reservado → vendido en los lotes: Inventario tiene que refrescarse.
+      invalidatesTags: ['Sale', 'Purchase', 'Product'],
+      // ── Optimistic update ──
+      // Aprobar es un click sobre una fila que el admin está mirando. Esperar
+      // el round-trip para que la fila cambie de estado hace que el panel se
+      // sienta lento aunque el backend responda rápido. Acá la fila cambia al
+      // instante y, si el servidor rechaza, `undo()` la devuelve exactamente a
+      // donde estaba — no a un estado "refrescado" que podría diferir.
+      async onQueryStarted(id, { dispatch, queryFulfilled }) {
+        const patches = [
+          // La venta desaparece del listado de pendientes…
+          dispatch(
+            salesApi.util.updateQueryData('getSales', { status: 'pending_approval' }, (draft) => {
+              const i = draft.findIndex((s) => s.id === id);
+              if (i !== -1) draft.splice(i, 1);
+            }),
+          ),
+          // …y en "Todas" solo cambia de estado.
+          dispatch(
+            salesApi.util.updateQueryData('getSales', { status: undefined }, (draft) => {
+              const sale = draft.find((s) => s.id === id);
+              if (sale) sale.status = 'approved';
+            }),
+          ),
+        ];
+        try {
+          await queryFulfilled;
+        } catch {
+          patches.forEach((p) => p.undo());
+        }
+      },
+    }),
+    rejectSale: build.mutation<{ ok: boolean }, { id: string; reason: string }>({
+      query: ({ id, reason }) => ({ url: `sales/${id}/reject`, method: 'POST', body: { reason } }),
+      invalidatesTags: ['Sale', 'Purchase', 'Product'],
+    }),
+    getSales: build.query<SaleListItem[], { status?: string; sellerEmail?: string } | void>({
+      query: (params) => ({ url: 'sales', params: params ?? undefined }),
+      providesTags: ['Sale'],
+    }),
+    /** Una venta con sus líneas. Alimenta el drawer de detalle (`?sale=<id>`). */
+    getSale: build.query<SaleWithItems, string>({
+      query: (id) => `sales/${id}`,
+      providesTags: ['Sale'],
+    }),
+
+    // ── Devoluciones (admin, migración 0023) ──
+    getSaleReturns: build.query<SaleReturn[], string>({
+      query: (id) => `sales/${id}/returns`,
+      providesTags: ['Sale'],
+    }),
+    returnSaleLine: build.mutation<
+      SaleReturn,
+      {
+        id: string;
+        body: { productName: string; quantity: number; destination: 'stock' | 'merma'; refundAmount?: number; reason: string };
+      }
+    >({
+      query: ({ id, body }) => ({ url: `sales/${id}/returns`, method: 'POST', body }),
+      invalidatesTags: ['Sale', 'Purchase', 'Product', 'CommissionPayment'],
+    }),
+
+    // ── Comisiones (admin) ──
+    getCommissionPayments: build.query<CommissionPayment[], { sellerEmail?: string } | void>({
+      query: (params) => ({ url: 'sales/payments', params: params ?? undefined }),
+      providesTags: ['CommissionPayment'],
+    }),
+    getSellerBalances: build.query<SellerBalance[], void>({
+      query: () => 'sales/balances',
+      providesTags: ['CommissionPayment'],
+    }),
+    // Mismo shape que `getMySalesSummary`, pero para un vendedor cualquiera
+    // (admin-only). Alimenta el popup "cuánto le debemos" tras aprobar en lote.
+    getSellerSummaryFor: build.query<SellerSummary, string>({
+      query: (sellerEmail) => ({ url: 'sales/summary', params: { sellerEmail } }),
+      providesTags: ['CommissionPayment', 'Sale'],
+    }),
+    payCommissions: build.mutation<
+      CommissionPayment,
+      PayoutProof & { sellerEmail: string; orderIds: string[] }
+    >({
+      query: (body) => ({ url: 'sales/pay', method: 'POST', body }),
+      // Pagar mueve las ventas a 'paid': el listado de ventas también cambia.
+      invalidatesTags: ['CommissionPayment', 'Sale'],
+    }),
+    settleSellerBalance: build.mutation<CommissionPayment, PayoutProof & { sellerEmail: string }>({
+      query: (body) => ({ url: 'sales/settle-balance', method: 'POST', body }),
+      invalidatesTags: ['CommissionPayment'],
+    }),
+
+    // ── Portal del vendedor ──
+    // Sin parámetros a propósito: el backend resuelve el vendedor desde el
+    // token, así que nadie puede pedir el resumen de otro.
+    getMySalesSummary: build.query<SellerSummary, void>({
+      query: () => 'sales/my-summary',
+      providesTags: ['CommissionPayment', 'Sale'],
+    }),
+    getMyCommissionPayments: build.query<CommissionPayment[], void>({
+      query: () => 'sales/my-payments',
+      providesTags: ['CommissionPayment'],
+    }),
+  }),
+});
+
+export const {
+  useGetSellableProductsQuery,
+  useQuoteSaleMutation,
+  useRegisterSaleMutation,
+  useUpdateSaleMutation,
+  useApproveSaleMutation,
+  useRejectSaleMutation,
+  useGetSalesQuery,
+  useGetSaleQuery,
+  useGetCommissionPaymentsQuery,
+  useGetSellerBalancesQuery,
+  useGetSellerSummaryForQuery,
+  usePayCommissionsMutation,
+  useSettleSellerBalanceMutation,
+  useGetMySalesSummaryQuery,
+  useGetMyCommissionPaymentsQuery,
+  useGetSaleReturnsQuery,
+  useReturnSaleLineMutation,
+} = salesApi;

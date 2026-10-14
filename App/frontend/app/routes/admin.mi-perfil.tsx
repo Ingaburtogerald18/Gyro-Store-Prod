@@ -30,18 +30,18 @@ import {
   useUpdateMyProfileMutation,
   useUploadMyAvatarMutation,
   type AppRole,
-} from '~/store/api/usersApi';
+} from '~/state/api/users-api';
 
-import { AvatarPicker } from '~/components/admin/users/AvatarPicker';
-import { ProfileBankFields } from '~/components/admin/users/ProfileBankFields';
+import { AvatarPicker } from '~/components/admin/users/avatar-picker';
+import { ProfileBankFields } from '~/components/admin/users/profile-bank-fields';
 import { EMPTY_PROFILE_FORM, ROLE_LABELS } from '~/components/admin/users/constants';
-import { PageHeader } from '~/components/layout/PageHeader';
+import { PageHeader } from '~/components/admin/page-header';
 import { Badge } from '~/components/ui/badge';
 import { Button } from '~/components/ui/button';
 import { Card, CardContent } from '~/components/ui/card';
 import { Field, FieldError, FieldLabel } from '~/components/ui/field';
 import { Input } from '~/components/ui/input';
-import { QueryState } from '~/components/ui/QueryState';
+import { QueryState } from '~/components/ui/query-state';
 
 export const meta: MetaFunction = () => [{ title: pageTitle('Mi perfil', { admin: true }) }];
 
@@ -233,4 +233,4 @@ export default function AdminMiPerfil() {
 }
 
 // Error dentro de la sección: se muestra en el área de contenido y la barra lateral sigue viva.
-export { AdminRouteError as ErrorBoundary } from '~/components/layout/route-error';
+export { AdminRouteError as ErrorBoundary } from '~/components/route-error';

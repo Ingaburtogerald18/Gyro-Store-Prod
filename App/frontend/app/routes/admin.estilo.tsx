@@ -16,11 +16,11 @@ import {
   Workspace,
   WorkspaceToolbar,
 } from "~/components/admin/workspace";
-import { PageHeader } from "~/components/layout/PageHeader";
+import { PageHeader } from "~/components/admin/page-header";
 import { Button } from "~/components/ui/button";
 import { CodeCell } from "~/components/ui/cells";
 import { Chip } from "~/components/ui/chip";
-import { DataTable } from "~/components/ui/DataTable";
+import { DataTable } from "~/components/ui/data-table";
 import {
   Empty,
   EmptyDescription,
@@ -31,13 +31,13 @@ import {
 import { Field, FieldError, FieldLabel } from "~/components/ui/field";
 import { HugeIcon } from "~/components/ui/icon";
 import { Input } from "~/components/ui/input";
-import { QueryState } from "~/components/ui/QueryState";
+import { QueryState } from "~/components/ui/query-state";
 import { SkeletonTable } from "~/components/ui/skeletons";
-import { StatusBadge } from "~/components/ui/StatusBadge";
+import { StatusBadge } from "~/components/ui/status-badge";
 import { pageTitle } from "~/lib/brand";
 import { formatCordobas } from "~/lib/formatters";
-import { useAppSelector } from "~/store/hooks";
-import { selectIsAdmin } from "~/store/slices/authSlice";
+import { useAppSelector } from "~/state/hooks";
+import { selectIsAdmin } from "~/state/slices/auth-slice";
 
 export const meta: MetaFunction = () => [{ title: pageTitle("Estilo", { admin: true }) }];
 
@@ -337,4 +337,4 @@ export default function AdminEstilo() {
   );
 }
 
-export { AdminRouteError as ErrorBoundary } from "~/components/layout/route-error";
+export { AdminRouteError as ErrorBoundary } from "~/components/route-error";

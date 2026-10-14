@@ -54,9 +54,15 @@ App/
 │   └── utils/
 ├── shared/               esquemas Zod y tipos compartidos con el frontend
 ├── frontend/app/
-│   ├── routes/           páginas de la tienda y del panel (admin.*)
-│   ├── components/       ui/ (piezas base), admin/, store/ (modo edición), catalog/, product/, cart/, layout/
-│   ├── store/            Redux: api/ (RTK Query por dominio) y slices/
+│   ├── routes/           páginas de la tienda y del panel (admin.*); el nombre del archivo es la URL
+│   ├── components/
+│   │   ├── ui/           piezas base (shadcn) y componentes compartidos como data-table y form-layout
+│   │   ├── admin/        el panel, una carpeta por módulo (inventory/, sales/, reports/…)
+│   │   ├── editor/       el modo edición de la tienda
+│   │   ├── storefront/   la cáscara de la tienda pública: header, navegación, footer
+│   │   └── catalog/  product/  cart/   catálogo, ficha de producto y carrito
+│   ├── state/            Redux: store, api/ (RTK Query por dominio), slices/ y la sincronización
+│   │                     con la sesión y el almacenamiento del navegador
 │   ├── lib/  hooks/      lógica y hooks del cliente
 │   └── tailwind.css      paleta y tokens (ver DESIGN.md)
 ├── database/             01_schema.sql, 02_seed.sql, migrations/, historial/

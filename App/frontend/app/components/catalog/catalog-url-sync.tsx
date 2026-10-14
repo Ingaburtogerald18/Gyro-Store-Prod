@@ -1,13 +1,13 @@
 // Sincroniza en los dos sentidos la URL de la home y los filtros del catálogo
-// (contrato en lib/catalogQuery.ts). Un parámetro que falta limpia su filtro.
+// (contrato en lib/catalog-query.ts). Un parámetro que falta limpia su filtro.
 //
 // Sin bucles: cada lado solo escribe si la firma del otro es distinta.
 import { useEffect, useRef } from 'react';
 import { useSearchParams } from '@remix-run/react';
-import type { StoreCategory } from '~/store/api/sessionApi';
-import { useAppDispatch, useAppSelector } from '~/store/hooks';
-import { catalogFiltersApplied, selectCatalogFilters } from '~/store/slices/uiSlice';
-import { filtersKey, parseCatalogParams, writeCatalogParams } from '~/lib/catalogQuery';
+import type { StoreCategory } from '~/state/api/session-api';
+import { useAppDispatch, useAppSelector } from '~/state/hooks';
+import { catalogFiltersApplied, selectCatalogFilters } from '~/state/slices/ui-slice';
+import { filtersKey, parseCatalogParams, writeCatalogParams } from '~/lib/catalog-query';
 
 export function CatalogUrlSync({ categories = [] }: { categories?: StoreCategory[] }) {
   const dispatch = useAppDispatch();

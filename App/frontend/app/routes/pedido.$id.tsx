@@ -14,17 +14,17 @@ import { Link, useParams } from '@remix-run/react';
 import type { LoaderFunctionArgs, MetaFunction } from '@remix-run/node';
 
 import { pageTitle } from '~/lib/brand';
-import { StorefrontShell } from '~/components/layout/storefront-shell';
+import { StorefrontShell } from '~/components/storefront/storefront-shell';
 import { Button } from '~/components/ui/button';
 import { Skeleton } from '~/components/ui/skeleton';
 import { WhatsappIcon } from '~/components/ui/whatsapp-icon';
 import { cn } from '~/lib/utils';
 import { buildWhatsappUrl, formatCordobas, formatLongDate } from '~/lib/formatters';
 import { PUBLIC_ORDER_STEPS, publicOrderStatusLabel } from '~/lib/status';
-import { saveOrder } from '~/lib/orderHistory';
-import { useStoreConfig } from '~/hooks/useStoreConfig';
-import { useGetPublicOrderQuery, type PublicOrderTracking } from '~/store/api/storefrontApi';
-import type { StoreConfig } from '~/store/api/sessionApi';
+import { saveOrder } from '~/lib/order-history';
+import { useStoreConfig } from '~/hooks/use-store-config';
+import { useGetPublicOrderQuery, type PublicOrderTracking } from '~/state/api/storefront-api';
+import type { StoreConfig } from '~/state/api/session-api';
 
 export const meta: MetaFunction = () => [
   { title: pageTitle('Seguimiento de pedido') },

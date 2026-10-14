@@ -16,12 +16,12 @@ import {
 } from '~/components/ui/sheet';
 import { CheckoutPanel } from './checkout-panel';
 import { GyroCartMascot } from './gyro-cart-mascot';
-import { useCartContent } from '~/hooks/useCartContent';
+import { useCartContent } from '~/hooks/use-cart-content';
 import { cn } from '~/lib/utils';
 import { lineCeiling, variantText } from '~/lib/cart';
-import { useMediaQuery } from '~/hooks/useMediaQuery';
-import { useStoreConfig } from '~/hooks/useStoreConfig';
-import { useAppDispatch, useAppSelector } from '~/store/hooks';
+import { useMediaQuery } from '~/hooks/use-media-query';
+import { useStoreConfig } from '~/hooks/use-store-config';
+import { useAppDispatch, useAppSelector } from '~/state/hooks';
 import {
   closeCart,
   lineKey,
@@ -31,10 +31,10 @@ import {
   selectCartOpen,
   selectCartSubtotal,
   setQuantity,
-} from '~/store/slices/cartSlice';
-import type { CreatedPublicOrder } from '~/store/api/storefrontApi';
+} from '~/state/slices/cart-slice';
+import type { CreatedPublicOrder } from '~/state/api/storefront-api';
 import { formatCordobas } from "~/lib/formatters";
-import { selectCheckoutDraft } from '~/store/slices/checkoutSlice';
+import { selectCheckoutDraft } from '~/state/slices/checkout-slice';
 
 type Step = 'cart' | 'checkout';
 

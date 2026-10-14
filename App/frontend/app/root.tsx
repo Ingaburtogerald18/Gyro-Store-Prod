@@ -13,18 +13,18 @@ import {
 } from '@remix-run/react';
 import { useEffect, useState, type ReactNode } from 'react';
 import { Provider } from 'react-redux';
-import { StoreSync } from '~/components/StoreSync';
-import { AuthSync } from '~/components/auth/AuthSync';
+import { StoreSync } from '~/state/store-sync';
+import { AuthSync } from '~/state/auth-sync';
 import { GlobalProgress } from '~/components/ui/global-progress';
 import { TooltipProvider } from '~/components/ui/tooltip';
-import { StorefrontAnalytics } from '~/components/layout/storefront-analytics';
-import { useGetConfigQuery } from '~/store/api/sessionApi';
-import { RouteError } from '~/components/layout/route-error';
+import { StorefrontAnalytics } from '~/components/storefront/storefront-analytics';
+import { useGetConfigQuery } from '~/state/api/session-api';
+import { RouteError } from '~/components/route-error';
 
 import { Toaster } from 'sonner';
-import { createAppStore } from '~/store/store';
-import { useAppDispatch } from '~/store/hooks';
-import { themeSet } from '~/store/slices/uiSlice';
+import { createAppStore } from '~/state/store';
+import { useAppDispatch } from '~/state/hooks';
+import { themeSet } from '~/state/slices/ui-slice';
 import { defaultThemeFor, isTheme, restoreTheme, THEME_INIT_SCRIPT, THEME_STORAGE_KEY } from '~/lib/theme';
 import tailwindHref from './tailwind.css?url';
 import gyroBag from '~/assets/brand/gyro-bag.png';

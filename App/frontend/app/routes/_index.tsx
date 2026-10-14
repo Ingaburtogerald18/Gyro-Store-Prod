@@ -12,10 +12,10 @@ import { FilterBar } from '~/components/catalog/filter-bar';
 import { FilterSheet } from '~/components/catalog/filter-sheet';
 import { Hero } from '~/components/catalog/hero';
 import { ProductGrid } from '~/components/catalog/product-grid';
-import { StorefrontShell } from '~/components/layout/storefront-shell';
-import type { StoreConfig } from '~/store/api/sessionApi';
-import { useAppSelector } from '~/store/hooks';
-import { selectPreviewCatalog } from '~/store/slices/builderSlice';
+import { StorefrontShell } from '~/components/storefront/storefront-shell';
+import type { StoreConfig } from '~/state/api/session-api';
+import { useAppSelector } from '~/state/hooks';
+import { selectPreviewCatalog } from '~/state/slices/builder-slice';
 
 // Catálogo público: 60s fresco + 5min de stale-while-revalidate. El HTML del SSR
 // no contiene nada privado, así que es seguro cachearlo en navegador/CDN.

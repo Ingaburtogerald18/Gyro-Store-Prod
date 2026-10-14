@@ -34,7 +34,7 @@ import {
   WorkspaceToolbar,
   useShortcut,
 } from '~/components/admin/workspace';
-import { PageHeader } from '~/components/layout/PageHeader';
+import { PageHeader } from '~/components/admin/page-header';
 import { Button } from '~/components/ui/button';
 import { Input } from '~/components/ui/input';
 import { Badge } from '~/components/ui/badge';
@@ -46,7 +46,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '~/components/ui/select';
-import { QueryState } from '~/components/ui/QueryState';
+import { QueryState } from '~/components/ui/query-state';
 import { errMsg, formatCordobas, withoutIds, formatLongDate } from '~/lib/formatters';
 import {
   useCancelInstallmentPlanMutation,
@@ -54,8 +54,8 @@ import {
   useGetInstallmentsQuery,
   useRegisterInstallmentPaymentMutation,
   type InstallmentPlan,
-} from '~/store/api/installmentsApi';
-import { useGetSalesQuery, type SaleListItem } from '~/store/api/salesApi';
+} from '~/state/api/installments-api';
+import { useGetSalesQuery, type SaleListItem } from '~/state/api/sales-api';
 import { Spinner } from '~/components/ui/spinner';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -531,4 +531,4 @@ export default function AdminCuotas() {
 }
 
 // Error dentro de la sección: se muestra en el área de contenido y la barra lateral sigue viva.
-export { AdminRouteError as ErrorBoundary } from '~/components/layout/route-error';
+export { AdminRouteError as ErrorBoundary } from '~/components/route-error';

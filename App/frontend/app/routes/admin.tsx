@@ -7,9 +7,9 @@ import { motion, useReducedMotion } from 'framer-motion';
 
 
 
-import { AdminHeader } from '~/components/admin/AdminHeader';
+import { AdminHeader } from '~/components/admin/admin-header';
 import { allowedNavGroups } from '~/lib/admin-navigation';
-import { useLocalPreference } from '~/hooks/useLocalPreference';
+import { useLocalPreference } from '~/hooks/use-local-preference';
 import { isBoolean } from '~/lib/ui-preferences';
 import { Button } from '~/components/ui/button';
 import {
@@ -27,9 +27,9 @@ import {
 } from '~/components/ui/sidebar';
 import gyroBag from '~/assets/brand/gyro-bag.png';
 import { getSupabaseClient, signOut } from '~/lib/supabase.client';
-import { useAppSelector } from '~/store/hooks';
-import { selectIsAdmin, selectIsStaff, selectUser, selectUserPhoto } from '~/store/slices/authSlice';
-import { useGetMeQuery, useGetConfigQuery } from '~/store/api/sessionApi';
+import { useAppSelector } from '~/state/hooks';
+import { selectIsAdmin, selectIsStaff, selectUser, selectUserPhoto } from '~/state/slices/auth-slice';
+import { useGetMeQuery, useGetConfigQuery } from '~/state/api/session-api';
 import { BrandLoader } from '~/components/ui/module-loader';
 import { getBrandName } from '~/lib/brand';
 

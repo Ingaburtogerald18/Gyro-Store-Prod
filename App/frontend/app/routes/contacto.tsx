@@ -12,16 +12,16 @@ import { zodResolver } from '@hookform/resolvers/zod';
 
 import { toast } from 'sonner';
 import { publicContactInputSchema, type PublicContactInput } from '@shared/schemas';
-import { StorefrontShell } from '~/components/layout/storefront-shell';
+import { StorefrontShell } from '~/components/storefront/storefront-shell';
 import { Button } from '~/components/ui/button';
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '~/components/ui/field';
 import { Input } from '~/components/ui/input';
 import { Textarea } from '~/components/ui/textarea';
 
-import { PaymentAccounts } from '~/components/store/payment-accounts';
-import { useSendContactMutation } from '~/store/api/storefrontApi';
-import type { StoreConfig } from '~/store/api/sessionApi';
-import { useStoreConfig } from '~/hooks/useStoreConfig';
+import { PaymentAccounts } from '~/components/storefront/payment-accounts';
+import { useSendContactMutation } from '~/state/api/storefront-api';
+import type { StoreConfig } from '~/state/api/session-api';
+import { useStoreConfig } from '~/hooks/use-store-config';
 
 export const meta: MetaFunction = () => [{ title: pageTitle('Contacto') }];
 

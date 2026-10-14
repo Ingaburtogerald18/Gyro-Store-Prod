@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { CatalogAxis, CatalogVariant } from '@shared/schemas';
 import { autoSelection, optionAvailability, purchaseState } from '../app/lib/purchase';
-import { addItem, cartReducer, lineKey, reviseItem, setQuantity } from '../app/store/slices/cartSlice';
+import { addItem, cartReducer, lineKey, reviseItem, setQuantity } from '../app/state/slices/cart-slice';
 import type { CartItem } from '../app/types/cart';
 
 const axes: CatalogAxis[] = [

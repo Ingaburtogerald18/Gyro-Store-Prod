@@ -14,10 +14,10 @@ import { pageTitle } from '~/lib/brand';
 import { type ColumnDef } from '@tanstack/react-table';
 import { toast } from 'sonner';
 
-import { PageHeader } from '~/components/layout/PageHeader';
+import { PageHeader } from '~/components/admin/page-header';
 import { Button } from '~/components/ui/button';
-import { DataTable } from '~/components/ui/DataTable';
-import { QueryState } from '~/components/ui/QueryState';
+import { DataTable } from '~/components/ui/data-table';
+import { QueryState } from '~/components/ui/query-state';
 import {
   Kbd,
   Metric,
@@ -39,20 +39,20 @@ import { Input } from '~/components/ui/input';
 import { Label } from '~/components/ui/label';
 import { Spinner } from '~/components/ui/spinner';
 import { SkeletonCard } from '~/components/ui/skeletons';
-import { RowActionsMenu } from '~/components/ui/RowActionsMenu';
+import { RowActionsMenu } from '~/components/ui/row-actions-menu';
 import { errMsg, formatCordobas, formatLongDate } from '~/lib/formatters';
 import {
   useDeleteInvoiceMutation,
   useGetInvoicesQuery,
   useVoidInvoiceMutation,
   type Invoice,
-} from '~/store/api/invoicesApi';
-import { TicketPrintModal } from '~/components/admin/invoices/TicketPrintModal';
-import { InvoiceEditDialog } from '~/components/admin/invoices/InvoiceEditDialog';
-import { InvoiceCodeCell } from '~/components/admin/invoices/InvoiceCodeCell';
+} from '~/state/api/invoices-api';
+import { TicketPrintModal } from '~/components/admin/invoices/ticket-print-modal';
+import { InvoiceEditDialog } from '~/components/admin/invoices/invoice-edit-dialog';
+import { InvoiceCodeCell } from '~/components/admin/invoices/invoice-code-cell';
 // 21 KB que se descargaban al abrir Facturación aunque nadie emitiera nada.
 const InvoiceEditor = lazy(() =>
-  import('~/components/admin/invoices/InvoiceEditor').then((m) => ({ default: m.InvoiceEditor })),
+  import('~/components/admin/invoices/invoice-editor').then((m) => ({ default: m.InvoiceEditor })),
 );
 
 export const meta: MetaFunction = () => [{ title: pageTitle('Facturación', { admin: true }) }];
@@ -515,4 +515,4 @@ export default function AdminFacturacion() {
 }
 
 // Error dentro de la sección: se muestra en el área de contenido y la barra lateral sigue viva.
-export { AdminRouteError as ErrorBoundary } from '~/components/layout/route-error';
+export { AdminRouteError as ErrorBoundary } from '~/components/route-error';

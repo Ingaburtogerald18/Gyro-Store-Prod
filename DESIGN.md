@@ -241,7 +241,7 @@ Los dos:
 - Los estilos se escriben una vez, en el componente compartido. Nada de copiar reglas de una pantalla a otra.
 - Comentarios de 1 o 2 líneas, solo para explicar un porqué que no se ve en el código. La historia de un cambio va en el mensaje del commit.
 - Sin código comentado, sin archivos sin usar, sin notas de trabajo en el repositorio.
-- Nombres de archivo en kebab-case en todo el código: `order-lines-editor.tsx`, `cart-storage.ts`, `sales-conversions.ts`.
+- Nombres de archivo en kebab-case en todo el código: `order-lines-editor.tsx`, `cart-storage.ts`, `sales-conversions.ts`. Las rutas de Remix siguen su propia convención (`admin.mis-facturas.tsx`, `producto.$id.tsx`) porque el nombre es la URL.
 - `npm run check` tiene que pasar antes de cada commit.
 
 ## 15. Antes de dar algo por terminado
@@ -262,8 +262,6 @@ Lo que este documento pide y el código todavía no tiene. Cada línea se borra 
 - Reportería: el selector de periodo (`PeriodPicker`) usa pestañas animadas; pasarlo a botones con borde.
 - Contadores animados (`CountUp`) en las métricas del panel: el panel solo mueve el botón principal, bordes y flechas.
 - Comentarios largos: acortar a 1 o 2 líneas los bloques que quedan (unos 340, en casi todos los archivos de `app/`).
-- Renombrar a kebab-case los archivos del frontend que no lo cumplen: el panel (`components/admin`), parte de `ui/`, `lib/`, `hooks/` y `store/`.
-
 ## Registro de decisiones
 
 | Fecha | Decisión |

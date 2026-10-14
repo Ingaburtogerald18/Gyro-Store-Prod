@@ -24,16 +24,12 @@ borra de acá y se describe en el documento que corresponda.
 ## 2. Orden del código
 
 Plan acordado para ordenar el repositorio. Cada paso es un commit que pasa `npm run check` y los tests.
-El servidor ya está ordenado por tema y en kebab-case (ver 02-Arquitectura §3).
+El servidor y el frontend ya están ordenados por tema y en kebab-case (ver 02-Arquitectura §3).
 
-1. **Frontend**: `app/store/` (Redux) pasa a `app/state/` para no confundirse con
-   `components/store/` (modo edición); separar el editor de la tienda pública; mover
-   `ImageUploader` y `ToneDot` a donde se usan; `inventoryV1Api` pasa a `inventoryApi`; nombres en
-   kebab-case (regla de `DESIGN.md`).
-2. **Partir los archivos gigantes**: `shared/schemas.ts` (1600 líneas) en un archivo por tema;
-   después `modules/sales/sales.ts`, `modules/inventory/inventory.ts`, `modules/finance/reports.ts`
-   y `modules/inventory/purchase-orders.ts`.
-3. **Comentarios** de 1 o 2 líneas y sin historia (unos 770 bloques largos). Incluye corregir los
+1. **Partir los archivos gigantes**: `shared/schemas.ts` (1600 líneas) en un archivo por tema;
+   después `modules/sales/sales.ts`, `modules/inventory/inventory.ts`, `modules/finance/reports.ts`,
+   `modules/inventory/purchase-orders.ts` y `components/editor/landing-editor.tsx`.
+2. **Comentarios** de 1 o 2 líneas y sin historia (unos 770 bloques largos). Incluye corregir los
    que dicen algo falso, como el de `lib/brand.ts` que asegura que el servidor exige `BRAND_NAME`.
 
 ## 3. Deuda técnica

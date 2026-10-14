@@ -14,9 +14,9 @@ import { Link } from '@remix-run/react';
 import { toast } from 'sonner';
 
 import { Button } from '~/components/ui/button';
-import { categoryHref } from '~/components/store/category-nav';
-import { useStoreConfig } from '~/hooks/useStoreConfig';
-import { findCategory } from '~/lib/catalogQuery';
+import { categoryHref } from '~/components/storefront/category-nav';
+import { useStoreConfig } from '~/hooks/use-store-config';
+import { findCategory } from '~/lib/catalog-query';
 
 import {
   Breadcrumb,

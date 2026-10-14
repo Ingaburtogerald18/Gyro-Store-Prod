@@ -17,10 +17,10 @@ import type { CatalogProduct } from '@shared/schemas';
 import { Badge } from '~/components/ui/badge';
 import { Button } from '~/components/ui/button';
 import { QuickAddSheet } from '~/components/product/quick-add-sheet';
-import { useStoreConfig } from '~/hooks/useStoreConfig';
+import { useStoreConfig } from '~/hooks/use-store-config';
 import { WhatsappIcon } from '~/components/ui/whatsapp-icon';
-import { useAppDispatch } from '~/store/hooks';
-import { addItem, openCart } from '~/store/slices/cartSlice';
+import { useAppDispatch } from '~/state/hooks';
+import { addItem, openCart } from '~/state/slices/cart-slice';
 import { AVAILABILITY_LABEL } from '~/lib/purchase';
 import { cn } from "~/lib/utils"
 import { buildWhatsappUrl, formatCordobas, getProductUrl, productWhatsappMessage } from "~/lib/formatters";

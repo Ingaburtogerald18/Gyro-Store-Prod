@@ -4,7 +4,7 @@
 // Vive aparte de la UI porque tanto el Dashboard como el panel del vendedor en
 // /admin/ventas necesitan el mismo cálculo, y porque son funciones puras que se
 // pueden razonar (y probar) sin montar un componente.
-import type { TrendBucket } from '~/store/api/reportsApi';
+import type { TrendBucket } from '~/state/api/reports-api';
 
 export type PeriodId = 'today' | '7d' | '30d' | 'month' | 'quarter' | 'year' | 'range';
 

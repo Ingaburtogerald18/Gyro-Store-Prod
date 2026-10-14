@@ -7,7 +7,7 @@ import { toast } from "sonner";
 
 import { Button } from "~/components/ui/button";
 import { getSupabaseClient } from "~/lib/supabase.client";
-import { useGetConfigQuery } from "~/store/api/sessionApi";
+import { useGetConfigQuery } from "~/state/api/session-api";
 import { Spinner } from "~/components/ui/spinner";
 import { getBrandName, pageTitle } from "~/lib/brand";
 

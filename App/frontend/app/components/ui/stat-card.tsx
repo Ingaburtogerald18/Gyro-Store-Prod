@@ -4,7 +4,7 @@ import { motion, useReducedMotion } from "framer-motion";
 import { cn } from "~/lib/utils";
 import type { IconSvgElement } from "@hugeicons/react";
 import { HugeIcon } from "~/components/ui/icon";
-import { CountUp } from "./CountUp";
+import { CountUp } from "./count-up";
 
 export type SpotlightCardVariant = "default" | "interactive" | "highlight";
 
@@ -80,7 +80,7 @@ export function SpotlightCard({
 }
 
 // Acá vivía `SectionHeader`, marcado `@deprecated` a favor de `SectionLabel`
-// (`~/components/layout/SectionLabel`). La migración terminó: no le quedaban
+// (`~/components/admin/section-label`). La migración terminó: no le quedaban
 // consumidores, así que se borró en vez de seguir arrastrando dos primitivas
 // para lo mismo.
 

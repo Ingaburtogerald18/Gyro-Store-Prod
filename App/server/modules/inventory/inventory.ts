@@ -1,7 +1,7 @@
 // Acceso a datos del inventario: CRUD de `purchases` (lotes de compra),
 // recepción de lotes (arrival) y las funciones
 // FIFO (reserveForItems, takeFifo, consumeReservation). Sigue el contrato de
-// frontend/app/store/api/inventoryV1Api.ts, que es lo que de verdad consumen
+// frontend/app/state/api/inventory-api.ts, que es lo que de verdad consumen
 // los componentes reciclados de admin/inventory/ (no inventoryApi.ts, que es
 // un draft sin usar). Usa `db` de supabase.ts y consume costing.ts al recibir
 // una compra para persistir costo real / F-U / coste final.
@@ -19,11 +19,11 @@ import type { LotInfo } from '../catalog/catalog-presenter';
 import { resolveTemplateLink } from '../catalog/template-products';
 
 // ============================================================================
-// ── Tipos (contrato con inventoryV1Api.ts) ──
+// ── Tipos (contrato con inventory-api.ts) ──
 // ============================================================================
 // `PurchaseStatus` real de la DB tiene 3 valores (`purchase_status` enum); el
 // tipo del frontend hoy solo declara 2 (`china`|`received`), un desfase que no
-// toca a este archivo — se corrige cuando se retoque inventoryV1Api.ts.
+// toca a este archivo — se corrige cuando se retoque inventory-api.ts.
 export type PurchaseStatus = 'china' | 'pending' | 'received';
 
 export interface Purchase {

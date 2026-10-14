@@ -15,18 +15,18 @@ import { z } from 'zod';
 import { trackPublicOrderSchema } from '@shared/schemas';
 
 import { pageTitle } from '~/lib/brand';
-import { StorefrontShell } from '~/components/layout/storefront-shell';
+import { StorefrontShell } from '~/components/storefront/storefront-shell';
 import { Button } from '~/components/ui/button';
 import { Field, FieldError, FieldLabel } from '~/components/ui/field';
 import { Input } from '~/components/ui/input';
 import { Skeleton } from '~/components/ui/skeleton';
-import { StatusBadge } from '~/components/ui/StatusBadge';
+import { StatusBadge } from '~/components/ui/status-badge';
 import { formatCordobas, formatLongDate } from '~/lib/formatters';
 import { PUBLIC_ORDER_STATUS, publicOrderStatusLabel, statusMeta } from '~/lib/status';
-import { loadOrders, type SavedOrder } from '~/lib/orderHistory';
-import { useStoreConfig } from '~/hooks/useStoreConfig';
-import { useGetPublicOrderQuery, useTrackPublicOrderMutation } from '~/store/api/storefrontApi';
-import type { StoreConfig } from '~/store/api/sessionApi';
+import { loadOrders, type SavedOrder } from '~/lib/order-history';
+import { useStoreConfig } from '~/hooks/use-store-config';
+import { useGetPublicOrderQuery, useTrackPublicOrderMutation } from '~/state/api/storefront-api';
+import type { StoreConfig } from '~/state/api/session-api';
 
 export const meta: MetaFunction = () => [
   { title: pageTitle('Mis pedidos') },

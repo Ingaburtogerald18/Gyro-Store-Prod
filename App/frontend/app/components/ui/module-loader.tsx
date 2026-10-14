@@ -3,8 +3,8 @@ import { Store01Icon } from "@hugeicons/core-free-icons";
 import { useState, useEffect } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 
-import { useAppSelector } from '~/store/hooks';
-import { useGetConfigQuery } from '~/store/api/configApi';
+import { useAppSelector } from '~/state/hooks';
+import { useGetConfigQuery } from '~/state/api/config-api';
 import { getBrandName } from '~/lib/brand';
 
 /**

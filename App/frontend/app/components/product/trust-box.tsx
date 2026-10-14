@@ -1,6 +1,6 @@
 // Compra con confianza: la información comercial REAL (garantía, pago y
 // entrega), breve, debajo de la ficha. En móvil queda plegada.
-// Los textos salen de lib/storePolicies.ts: no se prometen tarjeta, horarios
+// Los textos salen de lib/store-policies.ts: no se prometen tarjeta, horarios
 // ni coberturas que la tienda no definió.
 import { HugeIcon } from '~/components/ui/icon';
 import {
@@ -11,7 +11,7 @@ import {
   RoadLocation01Icon,
 } from '@hugeicons/core-free-icons';
 import type { IconSvgElement } from '@hugeicons/react';
-import { STORE_POLICIES } from '~/lib/storePolicies';
+import { STORE_POLICIES } from '~/lib/store-policies';
 import { cn } from '~/lib/utils';
 
 const ITEMS: { icon: IconSvgElement; title: string; text: string }[] = [

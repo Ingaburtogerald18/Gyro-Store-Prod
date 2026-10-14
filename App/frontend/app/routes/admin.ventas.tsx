@@ -25,12 +25,12 @@ import { toast } from 'sonner';
 import React from 'react';
 
 
-import { PageHeader } from '~/components/layout/PageHeader';
+import { PageHeader } from '~/components/admin/page-header';
 import { Button } from '~/components/ui/button';
 import { Input } from '~/components/ui/input';
 import { Label } from '~/components/ui/label';
-import { DataTable } from '~/components/ui/DataTable';
-import { QueryState } from '~/components/ui/QueryState';
+import { DataTable } from '~/components/ui/data-table';
+import { QueryState } from '~/components/ui/query-state';
 import { SkeletonCard } from '~/components/ui/skeletons';
 import {
   Dialog,
@@ -39,7 +39,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '~/components/ui/dialog';
-import { StatusBadge } from '~/components/ui/StatusBadge';
+import { StatusBadge } from '~/components/ui/status-badge';
 import { SALE_STATUS, statusMeta } from '~/lib/status';
 import {
   Kbd,
@@ -52,8 +52,8 @@ import {
   WorkspaceToolbar,
   useShortcut,
 } from '~/components/admin/workspace';
-import { useAppSelector } from '~/store/hooks';
-import { selectIsAdmin } from '~/store/slices/authSlice';
+import { useAppSelector } from '~/state/hooks';
+import { selectIsAdmin } from '~/state/slices/auth-slice';
 import { errMsg, formatCordobas, formatLongDate } from '~/lib/formatters';
 import {
   useApproveSaleMutation,
@@ -61,23 +61,23 @@ import {
   useRejectSaleMutation,
   type SaleListItem,
   type SaleWithItems,
-} from '~/store/api/salesApi';
+} from '~/state/api/sales-api';
 import { Spinner } from '~/components/ui/spinner';
 // `SaleEditor` son 22 KB que hoy se descargaban al abrir Ventas aunque nadie
 // registrara nada. Con `lazy` el chunk viaja recién al abrir el diálogo — y
 // para entonces el usuario ya decidió esperar.
 const SaleEditor = lazy(() =>
-  import('~/components/admin/sales/SaleEditor').then((m) => ({ default: m.SaleEditor })),
+  import('~/components/admin/sales/sale-editor').then((m) => ({ default: m.SaleEditor })),
 );
-import { SellerPerformance } from '~/components/admin/sales/SellerPerformance';
-import { SaleDetailDrawer } from '~/components/admin/sales/SaleDetailDrawer';
-import { InvoiceCodeCell } from '~/components/admin/invoices/InvoiceCodeCell';
+import { SellerPerformance } from '~/components/admin/sales/seller-performance';
+import { SaleDetailDrawer } from '~/components/admin/sales/sale-detail-drawer';
+import { InvoiceCodeCell } from '~/components/admin/invoices/invoice-code-cell';
 import {
   SellerPayoutSummaryDialog,
   type PayoutSummaryTarget,
-} from '~/components/admin/sales/SellerPayoutSummaryDialog';
-import { PayCommissionsDialog } from '~/components/admin/sales/PayCommissionsDialog';
-import { CommissionPaymentsDialog } from '~/components/admin/sales/CommissionPaymentsDialog';
+} from '~/components/admin/sales/seller-payout-summary-dialog';
+import { PayCommissionsDialog } from '~/components/admin/sales/pay-commissions-dialog';
+import { CommissionPaymentsDialog } from '~/components/admin/sales/commission-payments-dialog';
 
 export const meta: MetaFunction = () => [{ title: pageTitle('Ventas', { admin: true }) }];
 
@@ -729,4 +729,4 @@ export default function AdminVentas() {
 }
 
 // Error dentro de la sección: se muestra en el área de contenido y la barra lateral sigue viva.
-export { AdminRouteError as ErrorBoundary } from '~/components/layout/route-error';
+export { AdminRouteError as ErrorBoundary } from '~/components/route-error';

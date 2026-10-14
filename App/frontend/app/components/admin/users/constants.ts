@@ -1,7 +1,7 @@
 // Constantes y helpers compartidos por las piezas de la vista de Personal
 // (extraídas de admin.usuarios.tsx). Un solo lugar para el mapa de roles y las
 // utilidades de perfil que consumen la card, el detalle y el hook de acciones.
-import type { AppRole, UserProfile } from "~/store/api/usersApi";
+import type { AppRole, UserProfile } from "~/state/api/users-api";
 import type { UpdateProfileInput } from "@shared/schemas";
 
 export const ROLE_LABELS: Record<AppRole, string> = {

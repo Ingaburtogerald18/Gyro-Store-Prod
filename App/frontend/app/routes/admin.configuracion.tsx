@@ -4,11 +4,11 @@
 import { useState } from 'react';
 import type { MetaFunction } from '@remix-run/node';
 import { pageTitle } from '~/lib/brand';
-import { PageHeader } from '~/components/layout/PageHeader';
+import { PageHeader } from '~/components/admin/page-header';
 import { SegmentedControl } from '~/components/admin/workspace';
-import { GeneralConfig } from '~/components/admin/config/GeneralConfig';
-import { FinanzasConfig } from '~/components/admin/config/FinanzasConfig';
-import { ImagesConfig } from '~/components/admin/config/ImagesConfig';
+import { GeneralConfig } from '~/components/admin/config/general-config';
+import { FinanzasConfig } from '~/components/admin/config/finanzas-config';
+import { ImagesConfig } from '~/components/admin/config/images-config';
 
 // Sin esto la pestaña del navegador mostraba la URL: era la única sección
 // del panel sin título.
@@ -50,4 +50,4 @@ export default function AdminConfiguracion() {
 }
 
 // Error dentro de la sección: se muestra en el área de contenido y la barra lateral sigue viva.
-export { AdminRouteError as ErrorBoundary } from '~/components/layout/route-error';
+export { AdminRouteError as ErrorBoundary } from '~/components/route-error';

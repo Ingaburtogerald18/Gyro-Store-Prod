@@ -14,8 +14,8 @@ import {
   InputGroupButton,
   InputGroupInput,
 } from '~/components/ui/input-group';
-import { useAppDispatch, useAppSelector } from '~/store/hooks';
-import { searchSet, selectSearch } from '~/store/slices/uiSlice';
+import { useAppDispatch, useAppSelector } from '~/state/hooks';
+import { searchSet, selectSearch } from '~/state/slices/ui-slice';
 import { cn } from '~/lib/utils';
 import { useNavigate } from '@remix-run/react';
 
