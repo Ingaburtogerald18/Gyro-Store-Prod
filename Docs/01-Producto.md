@@ -32,10 +32,13 @@ más roles:
 - **Catálogo** en `/catalogo` y una página por categoría en `/categoria/<slug>`, con búsqueda, filtros
   (precio, ofertas, disponibilidad) y orden. Los filtros viven en la URL, así que un link comparte la
   misma vista; los links viejos (`/?categoria=…`, `/?q=…`) redirigen a su página nueva.
+- **Navegación**: en el celular y la tableta, un solo menú (☰) con el catálogo, las categorías, por
+  mayor, ayuda, mis pedidos, contacto y el tema oscuro; el buscador siempre está a la vista.
 - **Ficha de producto** con galería, fotos por color, variantes y estado de stock. Nunca muestra la
   cantidad exacta. Precio de oferta por color cuando hay una activa. «Consultar por WhatsApp» es la
-  acción principal y «Agregar al carrito» la secundaria. La tarjeta del listado no tiene botones: abre
-  la ficha.
+  acción principal y «Agregar al carrito» la secundaria; debajo, el horario de respuesta y un resumen
+  de garantía y entregas. En el celular la foto va primero. La tarjeta del listado muestra las opciones
+  («2 colores · Con micrófono»), el precio y el estado, sin botones: abre la ficha.
 - **Combos** con precio propio y su propia ficha.
 - **«Avisame cuando haya»** en productos agotados o próximos: deja el pedido de aviso en el CRM y el
   equipo escribe cuando llega.

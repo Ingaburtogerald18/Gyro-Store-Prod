@@ -1,5 +1,6 @@
 // Menú del header sobre DropdownMenu de Radix (teclado y foco resueltos). «Menú», no un engranaje:
-// se entiende mejor para quien compra.
+// se entiende mejor para quien compra. Debajo de escritorio lo de compra vive en StoreMenu y acá queda
+// solo lo del personal.
 import { HugeIcon } from "~/components/ui/icon";
 import {
   CustomerSupportIcon,
@@ -26,6 +27,7 @@ import {
 } from "~/components/ui/dropdown-menu";
 import { useAppDispatch, useAppSelector } from "~/state/hooks";
 import { selectAuthStatus, selectIsAdmin, selectEditMode, selectUser, toggleEditMode } from "~/state/slices/auth-slice";
+import { useMediaQuery } from "~/hooks/use-media-query";
 import { useTheme } from "~/hooks/use-theme";
 import { cn } from "~/lib/utils";
 import { signOut } from "~/lib/supabase.client";
@@ -41,6 +43,7 @@ export function HeaderSettingsMenu() {
   const editMode = useAppSelector(selectEditMode);
   const user = useAppSelector(selectUser);
   const location = useLocation();
+  const wide = useMediaQuery("(min-width: 64rem)");
 
   const isHome = location.pathname === "/" && !new URLSearchParams(location.search).has("landing-preview");
   const isAuthed = status === "authenticated";
@@ -57,7 +60,10 @@ export function HeaderSettingsMenu() {
   return (
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger
-        className="store-account-button relative grid size-11 place-items-center rounded-full border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        className={cn(
+          "store-account-button relative size-11 place-items-center rounded-full border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+          isAuthed ? "grid" : "hidden lg:grid",
+        )}
         aria-label={isAuthed ? `Menú de ${firstName}` : "Menú: pedidos, ayuda y apariencia"}
       >
         {isAuthed ? (
@@ -69,50 +75,52 @@ export function HeaderSettingsMenu() {
 
       <DropdownMenuContent align="end" sideOffset={8} className="w-72 max-w-[calc(100vw-1rem)] rounded-2xl border bg-card p-2 shadow-xl">
         {isAuthed && (
-          <>
-            <DropdownMenuLabel className="flex items-center gap-3 px-3 py-2">
-              <span className="grid size-9 shrink-0 place-items-center rounded-full bg-muted text-sm font-semibold" aria-hidden>
-                {initial}
-              </span>
-              <span className="flex min-w-0 flex-col">
-                <span className="truncate text-sm font-medium text-foreground">{firstName}</span>
-                <span className="truncate text-xs font-normal text-muted-foreground">{user?.role ?? "Sesión iniciada"}</span>
-              </span>
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-          </>
+          <DropdownMenuLabel className="flex items-center gap-3 px-3 py-2">
+            <span className="grid size-9 shrink-0 place-items-center rounded-full bg-muted text-sm font-semibold" aria-hidden>
+              {initial}
+            </span>
+            <span className="flex min-w-0 flex-col">
+              <span className="truncate text-sm font-medium text-foreground">{firstName}</span>
+              <span className="truncate text-xs font-normal text-muted-foreground">{user?.role ?? "Sesión iniciada"}</span>
+            </span>
+          </DropdownMenuLabel>
         )}
 
-        <DropdownMenuItem asChild className={ITEM}>
-          <Link to="/mis-pedidos">
-            <HugeIcon icon={PackageIcon} size={18} strokeWidth={2} className="text-muted-foreground" />
-            Mis pedidos
-          </Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild className={ITEM}>
-          <Link to={STORE_PAGES.help}>
-            <HugeIcon icon={CustomerSupportIcon} size={18} strokeWidth={2} className="text-muted-foreground" />
-            Ayuda
-          </Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild className={ITEM}>
-          <Link to={STORE_PAGES.wholesale}>
-            <HugeIcon icon={PackageMovingIcon} size={18} strokeWidth={2} className="text-muted-foreground" />
-            Compras por mayor
-          </Link>
-        </DropdownMenuItem>
+        {wide && (
+          <>
+            {isAuthed && <DropdownMenuSeparator />}
+            <DropdownMenuItem asChild className={ITEM}>
+              <Link to={STORE_PAGES.orders}>
+                <HugeIcon icon={PackageIcon} size={18} strokeWidth={2} className="text-muted-foreground" />
+                Mis pedidos
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild className={ITEM}>
+              <Link to={STORE_PAGES.help}>
+                <HugeIcon icon={CustomerSupportIcon} size={18} strokeWidth={2} className="text-muted-foreground" />
+                Ayuda
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild className={ITEM}>
+              <Link to={STORE_PAGES.wholesale}>
+                <HugeIcon icon={PackageMovingIcon} size={18} strokeWidth={2} className="text-muted-foreground" />
+                Compras por mayor
+              </Link>
+            </DropdownMenuItem>
 
-        {/* Casilla de menú: el estado (activado o no) lo anuncia el lector de
-            pantalla y el ícono coincide siempre con la apariencia aplicada. */}
-        <DropdownMenuCheckboxItem
-          checked={isDark}
-          onCheckedChange={() => toggleTheme()}
-          onSelect={(event) => event.preventDefault()}
-          className={cn(ITEM, "pr-10 pl-3")}
-        >
-          <HugeIcon icon={Moon02Icon} size={18} strokeWidth={2} className="text-muted-foreground" />
-          Tema oscuro
-        </DropdownMenuCheckboxItem>
+            {/* Casilla de menú: el estado (activado o no) lo anuncia el lector de
+                pantalla y el ícono coincide siempre con la apariencia aplicada. */}
+            <DropdownMenuCheckboxItem
+              checked={isDark}
+              onCheckedChange={() => toggleTheme()}
+              onSelect={(event) => event.preventDefault()}
+              className={cn(ITEM, "pr-10 pl-3")}
+            >
+              <HugeIcon icon={Moon02Icon} size={18} strokeWidth={2} className="text-muted-foreground" />
+              Tema oscuro
+            </DropdownMenuCheckboxItem>
+          </>
+        )}
 
         {/* «Acceso del personal» vive en el pie (DESIGN.md §10); con sesión, el menú suma lo del panel. */}
         {isAuthed && (

@@ -211,10 +211,14 @@ Tienda:
 - Nunca se muestra el stock exacto: «Disponible», «Próximamente», «Agotado» o «Consultar disponibilidad».
 - «Próximamente» (sin stock y con una compra en camino) se muestra sin precio. Ni «Próximamente» ni «Agotado» se pueden pedir.
 - En «Agotado» y «Próximamente» la acción principal es «Avisame cuando haya» (nombre y WhatsApp). Entra al CRM como seguimiento; no se mandan mensajes automáticos.
+- Header en el celular y la tableta: ☰ a la izquierda con el único menú (catálogo, categorías con productos, Compras por mayor, Ayuda, Mis pedidos, Contacto y, al final, Tema oscuro), logo y carrito. El buscador siempre a la vista: en el celular, en su propia fila debajo, dentro del header fijo. En escritorio: fila de categorías, buscador, carrito y el menú de pedidos, ayuda y apariencia. Con sesión del personal se suma el avatar con lo del panel.
 - Portada corta, en este orden: Presentación, Destacados, filas por categoría con «Ver todo», Novedades, Cómo comprar y Mayoreo. El catálogo completo vive en `/catalogo` y cada categoría en `/categoria/<slug>`.
 - Ficha de un producto disponible: «Consultar por WhatsApp» (`whatsapp`) es la acción principal y «Agregar al carrito» (`outline`) la secundaria, también en la barra del celular.
-- Tarjeta de producto: foto, nombre, precio y estado, sin botones. Toda la tarjeta abre la ficha.
+- Ficha en el celular: la foto primero y debajo nombre y precio; la descripción completa queda en Detalles. La barra de migas y compartir solo queda fija desde tableta.
+- Junto a los botones de la ficha: el horario en que se responde por WhatsApp y una línea con garantía y entregas que enlaza a las condiciones.
+- Tarjeta de producto: foto, nombre, opciones en una línea («2 colores · Con micrófono»), precio y estado, sin botones. «Disponible» va con su punto teal. Toda la tarjeta abre la ficha.
 - Footer en cuatro grupos: Gyro Store (qué vende y dónde, con datos confirmados, y redes), Comprar, Ayuda y Contacto (WhatsApp, correo, punto de retiro con «Cómo llegar» y horarios). Abajo: ©, Privacidad y Términos cuando estén publicados, el crédito del diseñador chico y en gris, y «Acceso del personal», que sale del menú del header. Alineado a la izquierda y sin desplegables; las explicaciones largas van en Ayuda.
+- Footer en el celular: logo y redes en una fila; Comprar y Ayuda, cada uno en una fila con su título a la izquierda y los enlaces uno al lado del otro (de 44 px de alto), sin las categorías, que ya están en el menú; WhatsApp y correo como dos botones; el horario sin título. En tableta y escritorio, las cuatro columnas.
 
 Los dos:
 - Claro por defecto. Toda pantalla se revisa en claro y en oscuro.
@@ -312,3 +316,4 @@ Lo que este documento pide y el código todavía no tiene. Cada línea se borra 
 | 2026-10-13 | Nombres de archivo en kebab-case en todo el código, también el servidor |
 | 2026-10-13 | La documentación de `Docs/` se junta en pocos documentos al día: los planes y los históricos se integran o se borran, nada queda suelto |
 | 2026-10-14 | Rediseño aprobado de la tienda: portada corta con Presentación fija (el banner principal), Destacados y Novedades sin rotar, conservando los banners existentes; catálogo en `/catalogo` y categorías con página propia; WhatsApp como acción principal en la ficha y el carrito como secundaria; tarjeta de producto sin botones; horarios y políticas en Configuración (pestaña Atención) y Destacados como bloque de Portada, sin tareas nuevas en el modo edición; footer por grupos con el crédito del diseñador chico y el acceso del personal abajo |
+| 2026-10-14 | Tienda en el celular: un solo menú (☰) con categorías, ayuda, pedidos y tema oscuro al final, y el buscador siempre visible; foto primero en la ficha, con horario de respuesta y condiciones junto a los botones; tarjeta con opciones y «Disponible»; footer compacto (opción A) con grupos en fila, sin categorías y WhatsApp y correo como botones. Escritorio sin cambios |

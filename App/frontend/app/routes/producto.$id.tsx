@@ -384,7 +384,7 @@ export default function ProductDetail() {
             {/* Junto a la decisión: cuándo responden y las condiciones en una línea, con el enlace a las completas. */}
             {(config?.businessHours?.length ?? 0) > 0 && (
               <p className="text-xs text-muted-foreground">
-                Te respondemos por WhatsApp: {config?.businessHours?.map((row) => `${row.days} ${row.hours}`).join(' · ')}.
+                Te respondemos por WhatsApp: {config?.businessHours?.map((row) => `${row.days} ${row.hours}`).join(' · ').replace(/\.?$/, '.')}
               </p>
             )}
             {config?.policies && (

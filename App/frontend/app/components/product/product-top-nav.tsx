@@ -1,5 +1,5 @@
-// Barra fija de la ficha bajo el header (57 px): volver al catálogo y las acciones de la ficha.
-// Sin carrito: el header ya tiene uno.
+// Barra de la ficha bajo el header: volver al catálogo y las acciones de la ficha. Sin carrito: el header
+// ya tiene uno. Fija desde tableta; en el celular el header suma el buscador y tres barras no caben.
 import { HugeIcon } from '~/components/ui/icon';
 import { Share01Icon } from '@hugeicons/core-free-icons';
 import { Link } from '@remix-run/react';
@@ -53,7 +53,7 @@ export function ProductTopNav({
   return (
     <nav
       aria-label="Navegación del producto"
-      className="sticky top-[57px] z-30 -mx-4 border-b bg-background px-4"
+      className="z-30 -mx-4 border-b bg-background px-4 md:sticky md:top-[57px]"
     >
       <div className="mx-auto flex h-12 max-w-7xl items-center justify-between">
         <Breadcrumb className="ml-2">

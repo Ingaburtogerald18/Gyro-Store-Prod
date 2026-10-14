@@ -15,15 +15,7 @@ import { cn } from '~/lib/utils';
 import { catalogHref, DEFAULT_FILTERS, isCatalogPath } from '~/lib/catalog-query';
 import { useLocation, useNavigate } from '@remix-run/react';
 
-export function SearchBar({ 
-  className,
-  autoFocus,
-  onBlur 
-}: { 
-  className?: string;
-  autoFocus?: boolean;
-  onBlur?: () => void;
-}) {
+export function SearchBar({ className }: { className?: string }) {
   const dispatch = useAppDispatch();
   const search = useAppSelector(selectSearch);
   const navigate = useNavigate();
@@ -33,8 +25,6 @@ export function SearchBar({
     e.preventDefault();
     // En un listado la URL ya sigue a lo que se escribe (CatalogUrlSync); fuera de él, se va al catálogo.
     if (!isCatalogPath(pathname)) navigate(catalogHref({ ...DEFAULT_FILTERS, search }));
-    // Cerrar el buscador del celular al buscar.
-    if (onBlur) onBlur();
   }
 
   return (
@@ -49,8 +39,6 @@ export function SearchBar({
         inputMode="search"
         value={search}
         onChange={(e) => dispatch(searchSet(e.target.value))}
-        onBlur={onBlur}
-        autoFocus={autoFocus}
         placeholder="Buscar en el catálogo…"
         aria-label="Buscar productos"
         className="text-base md:text-sm [&::-webkit-search-cancel-button]:appearance-none"

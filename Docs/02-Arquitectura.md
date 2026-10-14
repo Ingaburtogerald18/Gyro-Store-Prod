@@ -130,7 +130,12 @@ estado del pedido no los completa y la vista pública solo muestra la fecha de r
 **Buscadores.** `/robots.txt` y `/sitemap.xml` son rutas de Remix (`lib/seo.ts`). Canonical, `og:url`,
 sitemap y robots usan `APP_URL`; un producto o combo pedido con otro slug redirige con 301 a su URL.
 Panel, login y la vista previa del modo edición llevan `noindex` desde `root.tsx`; Mis pedidos y el
-seguimiento, el suyo. Si el catálogo no responde, portada y listados salen con 503 y sin caché.
+seguimiento, el suyo. Si el catálogo no responde, portada y listados salen con 503 y sin caché. Cada
+producto del sitemap lleva `lastmod`: el último cambio del producto o de su plantilla (`updatedAt` del
+catálogo, mantenido por el trigger `set_updated_at`). Los datos estructurados declaran todo nuevo en
+caja (`NewCondition`, confirmado por el dueño); la ficha suma la categoría y la ficha técnica como
+`additionalProperty`, y el negocio va con ciudad y país (Managua, NI), sin calle, y el WhatsApp de
+Configuración como contacto.
 
 **Catálogo.** `/catalogo` y `/categoria/:slug` comparten loader (`lib/catalog-listing.server.ts`) y
 página (`components/catalog/catalog-listing.tsx`). La categoría se resuelve en el servidor: el HTML

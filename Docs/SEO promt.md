@@ -382,7 +382,7 @@ Agrupación aprobada (DESIGN.md, sección 10):
 3. Ayuda: cómo comprar, pagos y entregas, garantía y cambios, mis pedidos y contacto, según contenido publicado.
 4. Contacto: WhatsApp, correo real, punto de retiro con «Cómo llegar» y horarios de atención.
 
-En móvil: Gyro Store y Contacto a todo el ancho, Comprar y Ayuda en dos columnas. Todo alineado a la izquierda (hoy está centrado) y sin desplegables.
+En móvil (decisión del dueño del 14 de octubre de 2026, opción A): Gyro Store y Contacto a todo el ancho; Comprar y Ayuda en una fila cada uno, con los enlaces uno al lado del otro y sin las categorías, que ya están en el menú; WhatsApp y correo como botones. Todo alineado a la izquierda y sin desplegables.
 
 Parte inferior:
 - Privacidad y términos cuando estén aprobados y publicados.

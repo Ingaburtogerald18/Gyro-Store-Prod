@@ -86,7 +86,7 @@ export function InfoPage({ title, intro, trail, children }: { title: string; int
 export function InfoSection({ id, title, level = 2, children }: { id?: string; title: string; level?: 2 | 3; children: ReactNode }) {
   const Heading = level === 3 ? 'h3' : 'h2';
   return (
-    <section id={id} className="scroll-mt-20 space-y-2">
+    <section id={id} className="scroll-mt-32 space-y-2 md:scroll-mt-20">
       <Heading className="text-lg font-semibold text-foreground">{title}</Heading>
       <div className="space-y-2 text-sm leading-relaxed text-muted-foreground">{children}</div>
     </section>
