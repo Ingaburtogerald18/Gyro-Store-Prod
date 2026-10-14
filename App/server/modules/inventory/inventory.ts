@@ -4,12 +4,7 @@ import { round } from '../finance/costing';
 import { isMissingColumn } from '../orders/order-persistence';
 import { fetchAllRows } from '../../utils/fetch-all-rows';
 
-// ============================================================================
-// ── Tipos (contrato con inventory-api.ts) ──
-// ============================================================================
-// `PurchaseStatus` real de la DB tiene 3 valores (`purchase_status` enum); el
-// tipo del frontend hoy solo declara 2 (`china`|`received`), un desfase que no
-// toca a este archivo — se corrige cuando se retoque inventory-api.ts.
+// El enum `purchase_status` tiene 3 valores; el frontend (`inventory-api.ts`) declara 2: falta 'pending'.
 export type PurchaseStatus = 'china' | 'pending' | 'received';
 
 export interface Purchase {
@@ -30,11 +25,11 @@ export interface Purchase {
   quantityReserved: number;
   suggestedPrice: number | null;
   status: PurchaseStatus;
-  /** Producto del catálogo al que pertenece el lote (migración 0022). */
+  /** Producto del catálogo al que pertenece el lote. */
   catalogItemId: string | null;
   /** Variante dentro de ese producto ("Negro / Con micrófono"; '' sin variantes). */
   variantKey: string | null;
-  /** Orden de Alibaba a la que pertenece la línea (migración 0024). */
+  /** Orden de compra a la que pertenece la línea. */
   orderId: string | null;
   /** Lo pedido, cuando llegó otra cantidad (null = llegó lo pedido). */
   quantityOrdered: number | null;
@@ -76,10 +71,6 @@ export interface InventoryKpis {
   totalEnviosUsd: number;
 }
 
-// ============================================================================
-// ── Filas crudas de la DB (snake_case) ──
-// ============================================================================
-
 interface PurchaseRow {
   id: string;
   code: string;
@@ -116,12 +107,10 @@ const PURCHASE_COLUMNS = [
   'costo_f_u', 'coste_final',
 ].join(', ');
 
-// Columnas del vínculo con el catálogo (migración 0022). Mientras la migración
-// no esté aplicada no existen: toda lectura reintenta sin ellas y el módulo
-// sigue funcionando como antes.
+// Columnas del vínculo con el catálogo. Si faltan en la base, la lectura reintenta sin ellas.
 const LINK_COLUMNS = 'catalog_item_id, variant_key';
 const PURCHASE_COLUMNS_LINKED = `${PURCHASE_COLUMNS}, ${LINK_COLUMNS}`;
-// Orden de Alibaba (migración 0024). Mismo criterio: si falta, se lee sin ella.
+// Orden de compra del lote. Si la columna falta en la base, se lee sin ella.
 const ORDER_COLUMNS = 'order_id, quantity_ordered';
 // De la más completa a la más básica: cada migración puede estar o no aplicada.
 const PURCHASE_COLUMN_TIERS = [
@@ -131,13 +120,8 @@ const PURCHASE_COLUMN_TIERS = [
   PURCHASE_COLUMNS,
 ];
 
-// ============================================================================
-// ── Helpers ──
-// ============================================================================
-
-// "YYYY-MM" → [primer día del mes, primer día del mes siguiente). El mes de
-// entrada es 1-based (marzo = "03"); `Date.UTC` lo toma tal cual porque su
-// parámetro de mes es 0-based, así que ya apunta al mes siguiente.
+// "YYYY-MM" → [primer día del mes, primer día del siguiente). El mes 1-based pasado a `Date.UTC`
+// (0-based) ya apunta al mes siguiente.
 function periodRange(period: string): { start: string; end: string } {
   const [yearStr, monthStr] = period.split('-');
   const year = Number(yearStr);
@@ -238,11 +222,8 @@ async function fetchPurchaseRows(period?: string, status?: PurchaseStatus): Prom
 }
 
 /**
- * Los próximos `count` códigos GS-IN-N: siempre el mayor + 1, sin rellenar
- * huecos. El catálogo vincula variantes por código, y reutilizar el de un lote
- * borrado le pasaría su vínculo (y su stock en la tienda) a otro producto.
- * Se leen TODOS los códigos (paginado): con más de 1000 lotes, PostgREST corta
- * la respuesta y el máximo salía mal.
+ * Los próximos códigos GS-IN-N: siempre el mayor + 1, sin rellenar huecos, porque reutilizar el
+ * de un lote borrado le pasaría su vínculo y su stock a otro producto. Se leen paginados.
  */
 export async function nextPurchaseCodes(count: number): Promise<string[]> {
   const rows = await fetchAllRows<{ code: string }>((from, to) =>
@@ -254,10 +235,6 @@ export async function nextPurchaseCodes(count: number): Promise<string[]> {
     .reduce((max, n) => Math.max(max, n), 0);
   return Array.from({ length: count }, (_, i) => `GS-IN-${maxUsed + 1 + i}`);
 }
-
-// ============================================================================
-// ── Lectura (purchases) ──
-// ============================================================================
 
 export async function getPurchases(period?: string): Promise<Purchase[]> {
   const rows = await fetchPurchaseRows(period);
@@ -274,9 +251,8 @@ export async function getCurrentInventory(period?: string): Promise<InventoryRow
   return rows.map(toInventoryRow);
 }
 
-// A diferencia de getCurrentInventory (todo lo recibido, para el listado
-// completo del panel), esto filtra a lo que de verdad queda disponible: es lo
-// que alimentará el selector de productos de una venta.
+// Solo lo que queda disponible (getCurrentInventory trae todo lo recibido): alimenta el selector
+// de productos de una venta.
 export async function getAvailableInventory(): Promise<InventoryRow[]> {
   const rows = await fetchPurchaseRows(undefined, 'received');
   return rows

@@ -1,11 +1,5 @@
-// Presentador del catálogo público: fila de base → objeto listo para pintar.
-//
-// Vive en el servidor a propósito: resolver variantes y sumar stock por lote
-// necesita datos que el navegador no debe ver.
-//
-// La fila cruda ya viene validada contra `publicCatalogItemSchema`, así que acá
-// solo se normaliza. Los campos jsonb (`images`, `axis_options`, template.axes)
-// son opacos en el contrato: se leen de forma tolerante y nunca tiran excepción.
+// Presentador del catálogo público: fila de la base → objeto listo para pintar. Vive en el servidor
+// porque resolver variantes y stock necesita datos que el navegador no debe ver.
 import type {
   Availability,
   CatalogDetail,
@@ -16,9 +10,7 @@ import type {
   VariantMapping,
 } from '../../../shared/schemas';
 
-// Forma canónica de un eje, ya normalizada desde cualquiera de las variantes de
-// jsonb que puede traer el template. `label` es lo que ve el cliente ("Tipo de
-// conector"); `key` es el id interno con el que `axis_options` lo referencia.
+// Eje normalizado: `label` lo ve el cliente; `key` es el id con que lo referencia `axis_options`.
 export interface Axis {
   key: string;
   label: string;
@@ -31,11 +23,7 @@ function asStringArray(value: unknown): string[] {
   return value.filter((v): v is string => typeof v === 'string' && v.length > 0);
 }
 
-// `template.axes` es jsonb opaco y admite dos formas en el proyecto:
-//   · array  (v1):  [{ key, label, options, isColor }]
-//   · record (v2):  { color: ['negro', ...] }  — la que usa el seed de dev
-// Se soportan ambas para que la migración de datos de v1 no rompa nada, y para
-// que el panel del Hito 2 pueda fijar una sin tocar este archivo.
+// `template.axes` admite dos formas: array [{ key, label, options, isColor }] o record { color: [...] }.
 export function normalizeAxes(axes: unknown): Axis[] {
   if (Array.isArray(axes)) {
     return axes.flatMap((raw) => {
@@ -63,9 +51,7 @@ export function normalizeAxes(axes: unknown): Axis[] {
   return [];
 }
 
-// Opciones que ESTE producto ofrece de un eje: `axis_options` puede recortar el
-// catálogo de opciones del template (ej. el template tiene 5 colores, el ítem
-// vende 2). Sin recorte, se ofrecen todas.
+// Opciones que ofrece este producto: `axis_options` puede recortar las de la plantilla.
 export function includedOptions(item: PublicCatalogItem, axis: Axis): string[] {
   const selected = asStringArray(
     (item.axis_options as Record<string, unknown> | null)?.[axis.key],
@@ -127,12 +113,8 @@ export function normalizeSpecs(value: unknown): SpecRow[] {
   return [];
 }
 
-// ── Vínculo con bodega ──
-//
-// `variant_mappings` es jsonb opaco: { "Negro / Con micrófono": { codes: [...],
-// price?: 390, promoPrice?: 350 } }. Se lee tolerando la forma vieja de v1
-// (`skus`/`sku`, cuando el vínculo era contra un SKU compartido) para que los
-// datos migrados no se pierdan en silencio.
+// ── Vínculo con bodega ── `variant_mappings`: { "Negro / Con micrófono": { codes, price?, promoPrice? } }.
+// Se tolera la forma vieja (`skus`/`sku`) para que esos datos no se pierdan en silencio.
 function readMapping(raw: unknown): VariantMapping | null {
   if (!raw || typeof raw !== 'object') return null;
   const entry = raw as Record<string, unknown>;
@@ -161,9 +143,8 @@ export function mappingsOf(item: Pick<PublicCatalogItem, 'variant_mappings'>): M
   return out;
 }
 
-// Todos los códigos de lote que un ítem referencia. La ruta los junta de varios
-// ítems para pedir la disponibilidad a bodega en UNA sola consulta, en vez de
-// una por producto (N+1).
+// Todos los códigos de lote de un ítem: la ruta los junta para pedir la disponibilidad
+// en una sola consulta en vez de una por producto.
 export function collectMappedCodes(item: Pick<PublicCatalogItem, 'variant_mappings'>): string[] {
   return [...mappingsOf(item).values()].flatMap((m) => m.codes);
 }
@@ -174,9 +155,8 @@ export function colorOfCombo(axes: Axis[], axisValues: string[]): string {
   return index >= 0 ? (axisValues[index] ?? '') : '';
 }
 
-// Producto cartesiano de las opciones OFRECIDAS, en el orden de los ejes. El
-// orden importa: el nombre resultante ("Negro / Con micrófono") es la llave
-// exacta con la que el editor guardó el mapeo.
+// Producto cartesiano de las opciones ofrecidas, en el orden de los ejes: el nombre resultante
+// ("Negro / Con micrófono") es la llave exacta del mapeo.
 function buildCombinations(item: PublicCatalogItem, axes: Axis[]): string[][] {
   let combos: string[][] = [[]];
   for (const axis of axes) {
@@ -189,21 +169,8 @@ function buildCombinations(item: PublicCatalogItem, axes: Axis[]): string[][] {
   return combos;
 }
 
-// ── Precio ──
-//
-// Una sola regla para la tarjeta, la ficha, el selector rápido y el pedido:
-//   1. Precio regular de la variante: el de venta del lote de bodega que toca
-//      (`lotPrice`). Los lotes viejos sin precio usan el del catálogo: el de la
-//      variante (`mapping.price`) o el del producto (`base_price` con oferta
-//      activa — ahí `price` es el de oferta —; `price` sin oferta, con
-//      `base_price` de respaldo).
-//   2. Oferta vigente: la del color (`offerPrice`, Stock actual). Las
-//      promociones viejas del catálogo (`mapping.promoPrice`, `price` con
-//      `is_promo`) solo cuentan con el precio del catálogo, no con el de bodega.
-//      Solo cuenta si es > 0 y menor que el regular: una «oferta» que no
-//      rebaja no se anuncia.
-//   3. Sin promoción, un `base_price` mayor al regular sigue funcionando como
-//      precio «antes» (comportamiento previo del panel).
+// ── Precio ── Una regla para tarjeta, ficha y pedido: precio del lote (o del catálogo si el lote
+// no tiene); la oferta por color solo cuenta si rebaja. Detalle en Docs/03-Finanzas.md §3.
 export interface ResolvedPrice {
   price: number;
   compareAtPrice?: number;
@@ -237,10 +204,7 @@ export function resolveVariantPrice(
   return { price: regular, ...(compareAtPrice ? { compareAtPrice } : {}), isPromo: false };
 }
 
-// ── Disponibilidad ──
-//
-// Lote de bodega visto por la tienda (getLotsByCodes). Un número suelto es solo
-// lo disponible del lote, sin estado ni precio.
+// ── Disponibilidad ── Lote visto por la tienda; un número suelto es solo lo disponible.
 export interface LotInfo {
   available: number;
   inTransit: boolean;
@@ -252,13 +216,8 @@ export type StockByCode = ReadonlyMap<string, number | LotInfo>;
 /** Ofertas vigentes de un producto: color → precio de oferta. */
 export type ColorOffers = ReadonlyMap<string, number>;
 
-// Stock real de una variante: suma de lo disponible en los lotes vinculados.
-//   · Sin vínculo con bodega → 'unknown': no se sabe, y no se inventa una
-//     unidad para poder venderla (antes se mostraba stock 1).
-//   · Sin unidades y con una compra en camino → 'coming_soon'.
-//   · Vinculada y sin unidades → 'sold_out'.
-// `lotPrice` es el precio de venta del lote más viejo con unidades (el que
-// descuenta la próxima venta); agotada, el del último lote recibido.
+// Sin vínculo con bodega → 'unknown' (no se inventa stock); sin unidades y con compra en camino →
+// 'coming_soon'. `lotPrice` es el del lote más viejo con unidades (el que descuenta la próxima venta).
 export function resolveAvailability(
   mapping: Pick<VariantMapping, 'codes'> | undefined,
   stockByCode: StockByCode,
@@ -356,11 +315,8 @@ export function summarizeVariants(variants: CatalogVariant[]): VariantSummary {
   };
 }
 
-// Detalle: lo mismo que el listado + los ejes resueltos (para el selector de
-// opciones) y las variantes con su precio y stock ya calculados.
-//
-// Los códigos de lote NO salen al cable: son datos internos de bodega y el
-// cliente no necesita saber de qué lote sale su pedido.
+// Detalle: el listado más ejes y variantes con precio y stock. Los códigos de lote no salen al
+// cliente: son datos internos de bodega.
 export function toCatalogDetail(
   item: PublicCatalogItem,
   stockByCode: StockByCode = new Map(),

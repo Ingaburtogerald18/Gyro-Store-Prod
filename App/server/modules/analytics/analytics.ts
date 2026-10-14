@@ -15,15 +15,11 @@ export interface IngestEvent {
   payload?: Record<string, unknown>;
 }
 
-// Techo de filas por consulta de dashboard: evita que un rango enorme traiga
-// millones de filas a memoria. A la escala de la tienda no se alcanza; si algún
-// día se acerca, es la señal para pasar a rollups agregados (ver nota en 0005).
+// Techo de filas por consulta para no traer millones a memoria.
+// Si el volumen se acerca, hay que pasar a tablas de resumen.
 const QUERY_ROW_CAP = 100_000;
 
-// Filtro de bots por user-agent. No pretende ser exhaustivo (eso es una carrera
-// perdida); corta el ruido obvio de crawlers para que las visitas reflejen
-// personas. El cliente además solo emite con consentimiento y con JS activo, así
-// que la mayoría de los bots ni llegan acá.
+// Filtro de bots por user-agent: no es exhaustivo, corta el ruido obvio de crawlers.
 const BOT_RE =
   /bot|crawler|spider|crawling|slurp|bingpreview|facebookexternalhit|whatsapp|telegrambot|preview|headless|lighthouse|pingdom|monitor|curl|wget|python-requests|axios|go-http|semrush|ahrefs|dataprovider|screaming/i;
 

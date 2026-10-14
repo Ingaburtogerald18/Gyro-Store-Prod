@@ -88,16 +88,8 @@ export async function registerSale(
     if (itemsError) throw itemsError;
     if (!invItems || invItems.length === 0) throw new BadRequestError('La factura no tiene productos.');
 
-    // ── El descuento de la factura se PRORRATEA sobre las líneas ──
-    // El cliente pagó menos, así que el precio efectivo de cada unidad es menor.
-    // Bajarlo acá — antes de `computeOrderLineSnapshot` — hace que TODA la
-    // cadena financiera (utilidad bruta → salary → utilidad neta → comisión →
-    // ganancia tienda) se recalcule sobre lo realmente cobrado, sin tocar
-    // `commission.ts`. Si no se prorratea, la tienda paga comisión sobre plata
-    // que nunca entró.
-    //
-    // Se reparte proporcional al peso de cada línea: una línea que es el 70% del
-    // subtotal absorbe el 70% del descuento.
+    // El descuento de la factura se prorratea sobre las líneas, proporcional a su peso: así toda la
+    // cadena (y la comisión) se calcula sobre lo cobrado de verdad.
     const rawSubtotal = round(
       invItems.reduce((sum, it) => sum + it.quantity * (it.unit_price ?? 0), 0),
       2,
@@ -116,9 +108,7 @@ export async function registerSale(
     }));
   }
 
-  // Precio final por línea (con mayoreo ya aplicado si corresponde): es lo
-  // que se congela en order_items.precio_unit y lo que usa la cadena de
-  // comisión al aprobar — el mayoreo no se vuelve a evaluar después.
+  // Precio final por línea: es el que se congela en `order_items.precio_unit`.
   const pricedLines = finalItems.map((item) => {
     const estimate = estimateLineCost(item.productName, item.quantity, availableRows);
     const snapshot = computeOrderLineSnapshot(
@@ -136,15 +126,7 @@ export async function registerSale(
     return { productName: item.productName, quantity: item.quantity, precioUnit: snapshot.precioUnit, snapshot };
   });
 
-  // Si la venta viene de una factura, el total es EL DE LA FACTURA: es lo que el
-  // cliente pagó de verdad, con el descuento ya aplicado. Antes se recalculaba
-  // sumando las líneas, así que una venta con código de descuento quedaba
-  // registrada por el importe SIN descontar y descuadraba contra `invoices` y
-  // contra el arqueo de caja.
-  //
-  // La comisión ya viene descontada: `finalItems` trae los precios con el
-  // descuento prorrateado, así que `precio_unit` — que es lo que usa
-  // `approveSale` para la cadena de comisión — ya refleja lo cobrado.
+  // Si viene de una factura, el total es el de la factura: lo que el cliente pagó, con descuento.
   const linesTotal = round(
     pricedLines.reduce((sum, line) => sum + line.precioUnit * line.quantity, 0),
     2,
@@ -153,15 +135,8 @@ export async function registerSale(
 
   const contactId = await resolveContact(finalCustomerName, finalPhone);
 
-  // ── A nombre de quién queda la venta ──
-  // Por defecto, quien la está registrando. PERO si la venta nace de una factura
-  // que Caja emitió a nombre de un vendedor, manda ESE vendedor: el ticket de
-  // papel ya dice de quién es la venta y a quién se le debe la comisión.
-  //
-  // Antes `invoices.seller_uid` se ignoraba acá y la venta quedaba siempre a
-  // nombre de quien la tipeaba. Como los admin registran facturas ajenas (el
-  // vendedor no siempre entra al sistema), la venta —y la comisión— terminaban
-  // acreditadas al admin, en silencio y sin que nadie tocara nada.
+  // La venta queda a nombre de quien la registra, salvo que venga de una factura asignada a un
+  // vendedor: manda ese, porque el ticket ya dice de quién es la comisión.
   let finalSellerUid: string | null = seller.uid;
   let finalSellerEmail: string = seller.email;
 
@@ -172,21 +147,15 @@ export async function registerSale(
       .eq('id', invoiceSellerUid)
       .maybeSingle();
 
-    // La FK de `invoices.seller_uid` es `on delete set null`, así que un uid
-    // asignado siempre tiene perfil. Si aun así no aparece, se corta: caer al
-    // usuario actual sería exactamente el bug que este bloque arregla.
+    // Si el vendedor de la factura no aparece se corta: caer al usuario actual le daría la comisión a otro.
     if (!invoiceSeller?.email) {
       throw new BadRequestError(
         'No se pudo resolver el vendedor asignado a esta factura. Revisá su perfil antes de registrar la venta.',
       );
     }
 
-    // Un override que CONTRADICE a la factura se rechaza en vez de ignorarse en
-    // silencio: el editor ya muestra (y bloquea) el vendedor de la factura, así
-    // que esto solo llega desde la API directa o un formulario desactualizado.
-    // Para arreglar una factura mal asignada se edita la venta ya registrada,
-    // que exige motivo y queda asentado — cambiar el dueño de una comisión no
-    // debería poder hacerse sin dejar rastro.
+    // Un vendedor que contradice a la factura se rechaza: cambiar el dueño de una comisión se hace
+    // editando la venta, que pide motivo y deja rastro.
     const overrideContradiceFactura =
       (!!input.overrideSellerId && input.overrideSellerId !== invoiceSellerUid) ||
       !!input.overrideSellerName;
@@ -241,12 +210,7 @@ export async function registerSale(
         sku: line.productName,
         quantity: line.quantity,
         precio_unit: line.precioUnit,
-        // Snapshot financiero ESTIMADO (costo FIFO estimado sobre el stock
-        // disponible). Deja ver la comisión apenas se registra, sin esperar la
-        // aprobación — es lo que el vendedor/admin necesita para decidir.
-        // `approveSale` lo RE-CONGELA con el costo real de los lotes consumidos
-        // (Docs/03-Finanzas.md, regla de oro): el pago siempre sale de esos valores finales,
-        // nunca de este estimado.
+        // Snapshot estimado para ver la comisión apenas se registra; approveSale lo re-congela con el costo real.
         coste_final_snap: line.snapshot.costeFinalSnap,
         utilidad_bruta: line.snapshot.utilidadBruta,
         salary: line.snapshot.salary,
@@ -266,9 +230,7 @@ export async function registerSale(
 
     if (invoiceIdToLink) await attachInvoiceToSale(invoiceIdToLink, order.id);
   } catch (err) {
-    // reserveForItems ya se compensa a sí misma si falla a mitad de camino;
-    // esto cubre que haya fallado el insert de order_items o el ligado de la
-    // factura. La factura vuelve a quedar libre: el ticket sigue siendo válido.
+    // Cubre fallas después de reservar (insert de líneas o ligado de factura); la factura queda libre.
     await releaseReservations(order.id);
     await db.from('orders').delete().eq('id', order.id);
     if (invoiceIdToLink) await releaseInvoiceClaim(invoiceIdToLink);

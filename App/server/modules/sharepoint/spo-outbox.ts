@@ -1,21 +1,10 @@
-// Encolado en el outbox de SharePoint. Vive aparte del worker a propósito:
-// `modules/sales/sales-approval.ts` solo necesita ESTO (un insert de una fila), y no tiene por
-// qué arrastrar pdf-lib ni el cliente de Graph en su árbol de imports.
+// Aparte del worker para que aprobar una venta no cargue pdf-lib ni el cliente de Graph.
 import { db } from '../../core/supabase';
 import { logger } from '../../utils/logger';
 
 /**
- * Encola una venta aprobada para espejarla en SharePoint.
- *
- * BEST-EFFORT y por diseño: nunca lanza. Aprobar una venta consume stock y
- * congela comisiones; que el espejo de SharePoint no se pueda encolar no es
- * motivo para tumbar esa operación ni para mostrarle un error a quien aprobó.
- * Si esto falla, lo peor que pasa es que esa venta no aparezca en la Lista, y eso
- * queda en el log.
- *
- * Idempotente: `spo_outbox.order_id` es UNIQUE y acá se ignora el conflicto. Una
- * venta re-aprobada (editar una venta ya aprobada la vuelve a pasar por
- * `approveSale`) NO genera una segunda fila.
+ * Nunca lanza: aprobar no se cae porque falle el encolado (queda en el log). `order_id` es único,
+ * así que una venta re-aprobada no genera otra fila.
  */
 export async function enqueueApprovedSale(orderId: string): Promise<void> {
   try {
@@ -24,8 +13,7 @@ export async function enqueueApprovedSale(orderId: string): Promise<void> {
       .upsert({ order_id: orderId }, { onConflict: 'order_id', ignoreDuplicates: true });
 
     if (error) {
-      // Incluye el caso "la migración 0010 todavía no se aplicó": la app tiene
-      // que seguir vendiendo igual, con un aviso en el log y nada más.
+      // Incluye que falte la tabla: la app sigue vendiendo con un aviso en el log.
       logger.warn('[spo] No se pudo encolar la venta para SharePoint', {
         orderId,
         message: error.message,

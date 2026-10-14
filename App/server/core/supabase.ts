@@ -1,6 +1,4 @@
-// Cliente de Supabase del lado servidor, con la `service_role key`.
-// Es el equivalente al Admin SDK de la v1: IGNORA las RLS (que están en deny-all).
-// Regla dura: este cliente SOLO existe en el backend. Nunca en el frontend.
+// Cliente con la service_role: ignora las RLS, así que existe solo en el backend.
 import { createClient } from '@supabase/supabase-js';
 import * as jose from 'jose';
 import { config } from './config';
@@ -15,9 +13,7 @@ export const db = createClient(config.supabaseUrl, config.supabaseServiceRoleKey
 
 const jwtSecret = new TextEncoder().encode(process.env.SUPABASE_JWT_SECRET || '');
 
-// Verifica un JWT de Supabase (emitido tras el login con Entra).
-// Intenta verificar la firma localmente con jose para evitar el round-trip.
-// Si falla, hace fallback a db.auth.getUser(token).
+// Verifica la firma localmente si hay SUPABASE_JWT_SECRET; si no, le pregunta a Supabase.
 export async function getUserFromToken(token: string) {
   if (jwtSecret.length > 0) {
     try {

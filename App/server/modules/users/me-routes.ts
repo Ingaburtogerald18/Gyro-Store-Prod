@@ -1,17 +1,5 @@
-// Perfil PROPIO de quien está autenticado (self-service, cualquier rol).
-//
-// ── Por qué existe separado de /api/admin/users ──
-// Personal es un módulo de administración: sus endpoints son `requireAdmin` y
-// reciben el id de la fila a tocar por la URL. Un vendedor que quiere corregir su
-// teléfono no necesita —ni debe tener— permiso para editar filas ajenas, así que
-// acá el id NO se acepta del cliente: sale de `req.user.uid`, que lo puso el
-// middleware al verificar el JWT. No hay parámetro que manipular.
-//
-// Lo que este router NO puede cambiar, por diseño: `roles`, `status`,
-// `deleted_at`, `id` y el correo corporativo. Los tres primeros son
-// administración (los sigue manejando un admin desde Personal) y el correo lo
-// administra Entra ID. `updateProfileSchema` ni los declara, y al ser un objeto
-// no-estricto zod los descarta en silencio si vienen en el body.
+// Perfil propio, cualquier rol. El id sale del token, no del cliente: nadie edita filas ajenas.
+// Roles, estado y correo no se cambian acá (updateProfileSchema ni los declara).
 import { Router } from 'express';
 import multer from 'multer';
 import crypto from 'crypto';
@@ -24,9 +12,7 @@ import { logger } from '../../utils/logger';
 
 const router = Router();
 
-// La cuenta bancaria SÍ va acá (a diferencia de /api/staff/directory): es la
-// propia, y es justamente el dato que la persona viene a cargar. `roles` viaja
-// para pintar su rol de solo lectura en la pantalla.
+// La cuenta bancaria sí va acá (no en el directorio): es la propia. `roles` es para mostrarlo.
 const SELF_COLUMNS =
   'id, email, name, avatar_url, roles, status, deleted_at, created_at, phone, personal_email, bank_account';
 
@@ -43,12 +29,7 @@ const upload = multer({
   },
 });
 
-/**
- * Traduce los rechazos de multer (archivo enorme, no es imagen) a un 400 con el
- * motivo. Sin esto caen en el `else` del errorHandler como 500 "error inesperado",
- * que para un límite de tamaño es mentira: el problema lo puede resolver quien
- * sube, y necesita saber cuál es.
- */
+/** Los rechazos de multer salen como 400 con el motivo: quien sube lo puede resolver. */
 const acceptAvatarFile: import('express').RequestHandler = (req, res, next) => {
   upload.single('file')(req, res, (err: any) => {
     if (!err) return next();
@@ -96,9 +77,7 @@ router.patch(
     const uid = req.user!.uid;
     const input = updateProfileSchema.parse(req.body);
 
-    // El string vacío significa "borrar el dato", no "no tocar": se guarda como
-    // NULL para que la columna quede realmente vacía y no con un '' que después
-    // se muestra como si hubiera algo.
+    // Vacío significa «borrar el dato»: se guarda NULL.
     const blankToNull = (v: string | undefined) => (v === undefined || v === '' ? null : v);
 
     const patch: Record<string, unknown> = {
@@ -141,10 +120,8 @@ router.post(
 
     const optimized = await optimizeImageBuffer(req.file.buffer);
 
-    // Nombre por hash del contenido, prefijado con el uid: re-subir la misma foto
-    // devuelve la misma URL en vez de duplicar el objeto en R2, y el prefijo evita
-    // que dos personas con la misma imagen compartan archivo (borrar la de una
-    // dejaría a la otra sin foto).
+    // Nombre por hash del contenido con el uid como prefijo: la misma foto da la misma URL, y dos
+    // personas con la misma imagen no comparten archivo.
     const hash = crypto.createHash('sha256').update(optimized.buffer).digest('hex').slice(0, 16);
     const ext =
       optimized.ext ||
@@ -176,10 +153,7 @@ router.post(
     if (error) throw error;
     invalidateProfileCache(uid);
 
-    // Se borra la anterior DESPUÉS de que la nueva quedó guardada, y solo si es
-    // otra: subir dos veces la misma imagen produce la misma URL (hash), y borrar
-    // "la vieja" ahí sería borrar la que se acaba de guardar. `deleteFileByUrl`
-    // ignora las URLs que no son de nuestro bucket.
+    // Se borra la anterior después de guardar la nueva y solo si es otra: la misma foto da la misma URL.
     if (previous && previous !== url) await deleteFileByUrl(previous);
 
     res.json({ avatar_url: url });

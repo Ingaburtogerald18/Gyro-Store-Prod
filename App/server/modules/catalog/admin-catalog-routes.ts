@@ -31,9 +31,7 @@ router.use((req, res, next) =>
 // error 500 de Postgres.
 const idSchema = z.uuid();
 
-// ==========================================
-// RUTAS DE PLANTILLAS (una por modelo)
-// ==========================================
+// ── Plantillas (una por modelo) ──
 
 router.get(
   '/templates',
@@ -85,9 +83,7 @@ router.put(
   }),
 );
 
-// Borrar un molde en uso dejaría a sus productos sin ejes y con un mapeo de
-// variantes que ya no corresponde a ninguna combinación: se bloquea y se dice
-// cuántos productos hay que reasignar primero.
+// Borrar una plantilla en uso dejaría productos sin ejes: se bloquea y se dice cuántos reasignar.
 router.delete(
   '/templates/:id',
   asyncHandler(async (req, res) => {
@@ -112,9 +108,7 @@ router.delete(
   }),
 );
 
-// ==========================================
-// RUTAS DE CATEGORÍAS
-// ==========================================
+// ── Categorías ──
 
 const categoryInputSchema = z.object({
   name: z.string().min(1).max(80),

@@ -1,20 +1,5 @@
-// Reportería (Hito 4) + reportería de ventas del Dashboard.
-//
-// ── Por qué este router ya no es "todo admin" ──
-// Hasta acá `router.use(requireAdmin)` cerraba el módulo entero. Ahora el
-// vendedor tiene su propio panel de desempeño en /admin/ventas, así que la
-// puerta es `requireSeller` (= seller + admin + global_admin, ver auth.ts) y
-// CADA ruta declara su propio recorte. El patrón es el mismo de modules/sales/sales-routes.ts:
-//
-//   · Reportes del negocio (pérdidas, gastos, export, ranking, delivery)
-//     → `requireAdmin` explícito en la ruta.
-//   · Reportes que existen "por vendedor" (kpis, tendencia, top, desgloses)
-//     → abiertos, pero con `sellerUid` FORZADO al uid del token si quien
-//       pregunta no es admin. Da igual lo que mande en el query: no puede
-//       pedir los números de otro.
-//
-// La autorización real vive acá, no en el frontend: el panel solo esconde
-// tarjetas.
+// Reportería. Admin y vendedor: los reportes del negocio llevan requireAdmin; los que existen por
+// vendedor fuerzan `sellerUid` al del token si quien pregunta no es admin.
 import { Router } from 'express';
 import { z } from 'zod';
 import { asyncHandler } from '../../utils/async-handler';
@@ -29,10 +14,6 @@ import { parseUuidParam } from '../../utils/params';
 import { createExpenseInputSchema } from '../../../shared/schemas';
 
 const router = Router();
-
-// ============================================================================
-// ── Schemas de validación (Query Params) ──
-// ============================================================================
 
 const dateRangeSchema = z.object({
   startDate: z.string().datetime().optional(),
@@ -49,19 +30,11 @@ const topProductsQuerySchema = dateRangeSchema.extend({
   limit: z.coerce.number().int().min(1).max(50).optional(),
 });
 
-// ============================================================================
-// ── Rutas ──
-// ============================================================================
-
 router.use(requireSeller);
 
 const isAdminLike = (roles: string[]) => roles.includes('admin') || roles.includes('global_admin');
 
-/**
- * Devuelve el `sellerUid` que debe aplicarse a la consulta.
- * Al admin se le respeta lo que pida (incluido "todos", sin filtro); a
- * cualquier otro rol se le impone el suyo.
- */
+/** Al admin se le respeta lo que pida (incluido «todos»); a cualquier otro rol se le impone el suyo. */
 function scopedSellerUid(req: { user?: { uid: string; roles: string[] } }, requested?: string) {
   return isAdminLike(req.user!.roles) ? requested : req.user!.uid;
 }
@@ -84,13 +57,8 @@ router.get(
     const kpis = await getFinancialKPIs(startDate, endDate, scopedSellerUid(req, sellerUid));
 
     if (!isAdminLike(req.user!.roles)) {
-      // El vendedor ve SU volumen y SU comisión; no la estructura de costos de
-      // la tienda. Mismo criterio que POST /api/sales/quote: con el coste y el
-      // precio se despeja el margen, así que se recortan juntos.
-      //
-      // Los `_prev` de esos mismos campos se recortan también: con el valor del
-      // mes pasado y el delta se reconstruye el actual, así que dejarlos sería
-      // filtrar por la ventana de al lado lo que se cerró por la puerta.
+      // El vendedor ve su volumen y su comisión, no la estructura de costos: con coste y precio se despeja
+      // el margen. Los `_prev` también se recortan, porque con el delta se reconstruiría el actual.
       const {
         coste_total,
         ganancia_tienda_total,
@@ -143,11 +111,7 @@ router.get(
   })
 );
 
-/**
- * GET /api/reports/sellers
- * Ranking de vendedores del periodo. Solo admin: compara a un empleado con sus
- * compañeros.
- */
+/** GET /api/reports/sellers — ranking del periodo. Solo admin: compara a un empleado con sus compañeros. */
 router.get(
   '/sellers',
   requireAdmin,
@@ -191,11 +155,7 @@ router.get(
   })
 );
 
-/**
- * GET /api/reports/breakdown
- * Cortes del periodo: método de pago, origen, facturadas vs sin factura, con
- * código de descuento y a cuotas.
- */
+/** GET /api/reports/breakdown — por método de pago, origen, factura, código de descuento y cuotas. */
 router.get(
   '/breakdown',
   asyncHandler(async (req, res) => {
@@ -228,14 +188,8 @@ router.get(
 );
 
 /**
- * GET /api/reports/sales-ledger
- * Las filas detrás de los KPIs: una por venta, con vendido, coste, comisión y
- * ganancia.
- *
- * `requireAdmin` y NO el recorte por vendedor que usan `/kpis` y `/trend`: acá
- * el coste y la ganancia de tienda son el contenido principal, no un campo que
- * se pueda podar. Un vendedor no tiene por qué ver el margen de la tienda ni
- * siquiera de sus propias ventas (mismo criterio que POST /api/sales/quote).
+ * GET /api/reports/sales-ledger — una fila por venta con coste y ganancia. Solo admin: el margen
+ * es el contenido, no un campo que se pueda recortar.
  */
 router.get(
   '/sales-ledger',
@@ -333,11 +287,7 @@ router.post(
   })
 );
 
-/**
- * POST /api/reports/expenses/preview
- * De dónde saldría un gasto si se guarda (su pozo, la bolsa extra, otros
- * pozos, la ganancia). No escribe nada. `excludeId`: el gasto que se edita.
- */
+/** POST /api/reports/expenses/preview — de dónde saldría un gasto, sin escribir. `excludeId`: el que se edita. */
 const expensePreviewSchema = createExpenseInputSchema.extend({ excludeId: z.string().uuid().optional() });
 
 router.post(

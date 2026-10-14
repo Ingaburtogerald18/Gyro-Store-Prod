@@ -10,9 +10,8 @@ export interface RawEvent {
 const str = (v: unknown): string => (typeof v === 'string' ? v : '');
 const asBool = (v: unknown): boolean => v === true || v === 'true';
 
-// Cuenta el embudo: por cada tipo, cuántas SESIONES distintas lo alcanzaron.
-// Si un evento no trae sesión (consentimiento raro o cliente viejo) se cuenta
-// como una sesión propia para no perderlo del todo.
+// Embudo: por cada tipo, cuántas sesiones distintas lo alcanzaron. Un evento sin sesión cuenta
+// como una sesión propia para no perderlo.
 function sessionsByType(events: RawEvent[]) {
   const map = new Map<AnalyticsEventType, Set<string>>();
   for (const t of ANALYTICS_EVENT_TYPES) map.set(t, new Set());
@@ -54,9 +53,7 @@ export function summarizeOverview(events: RawEvent[]): AnalyticsOverview {
   };
 }
 
-// Top de búsquedas: agrupa por la query NORMALIZADA (el cliente ya la manda en
-// minúsculas/trim). Devuelve el conteo, cuántas fueron sin resultados y el
-// promedio de resultados — las de promedio 0 son demanda insatisfecha pura.
+// Agrupa por la búsqueda normalizada. Las de promedio 0 resultados son demanda insatisfecha.
 export function summarizeSearches(events: RawEvent[]): SearchRow[] {
   const agg = new Map<string, { count: number; zero: number; resultsSum: number }>();
 

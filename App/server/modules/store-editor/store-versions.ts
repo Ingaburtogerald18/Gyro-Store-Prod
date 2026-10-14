@@ -1,5 +1,4 @@
-// Versiones de la tienda (migración 0030): cada «Publicar» guarda cómo quedó la
-// portada y la presentación de los productos. Se guardan las últimas 5.
+// Versiones de la tienda: cada «Publicar» guarda la portada y los productos. Se guardan las últimas 5.
 import { db } from '../../core/supabase';
 import { logger } from '../../utils/logger';
 import { firstOfEmbed } from '../../utils/first-of-embed';
@@ -155,9 +154,8 @@ async function insertVersion(snapshot: StoreSnapshot, summary: string[], by: str
 }
 
 /**
- * Guarda la versión publicada y deja solo las últimas 5. La primera vez guarda
- * también cómo estaba la tienda, para poder volver. Si falla, la publicación ya
- * quedó hecha: se registra el error y se sigue.
+ * La primera vez guarda también cómo estaba la tienda, para poder volver. Si falla, la publicación
+ * ya quedó hecha: se registra y se sigue.
  */
 export async function recordVersion(before: StoreSnapshot, after: StoreSnapshot, by: string, summary?: string[]) {
   try {

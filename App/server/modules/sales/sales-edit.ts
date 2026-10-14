@@ -14,9 +14,8 @@ import { approveSale } from './sales-approval';
 
 // ── Modificación y Anulación ──
 
-// Vuelta atrás de `updateSale` cuando algo falla después de liberar el stock:
-// líneas, datos de la venta y reserva como estaban. Best-effort: si la propia
-// restauración falla, queda asentado en auditoría para revisarlo a mano.
+// Vuelta atrás de updateSale si algo falla después de liberar el stock. Si la restauración también
+// falla, queda en auditoría para revisarla a mano.
 async function restoreSaleAfterFailedEdit(
   orderId: string,
   order: Record<string, any>,
@@ -106,10 +105,7 @@ export async function updateSale(
     return { productName: item.productName, quantity: item.quantity, precioUnit: snapshot.precioUnit, snapshot };
   });
 
-  // ── Stock: se valida ANTES de tocar nada ──
-  // Las unidades de esta misma venta cuentan como disponibles (ver
-  // `inventoryForEdit`). Antes la edición liberaba primero y fallaba después,
-  // dejando la venta sin reserva y esas unidades libres en bodega.
+  // El stock se valida antes de tocar nada; las unidades de esta venta cuentan como disponibles.
   for (const line of pricedLines) {
     const available = availableRows
       .filter((row) => row.productName === line.productName)
@@ -126,15 +122,8 @@ export async function updateSale(
     2,
   );
 
-  // ── La factura que emitió esta venta ──
-  // `registerSale` puede haber nacido de una factura ya impresa, y esa factura
-  // es el documento que ve el cliente y el que audita Facturación: si la venta
-  // se corrige, tiene que corregirse con ella. Se busca ACÁ, antes de tocar
-  // nada, porque de ella dependen el total y la validación de abajo.
-  //
-  // `limit(1)` y no `maybeSingle()` por el mismo motivo que en `getSaleById`:
-  // si por un caso raro hubiera dos filas apuntando a la venta, la edición no
-  // puede reventar por eso.
+  // La factura de la venta se corrige con ella: es el papel que ve el cliente. `limit(1)` para no
+  // romper si hubiera dos filas apuntando a la venta.
   const { data: linkedInvoices } = await db
     .from('invoices')
     .select('id, invoice_number, invoice_code, status, subtotal, discount, delivery_fee, total')
@@ -157,12 +146,8 @@ export async function updateSale(
   // sincronización cuenta como si la venta no tuviera factura.
   const activeInvoice = invoice && invoice.status !== 'void' ? invoice : undefined;
 
-  // ── Líneas de ANTES, leídas una sola vez ──
-  // Alimentan dos cosas: el ajuste de comisión post-pago y saber si la edición
-  // tocó de verdad los productos. Si no los tocó (se corrigió el teléfono, el
-  // vendedor…), la factura no tiene por qué moverse.
-  // `*`: si la edición falla a mitad de camino, estas filas se restauran tal
-  // cual (con su snapshot financiero congelado).
+  // Líneas anteriores: sirven para el ajuste de comisión, para saber si cambiaron los productos
+  // y para restaurarlas tal cual si la edición falla.
   const { data: oldItemRows, error: oldItemsError } = await db
     .from('order_items')
     .select('*')
@@ -188,11 +173,8 @@ export async function updateSale(
   const linesChanged =
     keysBefore.length !== keysAfter.length || keysBefore.some((k, i) => k !== keysAfter[i]);
 
-  // ── Descuento: no se puede repartir de nuevo sobre un papel ya impreso ──
-  // Con descuento, `order_items.precio_unit` es el precio YA prorrateado por
-  // `registerSale`, no el de lista que salió impreso. Devolver un cambio a
-  // `invoice_items` exigiría des-prorratear, y eso no cierra al centavo. Antes
-  // que escribir números inventados en un documento fiscal, se corta la edición.
+  // Con descuento, `precio_unit` ya está prorrateado: devolver un cambio a la factura no cierra al
+  // centavo, así que se corta la edición.
   const invoiceHasDiscount = (activeInvoice?.discount ?? 0) > 0;
   if (activeInvoice && linesChanged && invoiceHasDiscount) {
     const code = activeInvoice.invoice_code ?? formatInvoiceCode(activeInvoice.invoice_number);
@@ -203,16 +185,8 @@ export async function updateSale(
     );
   }
 
-  // ── ¿La factura quedó diciendo otra cosa que la venta? ──
-  // La condición NO es "esta edición tocó las líneas" sino "las dos capas no
-  // coinciden". La diferencia importa: las ventas que ya quedaron descuadradas
-  // por la versión vieja de esta función se reparan solas la próxima vez que se
-  // editen, en lugar de arrastrar el descuadre para siempre.
-  //
-  // Sin descuento el precio de la línea y el de lista son el mismo número, así
-  // que la comparación es directa. Con descuento nunca van a coincidir por
-  // diseño, y ahí la sincronización no aplica (el guard de arriba ya impidió que
-  // las líneas cambiaran).
+  // La condición es que venta y factura no coincidan, no que esta edición tocara las líneas:
+  // así se reparan solas las que ya estaban descuadradas.
   let invoiceOutOfSync = false;
   if (activeInvoice && !invoiceHasDiscount) {
     const { data: invItemRows } = await db
@@ -230,15 +204,8 @@ export async function updateSale(
       keysInvoice.length !== keysAfter.length || keysInvoice.some((k, i) => k !== keysAfter[i]);
   }
 
-  // ── El total de una venta facturada es el de la factura ──
-  // `linesTotal` es solo lo que suman los productos; la factura además cobra el
-  // envío. Guardar `linesTotal` pelado le borraba el envío al total y dejaba la
-  // orden descuadrada contra `invoices.total` — que es justo lo que pasó con
-  // GS-PR-3, GS-PR-5 y GS-PR-9.
-  //
-  // Con descuento el total de la factura se conserva TAL CUAL en vez de
-  // recomponerse: rearmarlo desde líneas prorrateadas puede mover un centavo por
-  // redondeo, y las líneas ahí no cambiaron.
+  // El total de una venta facturada es el de la factura (incluye el envío). Con descuento se conserva
+  // tal cual: rearmarlo desde líneas prorrateadas puede mover un centavo.
   let newTotal = linesTotal;
   if (activeInvoice) {
     newTotal = invoiceHasDiscount
@@ -289,10 +256,7 @@ export async function updateSale(
     }
   }
 
-  // ── Mover stock y líneas, con vuelta atrás ──
-  // Sin transacción real: si algo falla entre liberar y volver a reservar, se
-  // restaura la venta como estaba (líneas, datos y reserva). Antes quedaba
-  // pendiente, sin reserva, y al aprobarla esas líneas entraban con costo 0.
+  // Sin transacción: si algo falla entre liberar y volver a reservar, se restaura la venta como estaba.
   if (reservationStatus === 'active') {
     await releaseReservations(orderId);
   } else {
@@ -317,9 +281,7 @@ export async function updateSale(
         sku: line.productName,
         quantity: line.quantity,
         precio_unit: line.precioUnit,
-        // Igual que en registerSale: la edición vuelve la venta a
-        // pending_approval, así que se re-guarda el snapshot estimado para que la
-        // comisión se siga viendo. approveSale lo re-congela con el costo real.
+        // La edición vuelve la venta a pendiente: se guarda el snapshot estimado y approveSale lo re-congela.
         coste_final_snap: line.snapshot.costeFinalSnap,
         utilidad_bruta: line.snapshot.utilidadBruta,
         salary: line.snapshot.salary,
@@ -341,15 +303,8 @@ export async function updateSale(
     throw err;
   }
 
-  // ── La factura sigue a la venta ──
-  // Va DESPUÉS de mover el stock: si la reserva falla, la factura no se tocó y
-  // el papel sigue describiendo lo que la orden todavía dice.
-  //
-  // `invoiceOutOfSync` ya garantiza descuento en cero, así que el precio de la
-  // línea y el de lista son el mismo número y no hay que des-prorratear nada. Se
-  // reemplazan las líneas enteras (borrar + insertar) en vez de parchearlas,
-  // igual que en `updateInvoice`: las filas no tienen identidad estable y
-  // parchear por posición se rompe al borrar una del medio.
+  // La factura se actualiza después de mover el stock: si la reserva falla, el papel sigue igual.
+  // Las líneas se reemplazan enteras, como en updateInvoice.
   if (activeInvoice && invoiceOutOfSync) {
     const { error: delInvItemsError } = await db
       .from('invoice_items')
@@ -436,9 +391,7 @@ export async function updateSale(
           createdBy: user.uid,
         });
       } else {
-        // Cambió el vendedor de una venta ya pagada: al anterior se le
-        // descuenta lo que cobró y al nuevo se le acredita lo suyo. Antes se
-        // anotaba todo al anterior con la comisión del nuevo.
+        // Cambió el vendedor de una venta pagada: al anterior se le descuenta lo cobrado y al nuevo se acredita.
         await recordCommissionAdjustment({
           sellerEmail: order.seller_email,
           sellerUid: order.seller_uid,
@@ -494,11 +447,8 @@ export async function deleteSale(orderId: string, reason: string, user: { uid: s
   if (orderError) throw orderError;
   if (!order) throw new BadRequestError('Venta no encontrada.');
 
-  // La venta puede tener una factura asociada (sale_id en invoices). La FK es
-  // `on delete set null`, así que si no hacemos nada acá, borrar la orden deja
-  // una factura en estado 'linked' con sale_id en null: un correlativo fiscal
-  // que dice estar ligado a una venta que ya no existe. Se anula en cadena
-  // (nunca se borra: el correlativo no se reutiliza, ver database/README.md).
+  // La FK de la factura es `on delete set null`: sin esto quedaría «ligada» a una venta que no existe.
+  // Se anula en cadena; nunca se borra.
   const { data: linkedInvoice } = await db
     .from('invoices')
     .select('id, status')

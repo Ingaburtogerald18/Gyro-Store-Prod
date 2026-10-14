@@ -7,10 +7,6 @@ import { SUPPLIER_COLUMNS, toSupplier, type Supplier, type SupplierRow } from '.
 import { INVOICE_COLUMNS, type InvoiceRow, type PurchaseInvoice } from './purchase-invoices';
 import { escapeLike, hasPurchaseOrdersTable, requireOrdersTable, toStringArray } from './purchase-order-common';
 
-// ============================================================================
-// ── Órdenes ──
-// ============================================================================
-
 /** Estado de la orden según sus líneas. */
 export type PurchaseOrderStatus = 'empty' | 'transit' | 'partial' | 'received';
 
@@ -102,11 +98,7 @@ function sumLines(lines: OrderLineAgg[]) {
   return { units, total, received, arrivalDate, taxUnit };
 }
 
-/**
- * Arma las órdenes con sus totales y sus facturas. `rows` tiene que traer
- * TODAS las órdenes de cada factura que aparece: el total de una factura se
- * compara contra la suma de todas sus órdenes.
- */
+/** `rows` tiene que traer todas las órdenes de cada factura: su total se compara contra la suma de todas. */
 function buildOrders(rows: OrderRow[], lines: OrderLineAgg[]): PurchaseOrder[] {
   const byOrder = new Map<string, OrderLineAgg[]>();
   for (const line of lines) byOrder.set(line.order_id, [...(byOrder.get(line.order_id) ?? []), line]);
@@ -179,7 +171,7 @@ function buildOrders(rows: OrderRow[], lines: OrderLineAgg[]): PurchaseOrder[] {
   });
 }
 
-/** Todas las órdenes. `available: false` = la migración 0024 no está aplicada. */
+/** Todas las órdenes. `available: false` = falta la tabla en la base. */
 export async function listPurchaseOrders(): Promise<{ available: boolean; orders: PurchaseOrder[] }> {
   if (!(await hasPurchaseOrdersTable())) return { available: false, orders: [] };
 

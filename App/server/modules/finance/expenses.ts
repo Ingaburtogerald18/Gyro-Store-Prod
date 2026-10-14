@@ -8,10 +8,6 @@ import { fetchAllRows } from '../../utils/fetch-all-rows';
 import { getPozoLedger, ledgerMonthOf, type LedgerPozo, type MonthLedger } from './pozo-ledger';
 import { listLoanPayments } from './loan-payments';
 
-// ============================================================================
-// ── Servicios ──
-// ============================================================================
-
 /**
  * Retorna la suma de gastos asociados al pozo 'prestamos' en el rango de fechas.
  */
@@ -30,11 +26,7 @@ export async function getPrestamosPozoExpenses(
   return round(total, 2);
 }
 
-/**
- * Calcula el budget disponible del pozo préstamos para un rango de fechas:
- * collected_prestamos (acumulado por ventas via pozos) - expenses_del_pozo_prestamos.
- * Si se provee `collectedOverride`, se utiliza en vez de consultar la base de datos.
- */
+/** Lo disponible del pozo Préstamos en un rango: lo recogido por ventas menos sus gastos. */
 export async function getPrestamosPozoBudget(
   startDate?: string,
   endDate?: string,
@@ -79,11 +71,7 @@ export interface ExpenseRecord {
   createdByName: string | null;
   createdByEmail: string | null;
   createdAt: string;
-  /**
-   * `loan_payment`: pago de préstamo todavía en la tabla vieja (antes de correr
-   * 0018_loan_payments_a_gastos.sql). Se muestra en el historial como gasto de
-   * Préstamos, pero no se edita ni se borra desde acá.
-   */
+  /** Pago todavía en la tabla vieja (antes de la migración 0018): se muestra, pero no se edita. */
   source: 'expense' | 'loan_payment';
 }
 
@@ -201,9 +189,8 @@ export async function createExpense(input: CreateExpenseInput, authorUid: string
 }
 
 /**
- * Edita un gasto. Sin `fecha` conserva la que tenía. Un gasto en dólares
- * conserva la tasa con la que se registró: editar la descripción no debe
- * cambiar cuántos córdobas costó.
+ * Sin `fecha` conserva la anterior. Un gasto en dólares conserva su tasa: editar el texto no cambia
+ * cuántos córdobas costó.
  */
 export async function updateExpense(id: string, input: CreateExpenseInput): Promise<ExpenseRecord> {
   const { data: existing, error: checkError } = await db
@@ -256,11 +243,7 @@ export interface ExpensePreview {
   gananciaRealDespues: number;
 }
 
-/**
- * Qué pasaría si se guarda este gasto (nuevo, o `excludeId` editado): se
- * calcula el mes sin él y con él, y la diferencia dice de dónde sale cada
- * córdoba. No escribe nada.
- */
+/** Vista previa: calcula el mes sin y con el gasto, y la diferencia dice de dónde sale cada córdoba. */
 export async function previewExpense(input: CreateExpenseInput, excludeId?: string): Promise<ExpensePreview> {
   let rate: number | null = null;
   let createdAt = expenseCreatedAt(input.fecha);
@@ -478,11 +461,7 @@ export async function getExpensesByPozo(startDate?: string, endDate?: string) {
   }));
 }
 
-/**
- * Libro de pozos del mes (pestaña Gastos): herencia, desbordes, bolsa extra y
- * Ganancia real según las reglas de pozo-ledger.ts. El mes es el que contiene
- * `startDate` (hora de Nicaragua).
- */
+/** Libro de pozos del mes que contiene `startDate` (hora de Nicaragua). */
 export async function getExpensesOverflow(startDate?: string): Promise<MonthLedger> {
   return getPozoLedger(ledgerMonthOf(startDate));
 }

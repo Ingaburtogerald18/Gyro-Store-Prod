@@ -1,11 +1,5 @@
-// Códigos de descuento. Dos caminos de lectura, a propósito distintos:
-//   · checkDiscountCode()  → SOLO lee, NO consume uso. Lo usa POST /validate
-//     (preview instantáneo en el checkout / factura): el cliente puede llamarlo
-//     las veces que quiera sin gastar el cupo del código.
-//   · redeemDiscountCode() → canje real: revalida TODO e incrementa used_count
-//     ATÓMICAMENTE vía la función SQL `redeem_discount_code` (migración 0009),
-//     que serializa el acceso a la fila con `for update`. Se llama SOLO al crear
-//     el pedido/factura, nunca desde el preview del cliente.
+// Dos caminos a propósito: checkDiscountCode solo lee (vista previa, sin gastar usos) y
+// redeemDiscountCode canjea en la función SQL `redeem_discount_code`, que bloquea la fila.
 import { db } from '../../core/supabase';
 import { BadRequestError } from '../../utils/http-error';
 import { logger } from '../../utils/logger';
@@ -80,20 +74,12 @@ function toDiscountCode(row: DiscountCodeRow): DiscountCode {
   };
 }
 
-// El código es la PK: MAYÚSCULAS, sin espacios (igual que el doc id de v1).
+// El código es la PK: mayúsculas y sin espacios.
 export function normalizeCode(raw: string): string {
   return String(raw || '').trim().toUpperCase().replace(/\s+/g, '');
 }
 
-// Dos queries en vez de un embed PostgREST, a propósito.
-//
-// El embed `discount_code_redemptions(...)` obliga a PostgREST a resolver la FK
-// por introspección. Si la FK falta o el schema cache quedó viejo tras un DDL,
-// la consulta falla ENTERA con PGRST200 y el panel muestra la lista vacía — o
-// sea, un dato secundario (¿ya se canjeó?) tumba el listado principal.
-//
-// Con dos queries el canje es información ADICIONAL: si su tabla no responde,
-// los códigos igual se listan y solo se pierde la columna de canje.
+// Dos consultas en vez de un embed: si falla la de canjes, los códigos igual se listan.
 export async function listDiscountCodes(): Promise<DiscountCode[]> {
   const { data, error } = await db
     .from('discount_codes')
@@ -133,11 +119,8 @@ export async function listDiscountCodes(): Promise<DiscountCode[]> {
   });
 }
 
-// El código lo genera la BASE: `discount_codes.code` tiene como default
-// `'GS-DC-' || nextval('discount_code_seq')` (migración 0011). Por eso acá NO se
-// inserta `code` y no hay chequeo de duplicado: `nextval()` es atómico, así que
-// dos requests simultáneos no pueden sacar el mismo número — un chequeo
-// "¿existe?" en TypeScript sí podría dejarlos pasar a los dos.
+// El código lo genera la base con una secuencia: dos pedidos simultáneos no pueden sacar el mismo
+// número, cosa que un chequeo en TypeScript sí permitiría.
 export async function createDiscountCode(
   input: DiscountCodeInput,
   createdBy: string,
@@ -160,8 +143,7 @@ export async function createDiscountCode(
   return toDiscountCode(data as unknown as DiscountCodeRow);
 }
 
-// Hoy solo activar/desactivar: reemitir un código es más seguro que editar uno
-// ya repartido (mismo criterio que v1).
+// Solo activar o desactivar: reemitir un código es más seguro que editar uno ya repartido.
 export async function setDiscountCodeActive(
   rawCode: string,
   active: boolean,
@@ -237,9 +219,7 @@ export async function redeemDiscountCode(rawCode: string, ctx: RedeemContext): P
   return { code: row.r_code as string, type: row.r_type as DiscountType, value: Number(row.r_value ?? 0) };
 }
 
-// Monto a descontar dado un `base` (subtotal). El fijo nunca descuenta más que
-// el base; el porcentaje se aplica sobre él. Devuelve un número sin redondear:
-// el llamador redondea con su propia función `round` para mantener la moneda.
+// El fijo nunca descuenta más que la base. Sin redondear: el llamador redondea con su moneda.
 export function computeCodeDiscount(type: DiscountType, value: number, base: number): number {
   if (base <= 0) return 0;
   return type === 'percent' ? base * (value / 100) : Math.min(value, base);

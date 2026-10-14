@@ -1,5 +1,4 @@
-// Manejador de errores central. Traduce errores a respuestas consistentes.
-// Portado del patrón de v1 (ZodError → 400) + mapeo de errores de Postgres.
+// Manejador de errores central: Zod → 400 con detalle, errores de Postgres → mensaje legible.
 import type { Request, Response, NextFunction } from 'express';
 import { ZodError } from 'zod';
 import { logger } from '../utils/logger';
@@ -16,9 +15,7 @@ const PG_ERROR_MAP: Record<string, { status: number; message: string }> = {
 type HttpError = Error & { status?: number; statusCode?: number; code?: string };
 
 export function errorHandler(err: HttpError, _req: Request, res: Response, _next: NextFunction) {
-  // 1. Errores de validación de Zod → 400 con detalle por campo.
-  // (Construimos fieldErrors a mano para no depender de la API .flatten(),
-  //  que cambió entre Zod v3 y v4.)
+  // Zod → 400 con detalle por campo. fieldErrors se arma a mano porque .flatten() cambió en Zod 4.
   if (err instanceof ZodError) {
     const fieldErrors: Record<string, string[]> = {};
     for (const issue of err.issues) {

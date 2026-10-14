@@ -7,9 +7,7 @@ import { round } from './costing';
 import { businessDateStartIso, toBusinessDate } from '../../utils/business-day';
 import { fetchAllRows } from '../../utils/fetch-all-rows';
 
-// ── Reportería de ventas (los RPCs viven en database/01_schema.sql) ──
-// Un schema por RPC. Los `numeric` de Postgres llegan como number por PostgREST
-// (igual que en `kpiSchema`), así que no hace falta coerción.
+// Un schema por función SQL. Los `numeric` llegan como number por PostgREST: no hace falta coerción.
 
 const trendRowSchema = z.object({
   bucket_start: z.string(),
@@ -81,9 +79,7 @@ const deliverySummarySchema = z.object({
 
 export type DeliverySummary = z.infer<typeof deliverySummarySchema>;
 
-// ── Drilldown (`get_sales_ledger` / `get_delivery_invoices`) ──
-// Las FILAS detrás de cada KPI, para poder auditar de dónde salió el número
-// sin salir de la pantalla.
+// Las filas detrás de cada KPI, para auditar el número sin salir de la pantalla.
 
 const salesLedgerRowSchema = z.object({
   order_id: z.string().uuid(),
@@ -109,11 +105,7 @@ const deliveryInvoiceRowSchema = z.object({
 
 export type DeliveryInvoiceRow = z.infer<typeof deliveryInvoiceRowSchema>;
 
-/**
- * Exportación plana de ventas.
- * Se apoya en una vista SQL (`sales_export_view`) para resolver JOINS
- * complejos en SQL puro y no en memoria.
- */
+/** Exportación plana de ventas sobre la vista `sales_export_view`. */
 export async function exportSales(startDate?: string, endDate?: string) {
   let query = db.from('sales_export_view').select('*');
   
@@ -126,23 +118,9 @@ export async function exportSales(startDate?: string, endDate?: string) {
   return data;
 }
 
-// ============================================================================
-// ── Reportería de ventas ──
-// ============================================================================
-// Todas se apoyan en los RPC de `0002_functions.sql`: la agregación pasa en
-// Postgres y acá solo se valida la forma de lo que volvió.
-
 /**
- * Serie temporal de ventas para el gráfico de tendencia.
- * `sellerUid` recorta a un vendedor (la ruta lo fuerza para los no-admin).
- *
- * Los cortes se arman en HORA DE NICARAGUA. El RPC `get_sales_trend` hace
- * `date_trunc` en UTC, y Nicaragua es UTC−6: una venta de las 18:00 en adelante
- * caía en la barra del día siguiente (y la del último día del mes, en el mes
- * siguiente). Sin tocar la base, se agrupan acá las filas de `get_sales_ledger`
- * (una por venta, mismos totales) por fecha local.
- *
- * `bucket_start` es la medianoche LOCAL del corte, en ISO UTC (`…T06:00:00.000Z`).
+ * Serie para el gráfico de tendencia, cortada en hora de Nicaragua: `get_sales_trend` corta en UTC y
+ * pasaba las ventas desde las 18:00 al día siguiente. Por eso se agrupan acá las filas del libro.
  */
 export async function getSalesTrend(
   startDate?: string,
@@ -288,8 +266,7 @@ export async function getTopProducts(
     if (costInfo && costInfo.totalRevenue > 0) {
       margen = Math.round(((costInfo.totalRevenue - costInfo.totalCost) / costInfo.totalRevenue) * 1000) / 10;
     }
-    // Sin costo registrado no hay margen: antes se inventaba un 35% "de
-    // referencia" que la tabla mostraba como si fuera real.
+    // Sin costo registrado no hay margen: no se inventa uno de referencia.
 
     const nombre = nameMap.get(p.sku) || p.sku;
     return {
@@ -324,10 +301,8 @@ export async function getSalesBreakdown(
 }
 
 /**
- * El RPC suma `orders.total`, que en una venta facturada incluye el delivery.
- * El total vendido NO lleva delivery (va aparte, ver getDeliverySummary), así
- * que acá se le resta a cada grupo el delivery de sus facturas vigentes. Son
- * pocas filas: solo las ventas del período con envío cobrado.
+ * El RPC suma `orders.total`, que en una venta facturada incluye el delivery; el total vendido no lo
+ * lleva, así que se resta el delivery de sus facturas vigentes.
  */
 async function withoutDelivery(
   breakdown: SalesBreakdown,
@@ -372,19 +347,8 @@ async function withoutDelivery(
 }
 
 /**
- * Delivery pagado en TODAS las facturas del periodo (las anuladas incluidas:
- * anular el papel no devuelve el envío) y su reparto por repartidor. Solo
- * admin: es plata de la tienda, no de la venta de nadie en particular.
- */
-/**
- * Una fila por venta aprobada/pagada, con vendido, coste, comisión y ganancia
- * en la MISMA fila.
- *
- * Los pop-ups de Total Vendido, Coste y Ganancia miran este mismo dataset y
- * solo cambian qué columna imprimen: tres RPCs separados serían tres viajes y
- * tres escaneos de `orders` para listar lo mismo.
- *
- * SENSIBLE: incluye la estructura de costos. Solo admin (ver modules/finance/reports-routes.ts).
+ * Una fila por venta con vendido, coste, comisión y ganancia: los detalles de cada KPI usan el mismo
+ * dataset. Incluye costos: solo admin.
  */
 export async function getSalesLedger(
   startDate?: string,
@@ -419,6 +383,8 @@ export async function getDeliveryInvoices(
   return parseDbRows(deliveryInvoiceRowSchema, data, 'getDeliveryInvoices');
 }
 
+// Delivery de todas las facturas del periodo, también las anuladas: anular el papel no devuelve
+// el envío. Solo admin: es plata de la tienda.
 export async function getDeliverySummary(
   startDate?: string,
   endDate?: string,

@@ -43,9 +43,8 @@ export interface CreatedPublicOrder {
 }
 
 /**
- * El carrito necesita revisión antes de crear el pedido (precio cambiado,
- * variante agotada, etc.). Sale como 409 con la lista de problemas por línea:
- * el cliente decide, nada se corrige en silencio.
+ * El carrito necesita revisión (precio cambiado, variante agotada…): sale como 409 con los problemas
+ * por línea. Nada se corrige en silencio.
  */
 export class OrderReviewError extends Error {
   status = 409;
@@ -54,11 +53,8 @@ export class OrderReviewError extends Error {
   }
 }
 
-// `public_order_items.sku` es texto libre sin FK. Para una línea de combo se
-// guarda con este prefijo: deja la fila identificable y greppable sin necesitar
-// una columna nueva (misma convención que usa el carrito del cliente). Para un
-// producto sigue siendo el `catalog_items.id`: el panel y el seguimiento lo leen
-// así. La variante va en su propia columna (`variant_name`, migración 0019).
+// En `public_order_items.sku` un combo va como `combo:<id>` (mismo formato que el carrito);
+// un producto, como su `catalog_items.id`.
 const comboSku = (comboId: string) => `combo:${comboId}`;
 
 /** Link público de seguimiento. Va en el mensaje de WhatsApp para que quede en el chat del cliente. */
@@ -71,10 +67,7 @@ interface MessageLine {
   lineTotal: number;
 }
 
-// El mensaje se arma en el SERVIDOR a propósito: lleva el total recalculado
-// (autoritativo) y el número de la tienda sale de config, nunca del cliente.
-// Con el pedido ya registrado, el mensaje lo presenta como tal: el pago y el
-// envío se coordinan en el chat.
+// El mensaje se arma en el servidor: lleva el total recalculado y el número de la tienda de la config.
 function buildWhatsappMessage(
   input: PublicOrderInput,
   lines: MessageLine[],
@@ -271,17 +264,12 @@ async function createPublicOrderOnce(input: PublicOrderInput, key: string, hash:
   return result.response;
 }
 
-// ============================================================================
-// Seguimiento del pedido web (sin cuenta)
-// ============================================================================
-//
-// El id del pedido es un UUID aleatorio: quien tiene el link `/pedido/<id>` es
-// quien hizo el pedido (o a quien se lo pasó). Por eso la vista pública NO lleva
-// teléfono, dirección ni ubicación: solo lo que sirve para seguir el pedido.
+// ── Seguimiento sin cuenta ── Quien tiene el link `/pedido/<id>` (un UUID) es quien pidió: la vista
+// pública no lleva teléfono, dirección ni ubicación.
 
 export interface PublicOrderLine {
   name: string;
-  /** Combinación elegida; null en pedidos anteriores a la migración 0019. */
+  /** Combinación elegida; null en pedidos viejos. */
   variantName: string | null;
   image: string | null;
   quantity: number;
@@ -314,7 +302,7 @@ export interface AdminPublicOrder {
   codeDiscount: number;
   createdAt: string;
   items: PublicOrderLine[];
-  /** Venta en que se convirtió (migración 0023). Null si todavía no. */
+  /** Venta en que se convirtió, o null. */
   saleId: string | null;
 }
 
@@ -334,11 +322,7 @@ type ItemRow = {
   product_image?: string | null;
 };
 
-/**
- * Resuelve el nombre e imagen de cada línea. `public_order_items.sku` guarda el
- * id del catalog_item o `combo:<id>` (ver `comboSku`), así que se consultan las
- * dos tablas en paralelo, una sola vez para todos los pedidos.
- */
+/** Nombre e imagen de cada línea, consultando productos y combos una sola vez para todos los pedidos. */
 async function resolveLines(rows: ItemRow[]): Promise<Map<string, PublicOrderLine[]>> {
   const catalogIds = new Set<string>();
   const comboIds = new Set<string>();
@@ -395,7 +379,6 @@ async function linesFor(orderIds: string[]): Promise<Map<string, PublicOrderLine
     db.from('public_order_items').select(columns).in('public_order_id', orderIds).order('created_at', { ascending: true });
   let { data, error } = await read('public_order_id, sku, quantity, precio_unit, variant_name, product_name, product_image');
   if (isMissingColumn(error)) ({ data, error } = await read('public_order_id, sku, quantity, precio_unit, variant_name'));
-  // Sin la migración 0019 la columna no existe: se lee la forma anterior.
   if (isMissingColumn(error)) ({ data, error } = await read('public_order_id, sku, quantity, precio_unit'));
   if (error) throw error;
   return resolveLines((data ?? []) as unknown as ItemRow[]);
@@ -439,11 +422,7 @@ function phoneVariants(phone: string): string[] {
   return [...variants];
 }
 
-/**
- * Rastreo sin link: número corto del pedido + teléfono. Devuelve el id completo
- * para que el front navegue a `/pedido/<id>`. Mismo 404 si el número no existe o
- * si el teléfono no coincide: no se revela cuál de los dos falló.
- */
+/** Rastreo por número corto + teléfono. Mismo 404 si falla uno u otro: no se revela cuál. */
 export async function findPublicOrderByCode(input: TrackPublicOrderInput): Promise<{ id: string }> {
   const { data, error } = await db
     .from('public_orders')

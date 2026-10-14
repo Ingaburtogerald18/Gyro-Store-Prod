@@ -43,9 +43,8 @@ const app: Express = express();
 // Render corre detrás de un proxy: necesario para IPs correctas y rate-limit.
 app.set('trust proxy', 1);
 
-// Nonce por request para la CSP: habilita SOLO los <script> inline de Remix
-// (hidratación, window.ENV, anti-flash de tema) sin abrir 'unsafe-inline'.
-// Debe ir ANTES de helmet, porque la directiva script-src lo lee de res.locals.
+// Nonce por petición: habilita solo los <script> inline de Remix sin abrir 'unsafe-inline'.
+// Va antes de helmet porque script-src lo lee de res.locals.
 app.use((_req: Request, res: Response, next: NextFunction) => {
   res.locals.cspNonce = randomBytes(16).toString('base64');
   next();
@@ -56,12 +55,8 @@ app.use((_req: Request, res: Response, next: NextFunction) => {
 const supabaseOrigin = new URL(config.supabaseUrl).origin; // https://xxxx.supabase.co
 const supabaseWss = supabaseOrigin.replace(/^https:/, 'wss:');
 
-// Origen público del bucket R2: de ahí salen TODAS las imágenes subidas (fotos
-// del catálogo, logos de la marca y ahora los avatares del staff). Sin esto en la
-// CSP, en producción el navegador las bloquea todas y solo se ven en dev, donde
-// el frontend corre aparte y no pasa por helmet. `mediaSrc` va aparte porque el
-// logo animado del sidebar es un <video>, no un <img>.
-// Si R2 no está configurado queda vacío y la directiva no cambia.
+// Sin el origen de R2 en la CSP, producción bloquea todas las imágenes subidas.
+// `mediaSrc` aparte porque el logo animado es un <video>.
 const r2Origin = (() => {
   const raw = (process.env.R2_PUBLIC_URL || '').trim();
   if (!raw) return [];
@@ -123,9 +118,7 @@ app.use('/api/catalog', catalogRouter);
 app.use('/api/admin/catalog', adminCatalogRouter);
 app.use('/api/admin/combos', adminCombosRouter);
 app.use('/api/admin/users', adminUsersRouter);
-// Perfil propio (cualquier rol edita SU fila) y directorio del equipo sin datos
-// bancarios. Ver modules/users/me-routes.ts y staff-routes.ts para por qué no son
-// parte de /api/admin/users.
+// Perfil propio y directorio sin datos bancarios: ver me-routes.ts y staff-routes.ts.
 app.use('/api/me', meRouter);
 app.use('/api/staff', staffRouter);
 app.use('/api/admin/config', adminConfigRouter);
@@ -137,10 +130,7 @@ app.use('/api/installments', installmentsRouter);
 app.use('/api/upload', uploadRouter);
 app.use('/api/combos', combosRouter);
 
-// Límite propio para el checkout público, ANTES de montar el router de pedidos:
-// es el único endpoint anónimo que escribe en la base. Solo intercepta el POST
-// (el resto de /api/orders sigue con el límite general); al no ser el último
-// handler del método, la petición continúa hacia ordersRouter.
+// Límite propio para el único POST anónimo que escribe pedidos; la petición sigue a ordersRouter.
 app.post('/api/orders/public', publicOrderLimiter);
 app.use('/api/orders', ordersRouter);
 
@@ -152,10 +142,7 @@ app.use('/api/stock-notices', stockNoticesRouter);
 app.use('/api/crm', crmRouter);
 app.use('/api/reports', reportsRouter);
 
-// Telemetría del storefront. El límite estricto solo intercepta la ingesta
-// pública (POST /api/analytics); las lecturas del dashboard (GET /admin/*) van
-// autenticadas y con el límite general. Al no ser el último handler del método,
-// la petición continúa hacia analyticsRouter.
+// Límite estricto solo para la ingesta pública; las lecturas del panel usan el general.
 app.post('/api/analytics', telemetryLimiter);
 app.use('/api/analytics', analyticsRouter);
 
@@ -170,10 +157,7 @@ if (config.isProd) {
 
 app.use(errorHandler);
 
-// ── Red de seguridad a nivel proceso ──
-// Una promesa rechazada sin `.catch` o una excepción fuera del ciclo de Express
-// (un cron, el worker de SPO, un timer) tumbaría el proceso sin dejar rastro. Se
-// registran para loguear ANTES de que eso pase.
+// Sin esto, un error fuera de Express (cron, worker de SPO) tumbaría el proceso sin dejar rastro.
 process.on('unhandledRejection', (reason) => {
   logger.error('[process] unhandledRejection', {
     reason: reason instanceof Error ? (reason.stack ?? reason.message) : String(reason),
@@ -193,9 +177,7 @@ app.listen(Number(config.port), '0.0.0.0', () => {
   // Iniciar tareas en segundo plano
   startUserCleanupCron();
 
-  // Espejo de ventas aprobadas en SharePoint. Se arranca SIEMPRE: si falta
-  // configurar Microsoft, cada ciclo es un no-op y las ventas se acumulan en
-  // `spo_outbox` hasta que haya credenciales (ver modules/sharepoint/spo-worker.ts).
+  // Arranca siempre: sin credenciales cada ciclo no hace nada y las ventas esperan en `spo_outbox`.
   logSpoStatusOnce();
   startSpoWorker();
 });

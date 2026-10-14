@@ -15,16 +15,11 @@ export async function listPublishedCombos(): Promise<Combo[]> {
     throw error;
   }
 
-  // Validamos el array completo y retornamos el tipo inferido de forma segura.
-  // Si la base devuelve algo que no cumple el contrato es un 500, no un 400: el
-  // cliente no tiene nada que corregir en su request (ver parseDbRows).
+  // Si la base no cumple el contrato es un 500, no un 400: el cliente no tiene nada que corregir.
   return parseDbRows(comboSchema, data, 'combos');
 }
 
-// Un combo publicado por id, para la página de detalle. Devuelve null si no
-// existe o no está publicado — desde afuera son el mismo 404, así un combo
-// despublicado no se puede sondear por id (mismo criterio que
-// getPublishedCatalogItem en catalog.ts).
+// Null si no existe o no está publicado: el mismo 404, así no se sondea por id.
 export async function getPublishedCombo(id: string): Promise<Combo | null> {
   const { data, error } = await db
     .from('combos')

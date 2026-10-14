@@ -24,10 +24,8 @@ interface PreparedLine {
 }
 
 /**
- * Completa las líneas antes de insertarlas: cada una se resuelve contra su
- * plantilla (busca o crea, sin publicar, el producto del catálogo) y toma el
- * nombre que ya usan los lotes de esa variante, porque Ventas los agrupa por
- * nombre. Si algo falla, se borran los productos que se crearon acá.
+ * Resuelve cada línea contra su plantilla (crea el producto del catálogo, sin publicar) y le da
+ * el nombre de los lotes de su variante. Si algo falla, borra los productos que creó.
  */
 async function prepareLines(
   lines: PurchaseOrderLineInput[],
@@ -56,11 +54,7 @@ async function prepareLines(
   return { prepared, createdProductIds };
 }
 
-/**
- * Inserta las líneas de una orden con códigos GS-IN correlativos. Si otra
- * compra tomó los mismos códigos en el mismo momento (choque de `code`
- * único), se vuelven a pedir y se reintenta.
- */
+/** Códigos GS-IN correlativos: si otra compra tomó los mismos al mismo tiempo, se piden de nuevo. */
 async function insertLines(
   order: { id: string; orderNumber: string; purchaseDate: string },
   lines: PreparedLine[],
@@ -83,8 +77,7 @@ async function insertLines(
     }));
 
     let { error } = await db.from('purchases').insert(rows);
-    // Sin la migración 0022 no existen las columnas del vínculo con el
-    // catálogo: las líneas se guardan igual, con el nombre del catálogo.
+    // Si faltan las columnas del vínculo con el catálogo, las líneas se guardan igual con el nombre.
     if (isMissingColumn(error)) {
       const plain = rows.map(({ catalog_item_id: _c, variant_key: _v, ...rest }) => rest);
       ({ error } = await db.from('purchases').insert(plain));

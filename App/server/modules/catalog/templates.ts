@@ -1,7 +1,5 @@
-// Plantillas de producto: una por modelo (KZ EDX Pro, KZ Castor…). Nombre,
-// descripción y categoría son los que muestra la tienda; la nota interna no se
-// publica. Los ejes (Color, Micrófono…) arman las variantes y no hay precio,
-// fotos ni stock: eso vive en el producto del catálogo que la referencia.
+// Plantillas: una por modelo. Nombre, descripción y categoría los muestra la tienda; los ejes arman
+// las variantes. Precio, fotos y stock viven en el producto del catálogo.
 import { db } from '../../core/supabase';
 import type { AdminTemplate, SpecRow, TemplateAxis, TemplateInput } from '../../../shared/schemas';
 import { normalizeAxes, normalizeSpecs } from './catalog-presenter';
@@ -41,9 +39,7 @@ function toAdminTemplate(row: TemplateRow): AdminTemplate {
   };
 }
 
-// Descarta los ejes a medio escribir que manda el editor mientras se tipea (una
-// fila nueva nace con label y opciones vacías). Sin esto se guardarían ejes sin
-// opciones, que generan cero combinaciones y dejan la tabla de mapeo vacía.
+// Descarta ejes a medio escribir: sin opciones generan cero combinaciones y dejan el mapeo vacío.
 function cleanAxes(axes: TemplateAxis[]): TemplateAxis[] {
   return axes
     .map((axis) => ({
@@ -162,9 +158,7 @@ export async function updateTemplate(
   return data ? toAdminTemplate(data as unknown as TemplateRow) : null;
 }
 
-// Borrar un molde en uso dejaría a sus productos sin ejes y con un
-// `variant_mappings` que ya no corresponde a ninguna combinación: se bloquea y
-// se le dice al admin cuántos productos hay que reasignar primero.
+// Una plantilla en uso no se borra: sus productos quedarían sin ejes ni mapeo válido.
 export async function countProductsUsingTemplate(id: string): Promise<number> {
   const { count, error } = await db
     .from('catalog_items')

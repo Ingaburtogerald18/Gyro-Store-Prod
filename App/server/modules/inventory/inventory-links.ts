@@ -12,7 +12,7 @@ export interface CatalogLink {
   variantKey: string;
 }
 
-/** Códigos de una entrada de `variant_mappings`, tolerando la forma vieja de v1. */
+/** Códigos de una entrada de `variant_mappings`, tolerando la forma vieja. */
 export function codesOfMapping(entry: unknown): string[] {
   if (!entry || typeof entry !== 'object') return [];
   const e = entry as Record<string, unknown>;
@@ -49,10 +49,8 @@ export async function getLinkedCodesByItem(itemIds: string[]): Promise<Map<strin
 }
 
 /**
- * Suma a `variant_mappings` los lotes vinculados por columna, para que todo lo
- * que lee stock por códigos (tienda, ficha, checkout) vea también las compras
- * nuevas sin que nadie las tenga que vincular a mano en Catálogo. No escribe
- * nada: es solo la vista en memoria.
+ * Suma a `variant_mappings` los lotes vinculados por columna, para que todo lo que lee stock vea
+ * las compras nuevas. Solo en memoria: no escribe.
  */
 export async function withLinkedLots<T extends { id: string; variant_mappings: Record<string, unknown> }>(
   items: T[],
@@ -88,11 +86,7 @@ export async function codesForVariant(link: CatalogLink): Promise<string[]> {
   return [...new Set([...fromMappings, ...fromColumns])];
 }
 
-/**
- * Nombre del lote para una variante del catálogo. Si ya hay lotes de esa
- * variante se reutiliza su nombre: Ventas descuenta por nombre (FIFO), así que
- * todas las compras de la misma variante tienen que llamarse igual.
- */
+/** Si ya hay lotes de la variante se reutiliza su nombre: Ventas descuenta por nombre (FIFO). */
 export async function nameForVariant(link: CatalogLink): Promise<{ productName: string; categoryId: string | null }> {
   const { data: item, error } = await db
     .from('catalog_items')
@@ -125,20 +119,10 @@ export async function nameForVariant(link: CatalogLink): Promise<{ productName: 
   };
 }
 
-// ============================================================================
-// ── Vínculo con el catálogo: disponibilidad por código de lote ──
-// ============================================================================
-// El catálogo mapea cada variante a uno o más `purchases.code` (decisión de
-// diseño: `code` es único por lote, no hay SKU compartido en v2). Estas dos
-// funciones son la única puerta que el catálogo usa para leer bodega.
-//
-// Solo cuentan los lotes `received`: un lote en tránsito desde China existe en
-// la tabla pero no es vendible, y publicarlo como stock haría prometer entregas
-// que no se pueden cumplir.
+// ── Disponibilidad por código de lote ── La única puerta del catálogo a bodega. Solo cuentan los
+// lotes `received`: uno en tránsito no es vendible y prometerlo haría fallar la entrega.
 
-// Disponible por código, para resolver el stock de las variantes del storefront.
-// Varios lotes NO pueden compartir código (`purchases.code` es unique), así que
-// el mapa es 1-a-1; aun así se suma, para no depender de esa restricción.
+// `purchases.code` es único, así que el mapa es 1 a 1; igual se suma para no depender de eso.
 export async function getAvailableByCodes(codes: string[]): Promise<Map<string, number>> {
   const available = new Map<string, number>();
   const unique = [...new Set(codes.filter(Boolean))];

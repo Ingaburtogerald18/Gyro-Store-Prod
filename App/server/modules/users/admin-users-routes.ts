@@ -15,17 +15,13 @@ import { updateProfileSchema } from '../../../shared/schemas';
 
 const router = Router();
 
-// Fuente ÚNICA del correo protegido: config.protectedEmail (PROTECTED_ADMIN_EMAIL
-// o adminEmails[0]). Sin fallback hardcodeado a propósito: un correo personal en el
-// código es una puerta trasera silenciosa (ver la nota de server/core/config.ts). Si no
-// hay whitelist, queda en '' y ningún correo real matchea.
+// El correo protegido sale solo de PROTECTED_ADMIN_EMAIL: un correo escrito en el código sería una
+// puerta trasera. Si falta, queda vacío y ningún correo coincide.
 const SUPER_ADMIN_EMAIL = config.protectedEmail;
 
 const isValidRole = (r: unknown): r is AppRole => VALID_ROLES.includes(r as AppRole);
 
-// Valida el array de roles pedido y aplica la regla anti-escalada: solo un
-// global_admin puede otorgar global_admin. Devuelve { roles } saneado o un error
-// con { status, message } listo para responder.
+// Anti-escalada: solo un global_admin puede otorgar global_admin.
 function validateRolesForActor(
   roles: unknown,
   actor: Request['user'],
@@ -63,10 +59,7 @@ router.get(
       throw error;
     }
 
-    // `isProtected` viaja calculado desde acá y no se deriva en el cliente: el
-    // correo protegido sale de una variable de entorno (config.protectedEmail),
-    // así que hardcodearlo en el frontend lo dejaría desincronizado en cuanto
-    // cambie. Es solo una pista de UI — quien deniega de verdad es el backend.
+    // `isProtected` se calcula acá porque el correo sale del entorno. Es solo una pista para la interfaz.
     const rows = (data || []).map((u: { email?: string | null }) => ({
       ...u,
       isProtected:
@@ -74,11 +67,8 @@ router.get(
       pending: false,
     }));
 
-    // Roles reservados para gente que todavía no inició sesión ni una vez: no
-    // tienen fila en `profiles` (no hay id de Auth real todavía), así que se
-    // agregan como entradas SINTÉTICAS con `pending: true` para que Personal
-    // las muestre igual — es la única forma de ver (y poder cancelar) una
-    // invitación antes de que se active sola con el primer login.
+    // Roles reservados de gente que todavía no entró: se agregan como filas `pending` para poder verlas
+    // y cancelarlas en Personal.
     const pending = await listPendingGrants();
     const pendingRows = pending.map((g) => ({
       id: `pending:${g.email}`,
@@ -96,20 +86,8 @@ router.get(
     res.json([...pendingRows, ...rows]);
   })
 );
-// POST /api/admin/users
-//
-// YA NO pre-crea una identidad de Supabase Auth. Antes lo hacía (email +
-// contraseña random vía `auth.admin.createUser`), pero el login real SIEMPRE
-// es por Microsoft/Azure (ver middleware/auth.ts), y Azure genera SU PROPIA
-// identidad — con otro `id` — aunque el correo coincida. El perfil nunca
-// llegaba a tener el rol que se le asignó acá: chocaba con el `unique` de
-// `profiles.email` y la persona quedaba sin permisos para siempre. Ver
-// la sección `pending_role_grants` de database/01_schema.sql.
-//
-// Ahora: si YA existe un perfil con ese correo (la persona ya inició sesión
-// al menos una vez, aunque sin rol), se le asigna el rol directo. Si no
-// existe todavía, se RESERVA el rol por correo — se aplica solo en cuanto esa
-// persona entre de verdad con Microsoft por primera vez.
+// POST /api/admin/users — no crea la identidad de Auth: Microsoft crea la suya con otro id. Si ya hay
+// perfil con ese correo se le asigna el rol; si no, se reserva hasta su primer login.
 router.post(
   '/',
   requireAdmin,
@@ -175,12 +153,7 @@ router.post(
   })
 );
 
-// PATCH /api/admin/users/:email/roles
-//
-// Sirve para las dos formas: un perfil real (alguien que ya inició sesión) se
-// actualiza directo; si todavía no existe ninguna fila con ese correo, el
-// cambio de rol se guarda como reserva (mismo mecanismo que POST / cuando la
-// persona es nueva del todo).
+// PATCH /api/admin/users/:email/roles — con perfil se actualiza directo; sin perfil se guarda como reserva.
 router.patch(
   '/:email/roles',
   requireAdmin,
@@ -223,10 +196,7 @@ router.patch(
       return;
     }
 
-    // Sin perfil todavía: es una invitación pendiente, así que se actualiza
-    // (o se crea) la reserva en vez de un `profiles` que no existe. Se
-    // conserva el nombre que ya tenía la reserva (lo tipeó el admin al
-    // invitar) — acá solo cambia el rol.
+    // Sin perfil: se actualiza la reserva, conservando el nombre que tipeó el admin al invitar.
     const existingGrant = await getPendingGrant(email);
     const grant = await upsertPendingGrant({
       email,
@@ -238,9 +208,7 @@ router.patch(
   })
 );
 
-// DELETE /api/admin/users/pending/:email — cancelar una invitación que
-// todavía no se activó. Va ANTES de `DELETE /:id` (que espera un uuid real)
-// por prolijidad, aunque no colisionan: son formas de ruta distintas.
+// DELETE /api/admin/users/pending/:email — cancela una invitación que todavía no se activó.
 router.delete(
   '/pending/:email',
   requireAdmin,
@@ -281,7 +249,7 @@ router.delete(
     // Hard delete: Borrar de Auth (esto borra el perfil en cascada si está configurado, o lo borramos manual)
     const { error: authError } = await db.auth.admin.deleteUser(userId);
     
-    // Si falla Auth (por ejemplo si ya no existe), borramos el perfil por si acaso quedó huérfano
+    // Si falla Auth (por ejemplo, ya no existe), se borra el perfil por si quedó huérfano.
     const { error: profileError } = await db.from('profiles').delete().eq('id', userId);
 
     if (authError && profileError) {
@@ -356,10 +324,7 @@ router.patch(
 
     const input = updateProfileSchema.parse(req.body);
 
-    // El string vacío significa "borrar el dato", no "no tocar": se guarda como
-    // NULL para que la columna quede realmente vacía y no con un '' que después
-    // se muestra como si hubiera algo. La cuenta bancaria usa `null` para lo
-    // mismo (es un objeto jsonb, no un string).
+    // Vacío significa «borrar el dato»: se guarda NULL. La cuenta bancaria usa `null` para lo mismo.
     const blankToNull = (v: string | undefined) => (v === undefined || v === '' ? null : v);
 
     const patch: Record<string, unknown> = {
@@ -368,9 +333,7 @@ router.patch(
       personal_email: blankToNull(input.personal_email),
       bank_account: input.bank_account ?? null,
     };
-    // La foto llega como URL ya subida a R2 por `/api/upload` (carpeta `avatars`);
-    // acá solo se guarda la referencia. `null` la quita, y omitir la clave la deja
-    // como está — el formulario no la manda si el admin no la tocó.
+    // La foto llega como URL ya subida a R2: `null` la quita y omitir la clave la deja como está.
     if (input.avatar_url !== undefined) patch.avatar_url = input.avatar_url;
 
     const { data, error } = await db
@@ -381,9 +344,7 @@ router.patch(
 
     if (error) throw error;
 
-    // El nombre y la foto que acaba de guardar el admin son justo lo que
-    // `/auth/me` le devuelve a ESA persona: sin invalidar, seguiría viendo los
-    // viejos hasta 30 s (caché de middleware/auth.ts).
+    // Lo que guardó el admin es lo que /auth/me le devuelve a esa persona: se invalida la caché de 30 s.
     invalidateProfileCache(userId);
     res.json({ message: 'Perfil actualizado', data });
   })

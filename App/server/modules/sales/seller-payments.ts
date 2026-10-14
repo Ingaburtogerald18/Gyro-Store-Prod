@@ -1,33 +1,13 @@
-// Pago de comisiones a vendedores y su cuenta corriente.
-//
-// Portado de v1 (`server/routes/sales/payments.js` + `services/balance.js`),
-// que en v2 no tenía equivalente: `order_status` ya contemplaba 'paid' pero
-// nada lo ponía.
-//
-// La regla de fondo: un lote de pago es INMUTABLE. Registra lo que se entregó,
-// y no se reescribe nunca. Si después se edita una venta ya pagada, la
-// diferencia de comisión se anota como un AJUSTE y se salda en el próximo
-// corte — así el histórico sigue cuadrando con lo que realmente salió de caja.
-//
-// Diferencias con v1, deliberadas:
-//   · el comprobante llega como URL ya subida a `POST /api/upload`, en vez de
-//     multipart en esta ruta: v2 ya centraliza las subidas ahí.
-//   · no se manda correo. v2 no tiene servicio de email (v1 usaba
-//     `services/email.js`); se devuelve el link de WhatsApp y avisa el humano.
+// Pago de comisiones y cuenta corriente de cada vendedor. Un lote de pago no se reescribe: si después
+// se edita una venta pagada, la diferencia queda como ajuste para el próximo corte.
 import { db } from '../../core/supabase';
 import { round } from '../finance/costing';
 import { BadRequestError } from '../../utils/http-error';
 
-// Nombre de respaldo cuando el vendedor no tiene uno cargado. `split` puede
-// devolver un arreglo vacío en teoría, así que el email entero es el último
-// recurso — nunca `undefined`, que dejaría la fila sin etiqueta en el panel.
+// Nombre de respaldo: nunca `undefined`, que dejaría la fila sin etiqueta.
 function defaultSellerName(email: string): string {
   return email.split('@')[0] || email;
 }
-
-// ============================================================================
-// ── Ajustes (cuenta corriente) ──
-// ============================================================================
 
 export interface CommissionAdjustment {
   id: string;
@@ -125,9 +105,7 @@ export async function getPendingBalance(
   };
 }
 
-// Saldos de TODOS los vendedores. Los que dan exactamente 0 se omiten: hay
-// ajustes que se cancelan entre sí y mostrarlos como "saldo pendiente: 0"
-// invita a emitir un pago vacío.
+// Saldos de todos los vendedores. Se omiten los que dan 0: invitan a emitir un pago vacío.
 export async function listPendingBalances(): Promise<SellerBalance[]> {
   const rows = await fetchPending();
   const map = new Map<string, SellerBalance>();
@@ -160,10 +138,6 @@ async function settleAdjustments(ids: string[], paymentId: string): Promise<void
     .in('id', ids);
   if (error) throw error;
 }
-
-// ============================================================================
-// ── Lotes de pago ──
-// ============================================================================
 
 export interface CommissionPayment {
   id: string;
@@ -232,11 +206,7 @@ export interface PayCommissionInput {
   noReceiptComment?: string | null;
 }
 
-// Paga un conjunto de ventas aprobadas de un vendedor.
-//
-// Las ventas se leen y se validan ANTES de emitir el lote: solo se pagan las
-// que están 'approved' y son de ese vendedor. Sin ese filtro, un id repetido o
-// de otro vendedor inflaría el monto del lote.
+// Solo se pagan ventas 'approved' de ese vendedor: un id repetido o ajeno inflaría el lote.
 export async function payCommissions(
   input: PayCommissionInput,
   createdBy: string | null,
@@ -248,10 +218,8 @@ export async function payCommissions(
   const orderIds = [...new Set(input.orderIds)];
   if (orderIds.length === 0) throw new BadRequestError('Elegí al menos una venta para pagar.');
 
-  // Las ventas se TOMAN primero (approved → paid, solo si siguen aprobadas y
-  // son de este vendedor) y recién después se emite el lote. Antes se leían,
-  // se emitía el lote y al final se marcaban: dos clics seguidos emitían dos
-  // lotes por las mismas ventas.
+  // Las ventas se toman primero (approved → paid) y recién después se emite el lote:
+  // dos clics seguidos ya no emiten dos lotes por las mismas ventas.
   const { data: claimedRows, error: claimError } = await db
     .from('orders')
     .update({ status: 'paid' })
@@ -274,9 +242,8 @@ export async function payCommissions(
   };
 
   try {
-    // La comisión sale del snapshot congelado en `order_items` al aprobar, NO se
-    // recalcula: recalcular acá pagaría un monto distinto del que el vendedor vio
-    // aprobado si la config financiera cambió en el medio (Docs/03-Finanzas.md, regla de oro).
+    // La comisión sale del snapshot congelado al aprobar, no se recalcula: pagaría otro monto si la
+    // configuración cambió.
     const { data: itemRows, error: itemsError } = await db
       .from('order_items')
       .select('order_id, comision')
@@ -372,10 +339,6 @@ export async function settleSellerBalance(
   await settleAdjustments(adjustmentIds, (payment as unknown as PaymentRow).id);
   return toPayment(payment as unknown as PaymentRow);
 }
-
-// ============================================================================
-// ── Portal del vendedor ──
-// ============================================================================
 
 export interface SellerSummary {
   pendingApproval: { count: number; comision: number };

@@ -1,21 +1,5 @@
-// Carga de variables de entorno — FUENTE ÚNICA para todo el backend.
-// Reemplaza los `dotenv.config()` sueltos que había en config.ts, storage.ts y
-// los scripts. Importar este módulo (por su side-effect) antes de leer cualquier
-// process.env garantiza que las variables ya estén cargadas.
-//
-// Estrategia de dev local:
-//   Los secretos NO viven en el repo. Se guardan fuera (p. ej. en OneDrive) y la
-//   ruta se pasa por la variable de usuario de Windows GYRO_ENV_FILE, para no
-//   dejar rutas personales escritas en el código. Configúrala una vez:
-//     setx GYRO_ENV_FILE "C:\Users\TuUsuario\OneDrive - Gyro Store\.env"
-//   y reinicia la terminal / VS Code.
-//
-//   Si GYRO_ENV_FILE no está definida, cae al App/.env local (portabilidad para
-//   otros entornos o colaboradores).
-//
-// En Render (producción) no hay archivo .env: las variables se inyectan desde el
-// dashboard y ya están en process.env, así que dotenv simplemente no encuentra
-// archivo y no hace nada. Es el comportamiento correcto.
+// Fuente única de variables: importarlo antes de leer process.env. En desarrollo lee el archivo de
+// GYRO_ENV_FILE (fuera del repo) o App/.env; en Render no hay archivo y no hace nada.
 import { config as loadDotenv } from 'dotenv';
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';

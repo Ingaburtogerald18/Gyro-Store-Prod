@@ -1,6 +1,4 @@
-// Configuración del landing (slides del hero + orden de categorías del header).
-// Vive en `app_config` bajo la clave `landing_config`: es contenido editable
-// desde el panel, no una constante de arranque, así que no va en config.ts.
+// Configuración de la portada (banners y categorías del header) en `app_config.landing_config`.
 import { db } from '../../core/supabase';
 import { landingConfigSchema, type LandingConfig } from '../../../shared/schemas';
 import { logger } from '../../utils/logger';
@@ -60,10 +58,8 @@ export async function getLandingConfig(): Promise<LandingConfig> {
   return parsed.data;
 }
 
-// Guarda la configuración completa (no hay merge parcial a propósito: el panel
-// manda siempre el arreglo entero, así el orden de los slides es explícito).
-// Las fotos que deja de usar las limpia el modo edición (store-draft.ts), que
-// sabe cuáles siguen en una versión o en el borrador.
+// Siempre la configuración entera, sin merge: así el orden de los banners es explícito. Las fotos
+// que dejan de usarse las limpia el modo edición, que sabe cuáles siguen en una versión.
 export async function saveLandingConfig(config: LandingConfig): Promise<LandingConfig> {
   landingConfigCachedAt = 0;
   const { error } = await db

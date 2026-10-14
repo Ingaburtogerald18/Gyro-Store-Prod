@@ -9,10 +9,6 @@ import { resolveTemplateLink } from '../catalog/template-products';
 import { codesOfMapping, nameForVariant, type CatalogLink } from './inventory-links';
 import type { InventoryRow } from './inventory';
 
-// ============================================================================
-// ── Escritura (purchases) ──
-// ============================================================================
-
 /** Saca un código de lote de los vínculos que se cargaban a mano en el editor de Catálogo. */
 async function dropManualLinks(code: string): Promise<void> {
   const { data, error } = await db.from('catalog_items').select('id, variant_mappings').not('variant_mappings', 'is', null);
@@ -49,10 +45,7 @@ export async function withMediaLinks<T extends InventoryRow & { offerTarget?: { 
   return rows.map((row) => ({ ...row, spoLink: links.get(productOf(row) ?? '') ?? null }));
 }
 
-/**
- * Vincula (o desvincula, con `null`) un lote existente a una variante del
- * catálogo. Requiere la migración 0022.
- */
+/** Vincula (o desvincula con `null`) un lote a una variante del catálogo. */
 export async function setPurchaseLink(id: string, link: CatalogLink | null): Promise<void> {
   const { error } = await db
     .from('purchases')
@@ -64,10 +57,8 @@ export async function setPurchaseLink(id: string, link: CatalogLink | null): Pro
   if (error) throw error;
 }
 
-// "Sube stock": pasa el lote a `received` y persiste la
-// cadena de costeo completa de Docs/03-Finanzas.md §1-3 vía costing.ts. La tasa de cambio
-// se congela acá (regla de oro #4) con la vigente en `app_config` al momento
-// de recibir — no se vuelve a tocar después.
+// Pasa el lote a `received` y guarda la cadena de costeo (Docs/03-Finanzas.md §1-3).
+// La tasa de cambio se congela acá y no se vuelve a tocar.
 export async function reportArrival(id: string, input: ArrivalInput): Promise<boolean> {
   const { data: existing, error: fetchError } = await db
     .from('purchases')
@@ -172,8 +163,7 @@ export async function updatePurchase(
     }
   }
 
-  // El código lo genera el sistema y es la llave del vínculo con el catálogo:
-  // cambiarlo dejaría la variante apuntando a un lote que ya no existe.
+  // El código lo genera el sistema y es la llave del vínculo con el catálogo: no se cambia.
   if (input.code !== undefined && input.code !== existing.code) {
     throw new BadRequestError('El código del lote no se puede cambiar.');
   }
@@ -200,8 +190,7 @@ export async function updatePurchase(
     input = { ...input, ...link };
   }
 
-  // Vincular a una variante: el lote toma el nombre que ya usan los otros lotes
-  // de esa variante (Ventas los agrupa por nombre). Si tiene unidades
+  // El lote toma el nombre de los otros de su variante (Ventas agrupa por nombre). Con unidades
   // reservadas se conserva el nombre: renombrar rompería el costeo.
   if (input.catalogItemId !== undefined) {
     const link: CatalogLink | null = input.catalogItemId
@@ -209,8 +198,7 @@ export async function updatePurchase(
       : null;
     const canonical = link && reserved === 0 ? await nameForVariant(link) : null;
     await setPurchaseLink(id, link);
-    // El vínculo por columna queda como el único: sin el editor de Catálogo, uno
-    // cargado a mano ahí ya no se podría corregir.
+    // El vínculo por columna queda como el único.
     await dropManualLinks(existing.code);
     if (canonical) {
       input = {
@@ -237,11 +225,8 @@ export async function updatePurchase(
   if (differs(input.shippingUnit, existing.envio_unit_usd)) patch.envio_unit_usd = input.shippingUnit;
   if (input.suggestedPrice !== undefined) patch.suggested_price = input.suggestedPrice;
 
-  // Si el lote ya fue recibido y un insumo del costeo cambió DE VERDAD, se
-  // recalcula la cadena de costos con la tasa YA congelada del lote (regla de
-  // oro #4). El precio de venta NO se toca: es una decisión de quien vende,
-  // y antes se pisaba con el sugerido en cualquier edición, aunque solo se
-  // hubiera corregido el nombre. Para cambiarlo hay que mandarlo explícito.
+  // Si cambia un insumo del costeo de un lote recibido, se recalcula con su tasa ya congelada.
+  // El precio de venta no se toca salvo que venga explícito: es decisión de quien vende.
   const costingInputsChanged =
     existing.status === 'received' &&
     ('quantity' in patch || 'costo_china_usd' in patch || 'impuesto_unit_usd' in patch || 'envio_unit_usd' in patch);

@@ -18,9 +18,7 @@ router.get(
       getFinancialConfig(),
     ]);
     res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
-    // `business` (editable desde el panel) pisa brandName/whatsapp/contactEmail
-    // que vienen de env, y agrega ruc/address/currency.
-    // `financial` pisa el exchangeRate.
+    // Lo editado en el panel (`business`, `financial`) pisa lo que viene del entorno.
     res.json({ ...publicConfig, ...business, exchangeRate: financial.exchangeRate, categories, images });
   })
 );

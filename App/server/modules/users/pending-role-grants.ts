@@ -1,6 +1,4 @@
-// Roles reservados por correo para personal que un admin agregó desde Personal
-// pero que todavía no inició sesión con Microsoft ni una vez (ver la nota de
-// la sección `pending_role_grants` de database/01_schema.sql para el porqué).
+// Roles reservados por correo para personal que todavía no entró con Microsoft.
 import { db } from '../../core/supabase';
 import type { AppRole } from '../../core/config';
 
@@ -11,9 +9,7 @@ export interface PendingRoleGrant {
   createdAt: string;
 }
 
-// Crea o reemplaza la reserva de un correo (agregar de nuevo con otro rol
-// simplemente pisa la anterior — no hay historial que conservar de algo que
-// nunca se activó).
+// Agregar de nuevo con otro rol pisa la reserva anterior: no hay historial de algo que no se activó.
 export async function upsertPendingGrant(input: {
   email: string;
   name: string;
@@ -62,9 +58,7 @@ export async function getPendingGrant(email: string): Promise<PendingRoleGrant |
   return { email: data.email, name: data.name, roles: data.roles ?? [], createdAt: data.created_at };
 }
 
-// La consume el primer login real (middleware/auth.ts): le copia los roles al
-// perfil recién creado y borra la reserva — es de un solo uso, como un código
-// de invitación.
+// El primer login copia los roles al perfil y borra la reserva: es de un solo uso.
 export async function consumePendingGrant(email: string): Promise<AppRole[] | null> {
   const { data, error } = await db
     .from('pending_role_grants')

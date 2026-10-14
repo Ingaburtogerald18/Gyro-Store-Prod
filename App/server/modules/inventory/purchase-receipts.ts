@@ -7,10 +7,6 @@ import type { ReceivePurchaseOrderInput, SimulatePurchaseOrderReceiptInput } fro
 import { requireOrdersTable } from './purchase-order-common';
 import { audit } from './purchase-order-edits';
 
-// ============================================================================
-// ── Recibir en Nicaragua ──
-// ============================================================================
-
 interface ReceiptLineRow {
   id: string;
   order_id: string;
@@ -50,9 +46,8 @@ function receiptOrderIds(orderId: string, extra: string[] | undefined): string[]
 }
 
 /**
- * Valida lo que se va a recibir y calcula el costo de cada línea. El envío
- * total se divide entre TODAS las unidades recibidas en esta llegada, de
- * todas las órdenes del envío.
+ * Valida lo recibido y costea cada línea. El envío se reparte entre todas las unidades de la llegada,
+ * de todas las órdenes del envío.
  */
 async function planReceipt(orderIds: string[], input: SimulatePurchaseOrderReceiptInput): Promise<ReceiptPlan> {
   await requireOrdersTable();
@@ -149,12 +144,8 @@ export async function simulatePurchaseOrderReceipt(
 }
 
 /**
- * Pasa a bodega las líneas recibidas, con el costeo completo y la tasa
- * congelada (regla de oro #4), igual que la recepción de un lote suelto. Si
- * llegó otra cantidad, la línea queda con lo recibido y guarda lo pedido en
- * `quantity_ordered`. Cada UPDATE exige que la línea siga en tránsito (dos
- * personas no pueden recibirla dos veces); si una falla, se deshacen las
- * anteriores.
+ * Pasa a bodega lo recibido con el costeo y la tasa congelada. Cada UPDATE exige que la línea siga
+ * en tránsito (nadie la recibe dos veces); si una falla, se deshacen las anteriores.
  */
 export async function receivePurchaseOrder(
   orderId: string,

@@ -8,16 +8,12 @@ import { getActiveOffers } from './offers';
 
 const router = Router();
 
-// Endpoint público para obtener todos los ítems publicados del catálogo.
-// La fila cruda de la base se presenta antes de salir al cable: el storefront
-// recibe objetos planos listos para pintar, no el esquema de la tabla.
+// Catálogo público ya presentado: objetos listos para pintar, no el esquema de la tabla.
 router.get(
   '/',
   asyncHandler(async (_req, res) => {
     const rows = await listPublishedCatalog();
-    // Una sola consulta a bodega para TODO el listado: se juntan los códigos de
-    // lote de todos los ítems y se resuelven de golpe, en vez de una consulta
-    // por producto (N+1) mientras se presenta cada fila.
+    // Una sola consulta a bodega para todo el listado, en vez de una por producto.
     const [lots, offers] = await Promise.all([getLotsByCodes(rows.flatMap(collectMappedCodes)), getActiveOffers()]);
     res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
     res.json({ items: rows.map((row) => toCatalogProduct(row, lots, offers.get(row.id))) });

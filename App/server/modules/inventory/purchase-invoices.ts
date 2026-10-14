@@ -4,10 +4,6 @@ import { BadRequestError } from '../../utils/http-error';
 import type { PurchaseInvoiceInput } from '../../../shared/schemas';
 import { escapeLike, isUniqueViolation, requireOrdersTable } from './purchase-order-common';
 
-// ============================================================================
-// ── Facturas ──
-// ============================================================================
-
 export interface PurchaseInvoice {
   id: string;
   invoiceNumber: string;

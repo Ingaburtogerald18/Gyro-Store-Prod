@@ -18,11 +18,8 @@ export const telemetryLimiter: RateLimitRequestHandler = rateLimit({
   legacyHeaders: false,
 });
 
-// Límite estricto para el checkout público (POST /api/orders/public): 10 pedidos
-// cada 15 minutos por IP. Es el único endpoint anónimo que ESCRIBE en la base, así
-// que el límite general de 300/15min es demasiado holgado: bastaría un script para
-// llenar `public_orders` de basura y ensuciar el CRM. Un comprador real no hace
-// más de un par de pedidos seguidos.
+// El checkout es el único endpoint anónimo que escribe pedidos: con el límite general un script
+// podría llenar `public_orders`. Un comprador real no hace más de un par seguidos.
 export const publicOrderLimiter: RateLimitRequestHandler = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 10,
@@ -33,10 +30,7 @@ export const publicOrderLimiter: RateLimitRequestHandler = rateLimit({
   legacyHeaders: false,
 });
 
-// Mismo criterio que publicOrderLimiter: POST /api/contact es el otro
-// endpoint anónimo que escribe en la base (crea/actualiza un contacto del
-// CRM). Sin esto, un script podría llenar `contacts`/`contact_activities` de
-// basura tan fácil como el checkout público.
+// El contacto también escribe en la base sin sesión (contacts): mismo criterio que el checkout.
 export const contactLimiter: RateLimitRequestHandler = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 10,
@@ -56,10 +50,7 @@ export const stockNoticeLimiter: RateLimitRequestHandler = rateLimit({
   legacyHeaders: false,
 });
 
-// Rastreo de pedido por número + teléfono (POST /api/orders/public/track). Es
-// una búsqueda anónima: sin un límite propio, un script podría probar números
-// de pedido contra un teléfono. 10 intentos cada 15 minutos sobran para alguien
-// que escribió mal su número un par de veces.
+// Búsqueda anónima por número + teléfono: sin límite propio se podrían probar números en bucle.
 export const trackOrderLimiter: RateLimitRequestHandler = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 10,

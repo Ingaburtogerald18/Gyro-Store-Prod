@@ -4,17 +4,8 @@ import { isMissingColumn } from '../orders/order-persistence';
 import { releaseFifoLot, walkFifoLots } from './inventory-fifo';
 import { codesForVariant, getAvailableByCodes } from './inventory-links';
 
-// ============================================================================
-// ── Reservas de pedidos web ──
-// ============================================================================
-// Regla del negocio: el pedido web NO descuenta al crearse (se coordina por
-// WhatsApp). Cuando la tienda lo confirma (pasa a "preparing" o "shipped") se
-// apartan sus unidades para que la tienda no se las prometa a otro cliente; al
-// entregarse, cancelarse o volver a "new" se liberan. La venta formal se sigue
-// registrando en Ventas, que es la que descuenta el stock de verdad.
-//
-// Requiere la migración 0022 (stock_reservations.public_order_id). Sin ella no
-// hace nada.
+// ── Reservas de pedidos web ── El pedido no descuenta al crearse: al pasar a preparando o enviado
+// se apartan sus unidades y al entregarse o cancelarse se liberan. Descuenta de verdad la venta.
 
 const RESERVING_STATUSES = new Set(['preparing', 'shipped']);
 

@@ -116,14 +116,20 @@ Escala de comisión:
 | más de 600 | 27 % |
 
 - **Tramo único**: el porcentaje del tramo se aplica a toda la utilidad neta, no por partes.
-- **Por línea**: el tramo se busca con la utilidad neta **total de la línea**
-  (`(precio − coste final) × cantidad × (1 − salario %)`), no por unidad.
+- **Por unidad**: el tramo se busca con la utilidad neta **de una unidad**
+  (`(precio − coste final) × (1 − salario %)`) y después se multiplica por la cantidad. Buscarlo con la
+  línea completa le bajaba el porcentaje al vendedor cuando vendía varias unidades juntas. Con cantidad 1
+  los dos cálculos dan lo mismo.
 - **El salario es un fondo de la empresa**: no es del vendedor ni cuenta como ganancia de la tienda.
 - Todo se congela en `order_items` al aprobar.
 
-## 5. Mayoreo
+## 5. Mayoreo y descuentos
 
-Herramienta del **cotizador del vendedor**. La tienda pública no lo aplica ni lo anuncia.
+**El mayoreo está apagado.** El cotizador ya no aplica ni avisa el descuento por volumen: los
+descuentos se dan con un **código de descuento** al facturar, y el descuento de la factura se
+reparte entre sus líneas para que la comisión se calcule sobre lo cobrado.
+
+Los tramos siguen guardados en la configuración (`mayoreo`) por si se reactiva:
 
 | Cantidad de la misma línea | Descuento |
 |---|---|
@@ -132,10 +138,13 @@ Herramienta del **cotizador del vendedor**. La tienda pública no lo aplica ni l
 | 6 o más | 10 % |
 | 12 o más | 15 % y aviso «Mejor haz una cotización para obtener mejores descuentos» |
 
-- Se aplica el tramo más alto que cumple la cantidad, sobre el precio cargado del producto.
-- El precio con descuento entra a la misma cadena del §4: baja la utilidad y con ella la comisión.
-- **Piso**: ningún descuento (mayoreo, código de descuento o futuro código de lealtad) puede dejar una
-  venta por debajo del coste final.
+Para reactivarlo, `computeOrderLineSnapshot` (`server/modules/sales/commission.ts`) tiene que volver a
+usar `applyWholesaleDiscount`: aplica el tramo más alto que cumple la cantidad, sobre el precio
+cargado, y el resultado entra a la misma cadena del §4.
+
+**Margen mínimo.** Un precio por debajo del mínimo (`coste final × minMarginMultiplier`, 1.15 si no
+está configurado) no bloquea el registro: la venta entra marcada y el admin decide al aprobar.
+Bloquear rebotaba facturas ya cobradas y dejaba tantear precios hasta encontrar el costo.
 
 ## 6. Ejemplo completo
 
@@ -178,11 +187,12 @@ En `app_config`, editables desde Configuración → Finanzas:
 
 ## 10. Decisiones cerradas
 
-1. Mayoreo: 2.5 % desde 2, 5 % desde 3, 10 % desde 6, 15 % desde 12 con aviso.
-2. El descuento de mayoreo se aplica sobre el precio cargado, no sobre el sugerido.
-3. La comisión usa la misma escala con o sin mayoreo; el último tramo cubre todo lo que está por encima.
-4. El tramo de comisión se busca con la utilidad neta total de la línea.
-5. El inventario migrado queda fuera.
+1. Mayoreo (2.5 % desde 2, 5 % desde 3, 10 % desde 6, 15 % desde 12, sobre el precio cargado):
+   definido pero apagado; los descuentos van con código (§5).
+2. La comisión usa una sola escala; el último tramo cubre todo lo que está por encima.
+3. El tramo de comisión se busca con la utilidad neta de una unidad, para que vender varias unidades
+   juntas no le baje el porcentaje al vendedor (§4).
+4. El inventario migrado queda fuera.
 
 ## 11. Dónde vive cada dato
 

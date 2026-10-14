@@ -1,26 +1,5 @@
-// Worker que drena `spo_outbox` hacia SharePoint Online.
-//
-// Corre en el mismo proceso que la API, cada minuto. Por cada venta pendiente:
-// genera el comprobante PDF → lo sube a la biblioteca, en la carpeta de la semana
-// ISO de aprobación → guarda la URL en la fila del outbox y la marca `synced`.
-//
-// Esa URL es el único vínculo que queda entre Postgres y SharePoint: para llegar
-// al comprobante de una venta se lee `spo_outbox.comprobante_url` por `order_id`.
-// Ver modules/sharepoint/sharepoint.ts para por qué no se replican los datos de la venta
-// en una Lista.
-//
-// ── Concurrencia ──
-// La app es un monolito de UNA sola instancia en Render (un servicio Express que
-// además sirve el build de Remix), así que alcanza con un `setInterval` en
-// proceso más el guard de `running` de abajo, que evita que dos ciclos se pisen
-// si uno se demora más que el intervalo.
-//
-// SI ALGÚN DÍA HAY MÁS DE UNA INSTANCIA, dos procesos leerían las mismas
-// pendientes y subirían el mismo PDF dos veces (inocuo: misma ruta, se
-// sobrescribe) pero gastarían el doble de llamadas y podrían pisarse al escribir
-// la URL. La corrección es tomar el lote con `SELECT ... FOR UPDATE SKIP LOCKED`
-// dentro de una transacción (vía una función RPC en Postgres, porque PostgREST no
-// expone el lock), o mover el worker a un servicio propio de una sola réplica.
+// Drena `spo_outbox` cada minuto en el mismo proceso: genera el PDF, lo sube y guarda la URL.
+// Con más de una instancia habría que tomar el lote con FOR UPDATE SKIP LOCKED (Docs/04 §7).
 import { config } from '../../core/config';
 import { db } from '../../core/supabase';
 import { logger } from '../../utils/logger';
@@ -32,13 +11,9 @@ const TICK_MS = 60_000;
 // Arranque diferido: el primer ciclo no compite con el arranque del server ni con
 // el primer request, y le da margen a que la red del contenedor esté lista.
 const FIRST_RUN_DELAY_MS = 45_000;
-// Lote por ciclo. Con backlog grande (el día que se enciendan las credenciales y
-// haya meses acumulados) se drena de a poco en vez de disparar cientos de
-// requests a Graph de golpe y comerse un 429 general.
+// De a 10 por ciclo: con un backlog grande no se dispara un 429 general.
 const BATCH_SIZE = 10;
-// Tope de reintentos. Pasado esto la fila queda en `error` para revisión manual:
-// seguir reintentando algo que falla igual 12 veces no lo arregla, solo tapa el
-// log y gasta cuota de Graph.
+// Pasados 12 intentos la fila queda en `error` para revisión: seguir reintentando no lo arregla.
 const MAX_ATTEMPTS = 12;
 
 let running = false;
@@ -50,16 +25,9 @@ interface OutboxRow {
   comprobante_url: string | null;
 }
 
-/**
- * Un ciclo de drenado. Exportada para poder dispararla a mano (script, o un
- * endpoint de admin si algún día hace falta forzar la sincronización).
- *
- * @returns cuántas filas se sincronizaron.
- */
+/** Un ciclo de drenado; exportado para dispararlo a mano. Devuelve cuántas filas se sincronizaron. */
 export async function drainSpoOutbox(): Promise<number> {
-  // Sin credenciales no hay nada que hacer: las filas se quedan `pending` y se
-  // sincronizan solas cuando se configure Microsoft. NO se marcan como error —
-  // "todavía no configurado" no es una falla de la venta.
+  // Sin credenciales las filas quedan `pending` y se sincronizan cuando se configure: no es un error.
   if (!config.spo.enabled) return 0;
   if (running) return 0;
   running = true;
@@ -81,9 +49,7 @@ export async function drainSpoOutbox(): Promise<number> {
     for (const row of (data || []) as OutboxRow[]) {
       const ok = await processRow(row);
       if (ok) synced += 1;
-      // Un 429 tumba el resto del lote: Graph pidió que paremos, y seguir
-      // martillando con las nueve ventas siguientes alarga el throttling. El
-      // resto queda pendiente para el próximo ciclo.
+      // Un 429 corta el resto del lote: seguir alarga el throttling.
       if (ok === null) break;
     }
   } catch (err) {
@@ -95,16 +61,10 @@ export async function drainSpoOutbox(): Promise<number> {
   return synced;
 }
 
-/**
- * Procesa UNA fila.
- * @returns `true` sincronizada · `false` falló (queda pendiente o en error) ·
- *          `null` throttling: hay que cortar el lote.
- */
+/** `true` sincronizada · `false` falló · `null` throttling: hay que cortar el lote. */
 async function processRow(row: OutboxRow): Promise<boolean | null> {
   try {
-    // Defensa contra trabajo repetido: si la fila ya tiene URL, el PDF ya está
-    // arriba. Puede pasar si el UPDATE final falló después de una subida
-    // exitosa. Se cierra la fila sin volver a generar ni subir nada.
+    // Si ya tiene URL el PDF está arriba (falló el UPDATE final): se cierra sin volver a subir.
     if (row.comprobante_url) {
       await markSynced(row.id, row.comprobante_url);
       return true;
@@ -112,8 +72,7 @@ async function processRow(row: OutboxRow): Promise<boolean | null> {
 
     const data = await buildComprobanteData(row.order_id);
     if (!data) {
-      // La orden ya no existe (borrada). No hay nada que espejar nunca más: se
-      // cierra como error definitivo en vez de reintentar hasta agotar intentos.
+      // La orden ya no existe: error definitivo en vez de reintentar.
       await markError(row.id, row.attempts + 1, 'La venta ya no existe.', true);
       return false;
     }
@@ -132,9 +91,7 @@ async function processRow(row: OutboxRow): Promise<boolean | null> {
 
     if (err instanceof GraphApiError) {
       if (err.status === 429) {
-        // No cuenta como intento fallido: no falló la venta, nos pidieron
-        // esperar. Sumarlo gastaría el presupuesto de reintentos por un límite
-        // de tasa que se resuelve solo.
+        // Un 429 no cuenta como intento: no falló la venta, pidieron esperar.
         logger.warn('[spo] Graph pidió esperar (429)', {
           orderId: row.order_id,
           retryAfterSeconds: err.retryAfterSeconds,
@@ -142,9 +99,7 @@ async function processRow(row: OutboxRow): Promise<boolean | null> {
         return null;
       }
 
-      // Lo no-reintentable se cierra ya: un 403 por permisos sin conceder o un
-      // 404 por un drive id equivocado va a fallar igual dentro de una hora.
-      // Queda en `error` con el motivo, para arreglarlo y re-encolar.
+      // Lo no reintentable (403, 404) se cierra ya con el motivo, para arreglarlo y re-encolar.
       const giveUp = !err.retryable || attempts >= MAX_ATTEMPTS;
       await markError(row.id, attempts, `${err.status}: ${err.message}`, giveUp);
       return false;
@@ -196,13 +151,8 @@ async function markError(id: string, attempts: number, message: string, giveUp: 
 }
 
 /**
- * Arranca el worker. Se llama una vez desde `index.ts`, después de que el server
- * esté escuchando.
- *
- * Se monta INCLUSO con SPO deshabilitado: el ciclo es un `return 0` inmediato, y
- * dejarlo puesto significa que el día que se carguen las credenciales alcanza con
- * reiniciar — no hay que acordarse de encender nada más. `unref()` para que un
- * timer pendiente no le impida al proceso terminar.
+ * Se monta aunque SharePoint esté apagado: al cargar las credenciales alcanza con reiniciar.
+ * `unref()` para que el timer no impida terminar el proceso.
  */
 export function startSpoWorker() {
   if (process.env.NODE_ENV === 'test') return;

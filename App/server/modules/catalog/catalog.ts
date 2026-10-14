@@ -3,11 +3,8 @@ import { publicCatalogItemSchema, type PublicCatalogItem } from '../../../shared
 import { parseDbRows } from '../../utils/parse-db-rows';
 import { withLinkedLots } from '../inventory/inventory-links';
 
-// Columnas que el storefront puede ver. Se listan explícitamente en vez de usar
-// `select('*')`: la tabla `catalog_items` tiene columnas de la cadena financiera
-// (precio_sugerido, precio_tentativo y lo que venga después) y un `*` las publicaría
-// solas, sin que nadie lo note, en cuanto la migración las agregue. Un competidor
-// que lea el JSON del catálogo puede derivar el margen del negocio (Docs/03-Finanzas.md §3).
+// Columnas explícitas: con `select('*')` saldrían los precios sugeridos de la cadena financiera,
+// y con ellos se puede deducir el margen del negocio.
 const PUBLIC_CATALOG_COLUMNS = [
   'id',
   'template_id',
@@ -27,9 +24,7 @@ const PUBLIC_CATALOG_COLUMNS = [
   'category:categories(id, name)',
 ].join(', ');
 
-// Obtiene los ítems del catálogo publicados junto con su template embebido.
-// Valida la respuesta contra el contrato único de Zod antes de retornarla
-// para asegurar que el frontend siempre reciba la estructura esperada.
+// Ítems publicados con su plantilla, validados contra el contrato de Zod.
 export async function listPublishedCatalog(): Promise<PublicCatalogItem[]> {
   const { data, error } = await db
     .from('catalog_items')
@@ -41,15 +36,11 @@ export async function listPublishedCatalog(): Promise<PublicCatalogItem[]> {
     throw error;
   }
 
-  // Validamos el array completo y retornamos el tipo inferido de forma segura.
-  // Si la base devuelve algo que no cumple el contrato es un 500, no un 400: el
-  // cliente no tiene nada que corregir en su request (ver parseDbRows).
+  // Si la base no cumple el contrato es un 500, no un 400: el cliente no tiene nada que corregir.
   return withLinkedLots(parseDbRows(publicCatalogItemSchema, data, 'catalog_items'));
 }
 
-// Un ítem publicado por id, para la ficha de producto. Devuelve null si no
-// existe o no está publicado: desde afuera son el mismo 404, y así un producto
-// despublicado no se puede sondear por id.
+// Null si no existe o no está publicado: desde afuera es el mismo 404, así no se sondea por id.
 export async function getPublishedCatalogItem(
   id: string,
 ): Promise<PublicCatalogItem | null> {

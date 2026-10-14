@@ -1,11 +1,5 @@
-// Rutas de telemetría del storefront.
-//   POST /api/analytics                  → ingesta pública (sendBeacon, lotes)
-//   GET  /api/analytics/admin/dashboard  → embudo, búsquedas y productos más vistos (admin)
-//
-// La ingesta es el ÚNICO endpoint anónimo que escribe acá. Va con `telemetryLimiter`
-// (montado en index.ts, igual que el checkout y el contacto) y filtro de bots. El
-// cliente además solo emite con consentimiento y sin sesión de staff, así que la
-// data refleja visitantes reales.
+// Ingesta pública (POST /api/analytics, con telemetryLimiter y filtro de bots) y tablero (admin).
+// El cliente solo emite con consentimiento y sin sesión de personal.
 import { Router } from 'express';
 import { z } from 'zod';
 import { asyncHandler } from '../../utils/async-handler';

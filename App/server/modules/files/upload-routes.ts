@@ -7,9 +7,8 @@ import { logger } from '../../utils/logger';
 
 const router = Router();
 
-// Límite de subida. 25 MB y no 10: Canva gratis solo exporta sin fondo en GIF,
-// y esos GIF pasan fácil los 10 MB. No se guarda ese peso: las imágenes se
-// convierten a WebP de hasta 1200px (optimizeImageBuffer) antes de ir a R2.
+// 25 MB porque los GIF sin fondo que exporta Canva pasan fácil los 10 MB.
+// No se guarda ese peso: todo se convierte a WebP de hasta 1200 px.
 const MAX_UPLOAD_MB = 25;
 
 // Configure multer to store files in memory
@@ -27,11 +26,7 @@ const upload = multer({
   },
 });
 
-/**
- * Traduce los rechazos de multer (archivo enorme, tipo no permitido) a un 400
- * con el motivo. Sin esto caían en el errorHandler como 500 "error inesperado
- * en el servidor", y quien sube no sabía que el problema era el peso.
- */
+/** Los rechazos de multer (peso, tipo) salen como 400 con el motivo, no como 500. */
 const acceptUpload: import('express').RequestHandler = (req, res, next) => {
   upload.single('file')(req, res, (err: any) => {
     if (!err) return next();

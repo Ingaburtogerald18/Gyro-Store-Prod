@@ -1,5 +1,4 @@
-// Borrador compartido del modo edición y su bloqueo (migración 0029). Una sola
-// fila: un admin a la vez edita, y lo que deja queda para el siguiente.
+// Borrador compartido del modo edición y su bloqueo: una sola fila, un admin a la vez.
 import { db } from '../../core/supabase';
 import type { AuthUser } from '../../middleware/auth';
 import { logger } from '../../utils/logger';

@@ -1,7 +1,4 @@
-// Ventas (MVP Hito 3): /api/sales/products (cotizador), /api/sales/quote,
-// POST /api/sales (registrar), /:id/approve, /:id/reject, GET /api/sales
-// (listado, scoped por rol). requireSeller cubre seller+admin+global_admin
-// (auth.ts); aprobar/rechazar exige admin.
+// Ventas: cotizador, registro, listado y detalle (vendedor y admin); aprobar y rechazar es admin.
 import { Router } from 'express';
 import { z } from 'zod';
 import { asyncHandler } from '../../utils/async-handler';
@@ -49,13 +46,8 @@ router.post(
     const result = await quoteSale(data.items);
 
     if (!isAdminLike(req.user!.roles)) {
-      // El vendedor ve su comisión, no la estructura de costos de la tienda.
-      // Se recortan también los unitarios: de `utilidadBrutaUnit` se despeja el
-      // costo real restando al precio, así que dejarlos sería filtrar lo mismo.
-      // Y por el mismo criterio que en el detalle:
-      //   · `comisionPercent` → comisión ÷ % = utilidad neta → costo.
-      //   · `belowMinMargin` → tanteando precios hasta que se enciende, sale
-      //     costo × multiplicador. La venta igual se registra marcada.
+      // El vendedor ve su comisión, no los costos: se recortan unitarios, `comisionPercent` y
+      // `belowMinMargin`, porque con cualquiera se despeja el costo.
       result.lines = result.lines.map((line) => {
         const {
           costeFinalSnap,
@@ -95,11 +87,7 @@ router.post(
   }),
 );
 
-// ==========================================
-// PAGO DE COMISIONES
-// ==========================================
-// Van ANTES de `/:id/...`: si no, Express haría coincidir "payments" o
-// "balances" con el parámetro y caerían en la ruta equivocada.
+// ── Pago de comisiones ── Antes de `/:id` para que Express no tome «payments» como id.
 
 // Portal del vendedor: cada uno ve LO SUYO. El email sale del token, nunca del
 // query — si no, un vendedor podría leer el resumen de otro cambiando la URL.
@@ -134,9 +122,7 @@ router.get(
   }),
 );
 
-// Mismo resumen que `/my-summary`, pero para un vendedor CUALQUIERA — por eso
-// es admin-only (a diferencia de `/my-summary`, acá el email SÍ viaja en el
-// query). Lo usa el popup de "cuánto le debemos" tras aprobar en lote.
+// Resumen de un vendedor cualquiera (admin): lo usa el aviso de «cuánto le debemos» tras aprobar.
 router.get(
   '/summary',
   requireAdmin,
@@ -169,17 +155,8 @@ router.post(
 );
 
 /**
- * GET /api/sales/:id — una venta con sus líneas.
- *
- * Va DESPUÉS de `/products`, `/quote`, `/payments`, `/balances` y `/my-*`: si
- * estuviera antes, Express haría coincidir esas rutas con `:id` y las mandaría
- * acá con un uuid inválido.
- *
- * Doble recorte:
- *  · Un vendedor solo puede pedir SUS ventas. Cambiar el uuid en la URL no le
- *    sirve — se compara contra el correo del token, no contra el query.
- *  · Los campos financieros por línea (coste, ganancia) se podan para no-admin,
- *    igual que en POST /quote.
+ * GET /api/sales/:id — después de las rutas fijas para que no caigan acá. Un vendedor solo pide las
+ * suyas (se compara con su token) y sin campos de costo.
  */
 router.get(
   '/:id',
@@ -200,16 +177,8 @@ router.get(
     }
 
     if (!admin) {
-      // El vendedor ve SU comisión, no la estructura de costos de la tienda.
-      //
-      // Se poda mucho más que el costo directo, por el mismo criterio que en
-      // POST /quote: casi toda la cadena permite despejarlo hacia atrás.
-      //   · `utilidadBruta` → costo = precio − utilidad bruta.
-      //   · `comisionPercent` → utilidad neta = comisión ÷ %, y de ahí la bruta
-      //     (la neta es el 80% de la bruta) y el costo.
-      //   · `pozos` → su suma es el Costo F/U, que es parte del costo.
-      // Sobreviven `comision` y `comisionUnit`: son lo suyo y no despejan nada
-      // por sí solos.
+      // El vendedor ve su comisión, no los costos: se podan utilidad bruta, porcentaje y pozos porque con
+      // cualquiera se despeja el costo. Sobreviven `comision` y `comisionUnit`.
       sale.items = sale.items.map(
         ({
           costeFinalSnap,
@@ -348,9 +317,7 @@ router.get(
       from: from.success ? from.data : undefined,
       to: to.success ? to.data : undefined,
     });
-    // Ganancia de tienda y fondo empresa: SENSIBLE, igual que en `/quote` y en el detalle de
-    // una venta — un vendedor común no ve la estructura de costos de la
-    // tienda, solo la suya (comisión).
+    // Ganancia de tienda y fondo empresa son solo para admin.
     res.json(admin ? sales : sales.map(({ totalGananciaTienda, totalSalary, belowMinMargin, ...rest }) => rest));
   }),
 );

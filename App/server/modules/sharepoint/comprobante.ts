@@ -1,14 +1,5 @@
-// Comprobante PDF de una venta aprobada: es el adjunto que acompaña a cada fila
-// del espejo en SharePoint.
-//
-// ── Por qué se genera acá y no se guarda el ticket que ya imprime Caja ──
-// El ticket de factura se arma en el frontend al momento de imprimir y no queda
-// en ningún lado. El espejo lo necesita meses después, sin nadie mirando, así que
-// el PDF se produce en el servidor a partir de los datos, no de la pantalla.
-//
-// `pdf-lib` y no puppeteer/wkhtmltopdf: es JavaScript puro, sin binarios nativos
-// ni un Chromium de 300 MB que instalar en Render. Un comprobante es texto y
-// líneas; no hace falta un motor de render de HTML para eso.
+// Comprobante PDF de una venta aprobada. Se genera en el servidor porque el ticket de Caja se arma al
+// imprimir y no queda guardado. pdf-lib: JavaScript puro, sin un Chromium que instalar en Render.
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from 'pdf-lib';
 import { config } from '../../core/config';
 import { db } from '../../core/supabase';
@@ -17,30 +8,16 @@ import { getInvoiceTicket, type TicketData } from '../invoices/invoices';
 /** Lo que el worker necesita: el ticket + de dónde salió. */
 export interface ComprobanteData extends TicketData {
   orderId: string;
-  /**
-   * `false` cuando la venta no tenía factura ligada y los datos se reconstruyeron
-   * desde la orden. Se imprime como aviso en el PDF: un comprobante sin
-   * correlativo fiscal no debe pasar por uno que sí lo tiene.
-   */
+  /** `false` si la venta no tenía factura: se avisa en el PDF, que no tiene correlativo fiscal. */
   hasInvoice: boolean;
 }
 
-// El worker es un proceso del sistema, no una persona: ve cualquier factura.
-// `getInvoiceTicket` filtra por vendedor para que uno no lea los tickets de otro,
-// pero acá ya se resolvió la factura POR la venta que estamos espejando.
+// El worker es un proceso del sistema: la factura ya se resolvió por la venta, así que ve cualquiera.
 const SYSTEM_ACCESS = { requesterUid: '', isPrivileged: true };
 
 /**
- * Arma los datos del comprobante de una venta.
- *
- * Camino normal: la venta tiene una factura ligada (`invoices.sale_id`) y se
- * reusa `getInvoiceTicket`, que es el MISMO origen que el ticket impreso — así el
- * comprobante archivado y el que recibió el cliente dicen lo mismo.
- *
- * Fallback: hay ventas sin factura (registradas directo en Ventas, sin pasar por
- * Caja). Se reconstruye desde `orders` + `order_items`. Pierde el correlativo, el
- * método de pago y el desglose de descuento/delivery — la orden no los guarda—,
- * pero un comprobante con lo que hay es mejor que una fila sin adjunto.
+ * Con factura ligada reusa getInvoiceTicket (el mismo origen que el ticket impreso). Sin factura se
+ * reconstruye desde la orden, sin correlativo, método de pago ni desglose.
  */
 export async function buildComprobanteData(orderId: string): Promise<ComprobanteData | null> {
   const { data: invoice, error: invoiceError } = await db
@@ -115,9 +92,7 @@ async function buildFromOrder(orderId: string): Promise<ComprobanteData | null> 
   return {
     orderId,
     hasInvoice: false,
-    // Sin correlativo real: se usa el prefijo del uuid para poder nombrar el
-    // archivo y reconocerlo en la biblioteca. No se inventa un "GS-PR-x", que
-    // se confundiría con uno emitido por Caja.
+    // Sin correlativo real: prefijo del uuid. No se inventa un GS-PR, que se confundiría con uno de Caja.
     ticketNumber: `S-${orderId.slice(0, 8)}`,
     createdAt: order.created_at,
     customer: { name: customerName, phone: order.phone || undefined },
@@ -155,12 +130,7 @@ const INK = rgb(0.1, 0.1, 0.12);
 const MUTED = rgb(0.45, 0.45, 0.5);
 const RULE = rgb(0.8, 0.8, 0.84);
 
-/**
- * Las fuentes estándar de PDF usan WinAnsi, que cubre el español (acentos, ñ, ¿)
- * pero NO emojis ni caracteres asiáticos. Un nombre de producto con un emoji
- * haría que `drawText` LANCE, y perder el comprobante entero por eso sería
- * absurdo: se sustituye lo que no entra y el resto se imprime.
- */
+/** Las fuentes estándar de PDF no cubren emojis: drawText lanzaría y se perdería el comprobante entero. */
 function winAnsi(text: string): string {
   return Array.from(text ?? '')
     .map((char) => {
@@ -243,9 +213,7 @@ export async function renderComprobantePdf(data: ComprobanteData): Promise<Buffe
   rule();
   y -= 22;
 
-  // ── Datos de la venta ──
-  // Dos columnas: sin esto, cuatro etiquetas apiladas comen media página para
-  // decir cuatro cosas cortas.
+  // ── Datos de la venta ── En dos columnas.
   const rightColX = MARGIN + CONTENT_WIDTH / 2;
   const pair = (label: string, value: string, x: number) => {
     page.drawText(winAnsi(label), { x, y, size: 8, font, color: MUTED });

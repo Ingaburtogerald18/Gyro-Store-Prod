@@ -9,13 +9,7 @@ import { getPozoLedger, ledgerMonthOf } from './pozo-ledger';
 import { getLoanPaymentsSummary } from './loan-payments';
 import { getPrestamosPozoBudget } from './expenses';
 
-// ============================================================================
-// ── Esquemas Zod (Contratos) ──
-// ============================================================================
-
-// DTO público que no fuga detalles internos innecesarios si no es requerido.
-// Como estos son reportes de admin, mostramos la utilidad y costes porque
-// el admin/staff autorizado sí debe verlos.
+// Reportes de admin: incluyen utilidad y costos.
 const kpiSchema = z.object({
   total_ventas: z.number(),
   total_unidades: z.number(),
@@ -27,10 +21,8 @@ const kpiSchema = z.object({
   // JSON con los montos recaudados por pozo a partir del coste F/U
   pozos_recogidos: z.record(z.string(), z.number()),
 
-  // ── Periodo inmediatamente anterior, de igual duración (0017) ──
-  // Es lo que convierte un dato en un reporte: sin comparación, "C$1.4M" no
-  // dice si el mes fue bueno. Vienen en 0 cuando el rango es abierto (no hay
-  // "anterior" que calcular) — el front muestra "—" en ese caso.
+  // Periodo anterior de igual duración: sin comparación, "C$1.4M" no dice si el mes fue bueno.
+  // Vienen en 0 si el rango es abierto, y el panel muestra «—».
   total_ventas_prev: z.number(),
   total_unidades_prev: z.number(),
   total_vendido_prev: z.number(),
@@ -66,11 +58,8 @@ const lossRowSchema = z.object({
 export type LossItem = z.infer<typeof lossRowSchema>;
 
 /**
- * Período contra el que se compara `[startDate, endDate]`.
- *
- * Si el rango es un mes calendario completo en hora de Nicaragua (lo que manda
- * el selector de mes), el anterior es el MES CALENDARIO anterior. Para
- * cualquier otro rango, el mismo largo justo antes (criterio del RPC).
+ * Periodo de comparación: si el rango es un mes calendario, el mes anterior completo;
+ * si no, el mismo largo justo antes.
  */
 function previousPeriod(
   startDate?: string,
@@ -101,14 +90,7 @@ function previousPeriod(
   return { startIso: new Date(s - (e - s)).toISOString(), endIso: new Date(s).toISOString(), isCalendarMonth };
 }
 
-/**
- * Retorna los KPIs financieros (ventas, utilidad, comisiones, pozos).
- *
- * NOTA: Para calcular esto "con SQL puro (no agregados en memoria)" como exige
- * el Hito 4, se debe crear una función RPC (`get_financial_kpis`) en una
- * migración SQL futura (ej. `0011_reports_rpc.sql`). El cliente de Supabase
- * JS no soporta agregaciones complejas (SUM, GROUP BY JSON) al vuelo.
- */
+/** KPIs financieros del periodo (ventas, utilidad, comisiones, pozos) desde `get_financial_kpis`. */
 export async function getFinancialKPIs(
   startDate?: string,
   endDate?: string,
@@ -131,10 +113,8 @@ export async function getFinancialKPIs(
 
   const rpcData = { ...((data ?? {}) as Record<string, any>) };
 
-  // El RPC calcula su "_prev" con la misma DURACIÓN justo antes del rango, y
-  // para un mes eso no es el mes anterior (septiembre comparaba contra 2–31 de
-  // agosto). Cuando el rango es un mes calendario, se pide el mes anterior
-  // completo y sus totales reemplazan los "_prev" del RPC.
+  // El RPC compara con la misma duración justo antes, que para un mes no es el mes anterior
+  // (septiembre contra 2–31 de agosto): se pide el mes anterior completo y se reemplazan los "_prev".
   if (prev?.isCalendarMonth) {
     const { data: prevData, error: prevError } = await db.rpc('get_financial_kpis', {
       p_start_date: prev.startIso,

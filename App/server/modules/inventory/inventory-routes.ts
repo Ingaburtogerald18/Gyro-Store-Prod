@@ -1,7 +1,5 @@
-// Inventario (bodega) desde el panel: lotes, órdenes de compra y movimientos.
-// Contrato de frontend/app/state/api/inventory-api.ts.
-// Solo admin, salvo Stock actual: el vendedor lo ve en solo lectura y sin
-// costos. Comprar y recibir es tarea de administración.
+// Inventario desde el panel: lotes, órdenes de compra y movimientos. Solo admin, salvo Stock actual,
+// que el vendedor ve sin costos.
 import { Router, type Request } from 'express';
 import { z } from 'zod';
 import { asyncHandler } from '../../utils/async-handler';
@@ -171,7 +169,7 @@ router.get(
   }),
 );
 
-// ── órdenes de compra (Alibaba, migración 0024) ──
+// ── Órdenes de compra ──
 
 router.get(
   '/orders',

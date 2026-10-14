@@ -4,11 +4,8 @@ import { round, computeCosteFinal } from '../finance/costing';
 import { getCurrentInventory, type InventoryRow } from '../inventory/inventory';
 import { BadRequestError } from '../../utils/http-error';
 
-// Estimación de costo (solo lectura, no reserva nada): promedio ponderado del
-// coste final / Costo F/U de los lotes FIFO que cubrirían `quantity` unidades
-// de `productName`, usando el mismo orden (purchase_date asc) que expone
-// getAvailableInventory. No es una reimplementación del FIFO de reserva/venta
-// — es una lectura de lo que YA devuelve inventory.ts, sin mutar nada.
+// Costo estimado (sin reservar): promedio de los lotes que cubrirían `quantity` en orden FIFO,
+// leyendo lo que ya devuelve getAvailableInventory.
 export function estimateLineCost(
   productName: string,
   quantity: number,
@@ -41,11 +38,8 @@ export function estimateLineCost(
   };
 }
 
-// ── Margen mínimo ──
-// Un precio por debajo del mínimo ya no bloquea el registro: la venta entra
-// marcada y el admin decide al aprobar. Bloquear tenía dos problemas: rebotaba
-// facturas ya cobradas con un descuento grande, y le permitía al vendedor
-// tantear precios hasta encontrar el costo (mínimo = costo × multiplicador).
+// Un precio bajo el mínimo no bloquea: la venta entra marcada y el admin decide. Bloquear rebotaba
+// facturas ya cobradas y dejaba tantear precios hasta encontrar el costo.
 export function isBelowMinMargin(precioUnit: number, costeFinal: number, minMargin: number): boolean {
   return costeFinal > 0 && precioUnit < round(costeFinal * minMargin, 2);
 }
@@ -69,15 +63,8 @@ export async function logBelowMinMargin(
   });
 }
 
-// ── Contacto del cliente ──
-// Antes se hacía `upsert` por teléfono con el nombre de ESTA venta: una venta
-// sin nombre le borraba el nombre al contacto, y una con otro nombre lo
-// renombraba. Y una venta con nombre pero sin teléfono creaba un contacto
-// nuevo cada vez. Ahora:
-//   · con teléfono: se reusa el contacto; el nombre solo se completa si estaba
-//     vacío, o se corrige si `overwriteName` (edición explícita de un admin).
-//   · solo nombre: se reusa un contacto sin teléfono con el mismo nombre.
-// Best-effort: un fallo acá no frena la venta, que igual guarda el teléfono.
+// Con teléfono se reusa el contacto y el nombre solo se completa si estaba vacío (o con
+// `overwriteName`); sin teléfono se busca por nombre. Nunca frena la venta.
 export async function resolveContact(
   rawName: string | null | undefined,
   rawPhone: string | null | undefined,
@@ -126,9 +113,7 @@ export async function resolveContact(
   }
 }
 
-// ── Vendedor elegido por el admin ──
-// Antes, si el id no se encontraba, la venta quedaba a nombre de quien la
-// registraba, sin aviso: la comisión terminaba en la persona equivocada.
+// Si el vendedor elegido no existe se corta: si no, la comisión iría a la persona equivocada.
 export async function resolveOverrideSeller(sellerId: string): Promise<{ uid: string; email: string }> {
   const { data, error } = await db.from('profiles').select('email').eq('id', sellerId).maybeSingle();
   if (error) throw error;
@@ -138,12 +123,8 @@ export async function resolveOverrideSeller(sellerId: string): Promise<{ uid: st
   return { uid: sellerId, email: data.email as string };
 }
 
-// ── Inventario visto desde una venta que se está editando ──
-// Las unidades que la propia venta ya tiene reservadas (o vendidas, si estaba
-// aprobada) cuentan como disponibles: se van a devolver antes de volver a
-// reservar. Sin esto el editor estimaba el costo y validaba el stock sin esas
-// unidades, y editar el precio de una venta que se llevó el último lote
-// daba "stock insuficiente".
+// Las unidades que la propia venta tiene reservadas o vendidas cuentan como disponibles: se devuelven
+// antes de reservar de nuevo.
 export async function inventoryForEdit(
   orderId: string,
   reservationStatus: 'active' | 'consumed',

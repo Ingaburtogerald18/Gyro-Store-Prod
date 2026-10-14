@@ -1,29 +1,5 @@
-// Motor de reglas de los pozos (Docs/03-Finanzas.md §12).
-//
-// ── Reglas ──
-// R2  El saldo que le sobra a un pozo al cerrar el mes lo hereda el mismo pozo
-//     el mes siguiente. Arranca en agosto 2026 (RULES_START_MONTH).
-// R3  Si un pozo común se pasa, el faltante sale, en este orden, de:
-//     1. la bolsa extra (sobrantes de salario de meses anteriores, acumulados),
-//     2. los otros pozos comunes con saldo, en proporción a su saldo,
-//     3. la ganancia.
-// R4  Préstamos no comparte: su saldo (heredado + recogido) y después la ganancia.
-// R5  El salario es intocable en el mes. Si sobra, va a la bolsa extra del mes
-//     siguiente (no vuelve al salario). Si falta, sale de la ganancia.
-//
-// ── Qué se guarda y qué se calcula ──
-// Nada de esto se guarda: se recalcula desde agosto en cada pedido. Los gastos
-// son editables, y un saldo guardado de un mes cerrado quedaría viejo al editar
-// un gasto de ese mes. Son 8 pozos × pocos meses: cuesta milisegundos.
-//
-// El desborde se reparte a nivel MES, no gasto por gasto: así el resultado no
-// depende del orden en que se cargaron los gastos.
-//
-// ── Préstamos antes y después de la migración ──
-// Los pagos viejos viven en `loan_payments` hasta que se corra
-// 0018_loan_payments_a_gastos.sql. Hasta entonces se leen como gastos del pozo
-// Préstamos (por su `fecha`). La migración marca cada gasto con
-// `[loan_payment:<id>]`; un pago con su marca ya en `expenses` no se cuenta dos veces.
+// Motor de los pozos (reglas en Docs/03-Finanzas.md §12). No guarda nada: recalcula desde agosto de
+// 2026 porque los gastos se editan, y reparte el desborde por mes para no depender del orden de carga.
 
 import { db } from '../../core/supabase';
 import { round } from './costing';
@@ -269,11 +245,7 @@ function computeMonth(month: string, input: MonthInputs, heredado: Record<Ledger
   };
 }
 
-/**
- * Libro de pozos de `month` (`YYYY-MM`, hora de Nicaragua), con la herencia
- * calculada mes a mes desde agosto 2026. Un mes anterior al arranque se
- * calcula solo, sin herencia.
- */
+/** Libro de pozos de `month` (`YYYY-MM`, hora de Nicaragua), con la herencia desde agosto de 2026. */
 export async function getPozoLedger(month: string, adjust?: LedgerAdjustment): Promise<MonthLedger> {
   const from = month < RULES_START_MONTH ? month : RULES_START_MONTH;
   const inputs = await loadInputs(from, month, adjust);

@@ -1,6 +1,4 @@
-// Errores HTTP tipados: el errorHandler central responde con err.status si es
-// < 500 (ver server/middleware/error-handler.ts), así que lanzar estos en vez
-// de Error da 400/404 sin try/catch por ruta.
+// El errorHandler responde con `err.status` si es < 500: lanzar estos da 400/404 sin try/catch.
 export class BadRequestError extends Error {
   status = 400;
 }

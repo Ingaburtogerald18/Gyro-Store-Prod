@@ -1,9 +1,5 @@
-// Resolución de las líneas de un pedido público contra el catálogo.
-//
-// Separado de `orders.ts` (que habla con la base) para poder probar las reglas
-// sin red: qué variante corresponde a cada línea, cuánto vale y si se puede
-// vender. El servidor es la autoridad de precio y disponibilidad; lo que manda el
-// cliente (`variantName`, `unitPrice`) solo identifica y se coteja.
+// Resolución de las líneas de un pedido público, sin base para poder probarla. El servidor manda en
+// precio y disponibilidad; `variantName` y `unitPrice` del cliente solo se cotejan.
 import type {
   CatalogDetail,
   CatalogVariant,
@@ -33,13 +29,7 @@ const samePrice = (a: number, b: number) => Math.round(a * 100) === Math.round(b
 // Carritos viejos guardaban 'Estándar' cuando el producto no tenía opciones.
 const LEGACY_NO_VARIANT = 'Estándar';
 
-/**
- * Elige la variante de una línea. Devuelve el motivo de rechazo cuando no se
- * puede resolver sin adivinar:
- *   · sin nombre y con varias combinaciones → falta elegir;
- *   · con un nombre que no coincide con ninguna combinación → inválida.
- * Con una sola combinación posible (incluido el producto sin ejes), esa es.
- */
+/** Elige la variante o dice por qué no puede sin adivinar. Con una sola combinación, esa es. */
 export function pickVariant(
   detail: Pick<CatalogDetail, 'variants'>,
   variantName: string | undefined,
@@ -56,11 +46,8 @@ export function pickVariant(
 }
 
 /**
- * Resuelve todas las líneas. Si alguna necesita revisión, devuelve TODOS los
- * problemas juntos (no solo el primero): el cliente corrige el carrito de una vez.
- *
- * La disponibilidad se valida por combinación completa y sumando las líneas que
- * apuntan a la misma variante. No es una reserva: el flujo sigue siendo manual.
+ * Devuelve todos los problemas juntos, para corregir el carrito de una vez. La disponibilidad suma
+ * las líneas de la misma variante; no reserva nada.
  */
 export function resolveOrderLines(
   items: PublicOrderItemInput[],

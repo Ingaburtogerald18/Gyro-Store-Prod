@@ -1,15 +1,5 @@
-// Token de Microsoft Graph para el espejo en SharePoint (flujo app-only).
-//
-// ── Por qué no se reusa el token del login ──
-// El staff entra con Entra ID vía Supabase (middleware/auth.ts), pero ese es un
-// token DELEGADO: representa a una persona, vive minutos y solo llega al backend
-// si el navegador acaba de hacer login. Escribir en la Lista es una tarea de
-// SERVIDOR que corre en segundo plano, minutos u horas después de la aprobación
-// (y con la persona hace rato desconectada), así que necesita una identidad
-// propia: el service principal de la app, autenticado con client credentials.
-//
-// El secreto NUNCA sale del backend. No hay endpoint que lo exponga ni que
-// devuelva el token.
+// Token app-only de Microsoft Graph. El del login es delegado y vive minutos; la subida corre
+// en segundo plano horas después. El secreto nunca sale del backend.
 import { config } from '../../core/config';
 import { logger } from '../../utils/logger';
 
@@ -28,14 +18,10 @@ interface CachedToken {
 }
 
 let cached: CachedToken | null = null;
-// Vuelo en curso: si el worker pide el token dos veces seguidas (o el día que
-// haya más de un llamador), se comparte la MISMA promesa en vez de disparar dos
-// requests a Entra por lo mismo.
+// Dos pedidos seguidos comparten la misma promesa en vez de pedir dos tokens.
 let inFlight: Promise<string> | null = null;
 
-// Margen contra el reloj: se pide uno nuevo 60 s ANTES de que expire. Sin esto,
-// un token que vence "en 3 segundos" pasa el chequeo, sale hacia Graph y vuelve
-// 401 — el desfase de reloj entre nuestro server y Entra es suficiente para eso.
+// Se renueva 60 s antes de vencer: el desfase de reloj con Entra alcanza para un 401.
 const EXPIRY_MARGIN_MS = 60_000;
 
 async function requestToken(): Promise<string> {
@@ -45,9 +31,7 @@ async function requestToken(): Promise<string> {
     grant_type: 'client_credentials',
     client_id: config.spo.clientId,
     client_secret: config.spo.clientSecret,
-    // `.default` = "todos los permisos de APLICACIÓN que ya tiene concedidos este
-    // app registration". En client credentials no se piden scopes sueltos: los
-    // consiente un admin del tenant de antemano (acá, Sites.Selected).
+    // `.default` = los permisos de aplicación ya concedidos (Sites.Selected).
     scope: 'https://graph.microsoft.com/.default',
   });
 
@@ -62,9 +46,7 @@ async function requestToken(): Promise<string> {
     | null;
 
   if (!res.ok || !payload?.access_token) {
-    // El `error_description` de Entra es largo y trae ids de correlación: se
-    // recorta para no volcar un párrafo en cada línea de log. NUNCA se loguea el
-    // secreto ni el token.
+    // Se recorta el detalle de Entra para el log. Nunca se loguean el secreto ni el token.
     const detail = payload?.error_description?.slice(0, 200) || payload?.error || res.statusText;
     throw new GraphAuthError(`No se pudo obtener el token de Graph: ${detail}`, res.status);
   }
@@ -74,13 +56,7 @@ async function requestToken(): Promise<string> {
   return payload.access_token;
 }
 
-/**
- * Devuelve un token válido, del caché si todavía sirve.
- *
- * @param forceRefresh lo usa el cliente de Graph al recibir un 401: el token
- *   cacheado puede haber sido revocado antes de su expiración nominal (secreto
- *   rotado, permisos cambiados), y ahí el caché miente.
- */
+/** Token válido, del caché si sirve. `forceRefresh` tras un 401: el token pudo revocarse antes de vencer. */
 export async function getGraphToken({ forceRefresh = false } = {}): Promise<string> {
   if (!config.spo.enabled) {
     throw new GraphAuthError('SharePoint no está configurado (faltan variables de entorno).');
@@ -97,12 +73,7 @@ export async function getGraphToken({ forceRefresh = false } = {}): Promise<stri
   return inFlight;
 }
 
-/**
- * Aviso ÚNICO al arrancar. Si SPO está apagado no es un error —es la mitad del
- * plan de despliegue— pero tiene que estar dicho en los logs: si no, el día que
- * alguien pregunte por qué la Lista está vacía, no hay rastro de que el módulo
- * nunca se encendió.
- */
+/** Aviso único al arrancar: que SharePoint esté apagado tiene que quedar en los logs. */
 export function logSpoStatusOnce() {
   if (config.spo.enabled) {
     logger.info('[spo] Espejo de ventas en SharePoint HABILITADO', { siteId: config.spo.siteId });

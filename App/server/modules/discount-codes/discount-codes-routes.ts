@@ -1,7 +1,5 @@
-// Códigos de descuento: crear/listar/activar-desactivar es admin-only; validar
-// (preview) es PÚBLICO — lo usa el checkout para dar feedback instantáneo sin
-// gastar un uso del código. El canje real ocurre dentro de crear pedido/factura
-// (server/modules/orders/orders.ts, invoices.ts), nunca desde acá.
+// Crear y listar es admin; validar es público y no gasta usos (lo usa el checkout para avisar al
+// instante). El canje real ocurre al crear el pedido o la factura.
 import { Router } from 'express';
 import { asyncHandler } from '../../utils/async-handler';
 import { requireAdmin } from '../../middleware/auth';

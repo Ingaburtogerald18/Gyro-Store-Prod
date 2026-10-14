@@ -13,6 +13,8 @@ borra de acá y se describe en el documento que corresponda.
   [03-Finanzas §13](03-Finanzas.md).
 - **Rol Cajero.** El servidor le permite emitir y anular facturas, pero el menú del panel solo le
   muestra Ventas, Pedidos web, Personal y CRM: no llega a Facturación.
+- **Tramos de mayoreo en Configuración.** Configuración → Finanzas deja editar los tramos de mayoreo,
+  pero el cotizador no los usa (03-Finanzas §5). O se ocultan o se reactiva el mayoreo.
 - **Ficha del combo.** Muestra el combo como una unidad (nombre, precio, foto y cantidad de
   artículos). Podría listar su contenido: cada combo ya guarda el nombre y la cantidad de cada
   producto (`comboSchema.items`).
@@ -107,7 +109,7 @@ preparando, enviado, entregado, cancelado).
   base: lee lo suyo por Express, filtrado en el servidor.
 - **Lealtad**: cada 3 compras **entregadas**, un código de un solo uso, atado a la cuenta y con
   vencimiento (los días se definen al construirlo). El ciclo se repite.
-- **Tres incentivos distintos**: mayoreo (regla de precio del vendedor, nunca público), lealtad
+- **Tres incentivos distintos**: mayoreo (regla de precio del vendedor, hoy apagada), lealtad
   (ganado) y campaña (público por canal, tipo `TIKTOK10`, con tope y vencimiento).
 - **Validar seguidores es manual**: el cliente manda una captura por WhatsApp, el equipo la revisa y le
   da el código.

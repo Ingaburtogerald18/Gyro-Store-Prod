@@ -1,5 +1,4 @@
-// Cuotas: /api/installments (crear plan, registrar pago, cancelar, listar).
-// Solo admin, igual que v1.
+// Cuotas: crear plan, registrar pago, cancelar y listar. Solo admin.
 import { Router } from 'express';
 import { asyncHandler } from '../../utils/async-handler';
 import { requireAdmin } from '../../middleware/auth';

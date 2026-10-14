@@ -1,9 +1,5 @@
-// Ventas que nacen o cambian fuera del editor:
-//   · un pedido web que se convierte en venta (con su stock ya apartado), y
-//   · la devolución de una línea de una venta ya aprobada (garantía o cambio).
-//
-// Las dos necesitan la migración 0023 (public_orders.sale_id, sale_returns y
-// stock_movements). Sin ella responden con un error claro y no tocan nada.
+// Ventas que nacen o cambian fuera del editor: un pedido web que se convierte en venta y la
+// devolución de una línea ya aprobada.
 import { db } from '../../core/supabase';
 import { round } from '../finance/costing';
 import { getFinancialConfig } from '../settings/app-config';
@@ -30,10 +26,6 @@ interface LotEmbed {
   costo_f_u: number | null;
 }
 
-// ============================================================================
-// ── Pedido web → venta ──
-// ============================================================================
-
 export interface ConvertedSale {
   saleId: string;
   /** Unidades que se apartaron recién ahora (el pedido no las tenía reservadas). */
@@ -41,11 +33,8 @@ export interface ConvertedSale {
 }
 
 /**
- * Crea una venta pendiente de aprobación a partir de un pedido web. Las
- * unidades que el pedido ya tenía apartadas pasan a la venta tal cual (mismos
- * lotes); lo que falte se aparta ahora por FIFO entre los lotes de la variante.
- * El precio de cada unidad es el del pedido, con el descuento por código
- * repartido entre las líneas (igual que una factura con descuento).
+ * Venta pendiente a partir de un pedido web: lo que el pedido ya apartaba pasa tal cual y lo que falte
+ * se aparta por FIFO. El descuento del código se reparte entre las líneas.
  */
 export async function convertPublicOrderToSale(
   publicOrderId: string,
@@ -300,10 +289,6 @@ export async function convertPublicOrderToSale(
   return { saleId, newlyReserved: newlyTaken.reduce((sum, l) => sum + l.quantity, 0) };
 }
 
-// ============================================================================
-// ── Devolución de una línea ──
-// ============================================================================
-
 export interface SaleReturnInput {
   productName: string;
   quantity: number;
@@ -327,10 +312,8 @@ export interface SaleReturn {
 }
 
 /**
- * Devuelve unidades de una venta aprobada o pagada. La unidad vuelve a bodega
- * (`stock`) o sale del lote como merma (`merma`, defecto de fábrica). La línea
- * se recalcula con su costo congelado; si la venta ya se pagó, la diferencia
- * de comisión queda como ajuste para el próximo pago.
+ * La unidad vuelve a bodega o sale como merma. La línea se recalcula con su costo congelado; si ya se
+ * pagó, la diferencia de comisión queda como ajuste para el próximo pago.
  */
 export async function returnSaleLine(
   orderId: string,

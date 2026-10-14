@@ -3,19 +3,8 @@ import { db } from '../../core/supabase';
 import { round } from '../finance/costing';
 import { BadRequestError } from '../../utils/http-error';
 
-// ============================================================================
-// ── FIFO ──
-// ============================================================================
-// Agrupa los lotes por `product_name`: por eso las compras nuevas toman el
-// nombre que ya usan los lotes de su variante (nameForVariant).
-//
-// Tampoco hay una función de Postgres con locking real (`FOR UPDATE`) como
-// pide la regla de stock con transacción: sin acceso a Supabase para probar una función
-// plpgsql esta sesión, esto usa UPDATEs condicionados (compare-and-swap sobre
-// el valor leído + el CHECK constraint de la tabla como última defensa) y una
-// compensación manual best-effort si algo falla a mitad de camino. Conviene
-// migrar esto a una función de Postgres con locking antes de manejar tráfico
-// concurrente real.
+// ── FIFO ── Agrupa los lotes por `product_name`. Usa UPDATEs condicionados y compensación, no
+// bloqueo de fila: pasarlo a una función con FOR UPDATE está en Docs/05-Pendientes.md §3.
 
 export interface ReserveItem {
   productName: string;
@@ -183,9 +172,8 @@ export async function consumeReservation(orderId: string): Promise<{ consumed: n
   const reservations = (data ?? []) as unknown as { id: string; purchase_id: string; quantity: number }[];
   if (!reservations.length) return { consumed: 0 };
 
-  // En serie y con reintentos: antes, si el compare-and-swap no encontraba la
-  // fila (otro proceso tocó el lote en el medio) no había error, la reserva se
-  // marcaba consumida igual y esas unidades quedaban reservadas para siempre.
+  // En serie y con reintentos: si el UPDATE condicionado no encuentra la fila, no se marca consumida
+  // (antes esas unidades quedaban reservadas para siempre).
   for (const reservation of reservations) {
     let done = false;
     for (let pass = 0; pass < FIFO_MAX_PASSES && !done; pass++) {
@@ -225,10 +213,7 @@ export async function consumeReservation(orderId: string): Promise<{ consumed: n
   return { consumed: reservations.length };
 }
 
-// Contraparte de consumeReservation: libera reservas activas de un pedido sin
-// convertirlas en venta (rechazo de pedido, o limpieza si el registro falló a
-// mitad de camino). Devuelve quantity_reserved en cada lote y marca las
-// reservas como liberadas.
+// Libera las reservas activas de un pedido sin convertirlas en venta (rechazo o registro fallido).
 export async function releaseReservations(orderId: string): Promise<{ released: number }> {
   const { data, error } = await db
     .from('stock_reservations')

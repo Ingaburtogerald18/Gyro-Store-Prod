@@ -1,11 +1,6 @@
-// Pagos de la tabla vieja loan_payments. Se retira al correr la migración 0018
-// (Docs/03-Finanzas.md §13).
+// Pagos de la tabla vieja loan_payments. Se retira con la migración 0018 (Docs/03-Finanzas.md §13).
 import { db } from '../../core/supabase';
 import { round } from './costing';
-
-// ============================================================================
-// ── PAGOS DE PRÉSTAMOS Y GANANCIA REAL ──
-// ============================================================================
 
 /**
  * Normaliza una fecha ISO o Date al formato YYYY-MM-DD en la zona horaria de Nicaragua (UTC-6).

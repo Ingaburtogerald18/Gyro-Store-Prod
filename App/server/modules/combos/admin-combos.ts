@@ -1,9 +1,5 @@
-// Combos desde la vista Combos de Inventario: nombre, precio e incluidos. Las
-// fotos y si se muestra se cambian en el modo edición (modules/store-editor/store-draft.ts).
-//
-// El combo tiene un precio PLANO (el del paquete), independiente de sus items:
-// `items` es el contenido (productos del catálogo + cantidad), solo informativo
-// para la ficha y para saber qué entra. El pedido usa `combos.price`, no `items`.
+// Combos desde Inventario: nombre, precio e incluidos (fotos y visibilidad van en el modo edición).
+// El precio es el del paquete: `items` es solo informativo y el pedido usa `combos.price`.
 import { db } from '../../core/supabase';
 import type { AdminCombo, AdminComboInput, ComboItem } from '../../../shared/schemas';
 

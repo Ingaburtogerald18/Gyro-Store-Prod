@@ -3,13 +3,7 @@ import { db } from '../../core/supabase';
 import { BadRequestError } from '../../utils/http-error';
 import { FIFO_MAX_PASSES } from './inventory-fifo';
 
-// ============================================================================
-// ── Movimientos de stock (devoluciones, merma, ajustes) ──
-// ============================================================================
-// Todo cambio de stock que NO es una venta normal queda registrado en
-// `stock_movements` (migración 0023): devolución a bodega, merma y ajuste de
-// conteo. Antes un ajuste solo se podía hacer editando la cantidad del lote, y
-// no quedaba rastro de por qué cambió.
+// ── Movimientos de stock ── Devoluciones, merma y ajustes quedan en `stock_movements` con su motivo.
 
 export type StockMovementKind = 'return_to_stock' | 'write_off' | 'adjust_in' | 'adjust_out';
 
@@ -63,9 +57,7 @@ export async function recordStockMovement(input: {
   if (error) throw error;
 }
 
-// Mueve unidades vendidas de un lote: `stock` las vuelve disponibles
-// (quantity_sold − n); `merma` las saca del lote (quantity − n y
-// quantity_sold − n), así no vuelven a venderse pero el lote cuadra.
+// `stock` vuelve a dejar disponibles unidades vendidas; `merma` las saca del lote para que cuadre.
 export async function returnSoldUnits(
   purchaseId: string,
   quantity: number,

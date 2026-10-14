@@ -26,25 +26,13 @@ export interface Invoice {
   /** Vendedor al que Caja le asignó la factura al emitirla (o null). */
   sellerUid?: string | null;
   /**
-   * Nombre del vendedor asignado. Lo resuelven `listInvoices` (segunda query en
-   * lote, mismo patrón que `listSales` en sales-list.ts — nunca un embed de
-   * PostgREST, que rompe el listado ENTERO si la FK no está en caché) y
-   * `findInvoiceByNumber` (una sola factura, una sola query).
+   * Nombre del vendedor asignado, con una segunda consulta: un embed de PostgREST rompe el listado
+   * entero si la FK no está en caché.
    */
   sellerName?: string | null;
-  /**
-   * Vendedor que CANJEÓ la factura — quien la vinculó a una venta registrada
-   * (`orders.seller_uid` vía `sale_id`), no necesariamente el mismo al que
-   * Caja se la había asignado (`sellerName`). Es el que cobra la comisión de
-   * esa venta. Solo tiene valor en facturas `linked`; solo lo resuelve
-   * `listInvoices`.
-   */
+  /** Quien canjeó la factura en una venta (y cobra su comisión); puede no ser a quien Caja la asignó. */
   registeredByName?: string | null;
-  /**
-   * Líneas de la factura. Solo las trae `findInvoiceByNumber` (el lookup del
-   * editor de ventas, que necesita precargarlas). `listInvoices` NO las pide:
-   * serían N+1 consultas para una tabla que no las muestra.
-   */
+  /** Solo las trae `findInvoiceByNumber`: en el listado serían una consulta por factura. */
   items?: InvoiceLineItem[];
 }
 
@@ -78,8 +66,6 @@ function toInvoice(row: InvoiceRow): Invoice {
     id: row.id,
     saleId: row.sale_id,
     invoiceNumber: row.invoice_number,
-    // Fallback por si la migración 0012 todavía no corrió: el código se puede
-    // reconstruir del número, así que el panel no se queda sin identificador.
     invoiceCode: row.invoice_code ?? formatInvoiceCode(row.invoice_number),
     status: row.status,
     method: row.method,
@@ -103,11 +89,7 @@ export function formatInvoiceCode(n: number): string {
   return `${INVOICE_CODE_PREFIX}${n}`;
 }
 
-/**
- * Acepta lo que el vendedor tenga a mano: `GS-PR-12`, `gs-pr-12`, `GSPR12` o
- * simplemente `12`. Devuelve el correlativo numérico, o `null` si no se
- * reconoce — el llamador decide el mensaje de error.
- */
+/** Acepta `GS-PR-12`, `gs-pr-12`, `GSPR12` o `12`. Null si no se reconoce. */
 export function parseInvoiceCode(raw: string | number | null | undefined): number | null {
   const cleaned = String(raw ?? '').trim().toUpperCase().replace(/[\s-]/g, '');
   const match = cleaned.match(/^(?:GSPR)?(\d+)$/);
@@ -216,11 +198,8 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<Invoice>
   return toInvoice(invoice as unknown as InvoiceRow);
 }
 
-// ── Ligado en dos pasos (registro de venta) ──
-// `registerSale` primero RESERVA la factura (unlinked → linked, solo si sigue
-// libre) y recién después crea la venta. Así dos registros simultáneos de la
-// misma factura —o un doble clic— no pueden crear dos ventas: el segundo
-// encuentra la factura ya tomada y corta antes de reservar stock.
+// Ligado en dos pasos: registerSale primero toma la factura y recién después crea la venta, así un
+// doble clic no crea dos ventas: el segundo la encuentra tomada y corta antes de reservar stock.
 
 export async function claimInvoice(invoiceNumber: number): Promise<void> {
   const { data, error } = await db
@@ -260,9 +239,7 @@ export async function attachInvoiceToSale(invoiceNumber: number, saleId: string)
   if (!data) throw new BadRequestError('La factura cambió mientras se registraba la venta. Intentá de nuevo.');
 }
 
-// Al rechazar una venta, su factura vuelve a quedar libre: el ticket sigue
-// siendo válido y la venta corregida se tiene que poder registrar con él.
-// Devuelve el código liberado (o null si la venta no tenía factura).
+// Al rechazar una venta la factura vuelve a quedar libre: la venta corregida se registra con ella.
 export async function unlinkInvoiceFromSale(saleId: string): Promise<string | null> {
   const { data, error } = await db
     .from('invoices')
@@ -286,10 +263,7 @@ export async function listInvoices(
   if (error) throw error;
   const invoices = ((data ?? []) as unknown as InvoiceRow[]).map(toInvoice);
 
-  // Quién CANJEÓ cada factura vinculada: el vendedor de la orden que la usó
-  // para registrar su venta (`orders.seller_uid` vía `invoices.sale_id`), que
-  // puede no ser el mismo al que Caja se la había asignado. Segunda query en
-  // lote, batcheada junto con el nombre del vendedor asignado (ver abajo).
+  // Quien canjeó cada factura: el vendedor de la orden que la usó, que puede no ser el asignado.
   const saleIds = [...new Set(invoices.map((inv) => inv.saleId).filter((id): id is string => !!id))];
   const sellerUidBySaleId = new Map<string, string | null>();
   if (saleIds.length > 0) {
@@ -299,12 +273,8 @@ export async function listInvoices(
     }
   }
 
-  // El nombre del vendedor se resuelve con una SEGUNDA query y no con un embed
-  // de PostgREST (`profiles!seller_uid(name)`): el embed depende de que
-  // PostgREST tenga la FK en su caché de esquema, y cuando no la tiene falla
-  // con PGRST200 y se lleva puesto el listado ENTERO (mismo criterio que
-  // sales-list.ts → listSales). El nombre es un dato secundario acá: si no se
-  // puede resolver, la factura igual tiene que listarse.
+  // Segunda consulta en vez de embed: si PostgREST no tiene la FK en caché, el embed se lleva puesto
+  // el listado entero. El nombre es secundario.
   const uids = [
     ...new Set([
       ...invoices.map((inv) => inv.sellerUid).filter((id): id is string => !!id),
@@ -327,45 +297,12 @@ export async function listInvoices(
   return invoices;
 }
 
-/**
- * Vendedores activos para el selector "Vendedor" del formulario de Caja
- * (InvoiceEditor). Incluye admin/global_admin porque `requireSeller` ya los
- * trata como vendedores en Ventas (ver middleware/auth.ts) — un admin que
- * factura personalmente también necesita poder asignarse la factura.
- *
- * ── Por qué el filtro de rol NO va en el WHERE ──
- * El correo protegido (`config.protectedEmail`) es `global_admin` por entorno:
- * `rolesFromEnvOrProfile` hace cortocircuito y devuelve el rol SIN mirar
- * `profiles.roles` (middleware/auth.ts). O sea que la fila del dueño de la
- * tienda puede tener el array vacío y aun así ser quien más derecho tiene a
- * facturar — y un `.overlaps('roles', …)` en SQL lo dejaba justamente a él
- * fuera del selector.
- *
- * Filtrar en memoria cuesta traer la tabla entera, que son las cuentas del
- * staff: unas pocas filas. El WHERE que ahorraba eso escondía un caso que se
- * nota tarde y confunde mucho.
- *
- * Sigue en pie el otro límite: un correo que hoy es vendedor solo por whitelist
- * de env y todavía no tiene su rol en `profiles` no aparece acá.
- * Nota: solo mira `profiles.roles`. Un correo que hoy es vendedor SOLO por la
- * whitelist de env (`SELLER_EMAILS`) y todavía no tiene fila en `profiles`
- * con ese rol no va a aparecer acá — mismo límite que ya tiene el selector de
- * vendedor de sale-editor.tsx (`useGetUsersQuery`).
- *
- * Excepción: el correo protegido (`PROTECTED_ADMIN_EMAIL`) es global_admin
- * SIEMPRE, sin importar lo que diga `profiles.roles` (ver middleware/auth.ts
- * → `rolesFromEnvOrProfile`) — su fila puede tener `roles: []` porque nunca
- * hizo falta escribirlo ahí. Sin este caso especial, ese admin quedaba afuera
- * del propio selector de Caja pese a ser el admin más alto del sistema.
- */
+/** Vendedores para el selector de Caja. Incluye admin: también factura a su nombre. */
 const INVOICE_SELLER_ROLES = ['admin', 'seller', 'global_admin'];
 
 export async function listActiveSellers(): Promise<{ id: string; name: string }[]> {
-  // El filtro por rol se hace en JS y no con `.overlaps` en la query: el admin
-  // protegido (`config.protectedEmail`) recibe `global_admin` desde el ENTORNO
-  // (ver middleware/auth.ts → rolesFromEnvOrProfile), así que su fila en
-  // `profiles` puede tener `roles: []`. Con el `.overlaps` quedaba fuera del
-  // selector de "Vendedor" de Facturación y no podía emitirse su propia factura.
+  // El filtro de rol va en JS y no con `.overlaps`: el admin protegido recibe su rol del entorno y su
+  // fila puede tener `roles: []`, así que quedaba afuera del selector.
   const { data, error } = await db
     .from('profiles')
     .select('id, name, email, roles, status, deleted_at')
@@ -386,20 +323,11 @@ export async function listActiveSellers(): Promise<{ id: string; name: string }[
       return isProtected || (p.roles ?? []).some((r) => INVOICE_SELLER_ROLES.includes(r));
     })
     .filter((p) => p.name?.trim())
-    // Se colapsan los espacios internos, no solo las puntas: un nombre guardado
-    // como "Gerald  Aburto" se DIBUJA "Gerald Aburto" (HTML colapsa los espacios
-    // repetidos), así que el combobox comparaba contra un texto que en pantalla
-    // no existía y no matcheaba nunca.
+    // Se colapsan los espacios internos: el HTML los colapsa al dibujar y el combobox no encontraba el nombre.
     .map((p) => ({ id: p.id, name: p.name!.trim().replace(/\s+/g, ' ') }));
 }
 
-/**
- * Quién puede ver una factura fuera del listado general (lookup por código,
- * ticket individual). Cashier/admin/global_admin ven cualquiera. Un vendedor
- * común solo la suya (`seller_uid` propio) o una sin dueño asignado (ticket
- * genérico de mostrador, o factura emitida antes de que este campo
- * existiera) — nunca la asignada a OTRO vendedor.
- */
+/** Cajero y admin ven cualquiera; un vendedor solo la suya o una sin dueño, nunca la de otro vendedor. */
 export interface InvoiceAccess {
   requesterUid: string;
   isPrivileged: boolean;
@@ -409,9 +337,7 @@ function canAccessInvoice(sellerUid: string | null, access: InvoiceAccess): bool
   return access.isPrivileged || sellerUid === null || sellerUid === access.requesterUid;
 }
 
-// Devuelve la factura CON sus líneas: es lo que el editor de ventas usa para
-// precargarse entero (productos, cantidades, precios y datos del cliente) en vez
-// de obligar al vendedor a volver a tipear lo que ya está en el ticket.
+// Con sus líneas: el editor de ventas se precarga entero en vez de hacer tipear lo del ticket.
 export async function findInvoiceByNumber(
   rawCode: string | number,
   access: InvoiceAccess,
@@ -432,10 +358,7 @@ export async function findInvoiceByNumber(
   // es válido si es de otro vendedor.
   if (!canAccessInvoice(invoice.sellerUid ?? null, access)) return null;
 
-  // El nombre del vendedor asignado: el editor de ventas lo muestra al verificar
-  // el código, porque es a ESE vendedor a quien se le va a registrar la venta
-  // (`registerSale` lo impone por encima de quien la tipea). Sin el nombre, un
-  // admin registraba a ciegas creyendo que la venta quedaba a nombre suyo.
+  // El editor muestra a quién se le registrará la venta (registerSale impone el vendedor asignado).
   if (invoice.sellerUid) {
     const { data: profile } = await db
       .from('profiles')
@@ -468,17 +391,8 @@ export async function findInvoiceByNumber(
 }
 
 /**
- * Borra la factura DEFINITIVAMENTE de la base.
- *
- * ── Por qué existe y por qué está tan acotado ──
- * El correlativo es estricto y fiscal: el número de una factura descartada
- * queda RETIRADO, nunca se reasigna (la secuencia no retrocede). Esto no es un
- * "deshacer": es sacar de la vista un papel que se anuló y del que no queda
- * nada que auditar.
- *
- * Solo se permite sobre `void` o `unlinked`. Una factura `linked` está atada a
- * una venta con su snapshot financiero: borrarla dejaría la orden apuntando a
- * un número que ya no existe.
+ * Borra una factura `void` o `unlinked`. El número queda retirado. Una ligada no: la venta quedaría
+ * apuntando a un número que no existe.
  */
 export async function deleteInvoice(id: string): Promise<boolean> {
   const { data: existing, error: findError } = await db
@@ -505,9 +419,7 @@ export async function voidInvoice(
   id: string,
   reason: string,
   voidedBy: string | null,
-  // Solo `deleteSale` anula una factura ligada: la venta se está borrando en
-  // el mismo paso. Desde Facturación, anular una factura ligada dejaba la
-  // venta aprobada (stock y comisión) apuntando a un ticket anulado.
+  // Solo deleteSale anula una factura ligada: la venta se borra en el mismo paso.
   opts: { allowLinked?: boolean } = {},
 ): Promise<Invoice | null> {
   const { data: existing, error: findError } = await db
@@ -544,16 +456,8 @@ export async function voidInvoice(
 
 // Corrección de los datos de cobro. Solo para facturas unlinked.
 /**
- * Corrige una factura huérfana con el mismo formulario con que se emitió,
- * LÍNEAS INCLUIDAS.
- *
- * Solo sobre `unlinked`: una vez ligada a una venta, estos números ya
- * alimentaron el snapshot financiero (costos, comisión, ganancia) y moverlos
- * dejaría la orden describiendo una venta que no ocurrió.
- *
- * El CÓDIGO de descuento no se toca: se canjeó al emitir y volver a aplicarlo
- * consumiría otro uso del código. El monto `discount` ya resuelto se conserva y
- * se le resta al subtotal nuevo.
+ * Corrige una factura huérfana con sus líneas. Una ligada ya alimentó el snapshot de su venta.
+ * El código de descuento no se reaplica (gastaría otro uso): se conserva el monto ya resuelto.
  */
 export async function updateInvoice(
   id: string,
@@ -598,10 +502,7 @@ export async function updateInvoice(
     patch.created_at = issuedDate.toISOString();
   }
 
-  // ── Líneas ──
-  // Se reemplazan enteras (borrar + insertar) en vez de intentar un diff: las
-  // filas de `invoice_items` no tienen identidad estable en el formulario, y
-  // parchear por posición se rompe apenas se borra una línea del medio.
+  // Las líneas se reemplazan enteras: no tienen identidad estable en el formulario para hacer un diff.
   let subtotal = existing.subtotal ?? 0;
   if (input.items) {
     subtotal = round(
@@ -710,9 +611,7 @@ export async function getInvoiceTicket(invoiceId: string, access: InvoiceAccess)
       ).data?.seller_uid ?? null
     : invoice.seller_uid;
 
-  // Solo el NOMBRE registrado en `profiles`. Antes caía al `seller_email`
-  // cuando no había uid, y en el ticket impreso salía un correo completo
-  // (`juan.perez@gyrostorenic.com`) en vez de un nombre.
+  // Solo el nombre de `profiles`: en el ticket no tiene que salir un correo.
   if (sellerUidForName) {
     const { data: profile } = await db
       .from('profiles')

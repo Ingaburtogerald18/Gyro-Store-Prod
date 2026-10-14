@@ -1,7 +1,4 @@
-// PostgREST devuelve una relación embebida many-to-one como objeto o como
-// array de un elemento según cómo detecte la FK — este normalizador cubre
-// ambos casos. Único lugar para ese patrón (antes vivía copiado en
-// crm.ts, installments.ts, sales-approval.ts, sales-conversions.ts y store-versions.ts).
+// PostgREST devuelve una relación many-to-one como objeto o como array de uno, según detecte la FK.
 export function firstOfEmbed<T>(value: T | T[] | null): T | null {
   return Array.isArray(value) ? (value[0] ?? null) : value;
 }

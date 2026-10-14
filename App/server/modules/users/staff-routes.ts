@@ -1,12 +1,5 @@
-// Directorio del equipo para TODO el staff (no solo admins).
-//
-// ── Por qué no se reusa /api/admin/users ──
-// Ese endpoint hace `select('*')` sobre `profiles`, y `*` incluye
-// `bank_account` — a dónde le transfieren el sueldo a cada quien — y
-// `last_login`. Aflojar su `requireAdmin` para que el vendedor pueda ver la lista
-// habría expuesto las dos cosas a todo el personal. Acá la proyección es
-// EXPLÍCITA y esas columnas no están: no hay forma de que se filtren, ni siquiera
-// si mañana alguien agrega un campo sensible a la tabla.
+// Directorio para todo el personal. No reusa /api/admin/users porque `select('*')` incluye la cuenta
+// bancaria y last_login: acá las columnas son explícitas.
 import { Router } from 'express';
 import { asyncHandler } from '../../utils/async-handler';
 import { requireAnyRole } from '../../middleware/auth';
@@ -31,10 +24,7 @@ router.get(
 
     if (error) throw error;
 
-    // Solo perfiles REALES. Las invitaciones pendientes (roles reservados por
-    // correo, ver modules/users/pending-role-grants.ts) son estado de administración:
-    // se ven en Personal como admin y no aportan nada a un directorio de
-    // contactos, donde serían filas de gente que todavía no trabaja acá.
+    // Solo perfiles reales: las invitaciones pendientes se ven en Personal.
     res.json(data || []);
   })
 );

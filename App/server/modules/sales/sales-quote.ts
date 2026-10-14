@@ -8,10 +8,7 @@ import type { SaleLineInput } from '../../../shared/schemas';
 import { resolveVariantPrice } from '../catalog/catalog-presenter';
 import { estimateLineCost } from './sales-helpers';
 
-// `getIsoWeek` (Docs/02-Arquitectura.md §6: orders.week_of agrupa pagos de comisión) vive ahora
-// en utils/iso-week.ts: lo comparte con las carpetas semanales de comprobantes en
-// SharePoint, y dos copias del mismo cálculo terminan divergiendo justo en el
-// borde de fin de año, que es donde más duele.
+// ── Productos vendibles (cotizador) ──
 
 // ── Productos vendibles (cotizador) ──
 
@@ -35,9 +32,7 @@ interface CatalogPriceRow {
   variant_mappings: Record<string, unknown> | null;
 }
 
-// Precio de venta por código de lote, según la variante del catálogo a la que
-// pertenece (decisión 2026-10-07: el precio vive en el catálogo; el del lote
-// solo sugiere). Mismo cálculo que la tienda, promoción incluida.
+// Precio de venta por código de lote con el mismo cálculo que la tienda, oferta incluida.
 async function catalogPriceByCode(rows: InventoryRow[]): Promise<Map<string, number>> {
   const out = new Map<string, number>();
   const { data, error } = await db.from('catalog_items').select('id, price, base_price, is_promo, variant_mappings');
@@ -50,7 +45,7 @@ async function catalogPriceByCode(rows: InventoryRow[]): Promise<Map<string, num
     return resolveVariantPrice(item, entry ? { price: num(entry.price), promoPrice: num(entry.promoPrice) } : undefined).price;
   };
 
-  // 1) Vínculo por columna (migración 0022).
+  // Vínculo por columna.
   for (const row of rows) {
     const item = row.catalogItemId ? items.get(row.catalogItemId) : undefined;
     if (item) out.set(row.code, priceOf(item, row.variantKey ?? ''));
@@ -78,9 +73,7 @@ export async function listSellableProducts(): Promise<SellableProduct[]> {
     const existing = byProduct.get(row.productName);
     if (existing) {
       existing.stock += row.available;
-      // Un mismo producto puede venir de varios lotes, cada uno con su código.
-      // Se acumulan TODOS para que buscar por cualquiera de ellos encuentre el
-      // producto; el que se muestra es el primero (`code`).
+      // Se acumulan todos los códigos del producto para encontrarlo por cualquiera.
       if (row.code && !existing.codes.includes(row.code)) existing.codes.push(row.code);
       if (existing.priceSource === 'lot' && catalogPrices.has(row.code)) {
         existing.price = catalogPrices.get(row.code)!;

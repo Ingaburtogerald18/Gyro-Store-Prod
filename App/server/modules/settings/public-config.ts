@@ -10,9 +10,7 @@ export interface PublicConfig {
   whatsapp: typeof config.whatsapp;
 }
 
-// Devuelve la parte de la config pública que sale de env (síncrona). Las
-// categorías y las imágenes viven en `app_config` (BD) y las agrega la ruta
-// GET /api/config de forma asíncrona. Nada de secretos acá.
+// La parte de la config pública que sale del entorno. Categorías e imágenes las agrega la ruta. Sin secretos.
 export function getPublicConfig(): PublicConfig {
   return {
     brandName: config.brandName,

@@ -1,6 +1,4 @@
-// CRM del panel (fase CRM-A): contactos, Ficha 360 y agenda de
-// seguimientos. Admin y vendedor (es una herramienta de venta). El inbox/bot de
-// WhatsApp (CRM-B/C, público con firma de Meta) se agrega en su propia fase.
+// CRM del panel: contactos, ficha 360 y seguimientos. Admin y vendedor: es herramienta de venta.
 import { Router } from 'express';
 import { z } from 'zod';
 import { asyncHandler } from '../../utils/async-handler';

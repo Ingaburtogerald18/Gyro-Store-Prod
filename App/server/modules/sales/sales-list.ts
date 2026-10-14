@@ -38,13 +38,8 @@ export interface SaleListItem {
 }
 
 /**
- * Una venta con sus líneas. Lo que el drawer de detalle necesita.
- *
- * Las líneas traen la cadena financiera COMPLETA de Docs/03-Finanzas.md §4 (utilidad bruta →
- * salary → utilidad neta → comisión → ganancia) más el reparto en pozos, tal
- * como quedó congelada en `order_items`. No se recalcula nada: Docs/03-Finanzas.md §1 dice
- * que cambiar un costo o un % después no reescribe ventas viejas, así que el
- * detalle tiene que mostrar lo que pasó ese día, no lo que pasaría hoy.
+ * Una venta con sus líneas y la cadena financiera tal como quedó congelada: el detalle muestra
+ * lo que pasó ese día, no lo que pasaría hoy.
  */
 export interface SaleWithItems extends SaleListItem {
   items: {
@@ -59,11 +54,7 @@ export interface SaleWithItems extends SaleListItem {
     salary?: number;
     utilidadNeta?: number;
     comision?: number;
-    /**
-     * Tramo de comisión aplicado, en tanto por uno. Solo para admin: junto con
-     * `comision` permite despejar la utilidad neta y de ahí el costo, así que
-     * filtra lo mismo que `costeFinalSnap`.
-     */
+    /** Tramo aplicado, solo para admin: con `comision` permite despejar el costo. */
     comisionPercent?: number;
     gananciaTienda?: number;
     /** El reparto del Costo F/U de esta línea en los 7 pozos (Docs/03-Finanzas.md §2). */
@@ -71,11 +62,7 @@ export interface SaleWithItems extends SaleListItem {
     /** Precio por debajo del margen mínimo. Solo admin: permite despejar el costo. */
     belowMinMargin?: boolean;
 
-    // ── La misma cadena, POR UNIDAD ──
-    // Es de donde sale el tramo de comisión (se busca por la utilidad neta
-    // UNITARIA, ver commission.ts), así que sin estos valores el porcentaje
-    // parece salir de la nada. En la base solo viven los totales: acá se
-    // dividen entre la cantidad.
+    // La cadena por unidad, de donde sale el tramo. En la base solo están los totales.
     utilidadBrutaUnit?: number;
     salaryUnit?: number;
     utilidadNetaUnit?: number;
@@ -85,15 +72,8 @@ export interface SaleWithItems extends SaleListItem {
 }
 
 /**
- * Una venta por id, con sus líneas.
- *
- * Faltaba: no existía ningún endpoint que devolviera una venta individual —
- * `GET /api/sales` responde el listado sin `items`. Sin esto no se puede abrir
- * el detalle de una venta desde un enlace (`?sale=<id>`), ni precargar el
- * editor para corregirla, ni que una notificación apunte al registro exacto.
- *
- * SENSIBLE: los campos financieros por línea son la estructura de costos de la
- * tienda. La ruta los recorta para quien no es admin, igual que en `/quote`.
+ * Una venta con sus líneas (enlaces `?sale=<id>`, editor, notificaciones). La ruta recorta los campos
+ * financieros para quien no es admin.
  */
 export async function getSaleById(id: string): Promise<SaleWithItems | null> {
   const { data: order, error } = await db
@@ -151,10 +131,7 @@ export async function getSaleById(id: string): Promise<SaleWithItems | null> {
     pozos: Record<string, number> | null;
   }[];
 
-  // Factura con que se registró la venta (`invoices.sale_id`). Segunda query,
-  // no embed (mismo criterio que el nombre del vendedor arriba). `limit(1)` en
-  // vez de `maybeSingle` para no reventar si por un caso raro hubiera más de
-  // una fila apuntando a la venta.
+  // Factura de la venta, con segunda consulta y `limit(1)` por si hubiera más de una fila.
   let invoiceNumber: number | null = null;
   let invoiceCode: string | null = null;
   let deliveryFee = 0;
@@ -212,9 +189,7 @@ export async function getSaleById(id: string): Promise<SaleWithItems | null> {
       const comision = it.comision ?? 0;
       const gananciaTienda = it.ganancia_tienda ?? 0;
 
-      // `order_items` guarda los TOTALES de la línea; los unitarios se derivan.
-      // `quantity` no puede ser 0 (CHECK en la tabla), así que no hace falta
-      // guardarse de la división.
+      // `order_items` guarda totales; los unitarios se derivan (`quantity` nunca es 0 por CHECK).
       const perUnit = (total: number) => round(total / quantity, 2);
 
       return {
@@ -227,11 +202,7 @@ export async function getSaleById(id: string): Promise<SaleWithItems | null> {
         salary,
         utilidadNeta,
         comision,
-        // No hay columna `comision_percent`: se despeja del par que sí está.
-        // Sin utilidad neta positiva la comisión es 0 por regla de negocio
-        // (`computeCommissionPercent`), y ahí la división no tiene sentido.
-        // Se redondea a 4 decimales para que un tramo del 30% se lea 0.3 y no
-        // 0.29997 — el ruido lo mete el redondeo a centavos de `comision`.
+        // No hay columna de porcentaje: se despeja. 4 decimales para que 30 % se lea 0.3 y no 0.29997.
         comisionPercent: utilidadNeta > 0 ? round(comision / utilidadNeta, 4) : 0,
         gananciaTienda,
         pozos: it.pozos ?? undefined,
@@ -293,11 +264,7 @@ export async function listSales(filters: {
     return query.range(from, to) as unknown as PromiseLike<{ data: OrderRow[] | null; error: unknown }>;
   });
 
-  // El nombre del vendedor se resuelve con una SEGUNDA query y no con un embed
-  // de PostgREST (`profiles!seller_uid(name)`): el embed depende de que
-  // PostgREST tenga la FK en su caché de esquema, y cuando no la tiene falla con
-  // PGRST200 y se lleva puesto el listado ENTERO. Acá el nombre es un dato
-  // secundario — si no se puede resolver, la venta igual tiene que listarse.
+  // Segunda consulta en vez de embed: si PostgREST no tiene la FK en caché, se lleva puesto el listado.
   const uids = [...new Set(rows.map((r) => r.seller_uid).filter((id): id is string => !!id))];
   const namesByUid = new Map<string, string>();
 
@@ -317,10 +284,7 @@ export async function listSales(filters: {
     }
   }
 
-  // Comisión, fondo y ganancia TOTALES de cada venta (una venta puede tener
-  // varias líneas, cada una con su tramo). A diferencia del nombre, acá un
-  // error NO se traga: antes una consulta fallida mostraba comisión y ganancia
-  // en 0 sin aviso, y las métricas de arriba sumaban de menos.
+  // Totales por venta. Un error acá no se traga: mostrar 0 sin aviso falseaba las métricas.
   const orderIds = rows.map((r) => r.id);
   const salaryByOrderId = new Map<string, number>();
   const comisionByOrderId = new Map<string, number>();
@@ -383,9 +347,7 @@ export async function listSales(filters: {
     total: row.total ?? 0,
     totalSalary: salaryByOrderId.get(row.id) ?? 0,
     totalComision: comisionByOrderId.get(row.id) ?? 0,
-    // Solo la ve admin/global_admin: modules/sales/sales-routes.ts la recorta para un
-    // vendedor común, igual que ya hace con `gananciaTienda` en `/quote` y en
-    // el detalle de una venta (getSaleById no la trae en absoluto).
+    // Solo admin: la ruta la recorta para un vendedor.
     totalGananciaTienda: gananciaTiendaByOrderId.get(row.id) ?? 0,
     invoiceNumber: invoiceBySaleId.get(row.id)?.number ?? null,
     invoiceCode: invoiceBySaleId.get(row.id)?.code ?? null,

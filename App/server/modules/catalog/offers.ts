@@ -1,5 +1,5 @@
-// Ofertas por color (migración 0027): precio fijo menor al normal, con
-// vencimiento. Las ve la tienda y los pedidos web; Ventas sigue con el precio normal.
+// Ofertas por color: precio fijo menor al normal, con vencimiento. Las ve la tienda y los pedidos web;
+// Ventas sigue con el precio normal.
 import { db } from '../../core/supabase';
 import { BadRequestError } from '../../utils/http-error';
 import type { ColorOfferInput, PublicCatalogItem } from '../../../shared/schemas';
@@ -42,7 +42,6 @@ interface OfferRow {
   ends_at: string;
 }
 
-// Sin la migración 0027 la tabla no existe: la tienda sigue sin ofertas.
 const isMissingTable = (error: { code?: string } | null) =>
   !!error && ['42P01', 'PGRST205'].includes(error.code ?? '');
 

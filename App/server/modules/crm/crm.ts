@@ -20,10 +20,8 @@ export interface Lead {
   activityId: string;
 }
 
-// find-or-create por teléfono (contacts.phone es UNIQUE): un visitante que
-// escribe dos veces no rompe el constraint — se le agrega una actividad
-// nueva al mismo contacto en vez de fallar. No se pisa el nombre de un
-// contacto existente: podría ser un dato que el staff ya corrigió a mano.
+// Busca o crea por teléfono (único): si escribe dos veces se suma una actividad al mismo contacto.
+// No pisa el nombre: el equipo pudo corregirlo a mano.
 export async function createLead(input: PublicContactInput): Promise<Lead> {
   const { data: existing, error: findError } = await db
     .from('contacts')
@@ -59,13 +57,8 @@ export async function createLead(input: PublicContactInput): Promise<Lead> {
   return { contactId, activityId: activity.id };
 }
 
-// find-or-create por teléfono para un PEDIDO WEB. Igual que createLead no pisa el
-// nombre de un contacto existente (el staff pudo corregirlo a mano) y deja una
-// actividad en el historial para que el pedido aparezca en la ficha del CRM.
-//
-// Best-effort desde el checkout: TODO va en try/catch y devuelve null si algo
-// falla, porque un pedido NO debe romperse porque el CRM tuvo un problema. El
-// origen es `whatsapp_link` (el pedido se cierra por el link de WhatsApp).
+// Busca o crea el contacto de un pedido web y deja la actividad para la ficha 360. Nunca lanza:
+// un pedido no se rompe porque el CRM falló.
 export async function findOrCreateOrderContact(
   phone: string,
   name: string,
@@ -111,13 +104,7 @@ export async function findOrCreateOrderContact(
   }
 }
 
-// ============================================================================
-// ── Panel (admin/seller): contactos, Ficha 360, agenda de seguimientos ──
-// ============================================================================
-// Fase CRM-A (Docs/05-Pendientes.md §4): sin Meta. La bandeja de WhatsApp es CRM-B/C y se
-// agrega cuando se conecte la Cloud API. Sus tablas se habían creado por
-// adelantado, pero la migración 0012 las dio de baja: se volverán a crear con
-// la forma que pida la API real en vez de adivinarla ahora.
+// ── Panel: contactos, ficha 360 y seguimientos ──
 
 const CONTACT_COLUMNS = 'id, phone, name, origin, stage, created_at';
 

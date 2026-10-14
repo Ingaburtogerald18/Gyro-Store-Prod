@@ -1,12 +1,5 @@
-// Cuotas: agenda el cobro de una venta YA
-// aprobada (ver modules/sales/) — modelo delgado, igual que
-// invoices.ts. `installments.order_id` envuelve un `orders` existente; no hay
-// líneas/FIFO/comisión propios acá, eso ya lo congeló la aprobación de la venta. `payments`
-// es una tabla hija real (no un array embebido): amountPaid/amountPending se
-// calculan sumándola, no se guardan desnormalizados.
-//
-// No se cancela un plan con pagos registrados. El esquema solo guarda
-// `first_due`, así que `getPendingInstallments` ordena por esa fecha.
+// Cuotas: agenda el cobro de una venta ya aprobada; no tiene líneas, FIFO ni comisión propios.
+// Lo pagado y lo pendiente se calculan sumando `payments`, no se guardan.
 import { db } from '../../core/supabase';
 import { round } from '../finance/costing';
 import { firstOfEmbed } from '../../utils/first-of-embed';
@@ -63,10 +56,7 @@ interface InstallmentRow {
   status: string;
   created_at: string;
   updated_at: string;
-  // payments.installment_id → installments.id es many-to-one desde payments,
-  // así que embebido desde acá siempre es un array (a diferencia de
-  // orders, many-to-one desde installments, que sí necesita
-  // firstOfEmbed — ver utils/first-of-embed.ts).
+  // Desde installments, `payments` siempre llega como array (a diferencia de `orders`).
   payments: PaymentEmbedRow[];
   orders: OrderEmbed | OrderEmbed[] | null;
 }
@@ -171,9 +161,7 @@ export async function registerInstallmentPayment(
   installmentId: string,
   input: RegisterInstallmentPaymentInput,
 ): Promise<{ amountPaid: number; amountPending: number; completed: boolean } | null> {
-  // Lectura angosta: acá solo hace falta el status, no el plan completo
-  // (pagos + orden embebidos) — eso se trae una sola vez más abajo, después
-  // de insertar, para calcular el resultado real.
+  // Lectura angosta: solo hace falta el estado; el plan completo se trae después de insertar.
   const { data: existing, error: existingError } = await db
     .from('installments')
     .select('status')
@@ -209,7 +197,7 @@ export async function registerInstallmentPayment(
   return { amountPaid: updated.amountPaid, amountPending: updated.amountPending, completed };
 }
 
-// Reciclado tal cual de v1: no se cancela un plan con pagos ya registrados.
+// No se cancela un plan con pagos ya registrados.
 export async function cancelInstallmentPlan(id: string): Promise<boolean> {
   const plan = await getInstallmentPlan(id);
   if (!plan) return false;

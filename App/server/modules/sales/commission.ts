@@ -1,10 +1,5 @@
-// Cadena utilidad → salary → comisión → ganancia + mayoreo (Docs/03-Finanzas.md §4-5).
-// Funciones puras, sin DB ni Express — mismo espíritu que costing.ts. Se usan
-// tanto para el cotizador (estimación) como para la aprobación (snapshot que
-// se congela en order_items): misma función, dos momentos distintos.
-//
-// Sin utilidad no hay comisión. El tramo se busca por la utilidad neta de la
-// línea, no por el total de la venta (Docs/03-Finanzas.md §4).
+// Utilidad → salario → comisión → ganancia, y mayoreo (Docs/03-Finanzas.md §4-5). Funciones puras,
+// las mismas para el cotizador y para el snapshot al aprobar.
 import type { FinancialConfig } from '../../../shared/schemas';
 import { distributePozos, round } from '../finance/costing';
 
@@ -13,17 +8,12 @@ import { distributePozos, round } from '../finance/costing';
 export interface WholesaleResult {
   price: number;
   discountPercent: number;
-  // Desde el tramo más alto configurado, el servidor avisa en vez de aplicar
-  // el descuento a ciegas ("mejor hacé una cotización"). Se deriva del tramo
-  // más alto en vez de hardcodear "12": Docs/03-Finanzas.md §9 dice que estos tramos son
-  // editables desde el panel, así que el aviso debe moverse con ellos.
+  // Desde el tramo más alto se avisa («mejor hacé una cotización»). Se deriva de la configuración
+  // porque los tramos se editan en el panel.
   warning: boolean;
 }
 
-// Se aplica el tramo con el `minQty` más alto que la cantidad todavía cumple
-// (Docs/03-Finanzas.md §5: "se aplica el tramo más alto que cumpla"). El descuento pega
-// sobre el precio BASE/tentativo del producto, nunca sobre el sugerido
-// matemático (Docs/03-Finanzas.md §5, decisión §10.2).
+// Aplica el tramo más alto que cumple la cantidad, sobre el precio cargado (Docs/03-Finanzas.md §5).
 export function applyWholesaleDiscount(
   price: number,
   quantity: number,
@@ -55,9 +45,7 @@ function findCommissionTier(
   return tier;
 }
 
-// Reciclado de v1 (calcularComisionYPorcentaje): sin utilidad neta positiva no
-// hay comisión — pagar sobre una pérdida no tiene sentido de negocio, y la
-// tabla de Docs/03-Finanzas.md §4 no cubre valores ≤ 0 explícitamente.
+// Sin utilidad neta positiva no hay comisión: pagar sobre una pérdida no tiene sentido.
 export function computeCommissionPercent(
   utilidadNeta: number,
   scale: FinancialConfig['commissionScale'],
@@ -88,9 +76,7 @@ export interface LineCommission {
   gananciaTienda: number;
   pozos: FinancialConfig['pozos'];
 
-  // ── La misma cadena, POR UNIDAD ──
-  // El desglose del panel muestra ambas columnas, y el tramo de comisión sale
-  // del valor unitario: sin exponerlo, el porcentaje parecería salir de la nada.
+  // La misma cadena por unidad: el tramo sale del valor unitario y el panel lo muestra.
   utilidadBrutaUnit: number;
   salaryUnit: number;
   utilidadNetaUnit: number;
@@ -98,30 +84,8 @@ export interface LineCommission {
   gananciaTiendaUnit: number;
 }
 
-// Docs/03-Finanzas.md §4: Utilidad bruta → Salary (20%) → Utilidad neta → Comisión (tramo
-// por Utilidad neta) → Ganancia tienda. Los pozos se recogen del Costo F/U de
-// las unidades de esta línea (Docs/03-Finanzas.md §2).
-//
-// ── El tramo se busca por la utilidad neta de UNA UNIDAD ──
-// Antes se buscaba por la utilidad neta de la línea COMPLETA (ya multiplicada),
-// y eso castigaba el volumen: vender 5 unidades juntas empujaba la utilidad a un
-// tramo más alto y le BAJABA el porcentaje al vendedor. Ahora la cadena se
-// calcula por unidad y recién al final se multiplica, así que el porcentaje no
-// depende de cuántas unidades entren en la misma línea.
-//
-// Con cantidad 1 ambos métodos dan idéntico — por eso las planillas históricas
-// de referencia (todas de cantidad 1) siguen cuadrando.
-//
-// ── Redondeo ──
-// La cadena unitaria se calcula SIN redondear y se redondea al presentar. Dos
-// excepciones deliberadas:
-//   · `utilidadNetaUnit` se redondea ANTES de buscar el tramo, para que el
-//     tramo sea reproducible y no dependa de decimales invisibles cuando el
-//     valor cae justo en el borde (200.001 vs 200.00).
-//   · El último término de cada identidad se deriva por RESTA en vez de
-//     redondearse aparte, para que las filas del panel cierren exactamente:
-//         utilidadNeta   === utilidadBruta − salary
-//         gananciaTienda === utilidadNeta  − comision
+// El tramo se busca por la utilidad neta de una unidad: por línea completa, vender más unidades juntas
+// bajaba el porcentaje. Se redondea antes de buscar el tramo y el último término sale por resta.
 export function computeLineCommission(input: LineCommissionInput, config: FinancialConfig): LineCommission {
   const { precioUnit, costeFinal, quantity } = input;
 
@@ -140,9 +104,7 @@ export function computeLineCommission(input: LineCommissionInput, config: Financ
   const comisionUnit = round(utilidadNetaUnit * comisionPercent, 2);
   const gananciaTiendaUnit = round(utilidadNetaUnit - comisionUnit, 2);
 
-  // ── Totales ──
-  // Se multiplica el valor SIN redondear y se redondea el total: redondear cada
-  // unitario y luego multiplicar acumularía deriva con cantidades altas.
+  // Se multiplica sin redondear y se redondea el total: redondear cada unitario acumularía deriva.
   const costoTotal = round(costeFinal * quantity, 2);
   const utilidadBruta = round(utilidadBrutaUnitRaw * quantity, 2);
   const salary = round(salaryUnitRaw * quantity, 2);
@@ -195,12 +157,8 @@ export function computeOrderLineSnapshot(
   input: OrderLineSnapshotInput,
   config: FinancialConfig,
 ): OrderLineSnapshot {
-  // El precio que manda es EL DEL FORMULARIO.
-  //
-  // Mayoreo RETIRADO: el descuento por volumen ya NO se aplica ni se avisa. Los
-  // descuentos ahora se dan con un código de descuento al facturar. Se conservan
-  // `applyWholesaleDiscount` y la config (`wholesaleDiscounts`) dormidos, para
-  // reactivarlo restaurando la rama `input.applyWholesale === true`.
+  // Manda el precio del formulario. El mayoreo está apagado: los descuentos van con código al facturar.
+  // Para reactivarlo, volver a usar applyWholesaleDiscount cuando `input.applyWholesale` sea true.
   const wholesale = { price: round(input.basePrice, 2), discountPercent: 0, warning: false };
 
   const commission = computeLineCommission(

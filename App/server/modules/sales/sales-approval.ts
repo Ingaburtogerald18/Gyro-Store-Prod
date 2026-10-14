@@ -18,10 +18,8 @@ interface PurchaseEmbed {
   costo_f_u: number | null;
 }
 
-// Consume las reservas (reservado → vendido en purchases, vía inventory-fifo.ts) y
-// congela el snapshot financiero de Docs/03-Finanzas.md §4 en cada order_item. El costo
-// por línea sale de los lotes que stock_reservations realmente asignó a esa
-// venta (promedio ponderado si abarcó más de un lote).
+// Consume las reservas y congela el snapshot financiero en cada order_item. El costo sale de los lotes
+// que la venta realmente consumió (promedio ponderado si fueron varios).
 export async function approveSale(orderId: string): Promise<boolean> {
   const { data: order, error: orderError } = await db
     .from('orders')
@@ -50,9 +48,7 @@ export async function approveSale(orderId: string): Promise<boolean> {
     .from('stock_reservations')
     .select('quantity, purchases(product_name, coste_final, costo_f_u)')
     .eq('order_id', orderId)
-    // 'consumed' también: si un intento anterior de aprobar se cortó a mitad
-    // de camino, esas reservas ya se movieron a vendido pero siguen siendo
-    // parte del costo de esta venta.
+    // También 'consumed': si un intento anterior se cortó, esas reservas ya pasaron a vendido.
     .in('status', ['active', 'consumed']);
   if (reservationsError) throw reservationsError;
   const reservations = (reservationRows ?? []) as unknown as {
@@ -60,10 +56,8 @@ export async function approveSale(orderId: string): Promise<boolean> {
     purchases: PurchaseEmbed | PurchaseEmbed[] | null;
   }[];
 
-  // Cada reserva tiene que corresponder a una línea (por el nombre del lote).
-  // Si alguna no calza —un lote renombrado después de registrar la venta—, esa
-  // línea se aprobaría con costo 0 y la comisión y los pozos saldrían
-  // inflados, congelados así para siempre. Mejor frenar y avisar.
+  // Cada reserva tiene que calzar con una línea por nombre de lote; si no, la línea se aprobaría con
+  // costo 0 y la comisión quedaría inflada para siempre. Mejor frenar y avisar.
   const itemNames = new Set(items.map((item) => item.sku));
   const orphan = reservations.find((r) => !itemNames.has(firstOfEmbed(r.purchases)?.product_name ?? ''));
   if (orphan) {
@@ -73,9 +67,7 @@ export async function approveSale(orderId: string): Promise<boolean> {
     );
   }
 
-  // Y cada línea tiene que tener TODAS sus unidades reservadas. Si una edición
-  // o un registro se cortó a mitad de camino, la línea quedaría con menos
-  // unidades costeadas que vendidas (o con costo 0 si no tiene ninguna).
+  // Cada línea tiene que tener todas sus unidades reservadas, o quedaría con menos costo que ventas.
   const reservedByName = new Map<string, number>();
   for (const r of reservations) {
     const name = firstOfEmbed(r.purchases)?.product_name ?? '';
@@ -139,12 +131,8 @@ export async function approveSale(orderId: string): Promise<boolean> {
   if (updateOrderError) throw updateOrderError;
   if (!approvedRow) return true;
 
-  // Espejo en SharePoint (Docs/04-Comprobantes-SharePoint.md y la sección `spo_outbox` del schema). Solo se
-  // ENCOLA: la subida a Graph la hace un worker aparte. Va después del update
-  // porque una venta que no llegó a quedar 'approved' no tiene nada que espejar,
-  // y `enqueueApprovedSale` no lanza nunca — si el outbox falla, la aprobación
-  // igual se completa. Se espera (await) porque es un insert local de una fila:
-  // dejarlo suelto solo cambiaría milisegundos por una promesa sin dueño.
+  // Solo encola el comprobante para SharePoint: lo sube un worker aparte y nunca lanza, así que la
+  // aprobación se completa aunque el outbox falle.
   await enqueueApprovedSale(orderId);
 
   return true;
@@ -176,9 +164,7 @@ export async function rejectSale(orderId: string, reason: string, rejectedBy: st
 
   await releaseReservations(orderId);
 
-  // La factura queda libre para registrar la venta corregida con el mismo
-  // ticket. Antes quedaba "ligada" a una venta rechazada para siempre, y la
-  // única salida era borrar la venta, que anula la factura.
+  // La factura queda libre para registrar la venta corregida con el mismo ticket.
   const freedInvoice = await unlinkInvoiceFromSale(orderId);
 
   const { error: auditError } = await db.from('audit_logs').insert({

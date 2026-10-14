@@ -34,9 +34,8 @@ export function chooseTemplateProduct(
 }
 
 /**
- * `axis_options` con la opción de la variante comprada incluida. Un producto
- * que recorta sus opciones no mostraría en la tienda lo que llegó a bodega.
- * Devuelve null si no hace falta cambiar nada.
+ * `axis_options` con la opción de la variante comprada: si el producto recorta sus opciones,
+ * la tienda no mostraría lo que llegó a bodega. Null si no hace falta cambiar nada.
  */
 export function axisOptionsWithVariant(
   axisOptions: Record<string, string[]>,

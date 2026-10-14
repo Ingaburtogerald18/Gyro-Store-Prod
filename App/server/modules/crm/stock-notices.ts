@@ -1,6 +1,5 @@
-// «Avisame cuando haya» (migración 0028): el pedido de aviso entra al CRM como
-// seguimiento. Nadie recibe mensajes automáticos: el equipo escribe por WhatsApp
-// cuando la agenda marca «Ya llegó, avisar».
+// «Avisame cuando haya»: entra al CRM como seguimiento. No hay mensajes automáticos: el equipo
+// escribe por WhatsApp cuando la agenda marca «Ya llegó, avisar».
 import { db } from '../../core/supabase';
 import { BadRequestError } from '../../utils/http-error';
 import type { StockNotice } from '../../../shared/schemas';
@@ -107,7 +106,6 @@ export async function noticesForFollowUps(
     .from('stock_notices')
     .select('follow_up_id, catalog_item_id, variant_name, label')
     .in('follow_up_id', followUpIds);
-  // Sin la migración 0028 no hay avisos: la agenda sigue igual.
   if (error && ['42P01', 'PGRST205'].includes(error.code ?? '')) return out;
   if (error) throw error;
   const rows = (data ?? []) as NoticeRow[];

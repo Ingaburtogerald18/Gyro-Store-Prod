@@ -4,10 +4,6 @@ import { BadRequestError } from '../../utils/http-error';
 import type { SupplierInput } from '../../../shared/schemas';
 import { escapeLike, isUniqueViolation, requireOrdersTable } from './purchase-order-common';
 
-// ============================================================================
-// ── Proveedores ──
-// ============================================================================
-
 export interface Supplier {
   id: string;
   name: string;
@@ -87,10 +83,8 @@ export async function updateSupplier(id: string, input: SupplierInput): Promise<
 }
 
 /**
- * El proveedor de una orden: uno guardado (`supplierId`) o uno nuevo. Un
- * "nuevo" con el nombre de uno que ya existe reutiliza ese, y le completa el
- * contacto o la tienda si estaban vacíos: así no se duplican proveedores por
- * cargarlos desde el formulario de la orden.
+ * Un proveedor «nuevo» con el nombre de uno existente reutiliza ese y completa sus datos vacíos:
+ * así no se duplican al cargarlos desde la orden.
  */
 export async function resolveSupplierId(
   supplierId: string | null | undefined,

@@ -1,8 +1,5 @@
-// Cadena de costeo del inventario (Docs/03-Finanzas.md §1-3). Funciones puras, sin DB ni
-// Express: dado el detalle de una compra al recibirla y la configuración
-// financiera vigente, derivan costo real → Costo F/U → 7 pozos → coste final →
-// PVP sugerido. `inventory-edits.ts` y `purchase-receipts.ts` las invocan al procesar una llegada y
-// persiste el resultado en `purchases`/`products`.
+// Cadena de costeo (Docs/03-Finanzas.md §1-3): funciones puras, sin base ni Express.
+// Costo real → Costo F/U → pozos → coste final → precio sugerido.
 import type { FinancialConfig } from '../../../shared/schemas';
 
 type Pozos = FinancialConfig['pozos'];
@@ -65,9 +62,7 @@ export function computeCostoFU(costoRealCs: number, scale: FinancialConfig['cost
   return findTier(scale, costoRealCs).amount;
 }
 
-// Docs/03-Finanzas.md §2: el Costo F/U se reparte en los 7 pozos según sus %. La suma de
-// los % ya está validada al 100% por `financialConfigSchema`, así que el
-// reparto cierra con `costoFU` salvo el redondeo a centavos de cada pozo.
+// Los porcentajes ya suman 100 (lo valida financialConfigSchema): solo puede diferir por centavos.
 export function distributePozos(costoFU: number, pozos: Pozos): Pozos {
   return {
     publicidad: round(costoFU * pozos.publicidad, 2),
@@ -85,10 +80,8 @@ export function computeCosteFinal(costoRealCs: number, costoFU: number): number 
   return round(costoRealCs + costoFU, 2);
 }
 
-// Docs/03-Finanzas.md §3: PVP sugerido = Coste final / (1 − margen), margen por tramo de
-// Coste final. El tramo "< 50" del doc es un error de negocio (no vender tan
-// barato); la salvaguarda vive en el dato de config (margin: 0 en ese tramo),
-// no acá — esta función solo aplica el tramo que le llegue.
+// Precio sugerido = coste final / (1 − margen). La salvaguarda de precios demasiado bajos vive
+// en la configuración, no acá.
 export function computePrecioSugerido(costeFinal: number, scale: FinancialConfig['marginScale']): number {
   const { margin } = findTier(scale, costeFinal);
   return round(costeFinal / (1 - margin), 2);

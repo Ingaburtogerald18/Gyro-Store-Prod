@@ -4,17 +4,8 @@ import './load-env'; // Carga las variables de entorno (fuente única). Debe ir 
 
 const isProd = process.env.NODE_ENV === 'production';
 
-// ── SharePoint Online (archivo de comprobantes de ventas aprobadas) ──
-// App-only (client credentials), NO el login delegado del staff: quien sube el
-// comprobante es la aplicación, no la persona que aprobó la venta. El secreto
-// vive solo en el backend.
-//
-// `enabled` es TODO-O-NADA a propósito: con la mitad de los ids, cada intento
-// fallaría en Graph y llenaría el outbox de errores en vez de esperar callado.
-// Su ausencia NO entra en la validación fail-fast de más abajo: "SPO todavía no
-// configurado" es un estado VÁLIDO del sistema (ver la sección `spo_outbox` de
-// database/01_schema.sql) — la app arranca igual, encola, y sincroniza el backlog
-// cuando se carguen las credenciales.
+// SharePoint: credenciales app-only. `enabled` es todo-o-nada; sin él la app arranca igual
+// y las ventas aprobadas esperan en `spo_outbox` (Docs/04-Comprobantes-SharePoint.md).
 const spoTenantId = (process.env.AZURE_TENANT_ID || '').trim();
 const spoClientId = (process.env.AZURE_CLIENT_ID || '').trim();
 const spoClientSecret = (process.env.AZURE_CLIENT_SECRET || '').trim();
@@ -70,15 +61,9 @@ export const config = {
   // Las categorías del storefront ya NO viven acá: son editables desde el panel
   // y viven en `app_config` (ver modules/settings/app-config.ts → getStoreCategories).
 
-  // CORS: orígenes permitidos en producción.
-  // CORS_ORIGIN manda sobre RENDER_EXTERNAL_URL: el dominio propio (o el del front,
-  // si algún día se separa del backend) es el que hay que permitir; la URL que
-  // inyecta Render es solo el fallback cuando no hay dominio configurado.
+  // CORS_ORIGIN (el dominio propio) manda; la URL que pone Render es el respaldo.
   corsOrigin: process.env.CORS_ORIGIN || process.env.RENDER_EXTERNAL_URL || '',
 
-  // ── SharePoint Online ──
-  // Ver el bloque de arriba. `enabled: false` = la app funciona igual, las ventas
-  // aprobadas se encolan en `spo_outbox` y nadie llama a Graph.
   spo: {
     enabled: Boolean(spoTenantId && spoClientId && spoClientSecret && spoSiteId && spoDriveId),
     tenantId: spoTenantId,
@@ -89,10 +74,7 @@ export const config = {
   },
 } as const;
 
-// ── Validación de arranque (fail-fast) ──
-// Preferimos morir acá, con un mensaje propio y accionable, antes de arrancar a
-// medias. Sin esto, la falta de SUPABASE_URL explota más adelante como un
-// "supabaseUrl is required" de supabase-js que no dice qué hacer.
+// Fail-fast: sin estas variables supabase-js falla más tarde con un error que no dice qué hacer.
 const missingVars = [
   !config.supabaseUrl && 'SUPABASE_URL',
   !config.supabaseServiceRoleKey && 'SUPABASE_SERVICE_ROLE_KEY',
@@ -113,6 +95,4 @@ if (isProd && !config.protectedEmail) {
   );
 }
 
-// NOTA: las tablas financieras (pozos, tiers de Costo F/U, márgenes, comisión,
-// mayoreo) NO viven acá: son editables desde el panel y viven en `app_config`
-// (ver Docs/03-Finanzas.md). Este archivo solo tiene constantes de arranque e infraestructura.
+// Las tablas financieras se editan en el panel y viven en `app_config` (Docs/03-Finanzas.md).

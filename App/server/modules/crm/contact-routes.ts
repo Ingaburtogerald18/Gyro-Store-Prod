@@ -1,6 +1,4 @@
-// Formulario de contacto público → captura el lead en el CRM (modules/crm/crm.ts).
-// Sin auth; el rate-limit (contactLimiter) se aplica en index.ts, mismo
-// patrón que POST /api/orders/public (el otro endpoint anónimo que escribe).
+// Formulario de contacto público → lead en el CRM. Sin sesión; contactLimiter se aplica en index.ts.
 import { Router } from 'express';
 import { asyncHandler } from '../../utils/async-handler';
 import { publicContactInputSchema } from '../../../shared/schemas';

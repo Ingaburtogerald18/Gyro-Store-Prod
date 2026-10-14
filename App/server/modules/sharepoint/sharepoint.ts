@@ -1,21 +1,5 @@
-// Cliente de Microsoft Graph para el espejo de ventas: sube el comprobante PDF a
-// la biblioteca de SharePoint.
-//
-// ── Por qué solo una biblioteca y no una Lista ──
-// La primera versión también creaba una fila por venta en una Lista de
-// SharePoint, con quince columnas (vendedor, cliente, montos, método…). Se
-// descartó: TODOS esos datos ya viven en Postgres, que es la fuente de verdad, y
-// nadie iba a consultar la Lista para decidir nada. Era duplicación pura, pagada
-// con quince nombres internos de columna que hay que mantener sincronizados y con
-// un permiso de esquema (`owner`) que el resto del sistema no necesita.
-//
-// Lo que sí aporta SharePoint es lo que Postgres no hace bien: guardar y buscar
-// DOCUMENTOS. Así que la app sube el PDF y guarda su URL en
-// `spo_outbox.comprobante_url`. Postgres queda como índice, SharePoint como
-// archivo. Para llegar al comprobante de una venta se consulta esa columna.
-//
-// La app NO lee de SharePoint. Es un espejo de una sola dirección: ningún flujo
-// del negocio depende de que esto responda.
+// Sube el comprobante PDF a la biblioteca y guarda su URL en `spo_outbox`. La app nunca lee de SharePoint
+// (por qué no una Lista: Docs/04-Comprobantes-SharePoint.md §1).
 import { config } from '../../core/config';
 import { getGraphToken } from './graph-token';
 import { getIsoWeek } from '../../utils/iso-week';
@@ -23,13 +7,8 @@ import { getIsoWeek } from '../../utils/iso-week';
 const GRAPH_BASE = 'https://graph.microsoft.com/v1.0';
 
 /**
- * Error de una llamada a Graph.
- *
- * `retryable` separa lo que se arregla solo (429, 5xx, red caída) de lo que no
- * (403 por permisos sin conceder, 404 por un drive id equivocado). El worker
- * reintenta lo primero y deja de gastar intentos en lo segundo: un permiso que no
- * está concedido va a seguir sin estarlo dentro de una hora, y reintentarlo 20
- * veces solo llena el log.
+ * `retryable` separa lo que se arregla solo (429, 5xx, red) de lo que no (403, 404):
+ * el worker no gasta intentos en un permiso que sigue sin concederse.
  */
 export class GraphApiError extends Error {
   constructor(
@@ -63,15 +42,8 @@ async function describeError(res: Response): Promise<string> {
 }
 
 /**
- * Llamada a Graph con el token puesto y UN reintento ante 401.
- *
- * El 401 se reintenta una sola vez y con `forceRefresh`: el caso real es un token
- * revocado antes de expirar (secreto rotado). Si el segundo intento también da
- * 401, el problema es de permisos y no lo arregla pedir otro token.
- *
- * El 429 NO se reintenta acá: se propaga con su `Retry-After` para que el worker
- * lo respete y deje la fila pendiente. Dormir dentro del request bloquearía el
- * drenado entero por lo que Graph pida (a veces minutos).
+ * Un reintento ante 401 con forceRefresh (token revocado); si sigue, son permisos. El 429 no se reintenta
+ * acá: se propaga con su Retry-After para no bloquear el drenado.
  */
 async function graphFetch(path: string, init: RequestInit, retriedAuth = false): Promise<Response> {
   const token = await getGraphToken({ forceRefresh: retriedAuth });
@@ -99,35 +71,16 @@ async function graphFetch(path: string, init: RequestInit, retriedAuth = false):
 }
 
 /**
- * Carpeta de destino de un comprobante: la SEMANA ISO de la aprobación
- * (`2026-W32`), que es como el negocio agrupa — las ventas se aprueban por
- * semana y los pagos de comisión usan esa misma clave en `orders.week_of`. Así
- * una carpeta de la biblioteca y un período de pago son la misma unidad, y
- * cotejar "lo que se pagó" contra "los comprobantes de esa semana" es abrir una
- * carpeta.
- *
- * Ordena solo alfabéticamente (`2026-W01` … `2026-W52`, `2027-W01`), que es como
- * SharePoint lista las carpetas por defecto.
+ * Carpeta = semana ISO de aprobación (`2026-W32`), la misma clave que agrupa los pagos de comisión:
+ * cotejar lo pagado con los comprobantes de una semana es abrir una carpeta.
  */
 function comprobanteFolder(when: Date): string {
   return getIsoWeek(when);
 }
 
 /**
- * Sube el comprobante a la biblioteca y devuelve su `webUrl`.
- *
- * La ruta es relativa a la RAÍZ del drive de `SPO_DRIVE_ID`, que apunta a una
- * biblioteca dedicada a comprobantes: por eso no lleva un prefijo `Comprobantes/`
- * — quedaría `Comprobantes/Comprobantes/2026-W32/`. Graph crea las carpetas que
- * falten sobre la marcha.
- *
- * `PUT .../content` es la subida SIMPLE, que sirve hasta 4 MB. Un comprobante de
- * una página pesa decenas de KB, así que no hace falta la sesión de subida por
- * partes; si algún día se le meten fotos al PDF y pasa de ahí, Graph responde 413
- * y hay que migrar a createUploadSession.
- *
- * El `:` final de `{ruta}:/content` no es decorativo: es lo que le dice a Graph
- * que lo anterior es una ruta y no un id de item.
+ * Ruta relativa a la raíz de la biblioteca de SPO_DRIVE_ID; Graph crea las carpetas que falten.
+ * Subida simple, hasta 4 MB: si el PDF algún día pasa de eso, migrar a createUploadSession.
  */
 export async function uploadComprobante(
   buffer: Buffer,
@@ -154,11 +107,7 @@ export async function uploadComprobante(
   return file.webUrl;
 }
 
-/**
- * SharePoint rechaza `" * : < > ? / \ |` en los nombres de archivo y se come los
- * puntos finales. El nombre lo arma la app (correlativo o uuid), así que esto es
- * un cinturón por si algún día entra texto libre.
- */
+/** SharePoint rechaza `" * : < > ? / \ |` y se come los puntos finales. Cinturón por si entra texto libre. */
 function sanitizeFilename(name: string): string {
   return (
     name

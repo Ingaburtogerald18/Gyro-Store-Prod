@@ -1,10 +1,5 @@
-// PostgREST corta cada respuesta en 1000 filas (`max-rows`) sin avisar: la
-// consulta "sale bien" y simplemente faltan datos. Para los reportes que suman
-// en memoria eso es un subconteo silencioso, así que se pide por páginas hasta
-// que una vuelva incompleta.
-//
-// La consulta que arma `page` TIENE que tener un orden total (p. ej. `.order('id')`);
-// sin orden, Postgres puede devolver filas repetidas o salteadas entre páginas.
+// PostgREST corta cada respuesta en 1000 filas sin avisar: se pide por páginas. La consulta tiene
+// que tener un orden total (p. ej. `.order('id')`) o se repiten o saltean filas.
 
 const PAGE_SIZE = 1000;
 

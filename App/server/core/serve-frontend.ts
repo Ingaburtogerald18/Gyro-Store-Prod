@@ -1,10 +1,5 @@
-// En PRODUCCIÓN el backend sirve el frontend (Remix): assets estáticos + SSR,
-// todo en el mismo origen. Así Render corre UN solo servicio (más barato, sin
-// CORS, sin salto de red entre front y API). En dev el frontend corre aparte
-// (`remix vite:dev` en :5173) y proxya /api hacia este backend.
-//
-// No usamos @remix-run/express: exige Express 4 y acá corremos Express 5. En su
-// lugar adaptamos a mano Express ↔ Web Fetch con los helpers de @remix-run/node.
+// En producción Express sirve también el build de Remix: un solo servicio y un solo origen.
+// No se usa @remix-run/express porque exige Express 4; se adapta a mano con @remix-run/node.
 import express, { type Express, type Request as ExRequest, type Response as ExResponse, type NextFunction } from 'express';
 import { existsSync } from 'node:fs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -52,8 +47,7 @@ export async function serveFrontend(app: Express): Promise<void> {
   app.use('/assets', express.static(resolve(clientDir, 'assets'), { immutable: true, maxAge: '1y' }));
   app.use(express.static(clientDir, { maxAge: '1h' }));
 
-  // Todo lo que no sea /api ni un asset lo resuelve Remix (SSR). En Express 5 el
-  // catch-all es un middleware sin ruta (el patrón '*' de Express 4 ya no existe).
+  // Lo que no es /api ni un asset lo resuelve Remix. En Express 5 el catch-all es un middleware sin ruta.
   app.use(async (req: ExRequest, res: ExResponse, next: NextFunction) => {
     try {
       // El nonce lo genera el middleware de CSP (ver index.ts) y lo consume
