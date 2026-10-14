@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { asyncHandler } from '../../utils/async-handler';
 import { getPublishedCatalogItem, listPublishedCatalog } from './catalog';
 import { collectMappedCodes, toCatalogDetail, toCatalogProduct } from './catalog-presenter';
-import { getLotsByCodes } from '../inventory/inventory';
+import { getLotsByCodes } from '../inventory/inventory-links';
 import { getActiveOffers } from './offers';
 
 const router = Router();

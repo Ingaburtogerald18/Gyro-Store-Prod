@@ -70,7 +70,7 @@ export interface LineCommissionInput {
   precioUnit: number;
   quantity: number;
   // C$, del lote FIFO consumido para esta línea (o promedio ponderado si
-  // abarcó más de un lote — eso lo resuelve sales.ts, no este archivo).
+  // abarcó más de un lote — eso lo resuelve sales-approval.ts, no este archivo).
   costeFinal: number;
   // C$, ídem, para el reparto en los 7 pozos.
   costoFU: number;
@@ -179,7 +179,7 @@ export interface OrderLineSnapshotInput {
   costeFinal: number;
   costoFU: number;
   // El mayoreo es herramienta del cotizador (Docs/03-Finanzas.md §5), no automático:
-  // sales.ts decide si esta línea lo aplica. Default true.
+  // quien llama decide si esta línea lo aplica. Default true.
   applyWholesale?: boolean;
 }
 

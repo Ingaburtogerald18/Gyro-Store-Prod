@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { syncPublicOrderReservation } from '../inventory/inventory';
+import { syncPublicOrderReservation } from '../inventory/inventory-web-reservations';
 import { asyncHandler } from '../../utils/async-handler';
 import { parseUuidParam } from '../../utils/params';
 import { requireAdmin, requireSeller } from '../../middleware/auth';

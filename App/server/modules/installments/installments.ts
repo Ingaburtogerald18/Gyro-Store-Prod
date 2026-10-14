@@ -1,7 +1,7 @@
 // Cuotas: agenda el cobro de una venta YA
-// aprobada (server/modules/sales/sales.ts) — modelo delgado, igual que
+// aprobada (ver modules/sales/) — modelo delgado, igual que
 // invoices.ts. `installments.order_id` envuelve un `orders` existente; no hay
-// líneas/FIFO/comisión propios acá, eso ya lo congeló sales.ts. `payments`
+// líneas/FIFO/comisión propios acá, eso ya lo congeló la aprobación de la venta. `payments`
 // es una tabla hija real (no un array embebido): amountPaid/amountPending se
 // calculan sumándola, no se guardan desnormalizados.
 //

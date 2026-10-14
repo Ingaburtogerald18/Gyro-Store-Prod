@@ -3,7 +3,7 @@ import { z } from 'zod';
 // Cotizar, registrar, aprobar, rechazar y
 // listar. Sin fotos de recibo, sin venta vía ticket de factura, sin edición
 // post-aprobación ni pago de comisiones por lotes — ver Docs/03-Finanzas.md §4-5 para la
-// cadena financiera que server/modules/sales/sales.ts arma con estos datos.
+// cadena financiera que server/modules/sales/ arma con estos datos.
 
 export const saleLineInputSchema = z.object({
   // Mismo límite que inventario: sin un catalog_item_id real

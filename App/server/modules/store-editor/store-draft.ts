@@ -18,7 +18,7 @@ import {
 import { getLandingConfig, saveLandingConfig } from './landing';
 import { listCatalogForPricing } from '../catalog/catalog';
 import { collectMappedCodes, includedOptions, normalizeAxes, normalizeImages, toCatalogProduct } from '../catalog/catalog-presenter';
-import { getLotsByCodes } from '../inventory/inventory';
+import { getLotsByCodes } from '../inventory/inventory-links';
 import { getActiveOffers } from '../catalog/offers';
 import { cleanupLandingMedia, diffProducts, getVersionSnapshot, recordVersion, snapshotLive } from './store-versions';
 

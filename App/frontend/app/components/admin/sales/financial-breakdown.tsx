@@ -242,7 +242,7 @@ export function ChainRow({
 
 // ── Pozos ──────────────────────────────────────────────────────────────────
 
-/** Nombre a mostrar de cada pozo: los mismos que usa Gastos (server/modules/finance/reports.ts). */
+/** Nombre a mostrar de cada pozo: los mismos que usa Gastos (server/modules/finance/expenses.ts). */
 const POZO_LABELS: Record<string, string> = {
   publicidad: 'Publicidad',
   mantenimiento: 'Mantenimiento',

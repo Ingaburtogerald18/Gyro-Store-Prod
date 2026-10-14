@@ -4,7 +4,7 @@ import { db } from '../../core/supabase';
 import { BadRequestError } from '../../utils/http-error';
 import { normalizeAxes } from './catalog-presenter';
 import { axisOptionsWithVariant, chooseTemplateProduct, templateVariantKeys } from './template-variants';
-import type { CatalogLink } from '../inventory/inventory';
+import type { CatalogLink } from '../inventory/inventory-links';
 
 export interface TemplateLink {
   templateId: string;

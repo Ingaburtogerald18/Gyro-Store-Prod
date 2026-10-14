@@ -1,9 +1,5 @@
-// CRUD del inventario (bodega) desde el panel: lotes de compra (purchases).
-// El módulo de inventario migrado se eliminó: nunca se pudo VENDER (sales.ts
-// solo consume `purchases` vía FIFO), así que cargar ítems ahí era registrar
-// stock que el sistema no sabía despachar. Cumple el contrato de
-// frontend/app/state/api/inventory-api.ts (mismos paths/verbos) — no el de
-// inventoryApi.ts, que es un draft sin usar (ver server/modules/inventory/inventory.ts).
+// Inventario (bodega) desde el panel: lotes, órdenes de compra y movimientos.
+// Contrato de frontend/app/state/api/inventory-api.ts.
 // Solo admin, salvo Stock actual: el vendedor lo ve en solo lectura y sin
 // costos. Comprar y recibir es tarea de administración.
 import { Router, type Request } from 'express';
@@ -23,37 +19,15 @@ import {
   purchaseInvoiceInputSchema,
   colorOfferInputSchema,
 } from '../../../shared/schemas';
-import {
-  getPurchases,
-  getCurrentInventory,
-  getAvailableInventory,
-  getIncomingInventory,
-  getInventoryKpis,
-  reportArrival,
-  updatePurchase,
-  revertPurchase,
-  deletePurchase,
-  simulateCost,
-  adjustStock,
-  listStockMovements,
-  withMediaLinks,
-} from './inventory';
-import {
-  addPurchaseOrderLines,
-  createPurchaseOrder,
-  createSupplier,
-  deletePurchaseOrder,
-  getInvoiceFile,
-  getPackagePhoto,
-  getPurchaseOrder,
-  listPurchaseOrders,
-  listSuppliers,
-  receivePurchaseOrder,
-  simulatePurchaseOrderReceipt,
-  updatePurchaseInvoice,
-  updatePurchaseOrder,
-  updateSupplier,
-} from './purchase-orders';
+import { getPurchases, getCurrentInventory, getAvailableInventory, getIncomingInventory, getInventoryKpis } from './inventory';
+import { reportArrival, updatePurchase, revertPurchase, deletePurchase, simulateCost, withMediaLinks } from './inventory-edits';
+import { adjustStock, listStockMovements } from './inventory-movements';
+import { addPurchaseOrderLines, createPurchaseOrder, deletePurchaseOrder, updatePurchaseOrder } from './purchase-order-edits';
+import { createSupplier, listSuppliers, updateSupplier } from './suppliers';
+import { getInvoiceFile, getPackagePhoto } from './purchase-order-files';
+import { getPurchaseOrder, listPurchaseOrders } from './purchase-orders';
+import { receivePurchaseOrder, simulatePurchaseOrderReceipt } from './purchase-receipts';
+import { updatePurchaseInvoice } from './purchase-invoices';
 import { removeColorOffer, setColorOffer, withOffers } from '../catalog/offers';
 
 const router = Router();

@@ -8,14 +8,10 @@ import { db } from '../../core/supabase';
 import { round } from '../finance/costing';
 import { getFinancialConfig } from '../settings/app-config';
 import { computeLineCommission, computeOrderLineSnapshot } from './commission';
-import {
-  codesForVariant,
-  recordStockMovement,
-  releasePublicOrderReservations,
-  releaseFifoLot,
-  returnSoldUnits,
-  walkFifoLots,
-} from '../inventory/inventory';
+import { codesForVariant } from '../inventory/inventory-links';
+import { recordStockMovement, returnSoldUnits } from '../inventory/inventory-movements';
+import { releasePublicOrderReservations } from '../inventory/inventory-web-reservations';
+import { releaseFifoLot, walkFifoLots } from '../inventory/inventory-fifo';
 import { isMissingColumn } from '../orders/order-persistence';
 import { recordCommissionAdjustment } from './seller-payments';
 import { BadRequestError } from '../../utils/http-error';

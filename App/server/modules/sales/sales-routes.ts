@@ -16,17 +16,11 @@ import {
   settleBalanceInputSchema,
   updateSaleInputSchema,
 } from '../../../shared/schemas';
-import {
-  listSellableProducts,
-  quoteSale,
-  registerSale,
-  approveSale,
-  rejectSale,
-  listSales,
-  getSaleById,
-  updateSale,
-  deleteSale,
-} from './sales';
+import { listSellableProducts, quoteSale } from './sales-quote';
+import { registerSale } from './sales-register';
+import { approveSale, rejectSale } from './sales-approval';
+import { listSales, getSaleById } from './sales-list';
+import { updateSale, deleteSale } from './sales-edit';
 import {
   getSellerSummary,
   listCommissionPayments,

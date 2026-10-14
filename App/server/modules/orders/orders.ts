@@ -7,7 +7,7 @@ import { findOrCreateOrderContact } from '../crm/crm';
 import { ingestEvents } from '../analytics/analytics';
 import { collectMappedCodes, normalizeImages, toCatalogDetail } from '../catalog/catalog-presenter';
 import { listPublishedCatalogByIds } from '../catalog/catalog';
-import { getLotsByCodes } from '../inventory/inventory';
+import { getLotsByCodes } from '../inventory/inventory-links';
 import { getActiveOffers } from '../catalog/offers';
 import { resolveOrderLines, type ResolvedComboInfo } from './order-lines';
 import { isMissingColumn, persistOrder, restoreOrderAttempt, type OrderAttemptStore } from './order-persistence';

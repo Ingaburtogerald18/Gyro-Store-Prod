@@ -4,7 +4,7 @@
 // pagos de comisión de un vendedor (Docs/02-Arquitectura.md §6), y las carpetas de comprobantes
 // en SharePoint la usan para que una carpeta y un período de pago sean lo mismo.
 //
-// Vive acá y no en sales.ts porque tener dos implementaciones del algoritmo
+// Vive acá y no en ventas porque tener dos implementaciones del algoritmo
 // —aunque hoy sean idénticas— es cómo se llega a que una carpeta diga W32 y el
 // pago diga W33 para la misma venta.
 //

@@ -1,6 +1,6 @@
 // Ventas (Hito 3 admin). Contrato exacto de server/modules/sales/sales-routes.ts — no
 // inventar campos: quote/register devuelven lo que el backend realmente
-// manda (ver server/modules/sales/sales.ts para los shapes de QuoteResult/
+// manda (ver server/modules/sales/ para los shapes de QuoteResult/
 // RegisteredSale/SaleListItem).
 import { baseApi } from './base-api';
 
@@ -83,7 +83,7 @@ export interface RegisteredSale {
 
 // Edición de una venta ya registrada (PUT /api/sales/:id, solo admin).
 // `reason` es OBLIGATORIO cuando la venta ya salió de `pending_approval`:
-// el backend lo rechaza sin él (server/modules/sales/sales.ts → updateSale).
+// el backend lo rechaza sin él (server/modules/sales/sales-edit.ts → updateSale).
 export interface UpdateSaleInput {
   id: string;
   customerName?: string;

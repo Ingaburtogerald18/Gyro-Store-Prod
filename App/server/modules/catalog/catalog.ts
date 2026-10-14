@@ -1,7 +1,7 @@
 import { db } from '../../core/supabase';
 import { publicCatalogItemSchema, type PublicCatalogItem } from '../../../shared/schemas';
 import { parseDbRows } from '../../utils/parse-db-rows';
-import { withLinkedLots } from '../inventory/inventory';
+import { withLinkedLots } from '../inventory/inventory-links';
 
 // Columnas que el storefront puede ver. Se listan explícitamente en vez de usar
 // `select('*')`: la tabla `catalog_items` tiene columnas de la cadena financiera

@@ -3,7 +3,7 @@ import { config } from '../../core/config';
 import { round } from '../finance/costing';
 import { BadRequestError } from '../../utils/http-error';
 import type { CreateInvoiceInput } from '../../../shared/schemas';
-import { listSellableProducts } from '../sales/sales';
+import { listSellableProducts } from '../sales/sales-quote';
 import { redeemDiscountCode, computeCodeDiscount, checkDiscountCode } from '../discount-codes/discount-codes';
 
 export interface Invoice {
@@ -27,7 +27,7 @@ export interface Invoice {
   sellerUid?: string | null;
   /**
    * Nombre del vendedor asignado. Lo resuelven `listInvoices` (segunda query en
-   * lote, mismo patrón que `listSales` en sales.ts — nunca un embed de
+   * lote, mismo patrón que `listSales` en sales-list.ts — nunca un embed de
    * PostgREST, que rompe el listado ENTERO si la FK no está en caché) y
    * `findInvoiceByNumber` (una sola factura, una sola query).
    */
@@ -303,7 +303,7 @@ export async function listInvoices(
   // de PostgREST (`profiles!seller_uid(name)`): el embed depende de que
   // PostgREST tenga la FK en su caché de esquema, y cuando no la tiene falla
   // con PGRST200 y se lleva puesto el listado ENTERO (mismo criterio que
-  // sales.ts → listSales). El nombre es un dato secundario acá: si no se
+  // sales-list.ts → listSales). El nombre es un dato secundario acá: si no se
   // puede resolver, la factura igual tiene que listarse.
   const uids = [
     ...new Set([

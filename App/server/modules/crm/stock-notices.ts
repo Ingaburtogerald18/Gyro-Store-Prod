@@ -6,7 +6,7 @@ import { BadRequestError } from '../../utils/http-error';
 import type { StockNotice } from '../../../shared/schemas';
 import { buildVariants, collectMappedCodes, toCatalogDetail } from '../catalog/catalog-presenter';
 import { getPublishedCatalogItem, listCatalogForPricing } from '../catalog/catalog';
-import { getLotsByCodes } from '../inventory/inventory';
+import { getLotsByCodes } from '../inventory/inventory-links';
 import { pickVariant } from '../orders/order-lines';
 
 export interface StockNoticeResult {

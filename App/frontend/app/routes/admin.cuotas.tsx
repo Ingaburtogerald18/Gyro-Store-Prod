@@ -8,7 +8,7 @@ import { FormErrorBanner, serverErrorMessage } from '~/components/ui/form-feedba
 // barra de progreso + historial de pagos expandible — es un patrón sólido y
 // el shape de InstallmentPlan (Hito 3) es parecido. Se reescribe: v1 creaba
 // el plan armando sus propias líneas (con FIFO y comisión incluidos); acá el
-// plan solo agenda el cobro de una venta que sales.ts ya aprobó — no hay
+// plan solo agenda el cobro de una venta que Ventas ya aprobó — no hay
 // customerName/customerPhone propios, se usan phone/sellerEmail de la orden
 // vinculada (server/modules/installments/installments.ts los agrega vía join). No hay
 // nextPaymentDate por cuota (no existe esa columna en v2): se muestra solo la

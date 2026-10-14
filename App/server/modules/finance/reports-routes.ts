@@ -19,27 +19,10 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { asyncHandler } from '../../utils/async-handler';
 import { requireAdmin, requireSeller } from '../../middleware/auth';
-import {
-  getFinancialKPIs,
-  listLosses,
-  exportSales,
-  getExpensesByPozo,
-  createExpense,
-  updateExpense,
-  previewExpense,
-  deleteExpense,
-  listExpenses,
-  getExpensesOverflow,
-  getSalesTrend,
-  getSellerPerformance,
-  getTopProducts,
-  getSalesBreakdown,
-  getDeliverySummary,
-  getSalesLedger,
-  getDeliveryInvoices,
-  listLoanPayments,
-  getLoanPaymentsSummary,
-} from './reports';
+import { getFinancialKPIs, listLosses } from './reports-kpis';
+import { exportSales, getSalesTrend, getSellerPerformance, getTopProducts, getSalesBreakdown, getDeliverySummary, getSalesLedger, getDeliveryInvoices } from './reports-sales';
+import { getExpensesByPozo, createExpense, updateExpense, previewExpense, deleteExpense, listExpenses, getExpensesOverflow } from './expenses';
+import { listLoanPayments, getLoanPaymentsSummary } from './loan-payments';
 import { parseCursor } from '../../utils/pagination';
 import { BadRequestError } from '../../utils/http-error';
 import { parseUuidParam } from '../../utils/params';

@@ -1,7 +1,7 @@
 // Cadena de costeo del inventario (Docs/03-Finanzas.md §1-3). Funciones puras, sin DB ni
 // Express: dado el detalle de una compra al recibirla y la configuración
 // financiera vigente, derivan costo real → Costo F/U → 7 pozos → coste final →
-// PVP sugerido. `modules/inventory/inventory.ts` las invoca al procesar una llegada y
+// PVP sugerido. `inventory-edits.ts` y `purchase-receipts.ts` las invocan al procesar una llegada y
 // persiste el resultado en `purchases`/`products`.
 import type { FinancialConfig } from '../../../shared/schemas';
 
@@ -101,7 +101,7 @@ export interface PurchaseCosting extends CostoReal {
   precioSugerido: number;
 }
 
-// Encadena todo lo anterior: lo que `inventory.ts` llama al recibir una compra.
+// Encadena todo lo anterior: lo que se llama al recibir un lote.
 export function costPurchaseOnArrival(
   input: PurchaseCostInput,
   config: FinancialConfig,

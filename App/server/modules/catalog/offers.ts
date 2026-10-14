@@ -13,7 +13,8 @@ import {
   type StockByCode,
 } from './catalog-presenter';
 import { listCatalogForPricing } from './catalog';
-import { getLotsByCodes, type InventoryRow } from '../inventory/inventory';
+import { getLotsByCodes } from '../inventory/inventory-links';
+import { type InventoryRow } from '../inventory/inventory';
 
 export interface ColorOffer {
   id: string;

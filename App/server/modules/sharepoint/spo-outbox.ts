@@ -1,5 +1,5 @@
 // Encolado en el outbox de SharePoint. Vive aparte del worker a propósito:
-// `modules/sales/sales.ts` solo necesita ESTO (un insert de una fila), y no tiene por
+// `modules/sales/sales-approval.ts` solo necesita ESTO (un insert de una fila), y no tiene por
 // qué arrastrar pdf-lib ni el cliente de Graph en su árbol de imports.
 import { db } from '../../core/supabase';
 import { logger } from '../../utils/logger';

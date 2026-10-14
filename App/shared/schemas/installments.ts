@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 // Mismo modelo delgado que facturación: el plan de cuotas envuelve una venta
-// YA aprobada (server/modules/sales/sales.ts) — no repite FIFO ni comisión, solo
+// YA aprobada (server/modules/sales/) — no repite FIFO ni comisión, solo
 // agenda el cobro. `total` sale de `orders.total`, no lo manda el cliente.
 export const createInstallmentPlanInputSchema = z.object({
   orderId: z.uuid(),

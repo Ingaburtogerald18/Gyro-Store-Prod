@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 // Modelo delgado: la factura numera una venta YA aprobada
-// (server/modules/sales/sales.ts) — no tiene líneas propias, esas viven en
+// (server/modules/sales/) — no tiene líneas propias, esas viven en
 // order_items. `invoiceNumber` nunca lo manda el cliente: lo asigna el
 // `nextval()` de la secuencia en server/modules/invoices/invoices.ts.
 export const invoiceItemInputSchema = z.object({

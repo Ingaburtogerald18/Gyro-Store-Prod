@@ -11,7 +11,7 @@ import { FormDialogContent } from '~/components/ui/form-layout';
 // aparecen". Se reescribe todo lo demás: v1 resolvía productos nativos+migrados
 // con foto de recibo y admin-en-nombre-de un vendedor — el backend v2 (MVP
 // Hito 3) solo tiene inventario nativo, sin fotos, y cada vendedor registra su
-// propia venta (ver server/modules/sales/sales.ts). Un producto no puede repetirse
+// propia venta (ver server/modules/sales/sales-register.ts). Un producto no puede repetirse
 // en dos líneas (mismo límite del backend, evita la lógica de "distribuir
 // reservas" de v1).
 import { HugeIcon } from '~/components/ui/icon';

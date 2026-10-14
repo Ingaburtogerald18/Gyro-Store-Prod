@@ -269,6 +269,6 @@ Orden:
 
 1. Correr la migración en el SQL Editor.
 2. Verificar que agosto siga en ganancia real C$1,954.30.
-3. Quitar la lectura de `loan_payments` del código (`reports.ts`, `pozo-ledger.ts`) y las rutas
+3. Quitar la lectura de `loan_payments` del código (`loan-payments.ts`, `expenses.ts` y `pozo-ledger.ts`) y las rutas
    `/api/reports/loan-payments`.
 4. Borrar la tabla.

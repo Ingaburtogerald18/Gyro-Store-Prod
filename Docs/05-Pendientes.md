@@ -27,17 +27,19 @@ borra de acá y se describe en el documento que corresponda.
 ## 2. Orden del código
 
 Plan acordado para ordenar el repositorio. Cada paso es un commit que pasa `npm run check` y los tests.
-El servidor y el frontend ya están ordenados por tema y en kebab-case (ver 02-Arquitectura §3).
+El servidor y el frontend ya están ordenados por tema y en kebab-case, y los archivos gigantes del
+servidor y de `shared/` ya están partidos (ver 02-Arquitectura §3).
 
-1. **Partir los archivos gigantes**: `shared/schemas.ts` (1600 líneas) en un archivo por tema;
-   después `modules/sales/sales.ts`, `modules/inventory/inventory.ts`, `modules/finance/reports.ts`,
-   `modules/inventory/purchase-orders.ts` y `components/editor/landing-editor.tsx`.
+1. **Partir dos piezas grandes de lógica**: `components/editor/landing-editor.tsx` es un solo
+   componente de 850 líneas y `updateSale` (`modules/sales/sales-edit.ts`) una sola función de 420.
+   Partirlas cambia código, no solo orden: hay que probar el modo edición en claro y oscuro, a varios
+   anchos y con teclado, y editar ventas de punta a punta.
 2. **Comentarios** de 1 o 2 líneas y sin historia (unos 770 bloques largos). Incluye corregir los
    que dicen algo falso, como el de `lib/brand.ts` que asegura que el servidor exige `BRAND_NAME`.
 
 ## 3. Deuda técnica
 
-- **Reserva de stock con bloqueo.** La reserva FIFO de ventas (`modules/inventory/inventory.ts`) usa UPDATEs
+- **Reserva de stock con bloqueo.** La reserva FIFO de ventas (`modules/inventory/inventory-fifo.ts`) usa UPDATEs
   condicionados y una compensación manual, no una transacción. Con dos ventas simultáneas del mismo
   lote, el `CHECK` de la base evita sobrevender, pero la compensación puede dejar una reserva a
   medias. Pasarla a una función de Postgres con `SELECT … FOR UPDATE` antes de tener tráfico
