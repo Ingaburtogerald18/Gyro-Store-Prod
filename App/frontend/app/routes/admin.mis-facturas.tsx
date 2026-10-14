@@ -1,8 +1,4 @@
-// "Mis Facturas" — portal de vendedor. Solo lectura: ve ÚNICAMENTE las
-// facturas que Caja le asignó (invoices.seller_uid), nunca crea, edita ni
-// anula desde acá. El flujo es abrir el ticket, copiar el número de factura y
-// después ir a Ventas a registrar la venta con ese código (ver
-// server/routes/invoices.ts → /mine, /lookup, /:id/ticket).
+// «Mis Facturas» del vendedor, solo lectura: abre el ticket, copia el número y registra la venta en Ventas.
 import { HugeIcon } from '~/components/ui/icon';
 import { File01Icon, Time02Icon, ViewIcon } from '@hugeicons/core-free-icons';
 import { useMemo, useState } from 'react';
@@ -10,14 +6,14 @@ import type { MetaFunction } from '@remix-run/node';
 import { type ColumnDef } from '@tanstack/react-table';
 import { pageTitle } from '~/lib/brand';
 
-import { PageHeader } from '~/components/layout/PageHeader';
-import { DataTable } from '~/components/ui/DataTable';
-import { QueryState } from '~/components/ui/QueryState';
-import { RowActionsMenu } from '~/components/ui/RowActionsMenu';
+import { PageHeader } from '~/components/admin/page-header';
+import { DataTable } from '~/components/ui/data-table';
+import { QueryState } from '~/components/ui/query-state';
+import { RowActionsMenu } from '~/components/ui/row-actions-menu';
 import { formatCordobas } from '~/lib/formatters';
-import { useGetMyInvoicesQuery, type Invoice } from '~/store/api/invoicesApi';
-import { TicketPrintModal } from '~/components/admin/invoices/TicketPrintModal';
-import { InvoiceCodeCell } from '~/components/admin/invoices/InvoiceCodeCell';
+import { useGetMyInvoicesQuery, type Invoice } from '~/state/api/invoices-api';
+import { TicketPrintModal } from '~/components/admin/invoices/ticket-print-modal';
+import { InvoiceCodeCell } from '~/components/admin/invoices/invoice-code-cell';
 
 export const meta: MetaFunction = () => [{ title: pageTitle('Mis Facturas', { admin: true }) }];
 
@@ -165,4 +161,4 @@ export default function AdminMisFacturas() {
 }
 
 // Error dentro de la sección: se muestra en el área de contenido y la barra lateral sigue viva.
-export { AdminRouteError as ErrorBoundary } from '~/components/layout/route-error';
+export { AdminRouteError as ErrorBoundary } from '~/components/route-error';

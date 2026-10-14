@@ -4,10 +4,10 @@ import { createElement } from 'react';
 import { renderToString } from 'react-dom/server';
 import { allowedNavGroups, currentNavItem } from '../app/lib/admin-navigation';
 import { decodePreference, isDensity, isStringList, isTableView, isVisibility } from '../app/lib/ui-preferences';
-import { useLocalPreference } from '../app/hooks/useLocalPreference';
-import { DataTable } from '../app/components/ui/DataTable';
-import { orderExpansionReducer, orderIsExpanded } from '../app/lib/orderExpansion';
-import { OrderAccordion } from '../app/components/admin/inventory/OrderAccordion';
+import { useLocalPreference } from '../app/hooks/use-local-preference';
+import { DataTable } from '../app/components/ui/data-table';
+import { orderExpansionReducer, orderIsExpanded } from '../app/lib/order-expansion';
+import { OrderAccordion } from '../app/components/admin/inventory/order-accordion';
 
 test('las órdenes se abren independientemente y los controles globales reinician las excepciones', () => {
   let state = { all: false, exceptions: {} };
@@ -41,8 +41,9 @@ test('el acordeón inicia cerrado con su resumen y acciones; una búsqueda muest
 
 test('la búsqueda de módulos conserva el acceso de cada rol', () => {
   const seller = allowedNavGroups(false, 'seller').flatMap((group) => group.items.map((item) => item.name));
-  assert.deepEqual(seller.sort(), ['Mis Facturas', 'Ventas', 'Pedidos web', 'Catálogo', 'Personal', 'CRM y clientes'].sort());
-  assert.ok(!seller.includes('Inventario'));
+  // El vendedor entra a Inventario solo para ver Stock actual, sin costos (DESIGN.md, registro 2026-10-10).
+  assert.deepEqual(seller.sort(), ['Mis Facturas', 'Ventas', 'Pedidos web', 'Inventario', 'Personal', 'CRM y clientes'].sort());
+  assert.ok(!seller.includes('Facturación'));
   assert.ok(seller.includes('Pedidos web'));
   const admin = allowedNavGroups(true, 'admin').flatMap((group) => group.items);
   assert.ok(admin.some((item) => item.name === 'Inventario'));

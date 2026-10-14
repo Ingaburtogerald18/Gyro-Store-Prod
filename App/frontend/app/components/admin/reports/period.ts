@@ -1,10 +1,6 @@
-// Periodo del reporte: de qué presets se compone, cómo se convierte a un rango
-// ISO para el backend y con qué grano se dibuja la serie temporal.
-//
-// Vive aparte de la UI porque tanto el Dashboard como el panel del vendedor en
-// /admin/ventas necesitan el mismo cálculo, y porque son funciones puras que se
-// pueden razonar (y probar) sin montar un componente.
-import type { TrendBucket } from '~/store/api/reportsApi';
+// Periodo del reporte: presets, rango ISO y grano del gráfico. Aparte porque lo usan el Dashboard y
+// el panel del vendedor, y son funciones puras.
+import type { TrendBucket } from '~/state/api/reports-api';
 
 export type PeriodId = 'today' | '7d' | '30d' | 'month' | 'quarter' | 'year' | 'range';
 
@@ -37,11 +33,7 @@ function parseLocalYmd(ymd: string): Date | null {
   return new Date(y, m - 1, d);
 }
 
-/**
- * Convierte el periodo elegido en el par ISO que espera el backend.
- * Devolver `{}` (sin fechas) significa "sin filtro": es lo que pasa si el
- * usuario eligió "Rango" pero todavía no completó las dos fechas.
- */
+/** `{}` = sin filtro: pasa con un rango libre a medio llenar. */
 export function getPeriodRange(period: PeriodId, custom?: CustomRange): PeriodRange {
   if (period === 'range') {
     const from = custom?.from ? parseLocalYmd(custom.from) : null;
@@ -82,23 +74,12 @@ export function getPeriodRange(period: PeriodId, custom?: CustomRange): PeriodRa
   return { startDate: start.toISOString(), endDate: end.toISOString() };
 }
 
-/**
- * ¿El periodo produjo un filtro real? Todos los presets devuelven las dos
- * fechas, así que esto solo es `false` con un rango libre a medio llenar.
- *
- * Importa porque un rango vacío NO significa "vacío" para el backend: significa
- * "sin filtro", y devolvería el histórico completo bajo el rótulo del periodo
- * elegido. Los que llaman lo usan para no disparar la query todavía.
- */
+/** Un rango vacío para el backend significa «sin filtro» y traería todo el histórico: no se dispara. */
 export function isPeriodReady(range: PeriodRange): boolean {
   return Boolean(range.startDate && range.endDate);
 }
 
-/**
- * Grano del eje temporal según el largo del rango. Sin esto, un año en barras
- * diarias son 365 barras de un pixel y "Hoy" en barras mensuales es una sola
- * barra que no dice nada.
- */
+/** Grano según el largo del rango: un año en barras diarias son 365 barras de un pixel. */
 export function pickBucket({ startDate, endDate }: PeriodRange): TrendBucket {
   if (!startDate || !endDate) return 'month';
   const days = (Date.parse(endDate) - Date.parse(startDate)) / 86_400_000;

@@ -1,19 +1,6 @@
-// ============================================================================
-// Seed de CATÁLOGO y LANDING — SOLO DESARROLLO
-// ============================================================================
-// Complementa a `database/02_seed.sql`, que a propósito no trae productos: inserta
-// catálogo de prueba y los slides del hero para poder ver el storefront con
-// contenido. UUIDs fijos + upsert => re-ejecutable sin duplicar.
-//
-//   cd App && npx tsx scripts/seed-catalog.dev.mts --confirm
-//
-// El `--confirm` no es burocracia: este script escribe productos con
-// `published: true`, o sea que lo que siembre aparece en la tienda. Apuntar sin
-// querer al Supabase de producción llena el catálogo real de audífonos de
-// prueba, y limpiarlos después es a mano. El script imprime a qué proyecto va a
-// escribir ANTES de hacerlo, para que se pueda comparar con el que corresponde.
-// ============================================================================
-import '../server/loadEnv.js'; // Fuente única de variables de entorno. Debe ir primero.
+// Seed de catálogo y portada, solo desarrollo. Publica productos, por eso pide `--confirm` e imprime
+// a qué proyecto va a escribir antes de hacerlo. Re-ejecutable: UUIDs fijos y upsert.
+import '../server/core/load-env'; // Fuente única de variables de entorno. Debe ir primero.
 import { createClient } from '@supabase/supabase-js';
 
 const url = (process.env.SUPABASE_URL || '').trim();

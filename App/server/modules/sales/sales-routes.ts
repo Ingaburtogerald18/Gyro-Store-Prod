@@ -1,0 +1,325 @@
+// Ventas: cotizador, registro, listado y detalle (vendedor y admin); aprobar y rechazar es admin.
+import { Router } from 'express';
+import { z } from 'zod';
+import { asyncHandler } from '../../utils/async-handler';
+import { requireSeller, requireAdmin } from '../../middleware/auth';
+import { parseUuidParam } from '../../utils/params';
+import { listSaleReturns, returnSaleLine } from './sales-conversions';
+import {
+  payCommissionInputSchema,
+  quoteInputSchema,
+  registerSaleInputSchema,
+  rejectSaleInputSchema,
+  settleBalanceInputSchema,
+  updateSaleInputSchema,
+} from '../../../shared/schemas';
+import { listSellableProducts, quoteSale } from './sales-quote';
+import { registerSale } from './sales-register';
+import { approveSale, rejectSale } from './sales-approval';
+import { listSales, getSaleById } from './sales-list';
+import { updateSale, deleteSale } from './sales-edit';
+import {
+  getSellerSummary,
+  listCommissionPayments,
+  listPendingBalances,
+  payCommissions,
+  settleSellerBalance,
+} from './seller-payments';
+
+const router = Router();
+
+router.use(requireSeller);
+
+const isAdminLike = (roles: string[]) => roles.includes('admin') || roles.includes('global_admin');
+
+router.get(
+  '/products',
+  asyncHandler(async (_req, res) => {
+    res.json(await listSellableProducts());
+  }),
+);
+
+router.post(
+  '/quote',
+  asyncHandler(async (req, res) => {
+    const data = quoteInputSchema.parse(req.body);
+    const result = await quoteSale(data.items);
+
+    if (!isAdminLike(req.user!.roles)) {
+      // El vendedor ve su comisión, no los costos: se recortan unitarios, `comisionPercent` y
+      // `belowMinMargin`, porque con cualquiera se despeja el costo.
+      result.lines = result.lines.map((line) => {
+        const {
+          costeFinalSnap,
+          costoTotal,
+          utilidadBruta,
+          salary,
+          utilidadNeta,
+          gananciaTienda,
+          utilidadBrutaUnit,
+          salaryUnit,
+          utilidadNetaUnit,
+          gananciaTiendaUnit,
+          comisionPercent,
+          belowMinMargin,
+          ...rest
+        } = line as any;
+        return rest;
+      });
+      delete (result as any).totalGananciaTienda;
+    }
+
+    res.json(result);
+  }),
+);
+
+router.post(
+  '/',
+  asyncHandler(async (req, res) => {
+    const data = registerSaleInputSchema.parse(req.body);
+    const sale = await registerSale(data, { 
+      uid: req.user!.uid, 
+      email: req.user!.email,
+      isAdmin: isAdminLike(req.user!.roles),
+      isGlobalAdmin: req.user!.roles.includes('global_admin')
+    });
+    res.status(201).json(sale);
+  }),
+);
+
+// ── Pago de comisiones ── Antes de `/:id` para que Express no tome «payments» como id.
+
+// Portal del vendedor: cada uno ve LO SUYO. El email sale del token, nunca del
+// query — si no, un vendedor podría leer el resumen de otro cambiando la URL.
+router.get(
+  '/my-summary',
+  asyncHandler(async (req, res) => {
+    res.json(await getSellerSummary(req.user!.email));
+  }),
+);
+
+router.get(
+  '/my-payments',
+  asyncHandler(async (req, res) => {
+    res.json(await listCommissionPayments(req.user!.email));
+  }),
+);
+
+router.get(
+  '/payments',
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const sellerEmail = typeof req.query.sellerEmail === 'string' ? req.query.sellerEmail : undefined;
+    res.json(await listCommissionPayments(sellerEmail));
+  }),
+);
+
+router.get(
+  '/balances',
+  requireAdmin,
+  asyncHandler(async (_req, res) => {
+    res.json(await listPendingBalances());
+  }),
+);
+
+// Resumen de un vendedor cualquiera (admin): lo usa el aviso de «cuánto le debemos» tras aprobar.
+router.get(
+  '/summary',
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const sellerEmail = typeof req.query.sellerEmail === 'string' ? req.query.sellerEmail : '';
+    if (!sellerEmail) {
+      res.status(400).json({ error: 'Falta sellerEmail.' });
+      return;
+    }
+    res.json(await getSellerSummary(sellerEmail));
+  }),
+);
+
+router.post(
+  '/pay',
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const data = payCommissionInputSchema.parse(req.body);
+    res.status(201).json(await payCommissions(data, req.user!.uid));
+  }),
+);
+
+router.post(
+  '/settle-balance',
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const data = settleBalanceInputSchema.parse(req.body);
+    res.status(201).json(await settleSellerBalance(data, req.user!.uid));
+  }),
+);
+
+/**
+ * GET /api/sales/:id — después de las rutas fijas para que no caigan acá. Un vendedor solo pide las
+ * suyas (se compara con su token) y sin campos de costo.
+ */
+router.get(
+  '/:id',
+  asyncHandler(async (req, res) => {
+    const id = parseUuidParam(req.params.id, 'Venta no encontrada.');
+    const sale = await getSaleById(id);
+    if (!sale) {
+      res.status(404).json({ error: 'Venta no encontrada.' });
+      return;
+    }
+
+    const admin = isAdminLike(req.user!.roles);
+    if (!admin && sale.sellerEmail !== req.user!.email) {
+      // 404 y no 403: confirmar que la venta existe pero es de otro ya es
+      // filtrar información.
+      res.status(404).json({ error: 'Venta no encontrada.' });
+      return;
+    }
+
+    if (!admin) {
+      // El vendedor ve su comisión, no los costos: se podan utilidad bruta, porcentaje y pozos porque con
+      // cualquiera se despeja el costo. Sobreviven `comision` y `comisionUnit`.
+      sale.items = sale.items.map(
+        ({
+          costeFinalSnap,
+          costoTotal,
+          utilidadBruta,
+          salary,
+          utilidadNeta,
+          comisionPercent,
+          gananciaTienda,
+          pozos,
+          utilidadBrutaUnit,
+          salaryUnit,
+          utilidadNetaUnit,
+          gananciaTiendaUnit,
+          belowMinMargin,
+          ...rest
+        }) => rest,
+      );
+      const { totalGananciaTienda, totalSalary, belowMinMargin, ...trimmedSale } = sale;
+      res.json(trimmedSale);
+      return;
+    }
+
+    res.json(sale);
+  }),
+);
+
+router.post(
+  '/:id/approve',
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const id = parseUuidParam(req.params.id, 'Venta no encontrada.');
+    const ok = await approveSale(id);
+    if (!ok) {
+      res.status(404).json({ error: 'Venta no encontrada.' });
+      return;
+    }
+    res.json({ ok: true });
+  }),
+);
+
+router.post(
+  '/:id/reject',
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const id = parseUuidParam(req.params.id, 'Venta no encontrada.');
+    const data = rejectSaleInputSchema.parse(req.body);
+    const ok = await rejectSale(id, data.reason, req.user!.uid);
+    if (!ok) {
+      res.status(404).json({ error: 'Venta no encontrada.' });
+      return;
+    }
+    res.json({ ok: true });
+  }),
+);
+
+// ── Devoluciones (garantía o cambio) ──
+const saleReturnSchema = z.object({
+  productName: z.string().trim().min(1).max(200),
+  quantity: z.number().int().positive('La cantidad tiene que ser mayor a 0.'),
+  destination: z.enum(['stock', 'merma']),
+  refundAmount: z.number().min(0).optional(),
+  reason: z.string().trim().min(3, 'Escribí el motivo de la devolución.').max(500),
+});
+
+router.get(
+  '/:id/returns',
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const id = parseUuidParam(req.params.id, 'Venta no encontrada.');
+    res.json(await listSaleReturns(id));
+  }),
+);
+
+router.post(
+  '/:id/returns',
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const id = parseUuidParam(req.params.id, 'Venta no encontrada.');
+    const data = saleReturnSchema.parse(req.body);
+    res.status(201).json(await returnSaleLine(id, data, { uid: req.user!.uid }));
+  }),
+);
+
+router.put(
+  '/:id',
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const id = parseUuidParam(req.params.id, 'Venta no encontrada.');
+    const data = updateSaleInputSchema.parse(req.body);
+    const sale = await updateSale(id, data, { 
+      uid: req.user!.uid, 
+      email: req.user!.email, 
+      roles: req.user!.roles 
+    });
+    res.json(sale);
+  })
+);
+
+router.delete(
+  '/:id',
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const id = parseUuidParam(req.params.id, 'Venta no encontrada.');
+    const reason = typeof req.body?.reason === 'string' ? req.body.reason : '';
+    await deleteSale(id, reason, { uid: req.user!.uid, email: req.user!.email, roles: req.user!.roles });
+    res.json({ ok: true });
+  })
+);
+
+
+const statusFilterSchema = z.enum(['pending_approval', 'approved', 'paid', 'rejected']);
+
+router.get(
+  '/',
+  asyncHandler(async (req, res) => {
+    const status = statusFilterSchema.safeParse(req.query.status);
+    const admin = isAdminLike(req.user!.roles);
+
+    // El vendedor solo ve sus propias ventas, sin importar qué mande en el
+    // query: el filtro de servidor manda, no lo que pida el cliente.
+    const sellerEmail = admin
+      ? typeof req.query.sellerEmail === 'string'
+        ? req.query.sellerEmail
+        : undefined
+      : req.user!.email;
+
+    // Rango opcional por fecha de venta (ISO). Sin rango, todo el histórico.
+    const isoDate = z.string().datetime({ offset: true }).optional();
+    const from = isoDate.safeParse(req.query.from);
+    const to = isoDate.safeParse(req.query.to);
+
+    const sales = await listSales({
+      sellerEmail,
+      status: status.success ? status.data : undefined,
+      from: from.success ? from.data : undefined,
+      to: to.success ? to.data : undefined,
+    });
+    // Ganancia de tienda y fondo empresa son solo para admin.
+    res.json(admin ? sales : sales.map(({ totalGananciaTienda, totalSalary, belowMinMargin, ...rest }) => rest));
+  }),
+);
+
+export default router;

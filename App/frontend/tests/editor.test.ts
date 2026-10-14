@@ -1,11 +1,9 @@
-// Editor de portada: historia del borrador, validación antes de publicar y
-// subida con progreso real, cancelación, error y límite de espera. Sin red: la
-// subida usa un XMLHttpRequest falso.
+// Editor de portada: historia del borrador, validación y subida con progreso, sin red.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { landingConfigSchema, type HeroSlide, type LandingConfig } from '@shared/schemas';
-import { builderReducer, initBuilderSession, updateHeroSlide, updateHeroSlides, setCategoryMode, updateCartContent, undoBuilderChange, redoBuilderChange, endBuilderChange } from '../app/store/slices/builderSlice';
-import { hasLandingErrors, isValidTarget, validateLanding, validateSlide } from '../app/lib/landingValidation';
+import { builderReducer, initBuilderSession, updateHeroSlide, updateHeroSlides, setCategoryMode, updateCartContent, undoBuilderChange, redoBuilderChange, endBuilderChange } from '../app/state/slices/builder-slice';
+import { hasLandingErrors, isValidTarget, validateLanding, validateSlide } from '../app/lib/landing-validation';
 
 const slide: HeroSlide = {
   id: 's1', eyebrow: '', title: 'KZ en oferta', description: '', mediaUrl: '', mediaType: 'image',
@@ -89,12 +87,12 @@ class FakeXhr {
   abort() { this.onabort?.(); }
 }
 
-async function withFakeUpload<T>(run: (upload: typeof import('../app/lib/uploadSlideMedia').uploadSlideMedia) => Promise<T>) {
+async function withFakeUpload<T>(run: (upload: typeof import('../app/lib/upload-slide-media').uploadSlideMedia) => Promise<T>) {
   const g = globalThis as Record<string, unknown>;
   const original = g.XMLHttpRequest;
   g.XMLHttpRequest = FakeXhr;
   try {
-    const mod = await import('../app/lib/uploadSlideMedia');
+    const mod = await import('../app/lib/upload-slide-media');
     return await run(mod.uploadSlideMedia);
   } finally {
     g.XMLHttpRequest = original;

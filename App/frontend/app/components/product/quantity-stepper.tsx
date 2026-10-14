@@ -50,10 +50,7 @@ export function QuantityStepper({
           value={value}
           onChange={(e) => onChange(clamp(Number(e.target.value)))}
           aria-label="Cantidad"
-          // Input crudo a propósito: es un control de infraestructura dentro de
-          // un contenedor ya estilizado, no un campo de formulario suelto.
-          // Se le quitan las flechas nativas porque los botones ya cumplen esa
-          // función y a 40px de ancho estorban.
+          // Sin flechas nativas: los botones ya cumplen esa función.
           className="h-11 w-12 bg-transparent text-center text-base font-bold text-foreground tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-ring [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
         />
 

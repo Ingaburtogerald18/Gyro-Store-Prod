@@ -5,23 +5,23 @@ import { useSearchParams } from "@remix-run/react";
 import { Add01Icon, DashboardSquare01Icon, GiftIcon, ShoppingBag01Icon, Tag01Icon, WarehouseIcon } from "@hugeicons/core-free-icons";
 import type { MetaFunction } from "@remix-run/node";
 
-import { PurchaseMetrics, StockMetrics } from "~/components/admin/inventory/InventoryMetrics";
-import { PurchaseOrderForm } from "~/components/admin/inventory/PurchaseOrderForm";
-import { PurchasesTable, type PurchaseStatusFilter } from "~/components/admin/inventory/PurchasesTable";
-import { CurrentInventoryTable } from "~/components/admin/inventory/CurrentInventoryTable";
-import { PurchaseCommandPalette } from "~/components/admin/inventory/PurchaseCommandPalette";
-import { TemplatesView } from "~/components/admin/inventory/TemplatesView";
-import { CombosView } from "~/components/admin/inventory/CombosView";
-import { CategoriesDialog } from "~/components/admin/inventory/CategoriesDialog";
+import { PurchaseMetrics, StockMetrics } from "~/components/admin/inventory/inventory-metrics";
+import { PurchaseOrderForm } from "~/components/admin/inventory/purchase-order-form";
+import { PurchasesTable, type PurchaseStatusFilter } from "~/components/admin/inventory/purchases-table";
+import { CurrentInventoryTable } from "~/components/admin/inventory/current-inventory-table";
+import { PurchaseCommandPalette } from "~/components/admin/inventory/purchase-command-palette";
+import { TemplatesView } from "~/components/admin/inventory/templates-view";
+import { CombosView } from "~/components/admin/inventory/combos-view";
+import { CategoriesDialog } from "~/components/admin/inventory/categories-dialog";
 import { Kbd, ToolbarSearch, ToolbarSelect, useShortcut } from "~/components/admin/workspace";
-import { PageHeader } from "~/components/layout/PageHeader";
+import { PageHeader } from "~/components/admin/page-header";
 import { Button } from "~/components/ui/button";
 import { Toolbar } from "~/components/ui/toolbar";
 import { HugeIcon } from "~/components/ui/icon";
 import { pageTitle } from "~/lib/brand";
-import { useGetPurchasesQuery } from "~/store/api/inventoryV1Api";
-import { useAppSelector } from "~/store/hooks";
-import { selectIsAdmin } from "~/store/slices/authSlice";
+import { useGetPurchasesQuery } from "~/state/api/inventory-api";
+import { useAppSelector } from "~/state/hooks";
+import { selectIsAdmin } from "~/state/slices/auth-slice";
 
 export const meta: MetaFunction = () => {
   return [{ title: pageTitle("Inventario", { admin: true }) }];
@@ -78,12 +78,10 @@ export default function AdminInventario() {
 
   const tab = searchParams.get("tab");
   const view: View = !isAdmin ? "inventory" : VIEWS.find((v) => v.value === tab && tab !== "purchases")?.value ?? "purchases";
-  // `?type=migrated` de un enlace viejo cae a "current": ese módulo ya no existe.
+  // `?type=migrated` de un enlace viejo cae a "current".
   const stockFilter: StockFilter = searchParams.get("type") === "outOfStock" ? "outOfStock" : "current";
   const period = searchParams.get("period") || "all";
-  // El periodo solo aplica a Compras ("qué compré en marzo"). El stock es una
-  // FOTO de hoy: filtrarlo por mes de compra escondería lotes que siguen en
-  // bodega. Se pasa "all" en vez de solo ocultar el control para que un mes
+  // El periodo solo aplica a Compras: el stock es una foto de hoy. Se pasa "all" para que un mes
   // elegido en Compras no siga filtrando, invisible, en Stock.
   const effectivePeriod = view === "purchases" ? period : "all";
 
@@ -239,4 +237,4 @@ export default function AdminInventario() {
 }
 
 // Error dentro de la sección: se muestra en el área de contenido y la barra lateral sigue viva.
-export { AdminRouteError as ErrorBoundary } from "~/components/layout/route-error";
+export { AdminRouteError as ErrorBoundary } from "~/components/route-error";

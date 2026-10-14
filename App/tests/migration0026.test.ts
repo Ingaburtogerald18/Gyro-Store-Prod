@@ -19,7 +19,7 @@ async function freshDb(): Promise<PGlite> {
 test('0026 separa la nota interna de la descripción para la tienda', async () => {
   const pg = await freshDb();
   try {
-    const migration = await read('../database/migrations/0026_plantilla_por_modelo.sql');
+    const migration = await read('../database/historial/migrations/0026_plantilla_por_modelo.sql');
     // Estado de producción antes de 0026: sin la columna nueva.
     await pg.exec('alter table templates drop column internal_note');
     await pg.exec(`insert into templates (name, description) values
@@ -47,7 +47,7 @@ test('0026 separa la nota interna de la descripción para la tienda', async () =
 test('0026 sobre una base nueva no cambia nada', async () => {
   const pg = await freshDb();
   try {
-    const result = await pg.exec(await read('../database/migrations/0026_plantilla_por_modelo.sql'));
+    const result = await pg.exec(await read('../database/historial/migrations/0026_plantilla_por_modelo.sql'));
     assert.equal(result.at(-1)?.rows[0]?.problema, 'Todo en orden');
   } finally {
     await pg.close();

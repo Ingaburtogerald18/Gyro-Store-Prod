@@ -1,14 +1,5 @@
-// Tiempo de tránsito de una compra: cuántos días lleva viajando desde China, o
-// cuántos tardó si ya llegó.
-//
-// ── Por qué el contador NO arranca en la fecha de compra ──
-// La mercadería no zarpa el día que se compra: se consolida y sale en dos
-// ventanas fijas al mes. Una compra del 28 de enero sale recién el 15 de
-// febrero, así que contar desde el 28 le sumaría 18 días de espera que no son
-// tiempo de tránsito ni responsabilidad del proveedor.
-//
-// Todo esto es DERIVADO: no hay columna nueva en la base. Sale de
-// `purchaseDate`, `arrivalDate` y `status`, que ya existen.
+// Días de tránsito desde que la compra zarpa, no desde que se compra: sale en dos ventanas fijas al mes
+// y esa espera no es responsabilidad del proveedor. Derivado, sin columnas nuevas.
 
 /** Bandas de evaluación, en días de tránsito. */
 export const TRANSIT_BANDS = {
@@ -61,16 +52,8 @@ function daysBetween(from: Date, to: Date): number {
 }
 
 /**
- * Fecha en que la compra zarpa hacia Nicaragua.
- *
- *   día  1–9   → sale el 15 del mismo mes
- *   día 10–24  → sale el 30 del mismo mes
- *   día 25–31  → sale el 15 del mes siguiente
- *
- * OJO con el 30 en febrero: no existe. `new Date(2025, 1, 30)` NO da el 1 de
- * marzo — da el 2, porque JS le suma los días que sobran a un mes de 28. Por
- * eso el mes se arma explícitamente: cuando el 30 no cabe, se cruza al día 1
- * del mes siguiente.
+ * Día 1–9 sale el 15; 10–24 el 30; 25–31 el 15 del mes siguiente. El 30 de febrero se arma a mano:
+ * `new Date(2025, 1, 30)` da el 2 de marzo.
  */
 export function getDepartureDate(purchaseDate: string): Date | null {
   const purchase = parseLocalDate(purchaseDate);
@@ -118,9 +101,7 @@ export function getTransitInfo(purchase: {
 
   const arrival = purchase.arrivalDate ? parseLocalDate(purchase.arrivalDate) : null;
 
-  // Ya llegó: el número es final y es el que sirve para evaluar al proveedor.
-  // Se usa `arrivalDate` y no `status`, porque una compra puede marcarse
-  // recibida sin fecha o tener fecha antes de que alguien cambie el estado.
+  // Con `arrivalDate` el número es final; se usa la fecha y no `status`, que puede no coincidir.
   if (arrival) {
     // `max(0)` por si alguien carga una llegada anterior a la salida calculada:
     // un número negativo de días no significa nada y rompe la lectura.

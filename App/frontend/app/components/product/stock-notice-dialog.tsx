@@ -13,7 +13,7 @@ import { Field, FieldDescription, FieldError, FieldLabel } from "~/components/ui
 import { FormErrorBanner, serverErrorMessage } from "~/components/ui/form-feedback";
 import { FormActions, FormBody, FormDialogContent, FormLayout } from "~/components/ui/form-layout";
 import { Input } from "~/components/ui/input";
-import { useCreateStockNoticeMutation } from "~/store/api/storefrontApi";
+import { useCreateStockNoticeMutation } from "~/state/api/storefront-api";
 
 const formSchema = stockNoticeInputSchema.pick({ name: true, phone: true });
 type NoticeForm = z.input<typeof formSchema>;

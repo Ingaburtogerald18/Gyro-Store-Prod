@@ -7,9 +7,9 @@ import { motion, useReducedMotion } from 'framer-motion';
 
 
 
-import { AdminHeader } from '~/components/admin/AdminHeader';
+import { AdminHeader } from '~/components/admin/admin-header';
 import { allowedNavGroups } from '~/lib/admin-navigation';
-import { useLocalPreference } from '~/hooks/useLocalPreference';
+import { useLocalPreference } from '~/hooks/use-local-preference';
 import { isBoolean } from '~/lib/ui-preferences';
 import { Button } from '~/components/ui/button';
 import {
@@ -27,9 +27,9 @@ import {
 } from '~/components/ui/sidebar';
 import gyroBag from '~/assets/brand/gyro-bag.png';
 import { getSupabaseClient, signOut } from '~/lib/supabase.client';
-import { useAppSelector } from '~/store/hooks';
-import { selectIsAdmin, selectIsStaff, selectUser, selectUserPhoto } from '~/store/slices/authSlice';
-import { useGetMeQuery, useGetConfigQuery } from '~/store/api/sessionApi';
+import { useAppSelector } from '~/state/hooks';
+import { selectIsAdmin, selectIsStaff, selectUser, selectUserPhoto } from '~/state/slices/auth-slice';
+import { useGetMeQuery, useGetConfigQuery } from '~/state/api/session-api';
 import { BrandLoader } from '~/components/ui/module-loader';
 import { getBrandName } from '~/lib/brand';
 
@@ -195,9 +195,7 @@ export default function AdminLayout() {
     );
   }
 
-  // Guardia de Rol (UI Leak Fix)
-  // Si no es staff (ej: un cliente, o un Entra ID que no está en la lista blanca),
-  // bloqueamos el renderizado de la UI de administración.
+  // Sin rol de personal no se renderiza nada del panel.
   if (!isStaff) {
     return (
       <div className="grid min-h-svh place-items-center bg-background text-sm text-muted-foreground">
@@ -236,14 +234,8 @@ export default function AdminLayout() {
           onSignOut={handleSignOut}
         />
 
-        {/* Solo opacidad, sin `y`. El desplazamiento vertical al entrar hacía
-            parecer que la página reflowea, y además competía con la entrada de
-            cada bloque de contenido. Una sola animación de entrada por
-            pantalla. */}
-        {/* `max-w-[1600px]` + `mx-auto`: sin tope de ancho, en un monitor de
-            27" las tablas y los KPIs se estiraban a ~2400 px. Una fila de datos
-            de dos metros de ancho es imposible de seguir con la vista, y es lo
-            que más delata a una herramienta interna. */}
+        {/* Solo opacidad: el desplazamiento al entrar parecía un reflow y competía con la entrada de cada bloque. */}
+        {/* Tope de 1600 px: en un monitor grande las filas de datos se estiraban hasta no poder seguirlas. */}
         <motion.div
           id="admin-content"
           tabIndex={-1}

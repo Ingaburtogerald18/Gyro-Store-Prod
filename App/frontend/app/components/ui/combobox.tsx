@@ -26,11 +26,7 @@ interface ComboboxProps {
   disabled?: boolean;
   /** Contenido extra a la derecha de cada sugerencia (stock, código, precio…). */
   renderOptionMeta?: (option: string) => React.ReactNode;
-  /**
-   * Texto ADICIONAL contra el que buscar, además del propio nombre de la opción
-   * (códigos de lote, SKU…). Sirve para que tipear `GS-047` encuentre el
-   * producto aunque su nombre no contenga esa cadena.
-   */
+  /** Texto extra para buscar (códigos de lote, SKU): tipear `GS-047` encuentra el producto. */
   getSearchText?: (option: string) => string;
   /** Mensaje cuando no hay ninguna sugerencia. */
   emptyMessage?: string;
@@ -50,10 +46,7 @@ export function Combobox({
 }: ComboboxProps) {
   const [open, setOpen] = React.useState(false)
 
-  // Filtrado manual: matchea contra el nombre de la opción Y contra el texto
-  // extra que provea el consumidor (códigos de lote, SKU…). Con el campo
-  // vacío (recién enfocado, sin tipear nada) se listan TODAS las opciones —
-  // es lo que deja "hacer click y ver todo" sin forzar a escribir primero.
+  // Con el campo vacío se listan todas las opciones: clic y ver todo.
   const visibleOptions = React.useMemo(() => {
     if (!value.trim()) return options.slice(0, 40)
     const lower = value.toLowerCase()
@@ -71,13 +64,8 @@ export function Combobox({
   const showOptions = visibleOptions.length > 0 && open;
 
   return (
-    // `PopoverAnchor` y NO `PopoverTrigger`.
-    //
-    // El trigger de Radix se apropia del foco y del teclado del elemento que
-    // envuelve: dentro de un Dialog (que además monta su propio focus trap) eso
-    // hacía que el input perdiera el cursor apenas se abría la lista y no se
-    // pudiera seguir escribiendo. El anchor solo aporta la posición: el input
-    // queda como un input común y la apertura la maneja este componente.
+    // PopoverAnchor y no PopoverTrigger: el trigger se apropia del foco y dentro de un Dialog el input
+    // perdía el cursor al abrir la lista.
     <Popover open={showOptions} onOpenChange={setOpen}>
       <PopoverAnchor asChild>
         <div className="relative">
@@ -89,9 +77,7 @@ export function Combobox({
                setOpen(true);
             }}
             onFocus={() => setOpen(true)}
-            // Además de `onFocus`: si el input YA estaba enfocado (por
-            // ejemplo, se acaba de cerrar la lista con Escape) un click ahí
-            // no dispara foco de nuevo, y sin esto el click no hacía nada.
+            // Si el input ya tenía foco (se cerró la lista con Escape), el clic no lo vuelve a disparar.
             onClick={() => setOpen(true)}
             placeholder={placeholder}
             disabled={disabled}

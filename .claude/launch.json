@@ -8,8 +8,7 @@
       "port": 3000,
       "autoPort": true,
       "env": {
-        "GYRO_ENV_FILE": "C:\\Users\\Gerald_Work\\OneDrive - Gyro Store\\.env-prod",
-        "NODE_TLS_REJECT_UNAUTHORIZED": "0"
+        "GYRO_ENV_FILE": "C:\\Users\\Gerald_Work\\OneDrive - Gyro Store\\.env-prod"
       }
     }
   ]

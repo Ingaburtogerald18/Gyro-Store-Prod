@@ -6,18 +6,9 @@ export function formatNumber(value: number, decimals = 0): string {
   });
 }
 
-/**
- * Formatea un monto en córdobas: 1710 → "C$1,710".
- * `decimals` sube a 2 en los módulos que trabajan con centavos (facturación,
- * costos de inventario); el storefront y los totales redondeados quedan en 0.
- */
+/** 1710 → "C$1,710". `decimals` 2 donde se trabaja con centavos (facturación, costos). */
 export function formatCordobas(amount: number, symbol = 'C$', decimals = 0): string {
   return `${symbol}${formatNumber(amount, decimals)}`;
-}
-
-/** Redondea para cálculo (no formatea): 123.456 → 123.46. */
-export function roundTo(value: number, decimals = 2): number {
-  return Number((value || 0).toFixed(decimals));
 }
 
 // El número puede venir en formato humano ("+505 8594 4758") desde Configuración:
@@ -45,6 +36,8 @@ function detailUrl(base: string, id: string, name: string): string {
 }
 export const getProductUrl = (id: string, name: string) => detailUrl('producto', id, name);
 export const getComboUrl = (id: string, name: string) => detailUrl('combo', id, name);
+// Ficha, enlaces y sitemap usan el mismo nombre: si difiriera, la URL del sitemap redirigiría.
+export const comboName = (name: string | null | undefined) => name?.trim() || 'Combo especial';
 
 export const EXCHANGE_RATE = 36.6241;
 
@@ -94,11 +87,7 @@ export function formatNicaraguaDateTime(iso: string | null | undefined): string 
   return `${day}, ${date.toLocaleTimeString('es-NI', { hour: 'numeric', minute: '2-digit', timeZone })}`;
 }
 
-/**
- * "KZ EDX Pro | Jack 3.5mm | Mic | Turquesa" → { model: "KZ EDX Pro",
- * variant: "Jack 3.5mm · Mic · Turquesa" }. Solo para MOSTRAR: el nombre
- * guardado no cambia. En una celda, el modelo va en negrita y la variante abajo.
- */
+/** "KZ EDX Pro | Jack 3.5mm | Mic" → modelo y variante, solo para mostrar. */
 export function splitProductName(name: string): { model: string; variant: string } {
   const [model, ...rest] = (name ?? '').split(' | ');
   return { model: model.trim(), variant: rest.map((s) => s.trim()).join(' · ') };
@@ -133,18 +122,7 @@ export function cordobasFromUsd(usd: number): string {
   return formatCordobas((usd || 0) * EXCHANGE_RATE);
 }
 
-// Caja y Bancos guarda el código de moneda por cuenta ("NIO", "USD"): el monto se
-// muestra con el símbolo que corresponde, no con el código pegado al número.
-export function formatByCurrency(amount: number, code?: string | null, decimals = 2): string {
-  const currency = (code || 'NIO').toUpperCase();
-  if (currency === 'USD') return formatUsd(amount, decimals, decimals);
-  if (currency === 'NIO' || currency === 'C$') return formatCordobas(amount, 'C$', decimals);
-  return `${formatNumber(amount, decimals)} ${currency}`;
-}
-
-/** Texto plano de una descripción con HTML, conservando los cortes de párrafo y
- *  de línea. Borrar las etiquetas a secas pegaba los párrafos en un solo bloque
- *  ("…con garantía.Incluye…"). Se pinta con `whitespace-pre-line`. */
+/** Conserva los cortes de párrafo: borrar las etiquetas a secas pegaba los párrafos. */
 export function htmlToText(html: string | null | undefined): string {
   if (!html) return '';
   return html
@@ -158,11 +136,7 @@ export function htmlToText(html: string | null | undefined): string {
     .trim();
 }
 
-/**
- * Mensajes de WhatsApp desde el catálogo. «Pedir» solo con una selección
- * válida (lleva variante, cantidad y precio); «consultar» sirve sin elegir y
- * no promete stock.
- */
+/** «Pedir» solo con una selección válida (variante, cantidad y precio); «consultar» no promete stock. */
 export function productWhatsappMessage({
   kind,
   name,

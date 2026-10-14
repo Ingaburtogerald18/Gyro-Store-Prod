@@ -1,17 +1,5 @@
-// Resource route para /favicon.ico. No pinta nada: solo absorbe la petición.
-//
-// El navegador pide /favicon.ico solo, sin que nadie lo enlace, apenas abre el
-// sitio. Como `public/` está vacío, esa petición llegaba al handler de Remix,
-// que no encuentra ruta y escupe un `ErrorResponseImpl 404` con stack trace
-// completo en la consola del dev server — ruido puro que tapa los errores de
-// verdad.
-//
-// No se sirve un .ico estático a propósito: el favicon real es dinámico (sale de
-// la config del admin, ver DynamicFavicon en root.tsx). Un archivo fijo acá se
-// mostraría primero y después cambiaría solo. 204 = "no hay contenido", el
-// navegador se queda con el <link rel="icon"> que inyecta DynamicFavicon.
-//
-// Sin `default export`: eso es lo que la convierte en resource route.
+// Absorbe el pedido automático de /favicon.ico con 204: sin esto Remix llenaba la consola de 404.
+// No se sirve un .ico fijo porque el favicon real es dinámico (DynamicFavicon en root.tsx).
 export function loader() {
   return new Response(null, {
     status: 204,

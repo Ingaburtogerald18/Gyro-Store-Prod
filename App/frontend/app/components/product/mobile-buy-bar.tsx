@@ -1,16 +1,11 @@
-// Barra de compra fija en móvil: el precio y el "Agregar" siguen al alcance del
-// pulgar por larga que sea la ficha.
-//
-// Se esconde cuando la compra principal o el footer entran en pantalla.
-// También respeta
-// `env(safe-area-inset-bottom)` para no quedar bajo la barra del navegador.
+// Barra de compra fija en móvil; se esconde cuando la compra principal o el footer están a la vista.
 import { motion, useReducedMotion } from 'framer-motion';
 import { HugeIcon } from '~/components/ui/icon';
 import { Notification03Icon, ShoppingCart02Icon } from '@hugeicons/core-free-icons';
 import { WhatsappIcon } from '~/components/ui/whatsapp-icon';
 
 import { Button } from '~/components/ui/button';
-import { useElementInView } from '~/hooks/useElementInView';
+import { useElementInView } from '~/hooks/use-element-in-view';
 
 export function MobileBuyBar({
   name,

@@ -16,7 +16,7 @@ import type { MetaFunction } from '@remix-run/node';
 import { pageTitle } from '~/lib/brand';
 import { toast } from 'sonner';
 
-import { PageHeader } from '~/components/layout/PageHeader';
+import { PageHeader } from '~/components/admin/page-header';
 import { Button } from '~/components/ui/button';
 import { Input } from '~/components/ui/input';
 import { Textarea } from '~/components/ui/textarea';
@@ -55,7 +55,7 @@ import {
   useCreateDiscountCodeMutation,
   useSetDiscountCodeActiveMutation,
   type DiscountType,
-} from '~/store/api/discountCodesApi';
+} from '~/state/api/discount-codes-api';
 
 export const meta: MetaFunction = () => [{ title: pageTitle('Códigos de descuento', { admin: true }) }];
 
@@ -417,4 +417,4 @@ export default function AdminDiscountCodes() {
 }
 
 // Error dentro de la sección: se muestra en el área de contenido y la barra lateral sigue viva.
-export { AdminRouteError as ErrorBoundary } from '~/components/layout/route-error';
+export { AdminRouteError as ErrorBoundary } from '~/components/route-error';

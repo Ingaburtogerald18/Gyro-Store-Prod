@@ -1,9 +1,4 @@
-// Icono estático sobre cualquier icono de @hugeicons/core-free-icons.
-//
-// Reemplazo directo del antiguo `AnimatedIcon`: misma API (icon/size/strokeWidth/
-// className), pero SIN animación ni framer-motion. Un icono de HugeIcons es data
-// (un array de `[tag, attrs]`, y en toda la librería solo aparecen path, circle,
-// ellipse y rect); acá se dibuja como un `<svg>` plano.
+// Ícono estático de @hugeicons: los íconos son datos (path, circle, ellipse, rect) y se dibujan como <svg>.
 import * as React from 'react';
 import type { IconSvgElement } from '@hugeicons/react';
 
@@ -16,9 +11,7 @@ export interface HugeIconProps extends React.SVGAttributes<SVGSVGElement> {
 
 export const HugeIcon = React.forwardRef<SVGSVGElement, HugeIconProps>(
   function HugeIcon({ icon, size = 24, strokeWidth, className, ...rest }, ref) {
-    // Los sub-paths de HugeIcons traen su propio strokeWidth ("1.5"), que gana
-    // sobre el del <svg>. Para que la prop `strokeWidth` haga algo hay que
-    // pisarlo elemento por elemento.
+    // Los paths traen su propio strokeWidth: para que la prop funcione hay que pisarlo en cada uno.
     const childAttrs = (attrs: { readonly [key: string]: string | number }) =>
       strokeWidth === undefined ? { ...attrs } : { ...attrs, strokeWidth };
 
@@ -34,9 +27,7 @@ export const HugeIcon = React.forwardRef<SVGSVGElement, HugeIconProps>(
         // stroke="currentColor", así que el theming funciona sin tocar nada.
         color="currentColor"
         className={className}
-        // Decorativo POR DEFECTO, que es lo que son casi todos: el texto del
-        // control ya dice qué hace. Pero si el call-site declaró `role` o
-        // `aria-label`, mandan ellos y no se oculta del lector de pantalla.
+        // Decorativo por defecto; si se declaró `role` o `aria-label`, no se oculta del lector de pantalla.
         {...(rest['aria-label'] === undefined && rest.role === undefined
           ? { 'aria-hidden': true as const }
           : {})}

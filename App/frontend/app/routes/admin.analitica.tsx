@@ -4,12 +4,12 @@ import type { MetaFunction } from '@remix-run/node';
 import { pageTitle } from '~/lib/brand';
 import { errMsg } from '~/lib/formatters';
 
-import { useGetAnalyticsDashboardQuery } from '~/store/api/analyticsApi';
+import { useGetAnalyticsDashboardQuery } from '~/state/api/analytics-api';
 
-import { PageHeader } from '~/components/layout/PageHeader';
+import { PageHeader } from '~/components/admin/page-header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '~/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '~/components/ui/table';
-import { QueryState } from '~/components/ui/QueryState';
+import { QueryState } from '~/components/ui/query-state';
 import { BrandLoader } from '~/components/ui/module-loader';
 
 export const meta: MetaFunction = () => [{ title: pageTitle('Analítica', { admin: true }) }];
@@ -213,4 +213,4 @@ function SearchTable({
 }
 
 // Error dentro de la sección: se muestra en el área de contenido y la barra lateral sigue viva.
-export { AdminRouteError as ErrorBoundary } from '~/components/layout/route-error';
+export { AdminRouteError as ErrorBoundary } from '~/components/route-error';

@@ -6,24 +6,33 @@ import { useState } from 'react';
 import { HugeIcon } from '~/components/ui/icon';
 import { Location01Icon } from '@hugeicons/core-free-icons';
 import type { LoaderFunctionArgs, MetaFunction } from '@remix-run/node';
-import { pageTitle } from '~/lib/brand';
+import { getBrandName, pageTitle } from '~/lib/brand';
+import { canonicalLink } from '~/lib/seo';
+import { siteOrigin } from '~/lib/site-url.server';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 
 import { toast } from 'sonner';
 import { publicContactInputSchema, type PublicContactInput } from '@shared/schemas';
-import { StorefrontShell } from '~/components/layout/storefront-shell';
+import { StorefrontShell } from '~/components/storefront/storefront-shell';
 import { Button } from '~/components/ui/button';
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '~/components/ui/field';
 import { Input } from '~/components/ui/input';
 import { Textarea } from '~/components/ui/textarea';
 
-import { PaymentAccounts } from '~/components/store/payment-accounts';
-import { useSendContactMutation } from '~/store/api/storefrontApi';
-import type { StoreConfig } from '~/store/api/sessionApi';
-import { useStoreConfig } from '~/hooks/useStoreConfig';
+import { PaymentAccounts } from '~/components/storefront/payment-accounts';
+import { useSendContactMutation } from '~/state/api/storefront-api';
+import type { StoreConfig } from '~/state/api/session-api';
+import { useStoreConfig } from '~/hooks/use-store-config';
 
-export const meta: MetaFunction = () => [{ title: pageTitle('Contacto') }];
+export const meta: MetaFunction<typeof loader> = ({ data }) => [
+  { title: pageTitle('Contacto') },
+  {
+    name: 'description',
+    content: `Escribinos por WhatsApp o dejá tu consulta a ${data?.config?.brandName || getBrandName()}, tienda en línea en Managua, Nicaragua.`,
+  },
+  ...(data ? [canonicalLink(data.canonicalUrl)] : []),
+];
 
 // La config va en el loader para que el header (logo), el pie y la dirección
 // salgan en el HTML del servidor, como en el resto de las rutas públicas.
@@ -36,7 +45,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   } catch {
     // Sin config la página sale igual, con la dirección por defecto.
   }
-  return { config };
+  return { config, canonicalUrl: `${siteOrigin(request)}/contacto` };
 }
 
 
@@ -151,10 +160,7 @@ export default function Contacto() {
           <div className="space-y-4">
             <div className="rounded-2xl border bg-card p-5 shadow-xs">
               <h2 className="font-heading text-lg font-bold text-foreground">Visitanos</h2>
-              {/* La dirección sale de la config editable en el panel, no de un
-                      literal: estaba hardcodeada como "Managua, Nicaragua" mientras
-                      `business_info.address` ya existía y nadie la leía, así que
-                      cambiarla desde Configuración no tenía efecto acá. */}
+              {/* La dirección sale de la configuración del panel, no de un texto fijo. */}
               <a
                 href={
                   config?.locationUrl?.trim() ||

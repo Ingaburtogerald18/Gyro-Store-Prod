@@ -13,15 +13,8 @@ type GyroCartMascotProps = {
 const SIZE = { lg: 'size-38', sm: 'size-26' } as const;
 
 /**
- * Gyro libre, sin fondo ni marco. La imagen sigue siendo editable desde el
- * admin; solo se anima el recorte completo.
- *
- * Movimiento acotado: entrada breve y dos balanceos suaves, nada perpetuo. Se
- * detiene con el carrito cerrado, fuera de vista o con la pestaña oculta, y
- * `prefers-reduced-motion` muestra la imagen quieta.
- *
- * El salto al tocarla es decoración: NO entra en el orden de tabulación ni
- * recibe el foco inicial del carrito (las acciones de compra van primero).
+ * Mascota sin fondo, editable desde el panel. Movimiento breve, que se detiene fuera de vista y con
+ * reduced-motion. No entra en el orden de tabulación: las acciones de compra van primero.
  */
 export function GyroCartMascot({ src, active, interactive = true, size = 'lg' }: GyroCartMascotProps) {
   const stage = useRef<HTMLDivElement>(null);

@@ -66,8 +66,9 @@ export function FormBody({ className, ...props }: React.ComponentProps<"div">) {
       data-slot="form-body"
       className={cn(
         "flex flex-col gap-5",
+        // shrink-0: si no, las secciones (overflow-hidden) se aplastan y el cuerpo no desliza.
         mode === "dialog" &&
-          "min-h-0 flex-1 overflow-y-auto overscroll-contain bg-background p-4 sm:p-6",
+          "min-h-0 flex-1 *:shrink-0 overflow-y-auto overscroll-contain bg-background p-4 sm:p-6",
         className,
       )}
       {...props}

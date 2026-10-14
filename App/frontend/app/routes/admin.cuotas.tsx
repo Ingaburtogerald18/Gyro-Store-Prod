@@ -1,18 +1,7 @@
 import { FormLayout, FormDialogContent, FormActions, FormBody } from '~/components/ui/form-layout';
 import { FormErrorBanner, serverErrorMessage } from '~/components/ui/form-feedback';
-// Portal de Cuotas (doc 09 ítem 67): crear plan sobre una venta aprobada,
-// registrar pagos, ver saldo, cancelar. Solo admin (mismo criterio que v1 y
-// que server/routes/installments.ts).
-//
-// Reciclaje de v1 (admin.cuotas.tsx): se recicla el layout de tarjetas con
-// barra de progreso + historial de pagos expandible — es un patrón sólido y
-// el shape de InstallmentPlan (Hito 3) es parecido. Se reescribe: v1 creaba
-// el plan armando sus propias líneas (con FIFO y comisión incluidos); acá el
-// plan solo agenda el cobro de una venta que sales.ts ya aprobó — no hay
-// customerName/customerPhone propios, se usan phone/sellerEmail de la orden
-// vinculada (server/services/installments.ts los agrega vía join). No hay
-// nextPaymentDate por cuota (no existe esa columna en v2): se muestra solo la
-// fecha de la primera cuota.
+// Cuotas: crear un plan sobre una venta aprobada, registrar pagos y cancelar. Solo admin.
+// Solo se guarda la fecha de la primera cuota.
 import { HugeIcon } from '~/components/ui/icon';
 import {
   Add01Icon,
@@ -34,7 +23,7 @@ import {
   WorkspaceToolbar,
   useShortcut,
 } from '~/components/admin/workspace';
-import { PageHeader } from '~/components/layout/PageHeader';
+import { PageHeader } from '~/components/admin/page-header';
 import { Button } from '~/components/ui/button';
 import { Input } from '~/components/ui/input';
 import { Badge } from '~/components/ui/badge';
@@ -46,7 +35,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '~/components/ui/select';
-import { QueryState } from '~/components/ui/QueryState';
+import { QueryState } from '~/components/ui/query-state';
 import { errMsg, formatCordobas, withoutIds, formatLongDate } from '~/lib/formatters';
 import {
   useCancelInstallmentPlanMutation,
@@ -54,8 +43,8 @@ import {
   useGetInstallmentsQuery,
   useRegisterInstallmentPaymentMutation,
   type InstallmentPlan,
-} from '~/store/api/installmentsApi';
-import { useGetSalesQuery, type SaleListItem } from '~/store/api/salesApi';
+} from '~/state/api/installments-api';
+import { useGetSalesQuery, type SaleListItem } from '~/state/api/sales-api';
 import { Spinner } from '~/components/ui/spinner';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -78,10 +67,7 @@ function ProgressBar({ paid, total }: { paid: number; total: number }) {
   );
 }
 
-// ── Formularios (react-hook-form + zod) ──
-// La validación de cada campo va en su FieldError; el toast queda para el
-// resultado. Mismas reglas que registerInstallmentPaymentInputSchema y
-// createInstallmentPlanInputSchema del backend.
+// ── Formularios ── El error va en cada campo y el toast queda para el resultado.
 
 /** Número obligatorio desde un <input>: vacío falla (no se convierte en 0). */
 const requiredNumber = (message: string) =>
@@ -425,8 +411,7 @@ export default function AdminCuotas() {
   const [createFor, setCreateFor] = useState<SaleListItem | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
 
-  // Ventas aprobadas sin plan todavía (installments.order_id es UNIQUE — doc
-  // 09 migración 0010).
+  // Ventas aprobadas sin plan (`installments.order_id` es único).
   const salesWithoutPlan = useMemo(
     () => withoutIds(approvedSales, plans.map((p) => p.orderId), (s) => s.id),
     [approvedSales, plans],
@@ -531,4 +516,4 @@ export default function AdminCuotas() {
 }
 
 // Error dentro de la sección: se muestra en el área de contenido y la barra lateral sigue viva.
-export { AdminRouteError as ErrorBoundary } from '~/components/layout/route-error';
+export { AdminRouteError as ErrorBoundary } from '~/components/route-error';

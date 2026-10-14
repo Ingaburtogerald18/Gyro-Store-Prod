@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { createAppStore } from '../app/store/store';
-import { checkoutCleared, checkoutExtrasChanged, checkoutFieldsChanged } from '../app/store/slices/checkoutSlice';
-import { addItem, clearCartIfUnchanged, toOrderItems } from '../app/store/slices/cartSlice';
-import { CHECKOUT_ATTEMPT_KEY, clearCheckoutAttempt, loadCheckoutAttempt, matchesAttemptItems, newCheckoutAttemptKey, saveCheckoutAttempt } from '../app/lib/checkoutAttempt';
+import { createAppStore } from '../app/state/store';
+import { checkoutCleared, checkoutExtrasChanged, checkoutFieldsChanged } from '../app/state/slices/checkout-slice';
+import { addItem, clearCartIfUnchanged, toOrderItems } from '../app/state/slices/cart-slice';
+import { CHECKOUT_ATTEMPT_KEY, clearCheckoutAttempt, loadCheckoutAttempt, matchesAttemptItems, newCheckoutAttemptKey, saveCheckoutAttempt } from '../app/lib/checkout-attempt';
 import type { PublicOrderInput } from '../../shared/schemas';
 
 const input: PublicOrderInput = {

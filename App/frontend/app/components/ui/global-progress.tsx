@@ -4,7 +4,7 @@ import { useNavigation } from '@remix-run/react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useEffect, useRef, useState } from 'react';
 
-import { useAnyQueryPending } from '~/hooks/useAnyQueryPending';
+import { useAnyQueryPending } from '~/hooks/use-any-query-pending';
 
 /** Por debajo de esto no se muestra nada: la carga se percibe instantánea. */
 const APPEARANCE_DELAY_MS = 150;
@@ -16,9 +16,7 @@ export function GlobalProgress() {
   const anyQueryPending = useAnyQueryPending();
   const reduce = useReducedMotion();
 
-  // Navegación de Remix Y queries de RTK: un módulo puede resolver su ruta al
-  // instante y pasar dos segundos trayendo datos. Mirar solo `navigation` haría
-  // que la barra desapareciera con la pantalla todavía vacía.
+  // Navegación de Remix y queries de RTK: un módulo puede resolver la ruta y tardar en traer datos.
   const busy = navigation.state !== 'idle' || anyQueryPending;
 
   const [visible, setVisible] = useState(false);
@@ -34,9 +32,7 @@ export function GlobalProgress() {
 
       if (reduce) return; // Con motion reducido la barra aparece y espera, sin avanzar.
 
-      // Incrementos decrecientes: avanza rápido al principio y se va frenando.
-      // Una barra que sube a ritmo constante y se planta en 90 delata la
-      // simulación; ésta se siente como algo que va costando.
+      // Incrementos decrecientes: una barra que sube parejo y se planta en 90 delata la simulación.
       intervalRef.current = setInterval(() => {
         setProgress((prev) => (prev >= CEILING ? prev : prev + (CEILING - prev) * 0.12));
       }, 250);
@@ -51,9 +47,7 @@ export function GlobalProgress() {
     };
   }, [busy, reduce]);
 
-  // Cierre: completar y recién después esconder. Se separa del efecto de arriba
-  // porque el desmontaje de aquél corre en cuanto `busy` pasa a false, y ahí
-  // todavía falta pintar el 100 %.
+  // El cierre va aparte: el efecto de arriba se desmonta al terminar y todavía falta pintar el 100 %.
   useEffect(() => {
     if (busy || !visible) return;
     setProgress(100);
@@ -77,12 +71,7 @@ export function GlobalProgress() {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
-          // `fixed` al viewport y no `absolute` dentro del SidebarInset, aunque
-          // el plan pedía lo segundo: `root.tsx` ya monta UNA instancia para
-          // toda la app. Montar otra en el shell del admin dibujaría dos barras
-          // al mismo tiempo, y hacerla condicional por ruta es más frágil que
-          // aceptar que cruce por encima del sidebar — que además es el patrón
-          // habitual (GitHub, YouTube).
+          // `fixed` al viewport: root.tsx ya monta una sola instancia para toda la app.
           className="pointer-events-none fixed inset-x-0 top-0 z-[100] h-0.5 bg-primary/15"
         >
           <motion.div

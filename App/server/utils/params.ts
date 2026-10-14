@@ -1,8 +1,6 @@
-// Validación repetida de :id como UUID: si no lo es, se trata igual que "no
-// existe" (404) — un id mal formado nunca debe llegar a golpear la base con
-// una query inválida (antes duplicado en cada ruta como idSchema.safeParse).
+// Un :id que no es UUID se trata como 404 y nunca llega a la base.
 import { z } from 'zod';
-import { NotFoundError } from './httpError';
+import { NotFoundError } from './http-error';
 
 const uuidSchema = z.uuid();
 

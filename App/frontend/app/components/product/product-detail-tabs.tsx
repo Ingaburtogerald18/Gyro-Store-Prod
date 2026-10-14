@@ -1,7 +1,4 @@
-// Tabs Detalles / Especificaciones de la ficha (patrón del V1): tablist real
-// con flechas ←/→ y un indicador que se desliza entre pestañas con layoutId.
-// Si falta uno de los dos contenidos no hay nada que alternar: se pinta el que
-// haya, directo y sin chrome de tabs.
+// Tablist real con ←/→. Si falta uno de los dos contenidos se pinta el que haya, sin tabs.
 import { useId, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 

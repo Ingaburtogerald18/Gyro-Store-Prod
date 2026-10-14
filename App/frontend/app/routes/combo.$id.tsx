@@ -1,32 +1,22 @@
-// Detalle de combo (doc 09 ítem 46). SSR igual que producto.$id.tsx (para que
-// el link compartido por WhatsApp tenga foto/título/precio en el preview).
-//
-// Reciclaje de v1 (routes/combo.$id.tsx): esa versión mostraba el desglose de
-// productos incluidos (combo.products con nombre/precio/imagen por ítem) y el
-// ahorro vs. comprarlos separados (combo.savings), apoyada en componentes que
-// tampoco existen en v2 (DetailHeader, PurchaseCard, MobileBuyBar, etc.). Acá
-// se reescribe simplificado siguiendo el patrón REAL de producto.$id.tsx (el
-// único PDP que ya existe en v2): `comboSchema.items`/`.images` son
-// `z.array(z.unknown())` — forma sin definir (TODO en shared/schemas.ts) — así
-// que esta página no puede desglosar contenido ni calcular ahorro; muestra el
-// combo como una unidad (nombre, precio, imagen si hay una string válida,
-// cantidad de artículos). El carrito YA sabe manejar combos (cartSlice.ts,
-// `comboId`) — no hizo falta tocar nada ahí.
+// Detalle de combo. SSR igual que producto.$id.tsx, para que el link compartido
+// por WhatsApp tenga foto, título y precio en la vista previa.
 import { HugeIcon } from "~/components/ui/icon";
 import { ArrowLeft01Icon, Message01Icon, PackageAddIcon, SparklesIcon } from "@hugeicons/core-free-icons";
-import type { HeadersFunction, LoaderFunctionArgs, MetaFunction } from '@remix-run/node';
+import { redirect, type HeadersFunction, type LoaderFunctionArgs, type MetaFunction } from '@remix-run/node';
 import { getBrandName, pageTitle } from '~/lib/brand';
+import { canonicalLink } from '~/lib/seo';
+import { siteOrigin } from '~/lib/site-url.server';
 import { Link, useLoaderData } from '@remix-run/react';
 
 import { toast } from 'sonner';
 import type { Combo } from '@shared/schemas';
-import { StorefrontShell } from '~/components/layout/storefront-shell';
+import { StorefrontShell } from '~/components/storefront/storefront-shell';
 import { Badge } from '~/components/ui/badge';
 import { Button } from '~/components/ui/button';
-import type { StoreConfig } from '~/store/api/sessionApi';
-import { useAppDispatch } from '~/store/hooks';
-import { addItem, openCart } from '~/store/slices/cartSlice';
-import { buildWhatsappUrl, formatCordobas, getComboUrl } from "~/lib/formatters";
+import type { StoreConfig } from '~/state/api/session-api';
+import { useAppDispatch } from '~/state/hooks';
+import { addItem, openCart } from '~/state/slices/cart-slice';
+import { buildWhatsappUrl, comboName, formatCordobas, getComboUrl } from "~/lib/formatters";
 
 export const headers: HeadersFunction = () => ({
   'Cache-Control': 'public, max-age=60, stale-while-revalidate=300',
@@ -40,29 +30,37 @@ function firstImageUrl(images: unknown[]): string | null {
 }
 
 export async function loader({ params, request }: LoaderFunctionArgs) {
-  const origin = new URL(request.url).origin;
+  const url = new URL(request.url);
+  const origin = url.origin;
   const raw = params.id ?? '';
   const comboId = raw.split('--').pop() ?? '';
 
   let combo: Combo | null = null;
   let config: StoreConfig | null = null;
+  // Igual que la ficha de producto: solo un 404 del API es «no existe»; una caída es reintentable.
+  let comboStatus = 0;
 
   try {
     const [comboRes, configRes] = await Promise.all([
       fetch(`${origin}/api/combos/${comboId}`),
-      fetch(`${origin}/api/config`),
+      fetch(`${origin}/api/config`).catch(() => null),
     ]);
+    comboStatus = comboRes.status;
     if (comboRes.ok) combo = (await comboRes.json()) as Combo;
-    if (configRes.ok) config = (await configRes.json()) as StoreConfig;
+    if (configRes?.ok) config = (await configRes.json()) as StoreConfig;
   } catch {
-    // Si la API falla, se responde 404 abajo en vez de romper el render.
+    // La config es accesoria; sin combo decide el estado de abajo.
   }
 
   if (!combo) {
-    throw new Response('Combo no encontrado', { status: 404 });
+    if (comboStatus === 404) throw new Response('Combo no encontrado', { status: 404 });
+    throw new Response('No pudimos cargar este combo. Probá de nuevo en un momento.', { status: 503 });
   }
 
-  return { combo, config, origin };
+  const canonicalPath = getComboUrl(combo.id, comboName(combo.name));
+  if (url.pathname !== canonicalPath) throw redirect(`${canonicalPath}${url.search}`, 301);
+
+  return { combo, config, canonicalUrl: `${siteOrigin(request)}${canonicalPath}` };
 }
 
 export const meta: MetaFunction<typeof loader> = ({ data }) => {
@@ -70,26 +68,21 @@ export const meta: MetaFunction<typeof loader> = ({ data }) => {
   const brand = getBrandName();
   if (!combo) return [{ title: pageTitle('Combo') }];
 
-  const name = combo.name ?? 'Combo especial';
-  const title = pageTitle(name);
+  const title = pageTitle(comboName(combo.name));
   const description = `Combo especial en ${brand}, Managua — ${formatCordobas(combo.price ?? 0)}.`;
-  // Si el combo no trae foto propia se cae al logo: un link sin imagen en
-  // WhatsApp se lee como spam.
-  const image =
-    firstImageUrl(combo.images) ||
-    data?.config?.images?.logoStatic ||
-    `${data?.origin ?? ''}/logo.jpg`;
+  // Sin foto propia, el logo: un link sin imagen en WhatsApp se lee como spam.
+  const image = firstImageUrl(combo.images) || data.config?.images?.logoStatic || '';
 
   return [
     { title },
     { name: 'description', content: description },
+    canonicalLink(data.canonicalUrl),
     { property: 'og:type', content: 'product' },
     { property: 'og:title', content: title },
     { property: 'og:description', content: description },
-    { property: 'og:image', content: image },
-    { property: 'og:url', content: `${data?.origin ?? ''}${getComboUrl(combo.id, name)}` },
-    { name: 'twitter:card', content: 'summary_large_image' },
-    { name: 'twitter:image', content: image },
+    ...(image ? [{ property: 'og:image', content: image }, { name: 'twitter:image', content: image }] : []),
+    { property: 'og:url', content: data.canonicalUrl },
+    { name: 'twitter:card', content: image ? 'summary_large_image' : 'summary' },
   ];
 };
 
@@ -99,7 +92,7 @@ export default function ComboDetail() {
 
   const image = firstImageUrl(combo.images);
   const price = combo.price ?? 0;
-  const name = combo.name ?? 'Combo especial';
+  const name = comboName(combo.name);
   const itemCount = combo.items.length;
 
   function handleAddToCart() {

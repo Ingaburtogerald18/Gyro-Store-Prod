@@ -1,6 +1,4 @@
-// Pedidos web (Centro de Administración): lo que entra por el checkout de la
-// tienda. Acá se mueve el estado que el cliente ve en su link de seguimiento
-// (/pedido/<id>), sin que tenga cuenta.
+// Pedidos web: acá se mueve el estado que el cliente ve en su link de seguimiento (/pedido/<id>).
 import { HugeIcon } from '~/components/ui/icon';
 import {
   ArrowDown01Icon,
@@ -13,17 +11,17 @@ import {
 import { useState } from 'react';
 import type { MetaFunction } from '@remix-run/node';
 import { Link, useNavigate } from '@remix-run/react';
-import { useAppSelector } from '~/store/hooks';
-import { selectIsAdmin } from '~/store/slices/authSlice';
+import { useAppSelector } from '~/state/hooks';
+import { selectIsAdmin } from '~/state/slices/auth-slice';
 import { Button } from '~/components/ui/button';
 import { Spinner } from '~/components/ui/spinner';
 import { toast } from 'sonner';
 import { PUBLIC_ORDER_STATUSES, type PublicOrderStatus } from '@shared/schemas';
 
 import { pageTitle } from '~/lib/brand';
-import { PageHeader } from '~/components/layout/PageHeader';
+import { PageHeader } from '~/components/admin/page-header';
 import { Skeleton } from '~/components/ui/skeleton';
-import { StatusBadge } from '~/components/ui/StatusBadge';
+import { StatusBadge } from '~/components/ui/status-badge';
 import { WhatsappIcon } from '~/components/ui/whatsapp-icon';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/components/ui/select';
 import {
@@ -42,7 +40,7 @@ import {
   useGetAdminPublicOrdersQuery,
   useUpdatePublicOrderStatusMutation,
   type AdminPublicOrder,
-} from '~/store/api/publicOrdersApi';
+} from '~/state/api/public-orders-api';
 
 export const meta: MetaFunction = () => [{ title: pageTitle('Pedidos web', { admin: true }) }];
 
@@ -219,9 +217,8 @@ export default function AdminPedidosWeb() {
   );
 }
 
-// Convertir en venta: crea la venta pendiente en Ventas, a nombre de quien
-// convierte (se corrige editando la venta), con el stock que el pedido ya tenía
-// apartado. Solo admin, y una sola vez por pedido.
+// Crea la venta pendiente con el stock que el pedido ya apartaba, a nombre de quien convierte.
+// Solo admin, una vez por pedido.
 function ConvertToSale({ order }: { order: AdminPublicOrder }) {
   const isAdmin = useAppSelector(selectIsAdmin);
   const navigate = useNavigate();

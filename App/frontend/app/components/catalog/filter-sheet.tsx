@@ -1,16 +1,11 @@
-// Filtros avanzados en móvil: sube desde abajo, al alcance del pulgar.
-//
-// Sobre <Sheet> de shadcn (Radix): foco atrapado, cierre con Escape, bloqueo del
-// scroll de fondo y aria del diálogo vienen resueltos. El V1 los reimplementaba
-// a mano con un portal y un useEffect sobre document.body.
-//
-// Acá solo se EDITA el estado del uiSlice; quien filtra es useCatalogFilter.
+// Filtros en móvil sobre <Sheet> (foco, Escape y scroll resueltos). Solo edita el uiSlice;
+// quien filtra es useCatalogFilter.
 import { HugeIcon } from '~/components/ui/icon';
 import { PackageSearchIcon, Tag01Icon } from '@hugeicons/core-free-icons';
 
 import { Button } from '~/components/ui/button';
 import { PriceInput } from '~/components/catalog/filter-bar';
-import { priceRangeError } from '~/lib/catalogQuery';
+import { priceRangeError } from '~/lib/catalog-query';
 import { Label } from '~/components/ui/label';
 import {
   Sheet,
@@ -21,8 +16,8 @@ import {
   SheetTitle,
 } from '~/components/ui/sheet';
 import { Switch } from '~/components/ui/switch';
-import { useGetConfigQuery } from '~/store/api/sessionApi';
-import { useAppDispatch, useAppSelector } from '~/store/hooks';
+import { useGetConfigQuery } from '~/state/api/session-api';
+import { useAppDispatch, useAppSelector } from '~/state/hooks';
 import {
   filterSheetSet,
   filtersReset,
@@ -35,7 +30,7 @@ import {
   selectOnlyOnSale,
   selectPriceMax,
   selectPriceMin,
-} from '~/store/slices/uiSlice';
+} from '~/state/slices/ui-slice';
 
 export function FilterSheet() {
   const dispatch = useAppDispatch();

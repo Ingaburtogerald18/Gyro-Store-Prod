@@ -15,8 +15,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '~/components/ui/select';
-import { useCatalogFilter } from '~/hooks/useCatalogFilter';
-import { useAppDispatch, useAppSelector } from '~/store/hooks';
+import { useCatalogFilter } from '~/hooks/use-catalog-filter';
+import { useAppDispatch, useAppSelector } from '~/state/hooks';
 import {
   type CatalogSort,
   filterSheetSet,
@@ -31,7 +31,7 @@ import {
   selectPriceMin,
   selectSort,
   sortSet,
-} from '~/store/slices/uiSlice';
+} from '~/state/slices/ui-slice';
 import { cn } from '~/lib/utils';
 
 const SORTS: Array<{ value: CatalogSort; label: string }> = [

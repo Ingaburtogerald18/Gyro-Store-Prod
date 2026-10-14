@@ -32,7 +32,7 @@ services:
       - { key: R2_BUCKET_NAME, sync: false }
       - { key: R2_ENDPOINT, sync: false }
       - { key: R2_PUBLIC_URL, sync: false }
-      # SharePoint Online (archivo de comprobantes de ventas, Docs/17).
+      # SharePoint Online (archivo de comprobantes de ventas, Docs/04-Comprobantes-SharePoint.md).
       # OPCIONALES: mientras estén vacías el módulo queda apagado y la app
       # arranca igual — las ventas se acumulan en `spo_outbox` y se sincronizan
       # solas al cargarlas. No entran en la validación fail-fast de config.ts.

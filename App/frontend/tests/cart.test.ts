@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { cartReducer, addItem, clearCart, hydrate, lineKey, removeItem, setQuantity, toOrderItems } from '../app/store/slices/cartSlice';
-import { createAppStore } from '../app/store/store';
-import { signedOut, sessionResolved } from '../app/store/slices/authSlice';
-import { loadCart, persistCart } from '../app/lib/cartStorage';
+import { cartReducer, addItem, clearCart, hydrate, lineKey, removeItem, setQuantity, toOrderItems } from '../app/state/slices/cart-slice';
+import { createAppStore } from '../app/state/store';
+import { signedOut, sessionResolved } from '../app/state/slices/auth-slice';
+import { loadCart, persistCart } from '../app/lib/cart-storage';
 import type { CartItem } from '../app/types/cart';
 
 const product: CartItem = {

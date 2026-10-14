@@ -7,7 +7,7 @@ import { toast } from "sonner";
 
 import { Button } from "~/components/ui/button";
 import { getSupabaseClient } from "~/lib/supabase.client";
-import { useGetConfigQuery } from "~/store/api/sessionApi";
+import { useGetConfigQuery } from "~/state/api/session-api";
 import { Spinner } from "~/components/ui/spinner";
 import { getBrandName, pageTitle } from "~/lib/brand";
 
@@ -78,10 +78,7 @@ export default function Login() {
   }
 
   return (
-    // `.store-palette` trae la paleta de la tienda (crema, amarillo, tinta) sin
-    // cambiar el área de la ruta; la tipografía Chivo ya es compartida.
-    // Pantalla partida, sin tarjeta: la imagen sobre el teal de marca (en oscuro,
-    // gris carbón: el color lo pone la imagen) y el formulario sobre el fondo.
+    // `.store-palette` trae la paleta de la tienda sin cambiar el área de la ruta. Pantalla partida, sin tarjeta.
     <main className="store-palette grid min-h-screen w-full bg-background font-sans text-foreground lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
       <section
         aria-label={brand}

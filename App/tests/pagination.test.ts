@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { readBoundedPages } from '../server/utils/readBoundedPages';
-import { BadRequestError } from '../server/utils/httpError';
+import { readBoundedPages } from '../server/utils/read-bounded-pages';
+import { BadRequestError } from '../server/utils/http-error';
 
 test('lee todas las filas cuando la API devuelve páginas menores a las solicitadas', async () => {
   const expected = Array.from({ length: 1203 }, (_, id) => ({ id }));

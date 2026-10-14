@@ -1,11 +1,5 @@
-// QuickAddSheet: con >1 combinación, la tarjeta abre este panel para elegir
-// ANTES de agregar.
-//
-// Los ejes no viajan en el listado (solo `variantCount`/`axesSummary`), así que
-// se piden al detalle recién al abrir — RTK Query los cachea por id. Las reglas
-// (qué se puede agregar, qué falta, qué está agotado) son las mismas de la ficha:
-// `lib/purchase.ts`. Mientras carga, si falla o si la combinación no es
-// comprable, no se agrega nada.
+// Con más de una combinación la tarjeta abre este panel. Los ejes se piden al abrir (no vienen en el
+// listado). Mientras carga o si falla, no se agrega nada.
 import { useMemo, useState } from 'react';
 import { Link } from '@remix-run/react';
 import { HugeIcon } from '~/components/ui/icon';
@@ -26,10 +20,10 @@ import { PurchaseStatus, addLabel, cartItemFor } from '~/components/product/purc
 import { StockNoticeDialog } from '~/components/product/stock-notice-dialog';
 import { WhatsappIcon } from '~/components/ui/whatsapp-icon';
 import { autoSelection, isConsultOnly, purchaseState, variantLabel, type VariantSelection } from '~/lib/purchase';
-import { useGetCatalogDetailQuery } from '~/store/api/storefrontApi';
-import { useStoreConfig } from '~/hooks/useStoreConfig';
-import { useAppDispatch } from '~/store/hooks';
-import { addItem, openCart } from '~/store/slices/cartSlice';
+import { useGetCatalogDetailQuery } from '~/state/api/storefront-api';
+import { useStoreConfig } from '~/hooks/use-store-config';
+import { useAppDispatch } from '~/state/hooks';
+import { addItem, openCart } from '~/state/slices/cart-slice';
 import { buildWhatsappUrl, formatCordobas, getProductUrl, productWhatsappMessage } from '~/lib/formatters';
 import type { CatalogProduct } from '@shared/schemas';
 

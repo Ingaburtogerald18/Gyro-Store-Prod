@@ -7,31 +7,23 @@ Esquema de Gyro Store sobre Supabase/Postgres.
 | Archivo | Qué es |
 |---|---|
 | `01_schema.sql` | **Todo el esquema, en su estado final**, ordenado por módulo (Personal, Catálogo, Clientes, Compras, Ventas, Tienda web, Stock, Descuentos, Finanzas, Sistema, Reportes, Seguridad). Cada tabla está completa en un solo `create table`. |
-| `02_seed.sql` | Datos de arranque: categorías, las 8 plantillas heredadas de v1 y la configuración financiera. |
-| `migrations/0025_ordenar_base.sql` | Lleva la base de producción al mismo estado que `01_schema.sql`. |
-| `historial/` | El esquema anterior y las migraciones 0015–0024, solo como registro. **No se corren.** |
+| `02_seed.sql` | Datos de arranque: categorías, las 8 plantillas iniciales y la configuración financiera. |
+| `migrations/` | Lo que **falta correr** en producción. Hoy solo `0018_loan_payments_a_gastos.sql`. |
+| `historial/` | El esquema anterior y las migraciones ya aplicadas (0015–0031, salvo la 0018). Solo como registro: **no se corren**. |
 
 ## Base de producción (la que ya tiene datos)
 
-Correr **solo** `migrations/0025_ordenar_base.sql` en el SQL Editor de Supabase,
-con el OK del dueño. No hace falta correr antes 0019–0024: la 0025 trae lo que
-falte de cada una.
+Producción está igual a `01_schema.sql`: la 0025 la ordenó y la 0026–0031 se
+corrieron después en el SQL Editor de Supabase.
 
-- Va en una sola transacción: si algo falla, la base queda como estaba.
-- Se puede correr más de una vez sin repetir nada.
-- No cambia precios, costos, cantidades, ventas ni pedidos.
-- Termina con una verificación. Si devuelve una sola fila **"Todo en orden"**,
-  la base quedó igual a `01_schema.sql`. Si no, lista qué falta o qué sobra.
+La única pendiente es **`migrations/0018_loan_payments_a_gastos.sql`**, que pasa
+los pagos de préstamo a `expenses` como gastos del pozo Préstamos. Necesita el OK
+del dueño. Mientras no corra, la app lee los pagos de las dos tablas y no los
+cuenta dos veces. Los pasos están en `Docs/03-Finanzas.md` §13.
 
-Lo que ordena:
-
-1. Completa lo que falte de las migraciones 0016–0024.
-2. Archiva Caja y Bancos (`accounts`, `account_movements`, `cash_closures`) en el
-   esquema `archivo`, con sus datos. Para devolver una tabla:
-   `alter table archivo.accounts set schema public;`
-3. Borra `get_sales_trend` y `get_expenses_by_pozo`, que nadie llama.
-4. Agrega índices para reportes y búsquedas y quita cuatro repetidos.
-5. Cierra la base a la llave pública (ver Seguridad).
+Caja y Bancos (`accounts`, `account_movements`, `cash_closures`) quedaron
+archivados en el esquema `archivo`, con sus datos. Para devolver una tabla:
+`alter table archivo.accounts set schema public;`
 
 ## Base nueva (desde cero)
 
@@ -46,12 +38,13 @@ la configuración que ya se ajustó desde el panel.
 
 ## Cambios futuros
 
-1. Un archivo nuevo en `migrations/` con el número siguiente (`0026_…`), que se
+1. Un archivo nuevo en `migrations/` con el número siguiente (`0032_…`), que se
    pueda correr dos veces sin romper (`if not exists`, `create or replace`).
 2. El mismo cambio en `01_schema.sql`, en su módulo, para que una base nueva
    nazca igual.
 3. Si la migración crea una tabla o función, cerrarla como en la sección 13 de
    `01_schema.sql` (RLS y permisos solo para `service_role`).
+4. Cuando ya se corrió en producción, pasa a `historial/migrations/`.
 
 Lo que ya se corrió contra producción no se reescribe.
 

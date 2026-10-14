@@ -31,9 +31,7 @@ export function SlideMedia({
     return <SlideVideo key={slide.mediaUrl} slide={slide} className={className} paused={paused} />;
   }
 
-  // GIF/WebP pueden ser animados y una <img> no se pausa: congelado (con
-  // movimiento reducido o el carrusel en pausa) se muestra un cuadro fijo
-  // dibujado en un canvas. Un WebP estático se ve igual.
+  // Una <img> animada no se pausa: congelada se dibuja un cuadro fijo en un canvas.
   if (freeze && /\.(gif|webp)($|\?)/i.test(slide.mediaUrl)) {
     return <FrozenImage src={slide.mediaUrl} alt={slide.title || ''} className={className} />;
   }

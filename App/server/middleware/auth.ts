@@ -1,12 +1,11 @@
-// Verificación de JWT de Supabase (login con Entra) + resolución de roles.
-// Portado de la v1 (middleware/auth.js): whitelist por env → tabla `profiles` →
-// array de roles. La autorización REAL vive acá; el frontend solo oculta botones.
+// Verificación del token de Supabase y resolución de roles desde `profiles`.
+// La autorización real vive acá; el frontend solo oculta botones.
 import type { Request, Response, NextFunction } from 'express';
 import * as jose from 'jose';
-import { config, VALID_ROLES, type AppRole } from '../config';
-import { db, getUserFromToken } from '../supabase';
+import { config, VALID_ROLES, type AppRole } from '../core/config';
+import { db, getUserFromToken } from '../core/supabase';
 import { logger } from '../utils/logger';
-import { consumePendingGrant } from '../services/pendingRoleGrants';
+import { consumePendingGrant } from '../modules/users/pending-role-grants';
 
 export interface AuthUser {
   uid: string;
@@ -35,29 +34,17 @@ export function primaryRole(roles: AppRole[]): AppRole | null {
 
 const profileCache = new Map<string, { data: any; cachedAt: number }>();
 
-/**
- * Descarta el perfil cacheado de un usuario. La caché dura 30 s, que está bien
- * para lecturas, pero cuando ALGO acaba de escribir en `profiles` (la foto que
- * alguien acaba de subir en «Mi perfil», por ejemplo) el siguiente `/auth/me`
- * devolvería el dato viejo durante medio minuto. Quien escribe, invalida.
- */
+/** Quien escribe en `profiles` invalida la caché de 30 s, para que /auth/me no devuelva el dato viejo. */
 export function invalidateProfileCache(uid: string) {
   profileCache.delete(uid);
 }
 
-// Cada cuánto se refresca `profiles.last_login`. El dato sirve para detectar
-// cuentas inactivas, así que la precisión al minuto no aporta nada: escribir en
-// cada request sería una escritura por llamada a la API.
+// `last_login` sirve para detectar cuentas inactivas: refrescarlo cada 15 min alcanza.
 const LAST_LOGIN_THROTTLE_MS = 15 * 60_000;
 
 /**
- * Marca la última conexión del staff. NO se espera (`void`, sin await): es
- * telemetría, y hacer que cada request pague una escritura a Postgres antes de
- * responder degradaría la latencia de toda la API por un dato que a nadie le
- * urge. Si falla, se ignora — no vale romper una sesión válida por esto.
- *
- * Muta `profile.last_login` en el objeto CACHEADO para que las llamadas
- * siguientes vean el valor nuevo y no vuelvan a escribir dentro de la ventana.
+ * Sin await: es telemetría y no debe sumar latencia a cada petición. Si falla, se ignora.
+ * Actualiza el perfil cacheado para no volver a escribir dentro de la ventana.
  */
 function touchLastLogin(uid: string, profile: { last_login?: string | null } | null) {
   if (!profile) return;
@@ -76,9 +63,7 @@ function touchLastLogin(uid: string, profile: { last_login?: string | null } | n
     });
 }
 
-// Lee el perfil por id de auth. Si no existe, lo crea (primer login).
-// Tolera que la tabla `profiles` aún no exista (durante el Hito 0): captura y
-// devuelve null, para que la whitelist por env siga funcionando.
+// Lee el perfil y lo crea en el primer login. Si la lectura falla devuelve null en vez de romper.
 async function fetchProfile(supaUser: any) {
   const now = Date.now();
   const cached = profileCache.get(supaUser.id);
@@ -101,13 +86,8 @@ async function fetchProfile(supaUser: any) {
       return data;
     }
 
-    // Si no existe, insertarlo automáticamente (Sync de perfil).
-    //
-    // `avatar_url: ''` a propósito: la foto NO se hereda de Microsoft. Traerla de
-    // Graph (o del `picture` que Entra deja en el metadata) fallaba de formas que
-    // el usuario no puede resolver — sin foto en el tenant, permiso denegado, R2
-    // sin configurar — y dejaba avatares roto o vacíos sin explicación. Ahora la
-    // sube cada persona a mano desde «Mi perfil» (routes/me.ts).
+    // La foto no se hereda de Microsoft (fallaba de formas que el usuario no podía resolver):
+    // cada persona la sube desde «Mi perfil».
     const meta = supaUser.user_metadata || {};
     const name = meta.name || meta.full_name || 'Nuevo Usuario';
 
@@ -124,10 +104,8 @@ async function fetchProfile(supaUser: any) {
 
     if (insertError) return null;
 
-    // Primer login de verdad: si un admin le había reservado un rol desde
-    // Personal ANTES de que esta persona existiera como identidad de Auth
-    // (ver services/pendingRoleGrants.ts), se lo aplica acá y se consume la
-    // reserva. Sin esto, el perfil nace con `roles: []` y nadie entra nunca.
+    // Primer login: aplica el rol que un admin reservó en Personal antes de que la persona existiera.
+    // Sin esto el perfil nace sin roles y no entra.
     const email = (supaUser.email || '').toLowerCase();
     let profile = newProfile;
     try {
@@ -215,13 +193,8 @@ export async function authenticate(
     return { error: 403, message: `Esta cuenta no pertenece al personal de ${config.brandName}.` };
   }
 
-  // El chequeo de arriba mira SOLO el correo, y el correo de un JWT de Supabase lo
-  // elige quien se registra. Con la anon key cualquiera puede hacer un signup
-  // email/password de `admin@gyrostorenic.com` (o del correo de la whitelist) y
-  // obtener un token válido que pasaría el filtro de dominio. El login del staff
-  // SIEMPRE es por Entra/Azure (doc 03), así que exigimos que el token venga de ese
-  // proveedor: es lo que ata la identidad al tenant de Microsoft y no al string del
-  // correo.
+  // El correo de un token lo elige quien se registra: con la anon key cualquiera podría crear
+  // `admin@gyrostorenic.com` por email. Exigir el proveedor Azure ata la identidad al tenant.
   const appMeta = (supaUser.app_metadata ?? {}) as { provider?: string; providers?: unknown };
   const linkedProviders = Array.isArray(appMeta.providers) ? appMeta.providers : [];
   const isAzureIdentity = appMeta.provider === 'azure' || linkedProviders.includes('azure');
@@ -237,10 +210,7 @@ export async function authenticate(
     return { error: 403, message: 'Esta cuenta no tiene permisos asignados.' };
   }
 
-  // `profiles` manda sobre el metadata de Auth para nombre y foto: son los dos
-  // campos que cada persona edita en «Mi perfil» (y el admin en Personal). Con la
-  // precedencia al revés, Entra pisaba el nombre a mostrar y la foto subida a
-  // mano nunca aparecía — el metadata solo queda como respaldo del primer login.
+  // `profiles` manda sobre el metadata de Auth en nombre y foto: son los que cada persona edita.
   return {
     user: {
       uid: supaUser.id,
@@ -269,14 +239,11 @@ export function requireRole(...allowed: AppRole[]) {
   };
 }
 
-// Atajos por portal (mismos que la v1).
+// Atajos por portal.
 export const requireAdmin = requireRole('admin');
 export const requireSeller = requireRole('admin', 'seller');
 export const requireCashier = requireRole('admin', 'cashier');
-// Facturación tiene un puñado de rutas de SOLO LECTURA (lookup por código,
-// ticket) que además del cajero necesita el vendedor: es cómo vincula su
-// venta al número de un ticket que Caja ya emitió a su nombre.
+// El vendedor también usa las rutas de solo lectura de facturación: así liga su venta al ticket
+// que Caja ya emitió a su nombre.
 export const requireCashierOrSeller = requireRole('admin', 'cashier', 'seller');
-export const requireLogisticsAdmin = requireRole('admin', 'logistics_admin');
-export const requireLogisticsAny = requireRole('admin', 'logistics_admin', 'logistics_customer');
 export const requireAnyRole = requireRole(...VALID_ROLES);

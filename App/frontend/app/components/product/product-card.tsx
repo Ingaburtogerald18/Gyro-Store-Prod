@@ -1,12 +1,5 @@
-// ProductCard — foto, nombre, uno o dos datos con su etiqueta, precio,
-// disponibilidad en palabras y la acción. La tarjeta entera es un enlace a la
-// ficha; la acción va aparte (una tarjeta = un solo enlace enfocable).
-//
-// Acciones según el producto:
-//   · Disponible, una combinación → «Agregar» directo al carrito.
-//   · Disponible, varias          → «Elegir opciones» (selector rápido).
-//   · Agotado o sin stock verificable → «Consultar por WhatsApp», sin inventar
-//     existencias ni prometer avisos automáticos.
+// La tarjeta entera enlaza a la ficha y la acción va aparte: una opción → «Agregar»; varias →
+// «Elegir opciones»; agotado o sin stock verificable → «Consultar por WhatsApp».
 import { HugeIcon } from "~/components/ui/icon";
 import { ImageNotFound01Icon, ShoppingCart02Icon } from "@hugeicons/core-free-icons";
 import { useEffect, useRef, useState } from 'react';
@@ -17,10 +10,10 @@ import type { CatalogProduct } from '@shared/schemas';
 import { Badge } from '~/components/ui/badge';
 import { Button } from '~/components/ui/button';
 import { QuickAddSheet } from '~/components/product/quick-add-sheet';
-import { useStoreConfig } from '~/hooks/useStoreConfig';
+import { useStoreConfig } from '~/hooks/use-store-config';
 import { WhatsappIcon } from '~/components/ui/whatsapp-icon';
-import { useAppDispatch } from '~/store/hooks';
-import { addItem, openCart } from '~/store/slices/cartSlice';
+import { useAppDispatch } from '~/state/hooks';
+import { addItem, openCart } from '~/state/slices/cart-slice';
 import { AVAILABILITY_LABEL } from '~/lib/purchase';
 import { cn } from "~/lib/utils"
 import { buildWhatsappUrl, formatCordobas, getProductUrl, productWhatsappMessage } from "~/lib/formatters";

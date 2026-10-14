@@ -1,8 +1,4 @@
-// Cliente singleton de Supabase — SOLO Auth (doc 09 ítem 38).
-// El frontend nunca consulta la base con este cliente: todo dato viaja por la API
-// Express (/api/*), que opera con la service_role. Acá solo se maneja la sesión
-// (login staff con Entra, OTP de comprador) para obtener el JWT que RTK Query
-// inyecta como Bearer en cada request.
+// Cliente de Supabase solo para la sesión del personal: los datos van siempre por la API de Express.
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 let client: SupabaseClient | null = null;
@@ -41,9 +37,7 @@ export async function signOut(): Promise<void> {
   await getSupabaseClient().auth.signOut();
 }
 
-// Token actual de la sesión (o null si es visitante anónimo / estamos en SSR).
-// Lo consume el prepareHeaders de baseApi: el storefront público funciona sin
-// sesión, así que la ausencia de token no es un error.
+// Null para visitantes o en SSR: la tienda pública funciona sin sesión.
 export async function getAccessToken(): Promise<string | null> {
   if (typeof window === 'undefined') return null;
   const { data } = await getSupabaseClient().auth.getSession();

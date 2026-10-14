@@ -1,7 +1,4 @@
-// Vista de Personal: orquestador delgado. La UI vive en components/admin/users/
-// (card, diálogos de crear/borrar/detalle, tab de rendimiento) y las acciones
-// en useUserActions. Acá solo se resuelve la lista, el filtro activos/papelera
-// y qué usuario está seleccionado.
+// Personal: orquestador. La interfaz vive en components/admin/users/; acá la lista, el filtro y la selección.
 import { HugeIcon } from "~/components/ui/icon";
 import { UserSettings01Icon } from "@hugeicons/core-free-icons";
 import { useState, useMemo } from "react";
@@ -13,20 +10,20 @@ import {
   useGetStaffDirectoryQuery,
   useGetUsersQuery,
   type UserProfile,
-} from "~/store/api/usersApi";
-import { useAppSelector } from "~/store/hooks";
-import { selectIsAdmin } from "~/store/slices/authSlice";
+} from "~/state/api/users-api";
+import { useAppSelector } from "~/state/hooks";
+import { selectIsAdmin } from "~/state/slices/auth-slice";
 
-import { PageHeader } from "~/components/layout/PageHeader";
+import { PageHeader } from "~/components/admin/page-header";
 import { SegmentedControl, ToolbarSearch, Workspace, WorkspaceToolbar } from "~/components/admin/workspace";
-import { QueryState } from "~/components/ui/QueryState";
+import { QueryState } from "~/components/ui/query-state";
 
-import { UserCard } from "~/components/admin/users/UserCard";
-import { CreateUserDialog } from "~/components/admin/users/CreateUserDialog";
-import { DeleteUserDialog } from "~/components/admin/users/DeleteUserDialog";
-import { UserDetailDialog } from "~/components/admin/users/UserDetailDialog";
-import { StaffDetailDialog } from "~/components/admin/users/StaffDetailDialog";
-import { useUserActions } from "~/components/admin/users/useUserActions";
+import { UserCard } from "~/components/admin/users/user-card";
+import { CreateUserDialog } from "~/components/admin/users/create-user-dialog";
+import { DeleteUserDialog } from "~/components/admin/users/delete-user-dialog";
+import { UserDetailDialog } from "~/components/admin/users/user-detail-dialog";
+import { StaffDetailDialog } from "~/components/admin/users/staff-detail-dialog";
+import { useUserActions } from "~/components/admin/users/use-user-actions";
 
 export const meta: MetaFunction = () => {
   return [{ title: pageTitle('Personal', { admin: true }) }];
@@ -35,19 +32,14 @@ export const meta: MetaFunction = () => {
 export default function AdminUsuarios() {
   const isAdmin = useAppSelector(selectIsAdmin);
 
-  // Dos fuentes según el rol, no una con permisos aflojados. `/admin/users`
-  // devuelve `select('*')` —incluida la cuenta bancaria de cada quien— y es
-  // `requireAdmin`: el vendedor recibía 403 y veía la lista VACÍA, sin explicación.
-  // `/staff/directory` trae la misma gente con una proyección sin datos de pago.
-  // El `skip` evita que cada rol dispare la consulta que no le corresponde.
+  // Dos fuentes según el rol: /admin/users trae la cuenta bancaria y es solo admin; /staff/directory,
+  // la misma gente sin datos de pago. `skip` evita la consulta que no corresponde.
   const adminQuery = useGetUsersQuery(undefined, { skip: !isAdmin });
   const directoryQuery = useGetStaffDirectoryQuery(undefined, { skip: isAdmin });
   const { data: users = [], isLoading, isError } = isAdmin ? adminQuery : directoryQuery;
 
   const reduceMotion = useReducedMotion();
-  // Solo `changeRole`, y solo para invitaciones pendientes: la baja y la
-  // restauración las dispara «Administración» dentro de UserDetailDialog, que
-  // llama a este mismo hook por su cuenta.
+  // Solo `changeRole`, para invitaciones pendientes; baja y restauración están en el detalle.
   const { changeRole } = useUserActions();
 
   const [userToDelete, setUserToDelete] = useState<UserProfile | null>(null);
@@ -163,9 +155,7 @@ export default function AdminUsuarios() {
         </div>
       </Workspace>
 
-      {/* Los diálogos de administración solo se MONTAN para el admin. Renderizarlos
-          siempre y confiar en que nadie los abra deja el formulario de edición y las
-          mutations de rol/baja a un estado de distancia. */}
+      {/* Los diálogos de administración solo se montan para el admin. */}
       {isAdmin ? (
         <>
           <DeleteUserDialog user={userToDelete} onClose={() => setUserToDelete(null)} />
@@ -190,4 +180,4 @@ export default function AdminUsuarios() {
 }
 
 // Error dentro de la sección: se muestra en el área de contenido y la barra lateral sigue viva.
-export { AdminRouteError as ErrorBoundary } from '~/components/layout/route-error';
+export { AdminRouteError as ErrorBoundary } from '~/components/route-error';

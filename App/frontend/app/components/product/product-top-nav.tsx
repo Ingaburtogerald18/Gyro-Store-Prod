@@ -1,22 +1,14 @@
-// Nav sticky de la ficha de producto (patrón del V1): queda pegado bajo el
-// StoreHeader (57px de alto, por eso top-[57px]) con UNA acción de navegación — volver al catálogo — y las
-// acciones de la ficha a la derecha. Sin breadcrumbs duplicados.
-//
-// El V1 traía además un botón de favorito; acá no va: no existe sistema de
-// favoritos en el V2 (ni slice ni backend) y un control muerto es peor que
-// ninguno. Cuando exista, este es su lugar.
-//
-// Tampoco lleva carrito: el header ya tiene uno y dos íconos de carrito a 50px
-// de distancia solo hacían dudar cuál usar.
+// Barra fija de la ficha bajo el header (57 px): volver al catálogo y las acciones de la ficha.
+// Sin carrito: el header ya tiene uno.
 import { HugeIcon } from '~/components/ui/icon';
 import { Share01Icon } from '@hugeicons/core-free-icons';
 import { Link } from '@remix-run/react';
 import { toast } from 'sonner';
 
 import { Button } from '~/components/ui/button';
-import { categoryHref } from '~/components/store/category-nav';
-import { useStoreConfig } from '~/hooks/useStoreConfig';
-import { findCategory } from '~/lib/catalogQuery';
+import { categoryHref } from '~/components/storefront/category-nav';
+import { useStoreConfig } from '~/hooks/use-store-config';
+import { findCategory } from '~/lib/catalog-query';
 
 import {
   Breadcrumb,

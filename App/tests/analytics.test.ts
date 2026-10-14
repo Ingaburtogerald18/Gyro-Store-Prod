@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { summarizeOverview, summarizeSearches, summarizeZeroResults, type RawEvent } from '../server/services/analytics/aggregates';
+import { summarizeOverview, summarizeSearches, summarizeZeroResults, type RawEvent } from '../server/modules/analytics/aggregates';
 
 function event(type: RawEvent['type'], session = 'visitor', payload: RawEvent['payload'] = null): RawEvent {
   return { type, session_id: session, payload, created_at: '2026-10-05T12:00:00Z' };

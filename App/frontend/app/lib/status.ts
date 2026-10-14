@@ -1,11 +1,5 @@
-// Mapas de estado → etiqueta + tono, en un solo lugar.
-//
-// Estaban duplicados en `admin.ventas.tsx`, `PurchasesTable.tsx` y
-// `SaleDetailDrawer.tsx`, con las mismas claves y traducciones. Tres copias
-// significan que agregar un estado nuevo al enum de la base obliga a acordarse
-// de tres archivos — y el que se olvide muestra el valor crudo de Postgres al
-// usuario.
-import type { BadgeStatus } from '~/components/ui/StatusBadge';
+// Estado → etiqueta y tono, en un solo lugar: con copias, un estado nuevo salía crudo en alguna pantalla.
+import type { BadgeStatus } from '~/components/ui/status-badge';
 
 export interface StatusMeta {
   label: string;
@@ -18,20 +12,6 @@ export const SALE_STATUS: Record<string, StatusMeta> = {
   approved: { label: 'Aprobada', status: 'success' },
   paid: { label: 'Pagada', status: 'success' },
   rejected: { label: 'Rechazada', status: 'error' },
-};
-
-/** `purchases.status` (enum `purchase_status`). */
-export const PURCHASE_STATUS: Record<string, StatusMeta> = {
-  china: { label: 'En China', status: 'pending' },
-  pending: { label: 'En tránsito', status: 'pending' },
-  received: { label: 'Recibido', status: 'success' },
-};
-
-/** `invoices.status` (enum `invoice_status`). */
-export const INVOICE_STATUS: Record<string, StatusMeta> = {
-  unlinked: { label: 'Sin vincular', status: 'pending' },
-  linked: { label: 'Vinculada', status: 'success' },
-  void: { label: 'Anulada', status: 'error' },
 };
 
 /**
@@ -54,11 +34,7 @@ export function publicOrderStatusLabel(status: string, deliveryMethod: string | 
   return statusMeta(PUBLIC_ORDER_STATUS, status).label;
 }
 
-/**
- * Resuelve el estado con un fallback honesto: si la base devuelve un valor que
- * el front no conoce (enum ampliado sin actualizar el mapa), se muestra el
- * valor crudo en tono neutro en vez de romper con `undefined.label`.
- */
+/** Un valor que el front no conoce se muestra crudo en tono neutro en vez de romper. */
 export function statusMeta(map: Record<string, StatusMeta>, value: string): StatusMeta {
   return map[value] ?? { label: value, status: 'neutral' };
 }

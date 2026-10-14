@@ -1,8 +1,6 @@
 import { FormLayout, FormDialogContent, FormActions, FormBody } from '~/components/ui/form-layout';
 import { FormErrorBanner, serverErrorMessage } from '~/components/ui/form-feedback';
-// CRM y clientes (Fase CRM-A, doc 10): Agenda de seguimientos + directorio de
-// contactos con Ficha 360. El inbox/bot de WhatsApp (CRM-B/C) llega cuando se
-// conecte la Cloud API de Meta.
+// CRM: seguimientos y contactos con ficha 360. La bandeja de WhatsApp llega con la Cloud API.
 import { HugeIcon } from '~/components/ui/icon';
 import {
   Add01Icon,
@@ -27,15 +25,15 @@ import {
   type ContactOrigin,
   type ContactStage,
 } from '@shared/schemas';
-import { PageHeader } from '~/components/layout/PageHeader';
+import { PageHeader } from '~/components/admin/page-header';
 import { Field, FieldError, FieldLabel } from '~/components/ui/field';
 import { Spinner } from '~/components/ui/spinner';
 import { Card, CardContent } from '~/components/ui/card';
 import { Button } from '~/components/ui/button';
 import { Input } from '~/components/ui/input';
 import { Badge } from '~/components/ui/badge';
-import { QueryState } from '~/components/ui/QueryState';
-import { StatusBadge } from '~/components/ui/StatusBadge';
+import { QueryState } from '~/components/ui/query-state';
+import { StatusBadge } from '~/components/ui/status-badge';
 import { Dialog, DialogDescription, DialogHeader, DialogTitle } from '~/components/ui/dialog';
 import {
   Select,
@@ -49,7 +47,7 @@ import {
   useGetContactsQuery,
   useGetFollowUpsQuery,
   useUpdateFollowUpMutation,
-} from '~/store/api/crmApi';
+} from '~/state/api/crm-api';
 import {
   Kbd,
   SegmentedControl,
@@ -58,7 +56,7 @@ import {
   WorkspaceToolbar,
   useShortcut,
 } from '~/components/admin/workspace';
-import { Contact360Dialog } from '~/components/admin/crm/Contact360Dialog';
+import { Contact360Dialog } from '~/components/admin/crm/contact-360-dialog';
 
 export const meta: MetaFunction = () => [{ title: pageTitle('CRM y clientes', { admin: true }) }];
 
@@ -365,4 +363,4 @@ function CreateContactDialog({
 }
 
 // Error dentro de la sección: se muestra en el área de contenido y la barra lateral sigue viva.
-export { AdminRouteError as ErrorBoundary } from '~/components/layout/route-error';
+export { AdminRouteError as ErrorBoundary } from '~/components/route-error';

@@ -1,16 +1,5 @@
-// Catálogo de la home. Dos vistas bien distintas:
-//
-//   · Por DEFECTO (sin filtros): SuperOfertas + un carrusel por categoría. Se
-//     recorre como una tienda, gama por gama, sin decidir nada primero.
-//   · Con búsqueda o filtro: una GRILLA UNIFORME de resultados. Acá el usuario ya
-//     dijo qué quiere y lo que importa es comparar, no descubrir.
-//
-// Regla dura de esa grilla: todas las tarjetas del mismo tamaño y aspect-ratio,
-// cero huecos. Nada de `col-span-2` ni `grid-auto-flow:dense`.
-//
-// El filtrado NO vive acá: lo hace useCatalogFilter sobre el uiSlice, para que
-// la barra de herramientas y esta grilla cuenten siempre lo mismo. Las
-// categorías se eligen desde el header (CategoryNav / CategoriesDrawer).
+// Sin filtros: ofertas y un carrusel por categoría. Con búsqueda o filtro: grilla uniforme, todas
+// las tarjetas del mismo tamaño. El filtrado lo hace useCatalogFilter.
 import { useMemo } from 'react';
 import { useRevalidator } from '@remix-run/react';
 import { HugeIcon } from '~/components/ui/icon';
@@ -18,21 +7,21 @@ import { PackageSearchIcon, WifiError01Icon } from '@hugeicons/core-free-icons';
 import { Button } from '~/components/ui/button';
 
 import type { CatalogProduct } from '@shared/schemas';
-import type { StoreCategory } from '~/store/api/sessionApi';
+import type { StoreCategory } from '~/state/api/session-api';
 import { ProductCard } from '~/components/product/product-card';
 import { ProductCarousel } from '~/components/product/product-carousel';
 import { Skeleton } from '~/components/ui/skeleton';
-import { isDeal, useCatalogFilter } from '~/hooks/useCatalogFilter';
-import { useSearchTelemetry } from '~/hooks/useSearchTelemetry';
+import { isDeal, useCatalogFilter } from '~/hooks/use-catalog-filter';
+import { useSearchTelemetry } from '~/hooks/use-search-telemetry';
 
-import { useAppDispatch, useAppSelector } from '~/store/hooks';
-import { selectEditMode } from '~/store/slices/authSlice';
-import { filtersClearedAll, searchSet, selectActiveCategory, selectSearch } from '~/store/slices/uiSlice';
-import { findCategory } from '~/lib/catalogQuery';
+import { useAppDispatch, useAppSelector } from '~/state/hooks';
+import { selectEditMode } from '~/state/slices/auth-slice';
+import { filtersClearedAll, searchSet, selectActiveCategory, selectSearch } from '~/state/slices/ui-slice';
+import { findCategory } from '~/lib/catalog-query';
 import { categoryMode } from '@shared/schemas';
-import { selectDraftLandingConfig } from '~/store/slices/builderSlice';
-import { useStoreLanding } from '~/hooks/useStoreConfig';
-import { categoryHref } from '~/components/store/category-nav';
+import { selectDraftLandingConfig } from '~/state/slices/builder-slice';
+import { useStoreLanding } from '~/hooks/use-store-config';
+import { categoryHref } from '~/components/storefront/category-nav';
 
 export { isDeal };
 
@@ -77,9 +66,7 @@ export function ProductGrid({ products, categories = [], isLoading, error }: Pro
     [railMode, landingToUse?.homeCategories],
   );
 
-  // Una fila por categoría CON productos. Las ofertas también siguen en su
-  // categoría: destacarlas arriba no las saca de su recorrido natural.
-  // Se usa el orden de railCategoriesIds si existe; si no, todas.
+  // Una fila por categoría con productos; las ofertas siguen también en su categoría.
   const rows = useMemo(() => {
     const rest = filtered;
     let orderedCategories = categories;

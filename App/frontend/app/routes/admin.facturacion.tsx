@@ -14,10 +14,10 @@ import { pageTitle } from '~/lib/brand';
 import { type ColumnDef } from '@tanstack/react-table';
 import { toast } from 'sonner';
 
-import { PageHeader } from '~/components/layout/PageHeader';
+import { PageHeader } from '~/components/admin/page-header';
 import { Button } from '~/components/ui/button';
-import { DataTable } from '~/components/ui/DataTable';
-import { QueryState } from '~/components/ui/QueryState';
+import { DataTable } from '~/components/ui/data-table';
+import { QueryState } from '~/components/ui/query-state';
 import {
   Kbd,
   Metric,
@@ -39,20 +39,20 @@ import { Input } from '~/components/ui/input';
 import { Label } from '~/components/ui/label';
 import { Spinner } from '~/components/ui/spinner';
 import { SkeletonCard } from '~/components/ui/skeletons';
-import { RowActionsMenu } from '~/components/ui/RowActionsMenu';
+import { RowActionsMenu } from '~/components/ui/row-actions-menu';
 import { errMsg, formatCordobas, formatLongDate } from '~/lib/formatters';
 import {
   useDeleteInvoiceMutation,
   useGetInvoicesQuery,
   useVoidInvoiceMutation,
   type Invoice,
-} from '~/store/api/invoicesApi';
-import { TicketPrintModal } from '~/components/admin/invoices/TicketPrintModal';
-import { InvoiceEditDialog } from '~/components/admin/invoices/InvoiceEditDialog';
-import { InvoiceCodeCell } from '~/components/admin/invoices/InvoiceCodeCell';
+} from '~/state/api/invoices-api';
+import { TicketPrintModal } from '~/components/admin/invoices/ticket-print-modal';
+import { InvoiceEditDialog } from '~/components/admin/invoices/invoice-edit-dialog';
+import { InvoiceCodeCell } from '~/components/admin/invoices/invoice-code-cell';
 // 21 KB que se descargaban al abrir Facturación aunque nadie emitiera nada.
 const InvoiceEditor = lazy(() =>
-  import('~/components/admin/invoices/InvoiceEditor').then((m) => ({ default: m.InvoiceEditor })),
+  import('~/components/admin/invoices/invoice-editor').then((m) => ({ default: m.InvoiceEditor })),
 );
 
 export const meta: MetaFunction = () => [{ title: pageTitle('Facturación', { admin: true }) }];
@@ -88,9 +88,7 @@ export default function AdminFacturacion() {
   }, [searchParams, setSearchParams]);
   const [printInvoiceId, setPrintInvoiceId] = useState<string | null>(null);
   const [editInvoice, setEditInvoice] = useState<Invoice | null>(null);
-  // Una sola confirmación para las dos acciones destructivas: `mode` decide si
-  // se anula (reversible en el sentido de que la factura queda archivada) o si
-  // se descarta de verdad.
+  // Una confirmación para las dos acciones destructivas: anular (queda archivada) o descartar.
   const [confirm, setConfirm] = useState<{ invoice: Invoice; mode: 'void' | 'delete' } | null>(null);
   const [reason, setReason] = useState('');
 
@@ -125,11 +123,7 @@ export default function AdminFacturacion() {
       { accessorKey: 'customerName', header: 'Cliente', cell: ({ row }) => row.original.customerName || '—' },
       { accessorKey: 'sellerName', header: 'Vendedor', cell: ({ row }) => row.original.sellerName || '—' },
       { accessorKey: 'method', header: 'Método', cell: ({ row }) => <span className="capitalize">{row.original.method ?? '—'}</span> },
-      // Subtotal · Delivery · Total: el modelo ya trae los tres, y con una sola
-      // columna "Total" no se podía saber cuánto de esa cifra era envío.
-      // `meta.align` en vez de un <div className="text-right"> dentro del
-      // header: DataTable envuelve el header en un flex propio y el div no se
-      // estiraba, así que el título quedaba a la izquierda y la cifra a la derecha.
+      // Subtotal, delivery y total por separado. `meta.align` porque DataTable envuelve el header en un flex.
       {
         accessorKey: 'subtotal',
         header: 'Subtotal',
@@ -269,11 +263,7 @@ export default function AdminFacturacion() {
         cell: ({ row }) => row.original.registeredByName || '—',
       },
       { accessorKey: 'method', header: 'Método', cell: ({ row }) => <span className="capitalize">{row.original.method ?? '—'}</span> },
-      // Subtotal · Delivery · Total: el modelo ya trae los tres, y con una sola
-      // columna "Total" no se podía saber cuánto de esa cifra era envío.
-      // `meta.align` en vez de un <div className="text-right"> dentro del
-      // header: DataTable envuelve el header en un flex propio y el div no se
-      // estiraba, así que el título quedaba a la izquierda y la cifra a la derecha.
+      // Subtotal, delivery y total por separado. `meta.align` porque DataTable envuelve el header en un flex.
       {
         accessorKey: 'subtotal',
         header: 'Subtotal',
@@ -409,9 +399,7 @@ export default function AdminFacturacion() {
               />
             </QueryState>
           )}
-          {/* Canceladas: se ofrecen siempre en el selector, aunque estén vacías:
-                  si aparecieran solo cuando hay, nadie sabría dónde fue a parar
-                  una factura cancelada. */}
+          {/* Canceladas siempre en el selector, aunque estén vacías: si no, nadie sabría dónde fue una. */}
           {view === 'void' && (
             <QueryState loading={loadingVoid} error={voidError} shape="table">
               <p className="mb-3 text-xs text-muted-foreground">
@@ -435,9 +423,7 @@ export default function AdminFacturacion() {
 
       <InvoiceEditDialog invoice={editInvoice} onClose={() => setEditInvoice(null)} />
 
-      {/* Confirmación de las dos acciones destructivas. Cancelar pide motivo
-              (queda guardado en la factura); descartar no, porque no queda nada
-              donde escribirlo. */}
+      {/* Cancelar pide motivo (queda en la factura); descartar no, porque no queda dónde escribirlo. */}
       <Dialog open={!!confirm} onOpenChange={(open) => !open && setConfirm(null)}>
         <DialogContent>
           <DialogHeader>
@@ -483,11 +469,7 @@ export default function AdminFacturacion() {
         </DialogContent>
       </Dialog>
 
-      {/* Drawer y no modal: el formulario es largo y un `Dialog` con
-              `max-h-[90vh] overflow-y-auto` mete un scroll interno que compite con
-              el de la página. Acá el header queda fijo, el cuerpo scrollea solo, y
-              el listado de facturas se sigue viendo detrás — que es el contexto que
-              el cajero necesita para saber en qué número va. */}
+      {/* Drawer y no modal: el formulario es largo y el listado detrás le dice al cajero en qué número va. */}
       <Dialog open={isCreating} onOpenChange={setIsCreating}>
         <FormDialogContent size="long">
           <DialogHeader>
@@ -515,4 +497,4 @@ export default function AdminFacturacion() {
 }
 
 // Error dentro de la sección: se muestra en el área de contenido y la barra lateral sigue viva.
-export { AdminRouteError as ErrorBoundary } from '~/components/layout/route-error';
+export { AdminRouteError as ErrorBoundary } from '~/components/route-error';

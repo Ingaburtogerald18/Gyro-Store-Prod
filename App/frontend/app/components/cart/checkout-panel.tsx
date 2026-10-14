@@ -27,22 +27,22 @@ import { Field, FieldError, FieldLabel } from '~/components/ui/field';
 import { Input } from '~/components/ui/input';
 import { Textarea } from '~/components/ui/textarea';
 import { WhatsappIcon } from '~/components/ui/whatsapp-icon';
-import { useStoreConfig } from '~/hooks/useStoreConfig';
-import { useCartContent } from '~/hooks/useCartContent';
-import { saveOrder } from '~/lib/orderHistory';
+import { useStoreConfig } from '~/hooks/use-store-config';
+import { useCartContent } from '~/hooks/use-cart-content';
+import { saveOrder } from '~/lib/order-history';
 import { getAnalyticsSessionId, trackCheckoutStart } from '~/lib/analytics.client';
-import { STORE_POLICIES } from '~/lib/storePolicies';
+import { STORE_POLICIES } from '~/lib/store-policies';
 import { lineCeiling, variantText } from '~/lib/cart';
 import {
   useCreatePublicOrderMutation,
   useRecoverPublicOrderMutation,
   type CreatedPublicOrder,
-} from '~/store/api/storefrontApi';
+} from '~/state/api/storefront-api';
 import {
   useValidateDiscountCodeMutation,
   type DiscountCodeValidation,
-} from '~/store/api/discountCodesApi';
-import { useAppDispatch, useAppSelector } from '~/store/hooks';
+} from '~/state/api/discount-codes-api';
+import { useAppDispatch, useAppSelector } from '~/state/hooks';
 import {
   clearCartIfUnchanged,
   lineKey,
@@ -51,7 +51,7 @@ import {
   selectCartItems,
   selectCartSubtotal,
   toOrderItems,
-} from '~/store/slices/cartSlice';
+} from '~/state/slices/cart-slice';
 import type { CartItem } from '~/types/cart';
 import { cn } from '~/lib/utils';
 import { formatCordobas, getProductUrl } from '~/lib/formatters';
@@ -61,13 +61,13 @@ import {
   checkoutFieldsChanged,
   EMPTY_CHECKOUT_FIELDS,
   selectCheckoutDraft,
-} from '~/store/slices/checkoutSlice';
+} from '~/state/slices/checkout-slice';
 import {
   clearCheckoutAttempt,
   matchesAttemptItems,
   newCheckoutAttemptKey,
   saveCheckoutAttempt,
-} from '~/lib/checkoutAttempt';
+} from '~/lib/checkout-attempt';
 import { toast } from 'sonner';
 
 // El formulario DERIVA del contrato: mismos campos y mismos
@@ -275,9 +275,8 @@ export function CheckoutPanel({
     } catch (err) {
       const failure = err as { status?: number | string; data?: { error?: string; code?: string; issues?: OrderIssue[] } };
       const data = failure.data;
-      // Solo las validaciones 400/409 permiten corregir el formulario. Un
-      // conflicto de clave, límite de peticiones, red o 5xx conserva el intento:
-      // podría existir un pedido cuya respuesta todavía no recibimos.
+      // Solo un 400/409 de validación deja corregir el formulario. Con red caída o 5xx se conserva
+      // el intento: podría existir un pedido cuya respuesta no llegó.
       if ((failure.status === 400 || failure.status === 409) && data?.code !== 'ORDER_ATTEMPT_CONFLICT') {
         clearCheckoutAttempt();
         dispatch(checkoutExtrasChanged({ attempt: null }));
@@ -729,9 +728,8 @@ function Disclosure({
 }
 
 /**
- * Pedido registrado: número, total y las dos salidas (WhatsApp y seguimiento).
- * Deja claro que abrir WhatsApp no envía el mensaje ni confirma la venta.
- * Exportado para que el editor muestre exactamente esta pantalla.
+ * Pedido registrado: número, total, WhatsApp y seguimiento. Abrir WhatsApp no envía el mensaje.
+ * Exportado para que el editor muestre la misma pantalla.
  */
 export function OrderPlaced({
   order,

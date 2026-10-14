@@ -1,23 +1,14 @@
-// Genera el comprobante PDF de una venta a un archivo local, SIN tocar Microsoft.
-//
-// Sirve para validar el layout antes de configurar SharePoint: el PDF es la parte
-// que más se va a querer retocar (márgenes, qué campos entran, cómo se lee un
-// nombre de producto largo) y no tiene sentido descubrir eso recién cuando ya hay
-// cincuenta archivos subidos a la biblioteca.
-//
-//   npx tsx scripts/spo-comprobante.ts             → última venta aprobada
-//   npx tsx scripts/spo-comprobante.ts <orderId>   → una venta puntual
-//
-// El archivo sale en App/tmp/.
-import '../server/loadEnv.js'; // Fuente única de variables de entorno. Debe ir primero.
+// Genera el comprobante PDF de una venta en App/tmp/ sin tocar Microsoft, para revisar el layout.
+// Sin argumentos usa la última venta aprobada; con un id, esa.
+import '../server/core/load-env'; // Fuente única de variables de entorno. Debe ir primero.
 import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { db } from '../server/supabase.js';
+import { db } from '../server/core/supabase';
 import {
   buildComprobanteData,
   comprobanteFilename,
   renderComprobantePdf,
-} from '../server/services/comprobante.js';
+} from '../server/modules/sharepoint/comprobante';
 
 async function resolveOrderId(): Promise<string | null> {
   const fromArgs = process.argv[2]?.trim();

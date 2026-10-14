@@ -4,7 +4,7 @@ import * as React from "react"
 import { cva, type VariantProps } from "class-variance-authority"
 import { Slot } from "radix-ui"
 
-import { useMediaQuery } from "~/hooks/useMediaQuery"
+import { useMediaQuery } from "~/hooks/use-media-query"
 import { cn } from "~/lib/utils"
 import { Button } from "~/components/ui/button"
 import { Input } from "~/components/ui/input"
@@ -28,9 +28,7 @@ const SIDEBAR_COOKIE_NAME = "sidebar_state"
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7
 const SIDEBAR_WIDTH = "14rem"
 const SIDEBAR_WIDTH_MOBILE = "18rem"
-// 3rem (48px): rail delgado con espacio justo para íconos de 16px centrados
-// en hit areas de 32px. Los SidebarGroup usan `p-2` (8px), así que el botón
-// colapsado queda en 32px — perfecto para el ícono de 16px.
+// Rail de 48 px: íconos de 16 px en áreas de 32 px con el `p-2` de los grupos.
 const SIDEBAR_WIDTH_ICON = "3rem"
 const SIDEBAR_KEYBOARD_SHORTCUT = "b"
 

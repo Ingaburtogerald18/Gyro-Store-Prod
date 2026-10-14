@@ -196,6 +196,8 @@ Panel:
 - Combos: nombre, precio del paquete y productos incluidos en Inventario (vista Combos); fotos y «Mostrar en la tienda» en la sección «Combos» del modo edición.
 - Plantillas: tabla de modelos con resumen público de una línea, categoría, tipos de opción y conteo de productos vinculados/publicados. Las notas internas se consultan en la ficha. Edición en ventana centrada con información pública, opciones, ficha técnica y notas internas; vista previa pública de solo lectura al lado y acciones siempre visibles en el pie.
 - Editor de tienda: navegación fija por tareas —Portada, Productos, Combos y Carrito— con una sola zona de edición activa. Barra superior con estado del borrador, deshacer, rehacer, versiones, vista previa y «Revisar cambios». Cada tarea muestra debajo de su nombre lo que queda pendiente (campos por revisar, productos o combos ocultos y sin fotos, carrito personalizado). Tamaño y tema de la vista previa en un solo menú; sin pie de página. Portada tiene un único panel de bloques/ficha a la izquierda y la tienda real aislada a la derecha; abrir un bloque reemplaza la lista por sus campos y «Volver a los bloques». Composiciones de banner preparadas (imagen a izquierda, derecha o arriba), sin posiciones libres. La vista móvil usa un ancho real de 360 px.
+- Bloques de Portada: Presentación (el banner principal, fijo y único título de la portada), Destacados (hasta 8 productos elegidos a mano), filas por categoría y Novedades (los demás banners, todos a la vista y sin rotar). Ningún banner existente se pierde con este orden.
+- Configuración: los horarios de atención van en Negocio. Pagos y entregas, garantía y cambios van en la pestaña Atención, cada uno con estado Borrador o Publicada y su fecha; la tienda solo muestra lo publicado. Lo que se edita en Configuración no pasa por el borrador del modo edición.
 - Productos y Combos ocupan el área principal. Su ficha muestra fotos, visibilidad y una tarjeta de vista previa del borrador; los datos de referencia quedan en un bloque desplegable. La búsqueda y los filtros se conservan al volver al listado. Galerías con imagen principal identificada y controles de ordenar, elegir principal y quitar siempre visibles.
 - Modo edición: edita un administrador a la vez y los demás ven quién está editando, sin poder forzar la entrada. El borrador vive en el servidor, se guarda con cada cambio y lo puede seguir cualquier administrador. A los 13 minutos sin actividad pregunta «¿Seguís editando?» y a los 15 se cierra solo.
 - Sección «Productos» del modo edición: lista de 25 registros por página con buscador, filtros (ocultos, sin fotos, agotados, próximamente) y modo explícito «Ordenar productos» para arrastrar con mouse o teclado. Al ordenar se ven todos, sin páginas, y agrupados por categoría cuando la portada muestra una fila por categoría. En cada producto, fotos generales y por color y «Mostrar en la tienda»; nombre, descripción, categoría y precio en solo lectura con el enlace «Editar en Plantillas». «Visible» y «Oculto» describen el borrador; «Cambios sin publicar» identifica lo pendiente. En la vista previa, los productos sin publicar llevan la marca «Sin publicar»; la tienda real nunca la muestra.
@@ -209,6 +211,10 @@ Tienda:
 - Nunca se muestra el stock exacto: «Disponible», «Próximamente», «Agotado» o «Consultar disponibilidad».
 - «Próximamente» (sin stock y con una compra en camino) se muestra sin precio. Ni «Próximamente» ni «Agotado» se pueden pedir.
 - En «Agotado» y «Próximamente» la acción principal es «Avisame cuando haya» (nombre y WhatsApp). Entra al CRM como seguimiento; no se mandan mensajes automáticos.
+- Portada corta, en este orden: Presentación, Destacados, filas por categoría con «Ver todo», Novedades, Cómo comprar y Mayoreo. El catálogo completo vive en `/catalogo` y cada categoría en `/categoria/<slug>`.
+- Ficha de un producto disponible: «Consultar por WhatsApp» (`whatsapp`) es la acción principal y «Agregar al carrito» (`outline`) la secundaria, también en la barra del celular.
+- Tarjeta de producto: foto, nombre, precio y estado, sin botones. Toda la tarjeta abre la ficha.
+- Footer en cuatro grupos: Gyro Store (qué vende y dónde, con datos confirmados, y redes), Comprar, Ayuda y Contacto (WhatsApp, correo, punto de retiro con «Cómo llegar» y horarios). Abajo: ©, Privacidad y Términos cuando estén publicados, el crédito del diseñador chico y en gris, y «Acceso del personal», que sale del menú del header. Alineado a la izquierda y sin desplegables; las explicaciones largas van en Ayuda.
 
 Los dos:
 - Claro por defecto. Toda pantalla se revisa en claro y en oscuro.
@@ -241,6 +247,7 @@ Los dos:
 - Los estilos se escriben una vez, en el componente compartido. Nada de copiar reglas de una pantalla a otra.
 - Comentarios de 1 o 2 líneas, solo para explicar un porqué que no se ve en el código. La historia de un cambio va en el mensaje del commit.
 - Sin código comentado, sin archivos sin usar, sin notas de trabajo en el repositorio.
+- Nombres de archivo en kebab-case en todo el código: `order-lines-editor.tsx`, `cart-storage.ts`, `sales-conversions.ts`. Las rutas de Remix siguen su propia convención (`admin.mis-facturas.tsx`, `producto.$id.tsx`) porque el nombre es la URL.
 - `npm run check` tiene que pasar antes de cada commit.
 
 ## 15. Antes de dar algo por terminado
@@ -260,7 +267,10 @@ Lo que este documento pide y el código todavía no tiene. Cada línea se borra 
 - Atajo de teclado de la acción principal en Pedidos web, Usuarios e Inicio.
 - Reportería: el selector de periodo (`PeriodPicker`) usa pestañas animadas; pasarlo a botones con borde.
 - Contadores animados (`CountUp`) en las métricas del panel: el panel solo mueve el botón principal, bordes y flechas.
-- Comentarios largos: acortar a 1 o 2 líneas los bloques que quedan (unos 340, en casi todos los archivos de `app/`).
+- Portada: Presentación fija, Destacados y Novedades sin rotar. Hoy los banners se pasan con flechas y no hay Destacados.
+- Catálogo en `/catalogo` y categorías en `/categoria/<slug>`. Hoy todo vive en `/` con filtros en la URL.
+- Ficha y barra del celular con WhatsApp como acción principal; tarjeta sin botones (hoy «Agregar» amarillo y WhatsApp).
+- Footer por grupos, «Acceso del personal» fuera del menú del header, horarios en Negocio y pestaña Atención en Configuración.
 
 ## Registro de decisiones
 
@@ -303,3 +313,6 @@ Lo que este documento pide y el código todavía no tiene. Cada línea se borra 
 | 2026-10-10 | Órdenes de compra: cantidades en una columna propia después de Producto, con subtotal de unidades alineado; dejan de aparecer como dato secundario debajo del total USD |
 | 2026-10-10 | Corrección aprobada al agregar productos a órdenes: búsqueda con coincidencias, elección explícita de plantilla por ID, selección visible y creación con retorno inmediato al producto sin perder cantidad ni costo. Duplicados normalizados bloqueados en formulario y servidor; los modelos parecidos requieren elección del usuario |
 | 2026-10-10 | Selector de modelo compacto aprobado: reemplaza las tarjetas y la ficha de selección por un campo con autocompletado superpuesto desde 2 caracteres, hasta 4 coincidencias y creación al final. La selección queda en el campo con confirmación y «Cambiar», sin ocupar espacio adicional en el formulario |
+| 2026-10-13 | Nombres de archivo en kebab-case en todo el código, también el servidor |
+| 2026-10-13 | La documentación de `Docs/` se junta en pocos documentos al día: los planes y los históricos se integran o se borran, nada queda suelto |
+| 2026-10-14 | Rediseño aprobado de la tienda: portada corta con Presentación fija (el banner principal), Destacados y Novedades sin rotar, conservando los banners existentes; catálogo en `/catalogo` y categorías con página propia; WhatsApp como acción principal en la ficha y el carrito como secundaria; tarjeta de producto sin botones; horarios y políticas en Configuración (pestaña Atención) y Destacados como bloque de Portada, sin tareas nuevas en el modo edición; footer por grupos con el crédito del diseñador chico y el acceso del personal abajo |

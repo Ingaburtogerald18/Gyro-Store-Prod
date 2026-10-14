@@ -43,8 +43,7 @@ const requiredPositiveNumber = (msg = "Requerido") =>
 // Editar una compra (EditPurchaseModal).
 export const purchaseFormSchema = z.object({
   purchaseDate: z.string().min(1, "Fecha requerida"),
-  // Lote viejo (LT1) o número de orden de Alibaba: desde la migración 0024 la
-  // línea de una orden lleva el número de su orden acá.
+  // Lote viejo (LT1) o número de la orden de compra.
   lot: z.string().trim().min(1, "Lote requerido").max(60),
   productName: z.string().min(2, "Nombre requerido"),
   category: z.string().min(1, "Categoría requerida"),
@@ -61,11 +60,8 @@ export const purchaseFormSchema = z.object({
   suggestedPrice: z.coerce.number().nonnegative("No puede ser negativo").optional(),
 });
 export type PurchaseFormInput = z.infer<typeof purchaseFormSchema>;
-// `quantity`/`costUnit`/`taxUnit` usan z.preprocess (un campo vacío debe
-// rechazar, no convertirse en 0): el tipo de ENTRADA del formulario (lo que
-// register()/Controller sostienen antes de validar) no es el mismo que el de
-// SALIDA (PurchaseFormInput, ya coercionado) — react-hook-form necesita los
-// dos por separado para que el resolver tipe bien.
+// z.preprocess hace que la entrada del formulario y la salida validada difieran: react-hook-form
+// necesita los dos tipos.
 export type PurchaseFormValues = z.input<typeof purchaseFormSchema>;
 
 // Reportar llegada a Nicaragua.
