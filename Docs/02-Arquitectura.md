@@ -66,7 +66,7 @@ App/
 │   ├── lib/  hooks/      lógica y hooks del cliente
 │   └── tailwind.css      paleta y tokens (ver DESIGN.md)
 ├── database/             01_schema.sql, 02_seed.sql, migrations/, historial/
-├── scripts/              seed de desarrollo, SharePoint, prueba de checkout
+├── scripts/              seed de desarrollo y SharePoint
 └── tests/                tests del servidor (frontend/tests tiene los del cliente)
 ```
 
@@ -228,7 +228,6 @@ En `App/`:
 | `npm start` | Producción |
 | `npm run typecheck` · `npm test` | Tipos y tests del servidor |
 | `npm run seed:dev -- --confirm` | Productos y banners de prueba. Se niega a correr en producción |
-| `npm run checkout:check` | Solo lectura: confirma que la base tiene las tablas y funciones del checkout |
 | `npm run spo:ids` · `spo:status` · `spo:drain` · `spo:pdf` | SharePoint (ver 04-Comprobantes-SharePoint) |
 
 En `App/frontend/`: `npm run check` (tipos, lint y reglas de diseño; tiene que pasar antes de cada

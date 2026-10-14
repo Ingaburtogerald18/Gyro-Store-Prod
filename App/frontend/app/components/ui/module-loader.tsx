@@ -3,21 +3,8 @@ import { Store01Icon } from "@hugeicons/core-free-icons";
 import { useState, useEffect } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 
-import { useAppSelector } from '~/state/hooks';
 import { useGetConfigQuery } from '~/state/api/config-api';
 import { getBrandName } from '~/lib/brand';
-
-/**
- * ¿Hay alguna query de RTK en vuelo? Se lee del estado del baseApi
- * (reducerPath 'api'). Es lo que permite que el overlay de transición se quede
- * hasta que el backend responda, en vez de adivinar con un timer fijo.
- */
-export function useAnyQueryPending(): boolean {
-  return useAppSelector((s) => {
-    const queries = s.api?.queries ?? {};
-    return Object.values(queries).some((q) => q?.status === 'pending');
-  });
-}
 
 /**
  * Overlay de carga entre módulos del admin. Cubre el contenido con un blur y
@@ -127,6 +114,3 @@ export function BrandLoader({ text = 'Cargando…' }: { text?: string }) {
     </motion.div>
   );
 }
-
-// Overlay de carga a pantalla completa. Sirve para un arranque en frío, no para
-// navegar entre módulos: eso lo cubren `GlobalProgress` y los esqueletos.

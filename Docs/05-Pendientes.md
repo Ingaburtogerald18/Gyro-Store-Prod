@@ -13,16 +13,9 @@ borra de acá y se describe en el documento que corresponda.
   [03-Finanzas §13](03-Finanzas.md).
 - **Rol Cajero.** El servidor le permite emitir y anular facturas, pero el menú del panel solo le
   muestra Ventas, Pedidos web, Personal y CRM: no llega a Facturación.
-- **Test del panel.** `frontend/tests/admin-ui.test.ts` espera un módulo «Catálogo» que ahora se llama
-  «Inventario» y falla.
-- **`.env.example`.** El error de arranque de `config.ts` dice que se copie `App/.env.example`, pero el
-  archivo no existe. Crearlo con las variables de [02-Arquitectura §9](02-Arquitectura.md), sin valores.
 - **Ficha del combo.** Muestra el combo como una unidad (nombre, precio, foto y cantidad de
   artículos). Podría listar su contenido: cada combo ya guarda el nombre y la cantidad de cada
   producto (`comboSchema.items`).
-- **Código sin uso.** `ModuleLoader` (en `components/ui/module-loader.tsx`) no se usa; `BrandLoader`,
-  del mismo archivo, sí. El script `checkout:check` solo servía para verificar una migración ya
-  aplicada.
 
 ## 2. Orden del código
 

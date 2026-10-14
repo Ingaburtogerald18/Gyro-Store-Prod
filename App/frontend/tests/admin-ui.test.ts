@@ -41,8 +41,9 @@ test('el acordeón inicia cerrado con su resumen y acciones; una búsqueda muest
 
 test('la búsqueda de módulos conserva el acceso de cada rol', () => {
   const seller = allowedNavGroups(false, 'seller').flatMap((group) => group.items.map((item) => item.name));
-  assert.deepEqual(seller.sort(), ['Mis Facturas', 'Ventas', 'Pedidos web', 'Catálogo', 'Personal', 'CRM y clientes'].sort());
-  assert.ok(!seller.includes('Inventario'));
+  // El vendedor entra a Inventario solo para ver Stock actual, sin costos (DESIGN.md, registro 2026-10-10).
+  assert.deepEqual(seller.sort(), ['Mis Facturas', 'Ventas', 'Pedidos web', 'Inventario', 'Personal', 'CRM y clientes'].sort());
+  assert.ok(!seller.includes('Facturación'));
   assert.ok(seller.includes('Pedidos web'));
   const admin = allowedNavGroups(true, 'admin').flatMap((group) => group.items);
   assert.ok(admin.some((item) => item.name === 'Inventario'));
