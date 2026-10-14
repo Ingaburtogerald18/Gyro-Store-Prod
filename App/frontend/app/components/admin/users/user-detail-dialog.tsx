@@ -67,7 +67,7 @@ export function UserDetailDialog({
   const [serverError, setServerError] = useState<string | null>(null);
 
   // ── Formulario de edición de perfil ──
-  // La validación sale de `updateProfileSchema` (App/shared/schemas.ts), el
+  // La validación sale de `updateProfileSchema` (App/shared/schemas/staff.ts), el
   // mismo contrato que aplica el backend: la regla de Ficohsa se evalúa acá y
   // allá, así que un request fuera del panel tampoco la puede saltar.
   const profileForm = useForm<UpdateProfileInput>({

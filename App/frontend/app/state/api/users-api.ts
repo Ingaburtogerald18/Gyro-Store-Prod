@@ -137,7 +137,7 @@ export const usersApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ['Config'],
     }),
-    // El backend valida con `updateProfileSchema` (App/shared/schemas.ts).
+    // El backend valida con `updateProfileSchema` (App/shared/schemas/staff.ts).
     // Un string vacío significa "borrar el dato" y se guarda como NULL; omitir
     // la clave deja el valor como está.
     updateUserProfile: builder.mutation<

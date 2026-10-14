@@ -33,7 +33,7 @@ stock por fuera de la app. Así, **toda la lógica y la autorización viven en e
 |---|---|
 | Servidor | Node ≥ 20, TypeScript + ESM ejecutado con `tsx` (sin paso de compilación), Express 5 |
 | Datos | Supabase Postgres vía `@supabase/supabase-js` con `service_role`; funciones SQL para lo atómico |
-| Validación | Zod 4, con los esquemas compartidos en `App/shared/schemas.ts` |
+| Validación | Zod 4, con los esquemas compartidos en `App/shared/schemas/` (un archivo por tema) |
 | Seguridad HTTP | helmet (CSP con nonce), cors, express-rate-limit, `sanitizeBody` |
 | Archivos | multer (hasta 25 MB) → sharp (WebP, lado mayor 1200 px) → R2 con `@aws-sdk/client-s3` |
 | PDF | pdf-lib (comprobantes) |

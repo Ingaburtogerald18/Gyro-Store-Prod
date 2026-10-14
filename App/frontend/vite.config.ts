@@ -83,7 +83,7 @@ export default defineConfig(({ command }) => {
     tailwindcss(),
   ],
   resolve: {
-    // Contrato único front/back: los forms extienden shared/schemas.ts.
+    // Contrato único front/back: los forms extienden shared/schemas/.
     alias: {
       '@shared': path.resolve(dirname, '../shared'),
       // App/shared vive fuera de esta carpeta y no tiene su propio node_modules,

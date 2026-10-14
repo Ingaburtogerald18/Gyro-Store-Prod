@@ -1,17 +1,5 @@
-// Detalle de combo. SSR igual que producto.$id.tsx (para que
-// el link compartido por WhatsApp tenga foto/título/precio en el preview).
-//
-// Reciclaje de v1 (routes/combo.$id.tsx): esa versión mostraba el desglose de
-// productos incluidos (combo.products con nombre/precio/imagen por ítem) y el
-// ahorro vs. comprarlos separados (combo.savings), apoyada en componentes que
-// tampoco existen en v2 (DetailHeader, PurchaseCard, MobileBuyBar, etc.). Acá
-// se reescribe simplificado siguiendo el patrón REAL de producto.$id.tsx (el
-// único PDP que ya existe en v2): `comboSchema.items`/`.images` son
-// `z.array(z.unknown())` — forma sin definir (TODO en shared/schemas.ts) — así
-// que esta página no puede desglosar contenido ni calcular ahorro; muestra el
-// combo como una unidad (nombre, precio, imagen si hay una string válida,
-// cantidad de artículos). El carrito YA sabe manejar combos (cart-slice.ts,
-// `comboId`) — no hizo falta tocar nada ahí.
+// Detalle de combo. SSR igual que producto.$id.tsx, para que el link compartido
+// por WhatsApp tenga foto, título y precio en la vista previa.
 import { HugeIcon } from "~/components/ui/icon";
 import { ArrowLeft01Icon, Message01Icon, PackageAddIcon, SparklesIcon } from "@hugeicons/core-free-icons";
 import type { HeadersFunction, LoaderFunctionArgs, MetaFunction } from '@remix-run/node';
