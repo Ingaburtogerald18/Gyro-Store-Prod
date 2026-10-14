@@ -2,7 +2,7 @@
 
 Actuá como responsable de implementación de este proyecto, con criterio de diseño de e-commerce, desarrollo full stack, accesibilidad y SEO técnico. Primero analizá el estado real del código y después implementá los cambios compatibles con los requisitos de este encargo. No te quedés únicamente en recomendaciones, un wireframe o un plan.
 
-Trabajá en /home/geral-aburto/Projects/Gyro-Store-Prod.
+Trabajá en la raíz de este repositorio.
 Dominio público principal: https://gyrostorenic.com.
 Contexto de este encargo: conversación con el dueño consolidada el 14 de octubre de 2026.
 
@@ -10,7 +10,7 @@ El resultado debe ser una tienda pública clara, mantenible y profesional: porta
 
 ## 1. Alcance, autorización y forma de trabajar
 
-Este encargo autoriza analizar e implementar localmente el rediseño y las mejoras necesarias. Las decisiones comerciales confirmadas están en las secciones siguientes. La arquitectura visual propuesta es la dirección recomendada de implementación: evaluála contra el código y DESIGN.md antes de aplicarla; no la presentes como una decisión previa explícita del dueño.
+Este encargo autoriza analizar e implementar localmente el rediseño y las mejoras necesarias. Las decisiones comerciales confirmadas están en las secciones siguientes. Las decisiones de diseño que el dueño aprobó el 14 de octubre de 2026 están en DESIGN.md (sección 10, «Pendiente en el código» y registro) y se resumen en la sección 5; lo que no figure allí sigue siendo una recomendación.
 
 - Leé primero AGENTS.md y DESIGN.md. DESIGN.md es el único documento de diseño y sus reglas mandan.
 - Leé Docs/README.md, Docs/01-Producto.md, Docs/02-Arquitectura.md, las partes relevantes de Docs/05-Pendientes.md y App/database/README.md.
@@ -151,21 +151,20 @@ Podés implementar el soporte y dejar contenido sensible en borrador para revisi
 
 Estas cuestiones no deben detener portada, navegación, catálogo, SEO, datos de contacto ni los textos comerciales ya confirmados.
 
-## 5. Dirección de diseño y navegación recomendada
+## 5. Dirección de diseño y navegación
 
 Conservá logo, paleta, tipografías y lenguaje visual de DESIGN.md. No diseñes otra marca ni una tienda genérica con colores ajenos.
 
-Propuesta recomendada:
-- Portada breve en /.
-- Catálogo completo en /catalogo.
-- Categorías con páginas propias y contenido servido desde el servidor.
-- Presentación principal fija y compacta como punto de partida, en vez de depender de un carrusel automático.
-- Productos visibles temprano, con foto y precio dominantes.
-- WhatsApp como consulta principal en ficha; carrito como camino alternativo.
-- Footer reducido; información extensa en ayuda.
+Decisiones del dueño (14 de octubre de 2026, ya en DESIGN.md):
+- Portada corta en /, en este orden: Presentación, Destacados, filas por categoría con «Ver todo», Novedades, Cómo comprar y Mayoreo.
+- Presentación = el banner principal existente (`locked` en `heroSlides`): fijo, sin flechas ni puntos y único H1 de la portada. Novedades = los demás banners visibles, todos a la vista y sin rotar. El esquema de `heroSlides` no cambia: borradores, versiones y restauración siguen valiendo.
+- Destacados: hasta 8 productos elegidos por ID, como bloque nuevo de la tarea Portada (campo opcional, compatible con configuraciones viejas). Con 8 productos o menos en el catálogo, sin filas por categoría para no repetir.
+- Catálogo completo en /catalogo y categorías en /categoria/:slug, con productos en el HTML inicial.
+- Ficha disponible: «Consultar por WhatsApp» (variante `whatsapp`) principal y «Agregar al carrito» (`outline`) secundaria, también en la barra móvil. «Avisame cuando haya» sigue principal en Agotado y Próximamente.
+- Tarjeta de producto sin botones: foto, nombre, precio y estado; toda la tarjeta abre la ficha. Se retira la acción rápida de la tarjeta.
 - Todo dentro del dominio principal, sin nuevos subdominios para catálogo, ayuda o guías.
 
-Evaluá cómo encaja la presentación fija con el editor y sus banners existentes. No borres imágenes, banners, borradores o versiones para imponerla. Si hace falta, ofrecé compatibilidad de configuración para contenido existente. Cambiar comportamiento no debe hacer perder material del dueño.
+No borres imágenes, banners, borradores o versiones. Cambiar comportamiento no debe hacer perder material del dueño.
 
 No hace falta un mega menú con pocas categorías. Usá navegación proporcionada al catálogo real.
 
@@ -311,11 +310,12 @@ Revisá las fichas existentes y completá lo que falte:
 - Relacionados útiles y limitados al catálogo real.
 - Breadcrumbs visibles.
 
-Jerarquía recomendada para productos disponibles:
-- Consulta por WhatsApp como acción principal.
-- Agregar al carrito como acción secundaria.
+Jerarquía aprobada para productos disponibles:
+- «Consultar por WhatsApp» (variante `whatsapp`) como acción principal.
+- «Agregar al carrito» (`outline`) como acción secundaria, del mismo alto.
 - Una acción principal por contexto conforme a DESIGN.md; no dos botones compitiendo con el mismo peso.
-- La tarjeta del catálogo puede priorizar “Ver producto”, evitando sobrecargarla.
+- La tarjeta del catálogo va sin botones: toda la tarjeta abre la ficha.
+- Volvé a medir `add_to_cart` y `whatsapp_open` (salieron de `ANALYTICS_EVENT_TYPES` y de la restricción de `analytics_events`) para comparar pedidos registrados antes y después del cambio.
 
 El mensaje de WhatsApp debe incluir nombre, enlace y variante si se eligió. Debe permitir pedir asesoría, fotos o videos sin fingir que ya se creó un pedido. Abrir WhatsApp no envía el mensaje automáticamente.
 
@@ -376,18 +376,19 @@ Las reservas, cambios de estado y eventuales liberaciones de stock deben seguir 
 
 Rediseñá el footer para que facilite orientación sin repetir páginas enteras.
 
-Agrupación recomendada:
-1. Gyro Store: logo, descripción breve real, Nosotros y redes confirmadas.
+Agrupación aprobada (DESIGN.md, sección 10):
+1. Gyro Store: logo, descripción breve real (qué vende y dónde, con datos confirmados), Nosotros cuando exista y redes confirmadas. Reemplaza la frase «Comprar con confianza nunca estuvo tan cerca de vos…».
 2. Comprar: catálogo, categorías útiles y mayoreo.
 3. Ayuda: cómo comprar, pagos y entregas, garantía y cambios, mis pedidos y contacto, según contenido publicado.
-4. Contacto: WhatsApp, correo real, dirección pública, Maps y horarios de atención.
+4. Contacto: WhatsApp, correo real, punto de retiro con «Cómo llegar» y horarios de atención.
 
-La cantidad final de columnas puede adaptarse al espacio; no fuerces cuatro columnas en móvil.
+En móvil: Gyro Store y Contacto a todo el ancho, Comprar y Ayuda en dos columnas. Todo alineado a la izquierda (hoy está centrado) y sin desplegables.
 
 Parte inferior:
 - Privacidad y términos cuando estén aprobados y publicados.
 - Copyright con nombre del negocio.
-- Acceso del personal discreto, si aporta valor.
+- «Diseñado por Ing. Gerald Aburto» se conserva, chico y en gris, sin resaltar.
+- «Acceso del personal», que sale del menú del header.
 - Preferencia de privacidad/analítica si el sistema la requiere y ya permite cambiarla.
 
 Mover explicaciones extensas a ayuda; conservar solo resúmenes útiles cerca de producto/carrito. No dupliqués el mismo párrafo en cada columna. Evitar grandes huecos, texto centrado largo y listas interminables.
@@ -498,7 +499,12 @@ El editor existente debe conservar:
 - Versiones y restauración.
 - Restaurar diseño no restaura precios, stock ni plantillas.
 
-DESIGN.md fija tareas Portada, Productos, Combos y Carrito. No agregues tareas nuevas que contradigan esa estructura sin consultar. Podés ubicar otras capacidades en configuración o proponer una extensión explicando por qué hace falta.
+DESIGN.md fija tareas Portada, Productos, Combos y Carrito, y no se agregan tareas nuevas. Ubicación aprobada:
+- Destacados: bloque de la tarea Portada.
+- Horarios de atención: Configuración → Negocio, como campo opcional de `business_info` (JSON en `app_config`, sin migración).
+- Pagos y entregas, garantía y cambios: Configuración → pestaña nueva «Atención», en su propia clave de `app_config` para no tocar facturas ni tickets. Cada política con estado Borrador o Publicada y fecha; reemplaza `app/lib/store-policies.ts`.
+- Páginas de ayuda: estructura fija en código que lee esos datos; no se construye un editor de páginas.
+- Guías: cuando exista la primera guía real.
 
 Los campos nuevos deben ser compatibles con configuración, borradores y versiones antiguas. No debe perderse una publicación anterior por cambiar el esquema.
 
@@ -779,17 +785,20 @@ Cambios de base:
 
 ## 22. Hallazgos previos que debés comprobar
 
-No son una orden de modificar a ciegas; pueden haber cambiado:
+No son una orden de modificar a ciegas; pueden haber cambiado.
 
+Resuelto en la fase A (14 de octubre de 2026; comprobalo en el código antes de rehacerlo; requiere `APP_URL` en Render): canonical y `og:url` desde `APP_URL` (`app/lib/site-url.server.ts`, `shared/site-url.ts`), `config.appUrl` con `APP_URL` antes que `RENDER_EXTERNAL_URL`, `/robots.txt` y `/sitemap.xml` como rutas de Remix (`app/lib/seo.ts`), 301 al slug canónico en producto y combo, 404/503 en combo, 503 sin caché en la home si falla el catálogo, JSON-LD sin variantes próximas ni precios cero, Organization y WebSite en la home, `noindex` en panel, login, auth y vista previa, y `lang="es-NI"`.
+
+Comprobado el 14 de octubre de 2026 y todavía externo al código:
+- El dominio no pasa por el Cloudflare de la cuenta (DNS en «solo DNS», apunta a Render); el `Server: cloudflare` de las respuestas es el CDN de Render. Los ajustes de robots o bots del panel de Cloudflare no aplican.
+- Con el servicio despierto, `/robots.txt` devuelve solo el preámbulo de content signals, sin reglas. Con el servicio dormido (15:30 UTC) devolvió `User-agent: *` / `Disallow: /` y quedó en caché 4 horas. Está en Docs/05-Pendientes.
+- El servicio real es `gyro-store-3sr6.onrender.com` (`appUrl` actual). `gyro-store.onrender.com` sirve una versión anterior y `gyro-store-prod.onrender.com`, destino del CNAME de `www`, no tiene servidor.
+- El plan free de Render duerme el servicio; en frío la portada tardó más de 20 s.
+
+Vigentes:
 - La home ya usa loader SSR para catálogo/configuración/portada.
-- El filtro de categoría se sincronizaba en cliente; distintas URLs de categoría podían recibir el mismo HTML inicial.
-- No se encontró implementación propia de canonical, sitemap y robots.
-- La comprobación pública previa obtuvo 404 en /sitemap.xml y un robots con comentarios de Cloudflare.
-- Product JSON-LD ya existe; AggregateOffer puede tomar variantes próximamente con precio cero.
-- El loader de producto distingue 404 de fallo temporal; el de combo convertía errores distintos en 404.
-- La home podía responder 200 aunque fallara el catálogo principal.
-- El slug de producto aceptaba cualquier prefijo si terminaba en un ID válido.
-- Mis pedidos y seguimiento ya tienen noindex; revisar admin/login/auth y previews.
+- El filtro de categoría se sincroniza en cliente (`catalog-url-sync.tsx`); distintas URLs de categoría reciben el mismo HTML inicial.
+- Los loaders piden la API por el origen de la petición (`${origin}/api/...`): en producción cada SSR sale a Cloudflare y vuelve. /catalogo, las categorías y el sitemap multiplican esas vueltas; evaluá llamar a los servicios en el mismo proceso.
 - Home/producto/combo usan caché pública, que requiere cuidado al añadir borradores o personalización.
 - El menú de ajustes público mezcla ayuda, apariencia y acceso del personal.
 - El footer incluye varios párrafos comerciales que pueden pasar a ayuda.
@@ -805,18 +814,15 @@ Confirmá cada hallazgo relevante y corregí lo que siga vigente.
 
 ## 23. Orden de implementación
 
-Organizá el trabajo en etapas coherentes y revisables:
+Trabajá por fases, cada una revisable y commiteable por separado (el dueño revisa y commitea entre una y otra):
 
-1. Verificar reglas, estado actual, dependencias y límites.
-2. Definir arquitectura de páginas, fuente de datos y estrategia de compatibilidad.
-3. Implementar navegación, portada, catálogo/categorías y footer.
-4. Integrar contenido editable, páginas de información y ayuda.
-5. Mejorar producto, combos y claridad de pedido/pagos/entrega.
-6. Implementar canonical, redirecciones, metadatos, sitemap, robots y datos estructurados.
-7. Completar accesibilidad, rendimiento y medición necesaria.
-8. Verificar recorridos completos y preparar la entrega.
+- A. SEO técnico sin cambios visuales. Hecha el 14 de octubre de 2026 (ver sección 22).
+- B. /catalogo y /categoria/:slug con productos en el HTML inicial; 301 de /?categoria=x a /categoria/x y de /?q= a /catalogo?q=; /#catalogo resuelto en cliente; categorías en el sitemap y BreadcrumbList en la ficha cuando el recorrido visible use esas URLs.
+- C. Portada (Presentación, Destacados, Novedades), header, tarjeta, ficha, footer, ayuda, contacto, por mayor, horarios y pestaña Atención en Configuración, y vuelta de `add_to_cart`/`whatsapp_open`.
+- D. Entrega Managua, Cargo Trans o retiro y fecha real de recepción en pedidos (migración 0032).
+- Guías, reseñas y políticas legales: cuando haya contenido aprobado.
 
-El orden puede ajustarse por dependencias. No dejés el editor desincronizado de la portada ni generés temporalmente páginas públicas con información comercial falsa.
+Dentro de cada fase seguí este orden cuando aplique: verificar reglas y estado, definir fuente de datos y compatibilidad, implementar, completar accesibilidad y medición, y verificar recorridos completos. El orden puede ajustarse por dependencias. No dejés el editor desincronizado de la portada ni generés temporalmente páginas públicas con información comercial falsa.
 
 Guías sin contenido validado, reseñas, política pendiente y configuraciones externas pueden quedar preparadas pero sin publicar; identificá exactamente qué falta. No lo uses como motivo para dejar incompleto el resto.
 

@@ -36,6 +36,8 @@ function detailUrl(base: string, id: string, name: string): string {
 }
 export const getProductUrl = (id: string, name: string) => detailUrl('producto', id, name);
 export const getComboUrl = (id: string, name: string) => detailUrl('combo', id, name);
+// Ficha, enlaces y sitemap usan el mismo nombre: si difiriera, la URL del sitemap redirigiría.
+export const comboName = (name: string | null | undefined) => name?.trim() || 'Combo especial';
 
 export const EXCHANGE_RATE = 36.6241;
 

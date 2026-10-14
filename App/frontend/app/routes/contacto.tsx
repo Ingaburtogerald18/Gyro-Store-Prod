@@ -6,7 +6,9 @@ import { useState } from 'react';
 import { HugeIcon } from '~/components/ui/icon';
 import { Location01Icon } from '@hugeicons/core-free-icons';
 import type { LoaderFunctionArgs, MetaFunction } from '@remix-run/node';
-import { pageTitle } from '~/lib/brand';
+import { getBrandName, pageTitle } from '~/lib/brand';
+import { canonicalLink } from '~/lib/seo';
+import { siteOrigin } from '~/lib/site-url.server';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 
@@ -23,7 +25,14 @@ import { useSendContactMutation } from '~/state/api/storefront-api';
 import type { StoreConfig } from '~/state/api/session-api';
 import { useStoreConfig } from '~/hooks/use-store-config';
 
-export const meta: MetaFunction = () => [{ title: pageTitle('Contacto') }];
+export const meta: MetaFunction<typeof loader> = ({ data }) => [
+  { title: pageTitle('Contacto') },
+  {
+    name: 'description',
+    content: `Escribinos por WhatsApp o dejá tu consulta a ${data?.config?.brandName || getBrandName()}, tienda en línea en Managua, Nicaragua.`,
+  },
+  ...(data ? [canonicalLink(data.canonicalUrl)] : []),
+];
 
 // La config va en el loader para que el header (logo), el pie y la dirección
 // salgan en el HTML del servidor, como en el resto de las rutas públicas.
@@ -36,7 +45,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   } catch {
     // Sin config la página sale igual, con la dirección por defecto.
   }
-  return { config };
+  return { config, canonicalUrl: `${siteOrigin(request)}/contacto` };
 }
 
 

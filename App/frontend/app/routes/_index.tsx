@@ -1,7 +1,9 @@
 // Catálogo y config en el loader: mejor SEO y primer render, sin parpadeo. Son públicos: sin token.
-import type { HeadersFunction, LoaderFunctionArgs, MetaFunction } from '@remix-run/node';
+import { json, type HeadersFunction, type LoaderFunctionArgs, type MetaFunction } from '@remix-run/node';
 import type { ShouldRevalidateFunction } from '@remix-run/react';
 import { getBrandName } from '~/lib/brand';
+import { canonicalLink, storeJsonLd } from '~/lib/seo';
+import { siteOrigin } from '~/lib/site-url.server';
 import { useLoaderData } from '@remix-run/react';
 import type { CatalogProduct, LandingConfig } from '@shared/schemas';
 import { ActiveFilters } from '~/components/catalog/active-filters';
@@ -17,12 +19,14 @@ import { selectPreviewCatalog } from '~/state/slices/builder-slice';
 
 // Catálogo público: 60s fresco + 5min de stale-while-revalidate. El HTML del SSR
 // no contiene nada privado, así que es seguro cachearlo en navegador/CDN.
-export const headers: HeadersFunction = () => ({
-  'Cache-Control': 'public, max-age=60, stale-while-revalidate=300',
+// Un 503 del catálogo trae su propio no-store: un error no se guarda en caché.
+export const headers: HeadersFunction = ({ loaderHeaders }) => ({
+  'Cache-Control': loaderHeaders.get('Cache-Control') ?? 'public, max-age=60, stale-while-revalidate=300',
 });
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const origin = new URL(request.url).origin;
+  const siteUrl = siteOrigin(request);
   let products: CatalogProduct[] = [];
   let config: StoreConfig | null = null;
   let landing: LandingConfig | null = null;
@@ -51,7 +55,10 @@ export async function loader({ request }: LoaderFunctionArgs) {
     // Config y portada son accesorias: la home sale con sus valores por defecto.
   }
 
-  return { origin, products, config, landing, catalogError };
+  const data = { siteUrl, products, config, landing, catalogError };
+  // Sin catálogo la portada no cumple su función: el buscador recibe 503 y vuelve más tarde.
+  if (catalogError) return json(data, { status: 503, headers: { 'Cache-Control': 'no-store' } });
+  return json(data);
 }
 
 // Cambiar filtros (viven en la URL) no vuelve a pedir datos: la grilla filtra lo que ya tiene.
@@ -61,24 +68,36 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({ currentUrl, nextUrl
 };
 
 export const meta: MetaFunction<typeof loader> = ({ data }) => {
-  const origin = data?.origin ?? '';
-  const brand = data?.config?.brandName || getBrandName();
-  const title = brand;
+  const siteUrl = data?.siteUrl ?? '';
+  const config = data?.config;
+  const brand = config?.brandName || getBrandName();
+  const title = `${brand} · Accesorios tecnológicos en Managua, Nicaragua`;
   const description =
-    'Audífonos KZ, adaptadores Bluetooth y accesorios de tecnología en Managua, Nicaragua.';
+    'Tienda en línea de accesorios tecnológicos en Managua, Nicaragua. Importación directa, asesoría por WhatsApp y garantía por fallas de fábrica.';
   // Imagen para compartir: el logo configurado; si no hay, ninguna. Falta una social propia de 1200×630.
-  const image = data?.config?.images?.logoStatic || '';
+  const image = config?.images?.logoStatic || '';
+  const social = config?.socialLinks;
 
   return [
     { title },
     { name: 'description', content: description },
+    canonicalLink(`${siteUrl}/`),
     { property: 'og:type', content: 'website' },
     { property: 'og:site_name', content: brand },
     { property: 'og:title', content: title },
     { property: 'og:description', content: description },
     ...(image ? [{ property: 'og:image', content: image }, { name: 'twitter:image', content: image }] : []),
-    { property: 'og:url', content: `${origin}/` },
+    { property: 'og:url', content: `${siteUrl}/` },
     { name: 'twitter:card', content: image ? 'summary_large_image' : 'summary' },
+    {
+      'script:ld+json': storeJsonLd({
+        origin: siteUrl,
+        brand,
+        logo: image,
+        email: config?.contactEmail,
+        socialLinks: [social?.facebook, social?.instagram, social?.tiktok],
+      }),
+    },
   ];
 };
 

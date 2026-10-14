@@ -65,16 +65,19 @@ export function Layout({ children }: { children: ReactNode }) {
   const data = useRouteLoaderData<typeof loader>('root');
   const env = JSON.stringify(data?.ENV ?? {}).replace(/</g, '\\u003c');
   const nonce = data?.cspNonce ?? '';
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
+  const area = areaFor(pathname);
+  // Panel, login y la vista previa del modo edición nunca van a los buscadores.
+  const noindex = area === 'admin' || new URLSearchParams(search).get('landing-preview') === '1';
 
   return (
     // suppressHydrationWarning: el script anti-flash puede cambiar data-theme
     // antes de que React hidrate; ese "mismatch" es intencional.
     <html
-      lang="es"
+      lang="es-NI"
       data-theme={defaultThemeFor(pathname)}
       data-skin="store"
-      data-area={areaFor(pathname)}
+      data-area={area}
       suppressHydrationWarning
     >
       <head>
@@ -95,6 +98,7 @@ export function Layout({ children }: { children: ReactNode }) {
         />
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
+        {noindex && <meta name="robots" content="noindex, nofollow" />}
         <Meta />
         <Links />
       </head>

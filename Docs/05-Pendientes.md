@@ -15,6 +15,21 @@ borra de acá y se describe en el documento que corresponda.
   muestra Ventas, Pedidos web, Personal y CRM: no llega a Facturación.
 - **Tramos de mayoreo en Configuración.** Configuración → Finanzas deja editar los tramos de mayoreo,
   pero el cotizador no los usa (03-Finanzas §5). O se ocultan o se reactiva el mayoreo.
+- **robots.txt con el servicio dormido.** El dominio no pasa por el Cloudflare de la cuenta (registros
+  en «solo DNS»): lo sirve Render, que tiene su propio Cloudflare delante. Con el servicio despierto,
+  `/robots.txt` no bloquea nada. El 14 oct 2026 a las 15:30 UTC, con el servicio dormido, respondió
+  `User-agent: *` / `Disallow: /` y esa respuesta quedó en caché 4 horas. Mientras el plan free duerma
+  el servicio, un buscador puede toparse con ese bloqueo. Después del deploy, verificar el dominio en
+  Search Console y enviar `/sitemap.xml`.
+- **Plan free de Render.** El servicio se duerme sin tráfico y la primera visita tardó más de 20 s
+  (14 oct 2026). Afecta al rastreo, al robots.txt de arriba y a la velocidad medida; subir de plan es
+  decisión de costo.
+- **`APP_URL` en Render.** Cargar `APP_URL=https://gyrostorenic.com`. Hoy `appUrl` es
+  `https://gyro-store-3sr6.onrender.com`: el enlace de seguimiento de los pedidos y el QR del ticket
+  llevan al dominio de Render.
+- **Servicios viejos en Render.** El servicio real es `gyro-store-3sr6`. `gyro-store.onrender.com` sirve
+  una versión anterior de la tienda y `gyro-store-prod.onrender.com` no tiene servidor, pero es el destino
+  del CNAME de `www`. Suspender lo que no se use y apuntar `www` al destino que indique Render.
 - **Imagen para compartir.** La portada usa el logo como imagen social; falta una propia de 1200×630.
 - **Ficha del combo.** Muestra el combo como una unidad (nombre, precio, foto y cantidad de
   artículos). Podría listar su contenido: cada combo ya guarda el nombre y la cantidad de cada

@@ -3,8 +3,10 @@
 import { HugeIcon } from "~/components/ui/icon";
 import { Notification03Icon, ShoppingCart02Icon } from "@hugeicons/core-free-icons";
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { HeadersFunction, LoaderFunctionArgs, MetaFunction } from '@remix-run/node';
+import { redirect, type HeadersFunction, type LoaderFunctionArgs, type MetaFunction } from '@remix-run/node';
 import { getBrandName, pageTitle } from '~/lib/brand';
+import { canonicalLink, metaDescription, productOffers } from '~/lib/seo';
+import { siteOrigin } from '~/lib/site-url.server';
 import { useLoaderData } from '@remix-run/react';
 import { useReducedMotion } from 'framer-motion';
 
@@ -36,7 +38,8 @@ export const headers: HeadersFunction = () => ({
 });
 
 export async function loader({ params, request }: LoaderFunctionArgs) {
-  const origin = new URL(request.url).origin;
+  const url = new URL(request.url);
+  const origin = url.origin;
   const raw = params.id ?? '';
   const productId = raw.split('--').pop() ?? '';
 
@@ -83,25 +86,11 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
     throw new Response('No pudimos cargar este producto. Probá de nuevo en un momento.', { status: 503 });
   }
 
-  return { product, related, products, config, origin };
-}
+  // Un nombre viejo o un slug cualquiera delante del id lleva, con 301, a la única URL de la ficha.
+  const canonicalPath = getProductUrl(product.id, product.name);
+  if (url.pathname !== canonicalPath) throw redirect(`${canonicalPath}${url.search}`, 301);
 
-// «InStock» solo con stock verificado; con precios distintos por variante, un rango (AggregateOffer).
-function productOffers(product: CatalogDetail, url: string) {
-  // «Próximamente» todavía no tiene precio: no se publica una oferta.
-  if (product.availability === 'coming_soon') return undefined;
-  const availability =
-    product.availability === 'available'
-      ? 'https://schema.org/InStock'
-      : product.availability === 'sold_out'
-        ? 'https://schema.org/OutOfStock'
-        : undefined;
-  const extra = availability ? { availability } : {};
-  const prices = product.variants.map((v) => v.price);
-  if (product.priceFrom && prices.length) {
-    return { '@type': 'AggregateOffer', priceCurrency: 'NIO', lowPrice: Math.min(...prices), highPrice: Math.max(...prices), offerCount: prices.length, url, ...extra };
-  }
-  return { '@type': 'Offer', priceCurrency: 'NIO', price: product.price, url, ...extra };
+  return { product, related, products, config, canonicalUrl: `${siteOrigin(request)}${canonicalPath}` };
 }
 
 export const meta: MetaFunction<typeof loader> = ({ data }) => {
@@ -110,18 +99,18 @@ export const meta: MetaFunction<typeof loader> = ({ data }) => {
   if (!product) return [{ title: pageTitle('Producto') }];
 
   const title = pageTitle(product.name);
-  const description =
-    product.description?.replace(/<[^>]*>?/gm, '').slice(0, 160) ??
-    `${product.name} disponible en ${brand}, Managua.`;
+  const description = metaDescription(product.description, `${product.name} en ${brand}, Managua, Nicaragua.`);
+  const canonicalUrl = data.canonicalUrl;
 
   return [
     { title },
     { name: 'description', content: description },
+    canonicalLink(canonicalUrl),
     { property: 'og:type', content: 'product' },
     { property: 'og:title', content: title },
     { property: 'og:description', content: description },
     ...(product.images[0] ? [{ property: 'og:image', content: product.images[0] }] : []),
-    { property: 'og:url', content: `${data?.origin ?? ''}${getProductUrl(product.id, product.name)}` },
+    { property: 'og:url', content: canonicalUrl },
     { name: 'twitter:card', content: 'summary_large_image' },
     // Datos estructurados para que Google muestre precio y disponibilidad, del mismo dato que pinta la página.
     {
@@ -131,7 +120,8 @@ export const meta: MetaFunction<typeof loader> = ({ data }) => {
         name: product.name,
         image: product.images,
         description,
-        offers: productOffers(product, `${data?.origin ?? ''}${getProductUrl(product.id, product.name)}`),
+        url: canonicalUrl,
+        offers: productOffers(product, canonicalUrl),
       },
     },
   ];

@@ -1,6 +1,7 @@
 // Configuración central del backend: variables de entorno y constantes de
 // negocio que se exponen al frontend vía GET /api/config.
 import './load-env'; // Carga las variables de entorno (fuente única). Debe ir primero.
+import { originFromEnv } from '../../shared/site-url';
 
 const isProd = process.env.NODE_ENV === 'production';
 
@@ -30,10 +31,11 @@ export const config = {
   isProd,
   port: Number(process.env.PORT) || 3000,
 
-  // URL pública de la app (links de correos). En prod nunca debe caer a localhost.
+  // URL pública de la tienda (seguimiento de pedidos, QR del ticket). APP_URL, el dominio propio, manda;
+  // la URL que pone Render es el respaldo. En prod nunca debe caer a localhost.
   appUrl:
-    process.env.RENDER_EXTERNAL_URL ||
-    process.env.APP_URL ||
+    originFromEnv(process.env.APP_URL) ??
+    originFromEnv(process.env.RENDER_EXTERNAL_URL) ??
     (isProd ? 'https://gyro-store.onrender.com' : `http://localhost:${Number(process.env.PORT) || 3000}`),
 
   // ── Supabase ──

@@ -122,6 +122,11 @@ servidor recalcula el total, registra el intento con una clave de idempotencia
 (`public_order_attempts`) y crea el pedido en una sola función SQL. Una recarga o un doble clic no
 duplican el pedido.
 
+**Buscadores.** `/robots.txt` y `/sitemap.xml` son rutas de Remix (`lib/seo.ts`). Canonical, `og:url`,
+sitemap y robots usan `APP_URL`; un producto o combo pedido con otro slug redirige con 301 a su URL.
+Panel, login y la vista previa del modo edición llevan `noindex` desde `root.tsx`; Mis pedidos y el
+seguimiento, el suyo. Si el catálogo no responde, la portada sale con 503 y sin caché.
+
 ## 5. Patrones obligatorios
 
 - **Todo pasa por el servidor.** Si algo del cliente quiere tocar la base, falta un endpoint.
@@ -207,7 +212,8 @@ En Render se cargan en el panel. En desarrollo, `load-env.ts` lee el archivo que
 | `PROTECTED_ADMIN_EMAIL` | El `global_admin`. Obligatoria en producción |
 | `INTERNAL_DOMAIN` | Dominio del personal (`gyrostorenic.com` por defecto) |
 | `NODE_ENV`, `PORT` | |
-| `APP_URL`, `CORS_ORIGIN` | Si faltan se usa `RENDER_EXTERNAL_URL`, que pone Render |
+| `APP_URL` | Dominio público (`https://gyrostorenic.com`): canonical, sitemap, robots, enlace de seguimiento de pedidos y QR del ticket. Sin ella, los enlaces usan `RENDER_EXTERNAL_URL` y el canonical el dominio de cada petición |
+| `CORS_ORIGIN` | Si falta se usa `RENDER_EXTERNAL_URL`, que pone Render |
 | `BRAND_NAME` | Opcional: título de las páginas; sin ella se usa «Gyro Store» |
 | `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`, `R2_PUBLIC_URL` (sin barra final), `R2_ENDPOINT` (opcional) | Imágenes. 🔒 las llaves |
 | `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`, `SPO_SITE_ID`, `SPO_DRIVE_ID` | Comprobantes en SharePoint. Opcionales: sin todas, el módulo queda apagado |
