@@ -261,6 +261,7 @@ Lo que este documento pide y el código todavía no tiene. Cada línea se borra 
 - Atajo de teclado de la acción principal en Pedidos web, Usuarios e Inicio.
 - Reportería: el selector de periodo (`PeriodPicker`) usa pestañas animadas; pasarlo a botones con borde.
 - Contadores animados (`CountUp`) en las métricas del panel: el panel solo mueve el botón principal, bordes y flechas.
+
 ## Registro de decisiones
 
 | Fecha | Decisión |
