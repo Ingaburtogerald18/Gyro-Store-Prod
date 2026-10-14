@@ -49,13 +49,16 @@ export const catalogListingMeta: MetaFunction<CatalogListingLoader> = ({ data })
   const pageUrl = `${siteUrl}${categoryHref(category?.slug ?? null)}`;
 
   const title = category ? pageTitle(`${category.name} en Managua`) : pageTitle('Catálogo');
-  // Descripción armada con datos reales: qué productos o categorías hay, sin texto de relleno.
+  // El texto propio de la categoría manda; sin él, uno armado con datos reales (qué productos o
+  // categorías hay), sin texto de relleno.
   const firstNames = listing.slice(0, 3).map((p) => p.name);
   const withProducts = (data.config?.categories ?? []).filter((c) => products.some((p) => inCategory(p, c))).map((c) => c.name);
+  const categoryText = category?.description?.trim();
   const description = category
-    ? firstNames.length
-      ? `${category.name} en ${brand}, Managua: ${joinNames(firstNames)}${listing.length > 3 ? ' y más' : ''}. Mirá precio y disponibilidad y consultá por WhatsApp.`
-      : `${category.name} en ${brand}, Managua, Nicaragua.`
+    ? categoryText ||
+      (firstNames.length
+        ? `${category.name} en ${brand}, Managua: ${joinNames(firstNames)}${listing.length > 3 ? ' y más' : ''}. Mirá precio y disponibilidad y consultá por WhatsApp.`
+        : `${category.name} en ${brand}, Managua, Nicaragua.`)
     : `Catálogo de ${brand} en Managua, Nicaragua${withProducts.length ? `: ${joinNames(withProducts)}` : ''}. Mirá precio y disponibilidad y consultá por WhatsApp.`;
   const image = listing.find((p) => p.images[0])?.images[0] || data.config?.images?.logoStatic || '';
 
@@ -118,6 +121,9 @@ export function CatalogListing() {
         <h1 className="font-heading text-2xl font-bold tracking-tight text-foreground md:text-3xl">
           {category?.name ?? 'Catálogo'}
         </h1>
+        {category?.description?.trim() && (
+          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">{category.description}</p>
+        )}
         {/* En pantallas anchas el conteo va en la barra de filtros. */}
         {!catalogError && listing.length > 0 && (
           <p className="mt-1 text-sm text-muted-foreground tabular-nums sm:hidden">

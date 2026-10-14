@@ -151,6 +151,9 @@ entrega con `toPublicPolicies`: la página de garantía en borrador nunca sale e
 en su caché. Ayuda (`routes/ayuda.*`) y Por mayor tienen estructura fija y leen esos datos
 (`lib/info-page.server.ts`); sin config responden 503. Los destacados de la portada son
 `featuredProductIds` en la configuración de portada (borrador, versiones y publicación como el resto).
+El texto de cada categoría (`categories.description`) sale en `/categoria/<slug>` y es su meta
+description; la marca de la plantilla (`templates.brand`) llega al catálogo como `brand` y se publica
+como `Brand` en el JSON-LD. Vacíos, no se muestran ni se declaran.
 
 ## 5. Patrones obligatorios
 

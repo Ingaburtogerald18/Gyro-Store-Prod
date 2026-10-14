@@ -33,7 +33,7 @@ import { Separator } from '~/components/ui/separator';
 import type { StoreConfig } from '~/state/api/session-api';
 import { useAppDispatch } from '~/state/hooks';
 import { addItem, openCart } from '~/state/slices/cart-slice';
-import { buildWhatsappUrl, formatCordobas, getProductUrl, htmlToText, productWhatsappMessage } from "~/lib/formatters";
+import { buildWhatsappUrl, formatCordobas, getProductUrl, htmlToText, productWhatsappMessage, specsWithBrand } from "~/lib/formatters";
 import { trackAddToCart, trackProductView, trackWhatsappOpen } from '~/lib/analytics.client';
 
 export const headers: HeadersFunction = () => ({
@@ -133,6 +133,7 @@ export const meta: MetaFunction<typeof loader> = ({ data }) => {
         image: product.images,
         description,
         url: canonicalUrl,
+        ...(product.brand ? { brand: { '@type': 'Brand', name: product.brand } } : {}),
         ...(category ? { category: category.name } : {}),
         // La ficha técnica de la plantilla: los mismos datos que se ven en la página.
         ...(product.specs.length
@@ -193,6 +194,7 @@ export default function ProductDetail() {
   const showPromoBadge = onSale || (variant ? variant.isPromo : product.promoScope === 'all');
   const description = htmlToText(product.description);
   const selectedLabel = variantLabel(product.axes, selection);
+  const specs = specsWithBrand(product.specs, product.brand);
 
   const colorAxis = product.axes.find((a) => a.isColor);
   const selectedColor = colorAxis ? selection[colorAxis.key] : undefined;
@@ -397,12 +399,12 @@ export default function ProductDetail() {
         </div>
 
         <div className="space-y-5 border-t border-border py-6 sm:space-y-8 sm:py-8">
-          {(description || product.specs.length > 0) && (
+          {(description || specs.length > 0) && (
             <section aria-labelledby="product-details-heading" className="min-w-0 space-y-4">
               <h2 id="product-details-heading" className="font-heading text-xl font-bold text-foreground">
                 {description ? 'Detalles del producto' : 'Especificaciones'}
               </h2>
-              <ProductDetailTabs description={description} specs={product.specs} />
+              <ProductDetailTabs description={description} specs={specs} />
             </section>
           )}
           <TrustBox />

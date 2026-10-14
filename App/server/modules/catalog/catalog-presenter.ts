@@ -380,6 +380,7 @@ export function toCatalogProduct(
     // La categoría es la de la plantilla; las plantillas viejas sin categoría usan la del producto.
     category: item.template?.category?.name ?? item.category?.name ?? '',
     categoryId: item.template?.category_id ?? item.category_id,
+    ...(item.template?.brand?.trim() ? { brand: item.template.brand.trim() } : {}),
     images,
     ...summary,
     specs: normalizeSpecs(item.template?.specs),

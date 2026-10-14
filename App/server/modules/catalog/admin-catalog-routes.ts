@@ -114,6 +114,7 @@ const categoryInputSchema = z.object({
   name: z.string().min(1).max(80),
   slug: z.string().min(1).max(80),
   icon: z.string().max(16).default(''),
+  description: z.string().trim().max(500).default(''),
 });
 
 router.get(
@@ -127,7 +128,7 @@ router.post(
   '/categories',
   asyncHandler(async (req, res) => {
     const data = categoryInputSchema.parse(req.body);
-    const category = await createCategory(data.name, data.slug, data.icon);
+    const category = await createCategory(data.name, data.slug, data.icon, data.description);
     res.json(category);
   }),
 );
@@ -141,7 +142,7 @@ router.put(
       return;
     }
     const data = categoryInputSchema.parse(req.body);
-    const updated = await updateCategory(id.data, data.name, data.slug, data.icon);
+    const updated = await updateCategory(id.data, data.name, data.slug, data.icon, data.description);
     if (!updated) {
       res.status(404).json({ error: 'Categoría no encontrada.' });
       return;

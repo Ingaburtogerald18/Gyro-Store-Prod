@@ -8,7 +8,7 @@ Esquema de Gyro Store sobre Supabase/Postgres.
 |---|---|
 | `01_schema.sql` | **Todo el esquema, en su estado final**, ordenado por módulo (Personal, Catálogo, Clientes, Compras, Ventas, Tienda web, Stock, Descuentos, Finanzas, Sistema, Reportes, Seguridad). Cada tabla está completa en un solo `create table`. |
 | `02_seed.sql` | Datos de arranque: categorías, las 8 plantillas iniciales y la configuración financiera. |
-| `migrations/` | Lo que **falta correr** en producción: `0018_loan_payments_a_gastos.sql` y `0032_entregas_y_pagos_de_pedidos.sql`. |
+| `migrations/` | Lo que **falta correr** en producción: `0018_loan_payments_a_gastos.sql`, `0032_entregas_y_pagos_de_pedidos.sql` y `0033_texto_de_categorias_y_marca.sql`. |
 | `historial/` | El esquema anterior y las migraciones ya aplicadas (0015–0031, salvo la 0018). Solo como registro: **no se corren**. |
 
 ## Base de producción (la que ya tiene datos)
@@ -17,7 +17,7 @@ Producción está igual a `01_schema.sql` salvo lo que agregan las migraciones
 pendientes de abajo: la 0025 la ordenó y la 0026–0031 se corrieron después en el
 SQL Editor de Supabase.
 
-Quedan dos pendientes:
+Quedan tres pendientes:
 
 - **`migrations/0032_entregas_y_pagos_de_pedidos.sql`**: entrega en Managua, por
   Cargo Trans o retiro; pagos, transporte y recepción de los pedidos web; y los
@@ -25,6 +25,11 @@ Quedan dos pendientes:
   opcionales, así que **se corre antes de publicar el código** que la usa: el
   código anterior sigue andando con la base migrada, pero el nuevo no puede
   registrar pedidos de Managua o Cargo Trans sin ella.
+- **`migrations/0033_texto_de_categorias_y_marca.sql`**: el texto propio de cada
+  categoría (`categories.description`) y la marca de cada plantilla
+  (`templates.brand`), las dos vacías por defecto. Como la 0032, solo agrega
+  columnas y **se corre antes de publicar el código**: el código nuevo las pide al
+  leer el catálogo y las categorías, y sin ellas la tienda no carga.
 - **`migrations/0018_loan_payments_a_gastos.sql`**: pasa los pagos de préstamo a
   `expenses` como gastos del pozo Préstamos. Necesita el OK del dueño. Mientras no
   corra, la app lee los pagos de las dos tablas y no los cuenta dos veces. Los

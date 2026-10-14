@@ -118,6 +118,8 @@ create table categories (
   name        text not null,
   slug        text not null unique,
   icon        varchar(16) not null default '',        -- emoji que muestra la tienda
+  description text not null default ''                -- texto de /categoria/<slug> y de los buscadores
+              constraint categories_description_length check (char_length(description) <= 500),
   created_at  timestamptz not null default now(),
   updated_at  timestamptz not null default now()
 );
@@ -130,6 +132,8 @@ create table templates (
   id             uuid primary key default gen_random_uuid(),
   name           text,
   description    text,                       -- la muestra la tienda
+  brand          text not null default ''    -- solo si se conoce; nunca se deduce del nombre
+                 constraint templates_brand_length check (char_length(brand) <= 60),
   internal_note  text not null default '',   -- no se publica
   category_id    uuid references categories(id) on delete set null,
   axes           jsonb default '[]',

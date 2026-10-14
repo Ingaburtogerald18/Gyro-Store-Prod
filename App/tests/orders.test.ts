@@ -90,6 +90,14 @@ test('la oferta del modelo entero rebaja todas las variantes vinculadas', () => 
   assert.deepEqual(resolveVariantPrice({ price: 450, base_price: 500, is_promo: true }, { price: 400 }), { price: 400, isPromo: false });
 });
 
+test('la marca sale solo si la plantilla la tiene cargada', () => {
+  const withBrand = item({ template: { ...item().template!, brand: ' KZ ' } } as Partial<PublicCatalogItem>);
+  assert.equal(toCatalogProduct(withBrand, stock).brand, 'KZ');
+  assert.equal('brand' in toCatalogProduct(item(), stock), false);
+  const blank = item({ template: { ...item().template!, brand: '  ' } } as Partial<PublicCatalogItem>);
+  assert.equal('brand' in toCatalogProduct(blank, stock), false);
+});
+
 test('sin vínculos el producto queda «consultar», sin stock ficticio', () => {
   const card = toCatalogProduct(item({ variant_mappings: {} } as Partial<PublicCatalogItem>), stock);
   assert.equal(card.availability, 'unknown');

@@ -29,6 +29,9 @@ borra de acá y se describe en el documento que corresponda.
   cancelaciones de pedidos pagados, y revisarlo contra la Ley 842 antes de publicar.
 - **Nosotros, Términos y Privacidad.** No existen: faltan textos reales (historia y forma de trabajar,
   datos legales, conservación de datos). No se publican páginas vacías.
+- **Textos de la tienda.** Cargar el texto de cada categoría (Inventario → Plantillas → Categorías),
+  la marca de cada plantilla y las descripciones que faltan (el 14 oct 2026, 4 de 7 productos no
+  tenían). Es lo que leen los buscadores y los asistentes de IA. Antes, correr la migración 0033.
 - **Imagen para compartir.** La portada usa el logo como imagen social; falta una propia de 1200×630.
 - **Ficha del combo.** Muestra el combo como una unidad (nombre, precio, foto y cantidad de
   artículos). Podría listar su contenido: cada combo ya guarda el nombre y la cantidad de cada

@@ -7,11 +7,12 @@ import { templateNameKey } from '../../../shared/template-names';
 import { BadRequestError, ConflictError } from '../../utils/http-error';
 
 const TEMPLATE_COLUMNS =
-  'id, name, description, internal_note, category_id, axes, specs, updated_at, products:catalog_items(id, name, published)';
+  'id, name, brand, description, internal_note, category_id, axes, specs, updated_at, products:catalog_items(id, name, published)';
 
 interface TemplateRow {
   id: string;
   name: string | null;
+  brand: string | null;
   description: string | null;
   internal_note: string | null;
   category_id: string | null;
@@ -25,6 +26,7 @@ function toAdminTemplate(row: TemplateRow): AdminTemplate {
   return {
     id: row.id,
     name: row.name ?? 'Sin nombre',
+    brand: row.brand ?? '',
     description: row.description ?? '',
     internalNote: row.internal_note ?? '',
     categoryId: row.category_id,
@@ -60,6 +62,7 @@ function cleanSpecs(specs: SpecRow[]): SpecRow[] {
 function toRow(input: TemplateInput) {
   return {
     name: input.name.trim(),
+    brand: input.brand?.trim() ?? '',
     description: input.description?.trim() ?? '',
     internal_note: input.internalNote?.trim() ?? '',
     category_id: input.categoryId,

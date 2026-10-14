@@ -1,3 +1,5 @@
+import type { SpecRow } from '@shared/schemas';
+
 /** Cifra con separador de miles y `decimals` fijos. Base de todo formato numérico. */
 export function formatNumber(value: number, decimals = 0): string {
   return (value || 0).toLocaleString('es-NI', {
@@ -134,6 +136,12 @@ export function htmlToText(html: string | null | undefined): string {
     .replace(/&amp;/g, '&')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
+}
+
+/** Ficha técnica que ve el cliente: la marca primero, solo si está cargada en la plantilla. */
+export function specsWithBrand(specs: SpecRow[], brand: string | undefined): SpecRow[] {
+  const name = brand?.trim();
+  return name ? [{ label: 'Marca', value: name }, ...specs] : specs;
 }
 
 /** Consulta por WhatsApp con producto, opción elegida y enlace. No es un pedido: «disponible» no promete stock. */

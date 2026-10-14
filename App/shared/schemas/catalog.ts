@@ -8,6 +8,8 @@ export const categorySchema = z.object({
   slug: z.string().min(1).max(100),
   name: z.string().min(1).max(100),
   icon: z.string().max(16).nullable().optional(),
+  // Texto propio de la página de la categoría; opcional para respuestas guardadas antes de 0033.
+  description: z.string().max(500).optional(),
 });
 export type Category = z.infer<typeof categorySchema>;
 
@@ -15,6 +17,7 @@ export const categoryInputSchema = z.object({
   slug: z.string().min(1).max(100).regex(/^[a-z0-9-]+$/, 'El slug solo puede contener letras minúsculas, números y guiones.'),
   name: z.string().min(1).max(100),
   icon: z.string().max(16).nullable().optional(),
+  description: z.string().trim().max(500).optional(),
 });
 export type CategoryInput = z.infer<typeof categoryInputSchema>;
 
@@ -24,6 +27,7 @@ export const templateSchema = z.object({
   id: z.uuid(),
   name: z.string().nullable(),
   description: z.string().nullable().optional(),
+  brand: z.string().nullable().optional(),
   category_id: z.string().uuid().nullable().optional(),
   category: z.object({ id: z.string(), name: z.string() }).nullable().optional(),
   axes: z.unknown(),
@@ -90,6 +94,8 @@ export const catalogProductSchema = z.object({
   description: z.string().optional(),
   // Nombre de la categoría a la que pertenece
   category: z.string(),
+  // Marca cargada en la plantilla; sin ella no se declara ninguna.
+  brand: z.string().optional(),
   categoryId: z.string().uuid().nullable().optional(),
   images: z.array(z.string()),
   // El menor precio de las variantes comprables («Desde…» con `priceFrom`); 0 en «Próximamente».

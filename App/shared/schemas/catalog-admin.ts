@@ -15,6 +15,7 @@ export type TemplateAxis = z.infer<typeof templateAxisSchema>;
 // la tienda. La nota interna nunca sale del panel.
 export const templateInputSchema = z.object({
   name: z.string().trim().min(2, 'Escribí el nombre del modelo.').max(120),
+  brand: z.string().trim().max(60, 'Máximo 60 caracteres.').optional(),
   description: z.string().max(3000).optional(),
   internalNote: z.string().max(3000).optional(),
   categoryId: z.string({ error: 'Elegí la categoría.' }).uuid('Elegí la categoría.'),
@@ -28,6 +29,7 @@ export type TemplateInput = z.infer<typeof templateInputSchema>;
 export const adminTemplateSchema = z.object({
   id: z.uuid(),
   name: z.string(),
+  brand: z.string(),
   description: z.string(),
   internalNote: z.string(),
   categoryId: z.string().uuid().nullable(),

@@ -28,7 +28,7 @@ import {
 } from "@shared/schemas";
 import { Button } from "~/components/ui/button";
 import { Dialog, DialogDescription, DialogHeader, DialogTitle } from "~/components/ui/dialog";
-import { Field, FieldError, FieldLabel } from "~/components/ui/field";
+import { Field, FieldDescription, FieldError, FieldLabel } from "~/components/ui/field";
 import {
   DiscardChangesDialog,
   FormErrorBanner,
@@ -59,6 +59,7 @@ type TemplateFormValues = z.input<typeof templateInputSchema>;
 
 const EMPTY: TemplateFormValues = {
   name: "",
+  brand: "",
   categoryId: "",
   description: "",
   internalNote: "",
@@ -70,6 +71,7 @@ function toValues(template: AdminTemplate | null, initialName?: string): Templat
   if (!template) return { ...EMPTY, name: initialName ?? "" };
   return {
     name: template.name,
+    brand: template.brand ?? "",
     categoryId: template.categoryId ?? "",
     description: template.description ?? "",
     internalNote: template.internalNote ?? "",
@@ -193,7 +195,7 @@ export function TemplateFormDialog({
                 <div className="min-w-0 space-y-5">
                   <FormSection
                     title="Información pública"
-                    description="Nombre, categoría y descripción que ve el cliente."
+                    description="Nombre, marca, categoría y descripción que ve el cliente."
                   >
                     <Field data-invalid={!!errors.name || !!duplicate}>
                       <FieldLabel htmlFor="template-name" required>
@@ -220,6 +222,20 @@ export function TemplateFormDialog({
                           Usar plantilla existente
                         </Button>
                       )}
+                    </Field>
+                    <Field data-invalid={!!errors.brand}>
+                      <FieldLabel htmlFor="template-brand">Marca</FieldLabel>
+                      <Input
+                        id="template-brand"
+                        placeholder="Ej. KZ"
+                        maxLength={60}
+                        aria-invalid={!!errors.brand}
+                        {...register("brand")}
+                      />
+                      <FieldDescription>
+                        Solo si la conocés. Va en la ficha técnica y en los datos que leen Google y los comparadores.
+                      </FieldDescription>
+                      <FieldError errors={[errors.brand]} />
                     </Field>
                     <Field data-invalid={!!errors.categoryId}>
                       <FieldLabel htmlFor="template-category" required>
