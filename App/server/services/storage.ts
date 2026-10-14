@@ -106,27 +106,3 @@ export async function deleteFileByUrl(publicUrl?: string | null) {
     logger.error('Error al borrar de R2', { message: err.message });
   }
 }
-
-export async function listFiles(prefix = '') {
-  const out: { key: string; size: number; url: string }[] = [];
-  let ContinuationToken: string | undefined;
-  const { client, awsSdk } = await getClient();
-  do {
-    const res = await client.send(
-      new awsSdk.ListObjectsV2Command({ Bucket: R2_BUCKET_NAME, Prefix: prefix, ContinuationToken })
-    );
-    for (const obj of res.Contents || []) {
-      if (obj.Key) {
-        out.push({
-          key: obj.Key,
-          size: Number(obj.Size) || 0,
-          url: `${R2_PUBLIC_URL}/${encodeURI(obj.Key)}`,
-        });
-      }
-    }
-    ContinuationToken = res.IsTruncated ? res.NextContinuationToken : undefined;
-  } while (ContinuationToken);
-  return out;
-}
-
-export const isSharpAvailable = () => !!sharp;

@@ -16,14 +16,6 @@ import {
 } from '~/lib/purchase';
 import { cn } from '~/lib/utils';
 
-export {
-  autoSelection,
-  pickableAxes,
-  resolveVariant,
-  variantLabel,
-  type VariantSelection,
-} from '~/lib/purchase';
-
 export function VariantPicker({
   axes,
   variants = [],

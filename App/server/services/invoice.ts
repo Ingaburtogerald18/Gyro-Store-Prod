@@ -275,44 +275,6 @@ export async function unlinkInvoiceFromSale(saleId: string): Promise<string | nu
   return row ? row.invoice_code ?? formatInvoiceCode(row.invoice_number) : null;
 }
 
-// Liga una factura existente a una venta aprobada.
-export async function linkInvoiceToSale(rawCode: string | number, saleId: string): Promise<Invoice> {
-  const invoiceNumber = parseInvoiceCode(rawCode);
-  if (invoiceNumber === null) {
-    throw new BadRequestError(`Código de factura inválido. Se espera algo como ${formatInvoiceCode(1)}.`);
-  }
-
-  const { data: existing, error: findError } = await db
-    .from('invoices')
-    .select('id, status')
-    .eq('invoice_number', invoiceNumber)
-    .maybeSingle();
-
-  if (findError) throw findError;
-  if (!existing) {
-    throw new BadRequestError(`La factura ${formatInvoiceCode(invoiceNumber)} no existe.`);
-  }
-
-  if (existing.status !== 'unlinked') {
-    throw new BadRequestError('Esta factura ya está vinculada a una venta o está anulada.');
-  }
-
-  const { data: updated, error: updateError } = await db
-    .from('invoices')
-    .update({
-      sale_id: saleId,
-      status: 'linked'
-    })
-    .eq('id', existing.id)
-    .eq('status', 'unlinked') // compare-and-swap: otro registro pudo tomarla entre medio
-    .select(INVOICE_COLUMNS)
-    .maybeSingle();
-
-  if (updateError) throw updateError;
-  if (!updated) throw new BadRequestError('Esta factura ya está vinculada a una venta o está anulada.');
-  return toInvoice(updated as unknown as InvoiceRow);
-}
-
 export async function listInvoices(
   filters: { status?: string; sellerUid?: string } = {},
 ): Promise<Invoice[]> {

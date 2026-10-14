@@ -241,6 +241,7 @@ Los dos:
 - Los estilos se escriben una vez, en el componente compartido. Nada de copiar reglas de una pantalla a otra.
 - Comentarios de 1 o 2 líneas, solo para explicar un porqué que no se ve en el código. La historia de un cambio va en el mensaje del commit.
 - Sin código comentado, sin archivos sin usar, sin notas de trabajo en el repositorio.
+- Nombres de archivo en kebab-case en todo el código: `order-lines-editor.tsx`, `cart-storage.ts`, `sales-conversions.ts`.
 - `npm run check` tiene que pasar antes de cada commit.
 
 ## 15. Antes de dar algo por terminado
@@ -261,6 +262,7 @@ Lo que este documento pide y el código todavía no tiene. Cada línea se borra 
 - Reportería: el selector de periodo (`PeriodPicker`) usa pestañas animadas; pasarlo a botones con borde.
 - Contadores animados (`CountUp`) en las métricas del panel: el panel solo mueve el botón principal, bordes y flechas.
 - Comentarios largos: acortar a 1 o 2 líneas los bloques que quedan (unos 340, en casi todos los archivos de `app/`).
+- Renombrar a kebab-case los archivos que no lo cumplen: el panel (`components/admin`), parte de `ui/` y `lib/`, y el servidor.
 
 ## Registro de decisiones
 
@@ -303,3 +305,5 @@ Lo que este documento pide y el código todavía no tiene. Cada línea se borra 
 | 2026-10-10 | Órdenes de compra: cantidades en una columna propia después de Producto, con subtotal de unidades alineado; dejan de aparecer como dato secundario debajo del total USD |
 | 2026-10-10 | Corrección aprobada al agregar productos a órdenes: búsqueda con coincidencias, elección explícita de plantilla por ID, selección visible y creación con retorno inmediato al producto sin perder cantidad ni costo. Duplicados normalizados bloqueados en formulario y servidor; los modelos parecidos requieren elección del usuario |
 | 2026-10-10 | Selector de modelo compacto aprobado: reemplaza las tarjetas y la ficha de selección por un campo con autocompletado superpuesto desde 2 caracteres, hasta 4 coincidencias y creación al final. La selección queda en el campo con confirmación y «Cambiar», sin ocupar espacio adicional en el formulario |
+| 2026-10-13 | Nombres de archivo en kebab-case en todo el código, también el servidor |
+| 2026-10-13 | La documentación de `Docs/` se junta en pocos documentos al día: los planes y los históricos se integran o se borran, nada queda suelto |

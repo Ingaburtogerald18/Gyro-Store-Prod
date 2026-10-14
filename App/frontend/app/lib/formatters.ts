@@ -15,11 +15,6 @@ export function formatCordobas(amount: number, symbol = 'C$', decimals = 0): str
   return `${symbol}${formatNumber(amount, decimals)}`;
 }
 
-/** Redondea para cálculo (no formatea): 123.456 → 123.46. */
-export function roundTo(value: number, decimals = 2): number {
-  return Number((value || 0).toFixed(decimals));
-}
-
 // El número puede venir en formato humano ("+505 8594 4758") desde Configuración:
 // se limpia acá para que todos los que llaman queden protegidos sin tocar cada sitio.
 export function buildWhatsappUrl(phone: string, message: string): string {
@@ -131,15 +126,6 @@ export function formatUsd(amount: number, maxDecimals: number = 2, minDecimals: 
 
 export function cordobasFromUsd(usd: number): string {
   return formatCordobas((usd || 0) * EXCHANGE_RATE);
-}
-
-// Caja y Bancos guarda el código de moneda por cuenta ("NIO", "USD"): el monto se
-// muestra con el símbolo que corresponde, no con el código pegado al número.
-export function formatByCurrency(amount: number, code?: string | null, decimals = 2): string {
-  const currency = (code || 'NIO').toUpperCase();
-  if (currency === 'USD') return formatUsd(amount, decimals, decimals);
-  if (currency === 'NIO' || currency === 'C$') return formatCordobas(amount, 'C$', decimals);
-  return `${formatNumber(amount, decimals)} ${currency}`;
 }
 
 /** Texto plano de una descripción con HTML, conservando los cortes de párrafo y

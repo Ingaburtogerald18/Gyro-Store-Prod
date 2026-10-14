@@ -8,21 +8,13 @@
 // seguridad de render, para que nunca se pinte un título vacío.
 const BRAND_FALLBACK = 'Gyro Store';
 
-function readEnv(key: 'BRAND_NAME' | 'INTERNAL_DOMAIN' | 'APP_URL'): string {
+function readEnv(key: 'BRAND_NAME'): string {
   if (typeof window !== 'undefined') return window.ENV?.[key] ?? '';
   return process.env[key] ?? '';
 }
 
 export function getBrandName(): string {
   return readEnv('BRAND_NAME') || BRAND_FALLBACK;
-}
-
-export function getInternalDomain(): string {
-  return readEnv('INTERNAL_DOMAIN');
-}
-
-export function getAppUrl(): string {
-  return readEnv('APP_URL');
 }
 
 // Compone el <title> de una página: "Sección · Marca" (o "Sección · Marca Admin").

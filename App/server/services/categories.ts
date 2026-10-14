@@ -13,17 +13,6 @@ export async function listCategories(): Promise<Category[]> {
   return data as Category[];
 }
 
-export async function getCategory(id: string): Promise<Category | null> {
-  const { data, error } = await db
-    .from('categories')
-    .select(CATEGORY_COLUMNS)
-    .eq('id', id)
-    .maybeSingle();
-
-  if (error) throw error;
-  return data as Category | null;
-}
-
 export async function createCategory(name: string, slug: string, icon: string = ''): Promise<Category> {
   const { data, error } = await db
     .from('categories')

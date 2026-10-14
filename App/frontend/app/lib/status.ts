@@ -20,20 +20,6 @@ export const SALE_STATUS: Record<string, StatusMeta> = {
   rejected: { label: 'Rechazada', status: 'error' },
 };
 
-/** `purchases.status` (enum `purchase_status`). */
-export const PURCHASE_STATUS: Record<string, StatusMeta> = {
-  china: { label: 'En China', status: 'pending' },
-  pending: { label: 'En tránsito', status: 'pending' },
-  received: { label: 'Recibido', status: 'success' },
-};
-
-/** `invoices.status` (enum `invoice_status`). */
-export const INVOICE_STATUS: Record<string, StatusMeta> = {
-  unlinked: { label: 'Sin vincular', status: 'pending' },
-  linked: { label: 'Vinculada', status: 'success' },
-  void: { label: 'Anulada', status: 'error' },
-};
-
 /**
  * `public_orders.status` (pedidos web). 'shipped' es el mismo paso para las dos
  * entregas; la etiqueta cambia según `delivery_method` (ver `publicOrderStatusLabel`).

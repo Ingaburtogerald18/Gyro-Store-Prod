@@ -60,11 +60,8 @@ export async function loader({ context }: LoaderFunctionArgs) {
     ENV: {
       SUPABASE_URL: process.env.SUPABASE_URL ?? '',
       SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY ?? '',
-      // Marca / negocio (públicos): permiten pintar <title> y textos SSR sin
-      // esperar la query de /api/config. Fuente: mismas env vars del backend.
+      // Pinta el <title> y los textos SSR sin esperar la query de /api/config.
       BRAND_NAME: process.env.BRAND_NAME ?? '',
-      INTERNAL_DOMAIN: process.env.INTERNAL_DOMAIN ?? '',
-      APP_URL: process.env.RENDER_EXTERNAL_URL ?? process.env.APP_URL ?? '',
     },
   };
 }

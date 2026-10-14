@@ -2,7 +2,7 @@
 import { db } from '../supabase';
 import { logger } from '../utils/logger';
 import { readBoundedPages } from '../utils/readBoundedPages';
-import type { AnalyticsDashboard, AnalyticsEventType, AnalyticsOverview, AnalyticsRange, SearchRow, ViewedProductRow } from '../../shared/analytics';
+import type { AnalyticsDashboard, AnalyticsEventType, AnalyticsRange, ViewedProductRow } from '../../shared/analytics';
 import { summarizeOverview, summarizeSearches, summarizeZeroResults, type RawEvent } from './analytics/aggregates';
 export { ANALYTICS_EVENT_TYPES } from '../../shared/analytics';
 
@@ -80,23 +80,6 @@ export async function getDashboard(range: RangeParams, limit = 20): Promise<Anal
     zero: summarizeZeroResults(searches, limit),
     products: await summarizeProducts(events, limit),
   };
-}
-
-// Conserva las lecturas individuales para clientes que aún las consuman.
-export async function getOverview(range: RangeParams): Promise<AnalyticsOverview> {
-  return summarizeOverview(await fetchEvents(range));
-}
-
-export async function getTopSearches(range: RangeParams, limit = 20): Promise<SearchRow[]> {
-  return summarizeSearches(await fetchEvents(range)).slice(0, limit);
-}
-
-export async function getZeroResultSearches(range: RangeParams, limit = 20): Promise<SearchRow[]> {
-  return summarizeZeroResults(summarizeSearches(await fetchEvents(range)), limit);
-}
-
-export async function getTopViewedProducts(range: RangeParams, limit = 20): Promise<ViewedProductRow[]> {
-  return summarizeProducts(await fetchEvents(range), limit);
 }
 
 // Productos más vistos. Resuelve el nombre de los top-N contra catalog_items +

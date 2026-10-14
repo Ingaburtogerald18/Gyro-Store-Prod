@@ -39,37 +39,3 @@ export function MoneyCell({
 export function CodeCell({ value }: { value?: string | null }) {
   return <span className="font-spec text-sm font-medium whitespace-nowrap text-foreground">{value || "—"}</span>;
 }
-
-/** 
- * Celda que muestra un desglose por ítem.
- * Se usa para alinear las columnas de Cant. y Precio Venta con los ítems separados.
- */
-export function BreakdownCell({
-  items,
-  itemKey,
-  tone = "default",
-  isQuantity = false,
-}: {
-  items: any[];
-  itemKey?: string;
-  tone?: MoneyTone;
-  isQuantity?: boolean;
-}) {
-  if (items.length <= 1) {
-    const val = items[0] ? (itemKey ? items[0][itemKey] : undefined) : undefined;
-    if (isQuantity) return <span className="nums">{items[0]?.quantity || 1}</span>;
-    return <MoneyCell value={val} tone={tone} />;
-  }
-
-  return (
-    <div className="flex flex-col gap-[2px]">
-      {items.map((it, idx) => {
-        const val = itemKey ? it[itemKey] : undefined;
-        if (isQuantity) {
-          return <div key={idx}><span className="nums">{it.quantity || 1}</span></div>;
-        }
-        return <div key={idx}><MoneyCell value={val} tone={tone} /></div>;
-      })}
-    </div>
-  );
-}

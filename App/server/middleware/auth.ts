@@ -277,6 +277,4 @@ export const requireCashier = requireRole('admin', 'cashier');
 // ticket) que además del cajero necesita el vendedor: es cómo vincula su
 // venta al número de un ticket que Caja ya emitió a su nombre.
 export const requireCashierOrSeller = requireRole('admin', 'cashier', 'seller');
-export const requireLogisticsAdmin = requireRole('admin', 'logistics_admin');
-export const requireLogisticsAny = requireRole('admin', 'logistics_admin', 'logistics_customer');
 export const requireAnyRole = requireRole(...VALID_ROLES);

@@ -34,3 +34,6 @@ App/tmp/
 # Perfiles de navegador que dejan los agentes al hacer pruebas (cookies y
 # sesiones incluidas): nunca al repo.
 /tmp/
+
+# Imágenes generadas por herramientas de IA; las del catálogo viven en R2.
+output/

@@ -9,8 +9,6 @@ declare global {
       SUPABASE_URL: string;
       SUPABASE_ANON_KEY: string;
       BRAND_NAME: string;
-      INTERNAL_DOMAIN: string;
-      APP_URL: string;
     };
   }
 }

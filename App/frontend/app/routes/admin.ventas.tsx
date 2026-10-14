@@ -40,7 +40,6 @@ import {
   DialogTitle,
 } from '~/components/ui/dialog';
 import { StatusBadge } from '~/components/ui/StatusBadge';
-import type { FilterSelectOption } from '~/components/ui/FilterSelect';
 import { SALE_STATUS, statusMeta } from '~/lib/status';
 import {
   Kbd,
@@ -176,7 +175,7 @@ export default function AdminVentas() {
   // de la tabla sobre el valor de cada celda.
   const [search, setSearch] = useState('');
   useShortcut('n', () => setIsEditorOpen(true));
-  const sellerOptions = useMemo<FilterSelectOption[]>(() => {
+  const sellerOptions = useMemo<{ value: string; label: string }[]>(() => {
     const names = new Set(sales.map((s) => s.sellerName || s.sellerEmail));
     return [
       { value: 'all', label: 'Todos los vendedores' },

@@ -1,9 +1,6 @@
 // Rutas de telemetría del storefront.
-//   POST /api/analytics                 → ingesta pública (sendBeacon, lotes)
-//   GET  /api/analytics/admin/overview  → embudo + totales (admin)
-//   GET  /api/analytics/admin/searches  → top de búsquedas (admin)
-//   GET  /api/analytics/admin/zero      → búsquedas sin resultado (admin)
-//   GET  /api/analytics/admin/products  → productos más vistos (admin)
+//   POST /api/analytics                  → ingesta pública (sendBeacon, lotes)
+//   GET  /api/analytics/admin/dashboard  → embudo, búsquedas y productos más vistos (admin)
 //
 // La ingesta es el ÚNICO endpoint anónimo que escribe acá. Va con `telemetryLimiter`
 // (montado en index.ts, igual que el checkout y el contacto) y filtro de bots. El
@@ -18,10 +15,6 @@ import {
   ingestEvents,
   isBot,
   getDashboard,
-  getOverview,
-  getTopSearches,
-  getZeroResultSearches,
-  getTopViewedProducts,
 } from '../services/analytics';
 
 const router = Router();
@@ -85,42 +78,6 @@ router.get(
   asyncHandler(async (req, res) => {
     const { range, limit } = parseRange(req.query);
     res.json(await getDashboard(range, limit));
-  }),
-);
-
-router.get(
-  '/admin/overview',
-  requireAdmin,
-  asyncHandler(async (req, res) => {
-    const { range } = parseRange(req.query);
-    res.json(await getOverview(range));
-  }),
-);
-
-router.get(
-  '/admin/searches',
-  requireAdmin,
-  asyncHandler(async (req, res) => {
-    const { range, limit } = parseRange(req.query);
-    res.json(await getTopSearches(range, limit));
-  }),
-);
-
-router.get(
-  '/admin/zero',
-  requireAdmin,
-  asyncHandler(async (req, res) => {
-    const { range, limit } = parseRange(req.query);
-    res.json(await getZeroResultSearches(range, limit));
-  }),
-);
-
-router.get(
-  '/admin/products',
-  requireAdmin,
-  asyncHandler(async (req, res) => {
-    const { range, limit } = parseRange(req.query);
-    res.json(await getTopViewedProducts(range, limit));
   }),
 );
 
