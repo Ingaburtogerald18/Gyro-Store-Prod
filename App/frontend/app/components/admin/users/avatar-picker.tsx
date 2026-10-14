@@ -55,9 +55,7 @@ export function AvatarPicker({
 
   return (
     <div className="flex flex-col items-center gap-3">
-      {/* La zona de arrastre es el avatar mismo: es donde la gente suelta el
-          archivo por instinto, y evita un dropzone gigante para una sola foto
-          cuadrada de 80 px. El botón de abajo cubre el camino por teclado. */}
+      {/* Se suelta el archivo sobre el avatar mismo; el botón de abajo cubre el teclado. */}
       <div
         onDragOver={(e) => {
           e.preventDefault();

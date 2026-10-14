@@ -1,11 +1,5 @@
-// "Mi desempeño": lo que un VENDEDOR ve de sus propias ventas, dentro de
-// /admin/ventas (el Dashboard no está en su nav).
-//
-// Lo que se muestra es lo suyo y nada más: cuánto vendió, cuántas unidades y
-// cuánta comisión generó. NO hay coste, ganancia de tienda, pozos, ranking ni
-// delivery — y eso no depende de este archivo: el backend recorta esos campos
-// antes de mandarlos y fuerza el `sellerUid` al del token (ver
-// server/modules/finance/reports-routes.ts). Acá simplemente no se piden.
+// «Mi desempeño» del vendedor en /admin/ventas: ventas, unidades y comisión. El backend recorta lo
+// demás y fuerza su `sellerUid`; acá ni se pide.
 import { HugeIcon } from '~/components/ui/icon';
 import { DollarSquareIcon, PercentIcon, ShoppingCart02Icon, Analytics01Icon } from '@hugeicons/core-free-icons';
 import { useMemo, useState } from 'react';
@@ -95,9 +89,7 @@ export function SellerPerformance() {
               />
             </div>
 
-            {/* `showGanancia={false}`: la ganancia de tienda ni siquiera llega
-                en la respuesta, así que dibujar la serie mostraría una línea
-                plana en cero. */}
+            {/* La ganancia de tienda no llega para el vendedor: la serie sería una línea en cero. */}
             <SalesTrendChart range={range} showGanancia={false} title="Mi tendencia" />
 
             <TopProductsTable range={range} limit={5} title="Lo que más vendí" />

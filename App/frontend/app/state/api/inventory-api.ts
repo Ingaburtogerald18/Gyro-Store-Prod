@@ -22,17 +22,17 @@ export interface Purchase {
   quantityReserved: number;
   suggestedPrice: number | null;
   status: PurchaseStatus;
-  /** Producto del catálogo del lote (null sin vínculo o sin la migración 0022). */
+  /** Producto del catálogo del lote, o null sin vínculo. */
   catalogItemId?: string | null;
   /** Variante ("Negro / Con micrófono"; '' en productos sin variantes). */
   variantKey?: string | null;
-  /** Orden de Alibaba de la línea (null sin orden o sin la migración 0024). */
+  /** Orden de compra de la línea, o null. */
   orderId?: string | null;
   /** Lo pedido, cuando llegó otra cantidad (null = llegó lo pedido). */
   quantityOrdered?: number | null;
 }
 
-// ── Órdenes de compra (Alibaba, migración 0024) ──
+// ── Órdenes de compra ──
 
 export interface Supplier {
   id: string;
@@ -217,9 +217,7 @@ export interface ArrivalPayload {
   exchangeRate?: number;
 }
 
-// Añade ?period=YYYY-MM al endpoint cuando hay un mes seleccionado.
-// "all" o vacío = sin filtro (historial completo). El backend leerá este
-// parámetro cuando implementemos el filtrado por fecha en la base de datos.
+// Agrega ?period=YYYY-MM cuando hay un mes elegido; "all" o vacío = todo el historial.
 const withPeriod = (base: string, period?: string) =>
   period && period !== "all" ? `${base}?period=${encodeURIComponent(period)}` : base;
 
@@ -272,7 +270,7 @@ export const inventoryApi = baseApi.injectEndpoints({
       query: (id) => ({ url: `/inventory/purchases/${id}`, method: "DELETE" }),
       invalidatesTags: ["Purchase", "Product", "Catalog"],
     }),
-    // Merma o corrección de conteo de un lote (migración 0023).
+    // Merma o corrección de conteo de un lote.
     adjustStock: build.mutation<
       { quantity: number; available: number },
       { id: string; body: { kind: "adjust_in" | "adjust_out" | "write_off"; quantity: number; reason: string } }
@@ -280,7 +278,7 @@ export const inventoryApi = baseApi.injectEndpoints({
       query: ({ id, body }) => ({ url: `/inventory/purchases/${id}/adjust`, method: "POST", body }),
       invalidatesTags: ["Purchase", "Product", "Catalog"],
     }),
-    // Oferta por color (migración 0027): reemplaza la que hubiera.
+    // Oferta por color: reemplaza la que hubiera.
     setColorOffer: build.mutation<ColorOffer, { catalogItemId: string; color: string; price: number; endsAt: string }>({
       query: (body) => ({ url: "/inventory/offers", method: "PUT", body }),
       invalidatesTags: ["Product", "Catalog"],
@@ -294,9 +292,7 @@ export const inventoryApi = baseApi.injectEndpoints({
       providesTags: ["Purchase"],
     }),
 
-    // ── Órdenes de compra ──
-    // `available: false` = falta la migración 0024: el panel sigue con el
-    // formulario de compra suelta.
+    // `available: false` = falta la tabla: el panel sigue con la compra suelta.
     getPurchaseOrders: build.query<{ available: boolean; orders: PurchaseOrder[] }, void>({
       query: () => "/inventory/orders",
       providesTags: ["Purchase"],

@@ -1,9 +1,4 @@
-// Hook compartido de filtrado + orden del catálogo.
-//
-// Existe para que el MISMO resultado alimente tres piezas: la barra de
-// herramientas (que muestra el conteo), la grilla (que renderiza) y los chips de
-// filtros activos. Cuando cada una filtraba por su cuenta, el conteo mentía.
-// Los filtros salen del uiSlice → única fuente de verdad.
+// El mismo resultado alimenta el conteo, la grilla y los chips: cuando filtraban por separado, el conteo mentía.
 import { useMemo } from 'react';
 import { normalizeSearch } from '~/lib/search';
 import { findCategory, priceRangeError } from '~/lib/catalog-query';
@@ -57,9 +52,7 @@ export function useCatalogFilter(products: CatalogProduct[], categories: Categor
   const selectedCategory = findCategory(categories, category);
 
   const filtered = useMemo(() => {
-    // Cada término debe aparecer en algún lado (AND), así "kz negro" no trae
-    // todo lo que sea KZ más todo lo que sea negro. Acentos y mayúsculas no
-    // importan (normalizeSearch).
+    // Cada término tiene que aparecer (AND): «kz negro» no trae todo KZ más todo lo negro.
     const terms = normalizeSearch(query).split(/\s+/).filter(Boolean);
     const rangeOk = !priceError;
 

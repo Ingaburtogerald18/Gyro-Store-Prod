@@ -1,9 +1,4 @@
-// Descarga el detalle de ventas del periodo como CSV.
-//
-// Se pide con la query LAZY a propósito: `sales_export_view` devuelve una fila
-// por línea de venta, así que un año puede ser decenas de miles de filas. Con
-// la query normal se traerían al montar el Dashboard aunque nadie vaya a
-// exportar; así solo viajan cuando el usuario pica el botón.
+// Query lazy: un año son decenas de miles de filas, y solo viajan al tocar el botón.
 import { HugeIcon } from '~/components/ui/icon';
 import { Download04Icon } from '@hugeicons/core-free-icons';
 import { useState } from 'react';

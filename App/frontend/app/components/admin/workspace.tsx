@@ -1,10 +1,4 @@
-// Piezas comunes de cada módulo del panel: bloques sueltos sobre el crema.
-//
-//   <PageHeader>          título + acción principal con su atajo
-//   <Workspace>           columna de bloques
-//     <WorkspaceToolbar>  vista, búsqueda, filtros
-//     <MetricStrip>       hasta 4 números
-//     tabla / contenido
+// Piezas comunes de cada módulo del panel: PageHeader, Workspace, WorkspaceToolbar y MetricStrip.
 import { useEffect, useRef, type ReactNode } from "react";
 import { Search01Icon } from "@hugeicons/core-free-icons";
 

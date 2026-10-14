@@ -1,9 +1,4 @@
-// Etiqueta de sección dentro de una página.
-//
-// Se repetía a mano como `text-sm font-semibold uppercase tracking-wide
-// text-muted-foreground` en al menos tres lugares del dashboard, y a ese tamaño
-// competía con el título del `PageHeader`. Acá baja a 11 px: una sección no es
-// una página, y su rótulo tiene que leerse como separador, no como encabezado.
+// Rótulo de sección a 11 px: separa, no compite con el título de la página.
 import type { ReactNode } from 'react';
 
 import { cn } from '~/lib/utils';

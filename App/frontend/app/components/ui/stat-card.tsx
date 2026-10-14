@@ -37,9 +37,7 @@ export function SpotlightCard({
   const baseStyles =
     "rounded-2xl border bg-card transition-colors duration-200 hover:border-border/80";
 
-  // Sin `hover:-translate-y-1`: mover el elemento al pasar el mouse desplaza el
-  // layout y, en una grilla, hace que las tarjetas vecinas parezcan temblar.
-  // La elevación va por borde (ver `baseStyles`).
+  // Sin translate al pasar el mouse: mueve el layout y las vecinas parecen temblar.
   if (variant === "highlight") {
     return (
       <div
@@ -79,11 +77,6 @@ export function SpotlightCard({
   );
 }
 
-// Acá vivía `SectionHeader`, marcado `@deprecated` a favor de `SectionLabel`
-// (`~/components/admin/section-label`). La migración terminó: no le quedaban
-// consumidores, así que se borró en vez de seguir arrastrando dos primitivas
-// para lo mismo.
-
 // ── StatCard unificado (mantiene su nombre y Props para retrocompatibilidad) ──
 export type StatCardColor = "neutral" | "indigo" | "sky" | "amber" | "rose" | "purple" | "red";
 
@@ -115,10 +108,7 @@ export function StatCard({
   const inner = (
     <div className="p-4">
       <div className="flex items-center gap-2">
-        {/* `view` y no `hover`: una StatCard no es un control, nadie le pasa
-            el mouse por encima. El trazo se dibuja cuando la tarjeta entra en
-            pantalla, en la misma entrada que ya hacen el `delay` de arriba y
-            el CountUp del valor. */}
+        {/* El trazo se dibuja al entrar en pantalla (`view`), no al pasar el mouse: no es un control. */}
         {Icon && <HugeIcon icon={Icon} size={16} strokeWidth={2} className={theme.icon} />}
         <span className={`stat-card-label text-xs uppercase tracking-wide font-medium ${theme.label}`}>{label}</span>
       </div>
@@ -148,10 +138,7 @@ export function StatCard({
     </motion.div>
   );
 
-  // El `href` va en un <a> real y el `onClick` en un <button>: hacen falta el
-  // rol, el foco por teclado y el Enter/Espacio que un <div onClick> no da.
-  // Envolver por fuera (y no poner el handler en el motion.div) mantiene intacta
-  // la animación de entrada y el spotlight.
+  // <a> real con `href` y <button> con `onClick`: rol, foco y teclado que un <div onClick> no da.
   if (href) {
     return (
       <NavLink to={href} className="block rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">

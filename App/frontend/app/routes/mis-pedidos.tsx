@@ -1,8 +1,6 @@
 import { FormLayout, FormBody, FormActions } from '~/components/ui/form-layout';
 import { FormErrorBanner, serverErrorMessage } from '~/components/ui/form-feedback';
-// «Mis pedidos» sin cuenta: los pedidos hechos (o abiertos por link) desde este
-// navegador, más un buscador por número de pedido + teléfono para quien cambió
-// de celular o borró el navegador.
+// «Mis pedidos» sin cuenta: los de este navegador, más búsqueda por número y teléfono.
 import { HugeIcon } from '~/components/ui/icon';
 import { ArrowRight01Icon, PackageIcon } from '@hugeicons/core-free-icons';
 import { useEffect, useState } from 'react';

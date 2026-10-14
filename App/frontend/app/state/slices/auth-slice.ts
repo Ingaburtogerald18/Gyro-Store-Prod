@@ -1,7 +1,4 @@
-// Estado de sesión reflejado en el cliente. La fuente de verdad del ROL es el
-// backend (GET /api/auth/me lo resuelve server-side con la service_role); acá
-// solo se cachea lo que el server devolvió. El JWT nunca vive en Redux: lo
-// gestiona el cliente de Supabase (lib/supabase.client.ts).
+// La fuente de verdad del rol es el backend (/api/auth/me); acá solo se cachea. El JWT no vive en Redux.
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 
 export type AuthStatus = 'unknown' | 'anonymous' | 'authenticated';
@@ -14,11 +11,7 @@ export interface AuthUser {
   // 'admin' | 'seller' | 'cashier' | 'logistics_admin' | 'customer' — se deja
   // abierto para no duplicar la lista de roles que ya vive en el backend.
   role: string | null;
-  /**
-   * Foto de perfil resuelta por el BACKEND (`profiles.avatar_url`, que llena la
-   * sincronización con Microsoft Graph). Es la única fuente confiable: en los
-   * logins con Entra, `user_metadata.avatar_url` de Supabase viene vacío.
-   */
+  /** Foto de `profiles.avatar_url`, que cada persona sube desde «Mi perfil». */
   photoURL?: string | null;
 }
 

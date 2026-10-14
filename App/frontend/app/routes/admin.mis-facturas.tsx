@@ -1,8 +1,4 @@
-// "Mis Facturas" — portal de vendedor. Solo lectura: ve ÚNICAMENTE las
-// facturas que Caja le asignó (invoices.seller_uid), nunca crea, edita ni
-// anula desde acá. El flujo es abrir el ticket, copiar el número de factura y
-// después ir a Ventas a registrar la venta con ese código (ver
-// server/modules/invoices/invoices-routes.ts → /mine, /lookup, /:id/ticket).
+// «Mis Facturas» del vendedor, solo lectura: abre el ticket, copia el número y registra la venta en Ventas.
 import { HugeIcon } from '~/components/ui/icon';
 import { File01Icon, Time02Icon, ViewIcon } from '@hugeicons/core-free-icons';
 import { useMemo, useState } from 'react';

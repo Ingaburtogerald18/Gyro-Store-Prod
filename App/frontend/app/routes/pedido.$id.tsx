@@ -1,6 +1,4 @@
-// Seguimiento de un pedido sin cuenta: /pedido/<id>. El link sale en la
-// confirmación del checkout y dentro del mensaje de WhatsApp, así que queda en
-// el chat del cliente. El estado lo mueve la tienda desde «Pedidos web».
+// Seguimiento sin cuenta en /pedido/<id>. El link va en el mensaje de WhatsApp; el estado lo mueve la tienda.
 import { HugeIcon } from '~/components/ui/icon';
 import {
   Cancel01Icon,

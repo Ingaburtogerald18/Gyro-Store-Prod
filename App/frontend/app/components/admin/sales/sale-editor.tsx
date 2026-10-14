@@ -1,10 +1,5 @@
 import { FormSection, FormPanel, FormBody, FormActions } from '~/components/ui/form-layout';
-// Editor de venta: el vendedor arma N líneas y ve la cotización EN VIVO
-// (comisión, y para admin el desglose de costos). Portado de `SaleEditor` de v1.
-//
-// Lo que NO se porta, por decisiones ya tomadas en v2 (ver la cabecera de
-// server/modules/sales/sales-register.ts): foto de recibo, admin registrando a nombre de otro
-// vendedor, fecha de venta manual, inventario migrado (modos M1/M2) y cuotas.
+// Editor de venta: varias líneas con la cotización en vivo (comisión, y para admin los costos).
 import { HugeIcon } from '~/components/ui/icon';
 import { Alert02Icon, CheckmarkCircle01Icon } from '@hugeicons/core-free-icons';
 import { useEffect, useMemo, useState } from 'react';
@@ -110,9 +105,8 @@ export function SaleEditor({
     }
   }, [sale]);
 
-  // En modo edición la venta YA tiene su stock reservado, así que sus productos
-  // aparecerían agotados y no se podrían volver a seleccionar. Se les "devuelve"
-  // esa cantidad al catálogo del editor. Sin esto, editar una venta es imposible.
+  // En edición la venta ya tiene su stock reservado: se le devuelve al catálogo del editor para que
+  // sus productos no aparezcan agotados.
   const productsForUi: SellableProduct[] = useMemo(() => {
     if (!sale?.items?.length) return products;
     const byName = new Map(products.map((p) => [p.productName, { ...p }]));
@@ -120,9 +114,7 @@ export function SaleEditor({
       const existing = byName.get(item.productName);
       if (existing) existing.stock += item.quantity || 0;
       else
-        // Sin código: este producto ya no está en el catálogo vendible (se
-        // agotó o se borró el lote), así que se reconstruye desde la línea
-        // guardada y no hay lote del cual sacarlo.
+        // Producto que ya no está en el catálogo vendible: se reconstruye desde la línea guardada.
         byName.set(item.productName, {
           productName: item.productName,
           price: item.salePrice,
@@ -176,22 +168,15 @@ export function SaleEditor({
     0,
   );
 
-  // El importe que se COBRA. Si la venta nace de una factura manda SU total: ya
-  // trae aplicados el descuento (manual y por código) y el delivery, que la
-  // cotización — que solo suma líneas — no conoce.
+  // Lo que se cobra: con factura manda su total, que trae descuento y delivery.
   const displayTotal = linkedInvoice?.total ?? result?.total ?? localTotal;
 
-  // Con una factura ya verificada, las líneas vienen COPIADAS del ticket que
-  // ya se imprimió y se le dio al cliente: dejar que el vendedor las toque
-  // después abriría una discrepancia entre lo que dice el papel y lo que
-  // termina registrado (y cobrando de comisión). Se bloquean hasta que se
-  // borre el código (lo que invalida la verificación, ver el campo de arriba).
+  // Con factura verificada las líneas vienen del ticket impreso: se bloquean para que no difieran del papel.
+  // Borrar el código invalida la verificación.
   const linesLocked = !isEdit && useInvoice && !!linkedInvoice;
 
-  // Caja emitió el ticket a nombre de un vendedor: la venta va a quedar a nombre
-  // de ÉL, no de quien la registra (lo impone `registerSale`, que además rechaza
-  // un override que lo contradiga). Se bloquea el selector para que el admin no
-  // crea que está eligiendo algo que el servidor va a ignorar.
+  // Si Caja asignó el ticket a un vendedor, la venta queda a su nombre: se bloquea el selector para
+  // no aparentar una elección que el servidor ignoraría.
   const invoiceSeller = !isEdit && useInvoice && linkedInvoice?.sellerUid ? linkedInvoice : null;
 
   // UNA sola razón visible a la vez, en orden de prioridad: el botón
@@ -211,9 +196,7 @@ export function SaleEditor({
                 ? 'Escribe el motivo de la edición para habilitar el guardado.'
                 : null;
 
-  // ── Cotización en vivo ──
-  // La dependencia es el JSON de las líneas VÁLIDAS, no el array: así no se
-  // recotiza en cada tecla de una línea todavía incompleta.
+  // ── Cotización en vivo ── Depende del JSON de las líneas válidas: no recotiza por cada tecla.
   const linesKey = JSON.stringify(validLines);
   useEffect(() => {
     const items: SaleLineInput[] = JSON.parse(linesKey);
@@ -255,10 +238,7 @@ export function SaleEditor({
       // Se precarga lo que la factura ya sabe (líneas, cliente, teléfono) y el
       // debounce de 400 ms cotiza solo al llenar las líneas.
       if (inv.items?.length) {
-        // Mismo prorrateo que hace el backend en `registerSale`: el descuento de
-        // la factura baja el precio efectivo de cada línea, así que la
-        // cotización en vivo muestra la comisión REAL y no una inflada que
-        // después no coincide con lo que se registra.
+        // Mismo prorrateo del descuento que el backend, para que la comisión estimada coincida con la registrada.
         const rawSubtotal = inv.items.reduce((sum, it) => sum + it.quantity * it.unitPrice, 0);
         const factor =
           rawSubtotal > 0 ? Math.max(0, (rawSubtotal - (inv.discount ?? 0)) / rawSubtotal) : 1;
@@ -280,11 +260,7 @@ export function SaleEditor({
       if (inv.createdAt) {
         setSaleDate(toYmd(new Date(inv.createdAt)));
       }
-      // El vendedor también se precarga desde la factura: sin esto, la venta
-      // quedaba a nombre de quien está REGISTRANDO (típicamente un admin
-      // verificando el ticket por otra persona), no del vendedor al que Caja
-      // se la asignó al emitirla. Sin dueño asignado (ticket de mostrador) no
-      // hay nada que precargar y queda el comportamiento de siempre.
+      // El vendedor se precarga desde la factura; sin dueño asignado no hay nada que precargar.
       if (isAdmin && inv.sellerUid) {
         setIsRegisteredSeller(true);
         setSelectedSellerId(inv.sellerUid);
@@ -325,9 +301,7 @@ export function SaleEditor({
       // Con una factura ya asignada no se manda override: el vendedor lo pone la
       // factura y el servidor rechaza cualquier otro (ver `registerSale`).
       const overridePayload = isAdmin && !invoiceSeller ? {
-        // "none" es el valor centinela de la opción "Usuario actual": mandarlo
-        // tal cual hacía fallar el zod del backend (espera un uuid) con un
-        // "Invalid input" que no decía nada. Vacío = sin override.
+        // "none" es el centinela de «Usuario actual»: mandarlo hacía fallar el uuid del backend. Vacío = sin cambio.
         overrideSellerId: isRegisteredSeller && selectedSellerId !== 'none' ? selectedSellerId || undefined : undefined,
         overrideSellerName: !isRegisteredSeller ? externalSellerName.trim() || undefined : undefined,
       } : {};
@@ -449,10 +423,7 @@ export function SaleEditor({
                           value={invoiceNumber}
                           onChange={(e) => {
                             setInvoiceNumber(e.target.value.toUpperCase());
-                            // Tocar el código invalida la verificación anterior:
-                            // sin esto, las líneas quedarían "bloqueadas" mostrando
-                            // los productos de OTRA factura mientras el campo ya
-                            // dice un código distinto.
+                            // Tocar el código invalida la verificación: si no, las líneas mostrarían otra factura.
                             setLinkedInvoice(null);
                           }}
                           placeholder="Ej. GS-PR-12"

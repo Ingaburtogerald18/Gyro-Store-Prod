@@ -18,13 +18,7 @@ async function authHeaders(): Promise<Record<string, string>> {
   return { Authorization: `Bearer ${session.access_token}` };
 }
 
-/**
- * Traduce la respuesta de error del backend a un mensaje legible.
- *
- * `issues` viene de un `safeParse` de Zod del lado del servidor (ver
- * modules/settings/admin-config-routes.ts). Sin desglosarlo, un formulario rechazado mostraba
- * "Error al guardar" y la persona no tenía forma de saber qué campo estaba mal.
- */
+/** Desglosa los `issues` de Zod del servidor: si no, solo decía «Error al guardar» sin decir qué campo. */
 function describeError(payload: unknown, fallback: string): string {
   const body = payload as { error?: string; issues?: { message?: string }[] } | null;
   if (body?.issues?.length) {
@@ -46,17 +40,9 @@ export interface ConfigSectionOptions<T extends FieldValues> {
   loadErrorMessage: string;
   /** Mensaje cuando el PUT falla y el backend no dijo nada útil. */
   saveErrorMessage: string;
-  /**
-   * Normaliza lo que devolvió el servidor antes de meterlo al formulario (por
-   * ejemplo, cambiar `null` por `''`, o envolver un array en el objeto que el
-   * formulario necesita para poder usar `useFieldArray`).
-   */
+  /** Ajusta lo que devolvió el servidor antes de meterlo al formulario (null → '', envolver un array…). */
   normalize?: (raw: any) => T;
-  /**
-   * Inverso de `normalize`: qué se manda en el PUT. Por defecto van los valores
-   * del formulario tal cual, pero hay endpoints que esperan otra forma — el de
-   * categorías recibe el array pelado, no `{ categories: [...] }`.
-   */
+  /** Inverso de `normalize`: qué se manda en el PUT (categorías espera el array pelado). */
   serialize?: (values: T) => unknown;
   /** Se llama después de un guardado exitoso. */
   onSaved?: () => void;
@@ -85,9 +71,8 @@ export function useConfigSection<T extends FieldValues>({
   const form = useForm<T>({ resolver, defaultValues });
   const { reset, handleSubmit } = form;
 
-  // `normalize` y `onSaved` llegan como funciones inline, así que cambian de
-  // identidad en cada render. Guardadas en un ref, `load` puede depender solo de
-  // la URL: si fueran dependencias, cada render dispararía otra carga, en bucle.
+  // `normalize` y `onSaved` cambian de identidad en cada render: en un ref, `load` depende solo de la URL
+  // y no se dispara en bucle.
   const normalizeRef = useRef(normalize);
   const serializeRef = useRef(serialize);
   const onSavedRef = useRef(onSaved);
@@ -145,9 +130,7 @@ export function useConfigSection<T extends FieldValues>({
       const payload = await res.json().catch(() => null);
       if (!res.ok) throw new Error(describeError(payload, saveErrorMessage));
 
-      // Se resetea con lo que devolvió el SERVIDOR, no con lo que se envió: es
-      // la única forma de ver los valores ya normalizados (recortes, defaults)
-      // y de que el formulario deje de estar "sucio".
+      // Se resetea con lo que devolvió el servidor: muestra los valores normalizados y deja de estar sucio.
       reset(normalizeRef.current && payload ? normalizeRef.current(payload) : payload);
 
       // El storefront lee esta config vía GET /api/config; sin invalidar, el

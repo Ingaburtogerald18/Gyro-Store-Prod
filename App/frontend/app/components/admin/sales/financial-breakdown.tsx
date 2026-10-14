@@ -1,19 +1,5 @@
-// La cadena financiera de una línea (Docs/03-Finanzas.md §4) y el reparto en pozos (§2),
-// dibujados una sola vez para los dos momentos en que se miran:
-//
-//   · el cotizador, ANTES de registrar — números estimados;
-//   · el detalle de una venta, DESPUÉS — el snapshot congelado en order_items.
-//
-// Vivían duplicados: `QuoteSummary` tenía su propio `LineBreakdown` y
-// `CostDistributionCard` su propia pila de barras de pozos. Son la misma
-// información leída en dos pantallas, y dos copias divergen — que es justo lo
-// que `commission.ts` evita del lado del cálculo con una función única para los
-// dos momentos. Acá se hace lo mismo del lado del dibujo.
-//
-// Doble capa para lo sensible: el backend ya recorta los campos de costo según
-// el rol, así que acá NO se decide quién ve qué — si un campo viene `undefined`,
-// su fila no se renderiza. Un vendedor nunca ve costo, utilidad ni pozos porque
-// no le llegan.
+// La cadena financiera de una línea y sus pozos, dibujada una vez para el cotizador y el detalle.
+// Lo sensible lo recorta el backend: un campo undefined no se dibuja.
 import { HugeIcon } from '~/components/ui/icon';
 import { ArrowDown01Icon } from '@hugeicons/core-free-icons';
 import { useState, type ReactNode } from 'react';
@@ -53,13 +39,7 @@ export interface FinancialChainLine {
   pozos?: Record<string, number>;
 }
 
-/**
- * Desglose de una línea, colapsable.
- *
- * `defaultExpanded` porque los dos usos quieren cosas distintas: el cotizador
- * abre el detalle de una sola línea que estás construyendo, y el detalle de una
- * venta con cinco productos sería un muro si arrancara todo abierto.
- */
+/** `defaultExpanded`: el cotizador abre su línea; el detalle de cinco productos sería un muro. */
 export function LineBreakdown({
   line,
   defaultExpanded = true,
@@ -112,11 +92,7 @@ export function LineBreakdown({
         <div className="space-y-2 border-t px-3 py-2">
           {warnings}
 
-          {/* Dos columnas: unitario × cantidad = total. La cadena financiera se
-              calcula POR UNIDAD (de ahí sale el tramo de comisión) y recién se
-              multiplica, así que mostrar solo el total escondía de dónde salía
-              el porcentaje. En móvil no entran dos columnas de cifras: queda
-              solo la de totales. */}
+          {/* Unitario × cantidad = total: el tramo sale del valor unitario. En móvil queda solo la de totales. */}
           <dl className="nums divide-y divide-border/40 text-xs">
             <div className="flex items-center justify-end gap-4 pb-1 text-2xs font-semibold uppercase tracking-wider text-muted-foreground">
               <span className="hidden w-20 text-right sm:block">Unitario</span>
@@ -164,9 +140,7 @@ export function LineBreakdown({
             )}
             {line.comision !== undefined && (
               <ChainRow
-                // El tramo sale de la utilidad neta UNITARIA: la etiqueta lo dice
-                // para que se entienda por qué es ese porcentaje y no otro. Al
-                // vendedor no le llega el %, y ahí la fila queda sin paréntesis.
+                // La etiqueta dice que el tramo sale de la utilidad unitaria. Sin %, para el vendedor no hay paréntesis.
                 label={
                   line.comisionPercent !== undefined
                     ? `Comisión vendedor (${Math.round(line.comisionPercent * 100)}% de la neta unitaria)`
@@ -197,14 +171,7 @@ export function LineBreakdown({
   );
 }
 
-/**
- * Fila del desglose. `unit` es opcional: para el rol seller el backend no manda
- * los valores unitarios de costo, y la fila cae a una sola columna.
- *
- * Las dos columnas son de ancho fijo (`w-20` / `w-24`) y `text-right`: con ancho
- * automático los dígitos no se alinean entre filas, que es justo lo que hace
- * legible una tabla de números.
- */
+/** Sin unitarios (vendedor) cae a una columna. Anchos fijos para que los dígitos se alineen. */
 export function ChainRow({
   label,
   unit,
@@ -264,13 +231,7 @@ export const POZOS = [
   'servicios',
 ] as const;
 
-/**
- * Suma el reparto de varias líneas en un único set de 7 pozos.
- *
- * Se redondea a centavos al cerrar cada pozo: acumular flotantes deja cosas como
- * `14.700000000000001`, y aunque `formatCordobas` lo esconda al imprimir, el
- * valor crudo también alimenta el cálculo de porcentajes de las barras.
- */
+/** Redondea cada pozo a centavos: los flotantes acumulados alimentan los porcentajes de las barras. */
 export function sumPozos(lines: { pozos?: Record<string, number> }[]): Record<string, number> {
   const acc: Record<string, number> = {};
   for (const line of lines) {
@@ -285,15 +246,8 @@ export function sumPozos(lines: { pozos?: Record<string, number> }[]): Record<st
 }
 
 /**
- * El reparto del Costo F/U como barras, de mayor a menor.
- *
- * La barra mide el % SOBRE EL TOTAL repartido, no sobre el pozo más grande. Con
- * `amount / max` el mayor llegaba SIEMPRE al 100% aunque se llevara el 22% del
- * Costo F/U, y el gráfico decía lo mismo con cualquier dato: era un ranking
- * disfrazado de proporción. Así las siete barras suman 100%.
- *
- * `barsReady` lo maneja quien llama: las barras entran desde 0 en el primer
- * frame tras montar para que se vea el llenado.
+ * La barra mide el % sobre el total repartido, no sobre el mayor (que siempre llegaba al 100 %).
+ * `barsReady` lo maneja quien llama, para ver el llenado.
  */
 export function PozosBars({
   pozos,
@@ -316,9 +270,7 @@ export function PozosBars({
     <div className="space-y-3">
       {ordenados.map(({ pozoKey, amount }, i) => {
         const pct = total > 0 ? (amount / total) * 100 : 0;
-        // Los tres mayores en primary pleno; los cuatro restantes atenuados.
-        // Siete barras del mismo color son monótonas y hay que leer los siete
-        // números para encontrar el mayor.
+        // Los tres mayores en color pleno: siete barras iguales obligan a leer los números.
         const destacado = i < 3;
 
         return (
@@ -330,9 +282,7 @@ export function PozosBars({
                 <span className="ml-2 text-xs opacity-70">{pct.toFixed(1)}%</span>
               </span>
             </div>
-            {/* Progress de shadcn: trae role="progressbar" y sus valores ARIA,
-                que la barra hecha a mano no tenía. Arranca en 0 y sube al
-                montar; con reduced-motion va directo al valor. */}
+            {/* Progress de shadcn trae role="progressbar" y ARIA. Con reduced-motion va directo al valor. */}
             <Progress
               value={barsReady ? pct : 0}
               aria-label={`${POZO_LABELS[pozoKey] ?? pozoKey}: ${pct.toFixed(1)}% del costo fijo repartido`}

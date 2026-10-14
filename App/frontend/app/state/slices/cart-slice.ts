@@ -83,11 +83,8 @@ const cartSlice = createSlice({
   },
 });
 
-// Payload para POST /api/orders/public. Una línea viaja como producto O como
-// combo — nunca las dos cosas: el contrato lo exige y el servidor resuelve el
-// precio a partir del id que reciba.
-// `unitPrice` es el precio que el cliente vio: si el servidor calcula otro, el
-// pedido se frena para revisar en vez de cobrar algo distinto a lo mostrado.
+// Una línea es producto o combo. `unitPrice` es el que vio el cliente: si el servidor calcula otro,
+// el pedido se frena para revisar.
 export function toOrderItems(items: CartItem[]): PublicOrderItemInput[] {
   return items.map((i) =>
     i.comboId

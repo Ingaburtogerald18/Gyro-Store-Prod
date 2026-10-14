@@ -151,10 +151,7 @@ export default function Contacto() {
           <div className="space-y-4">
             <div className="rounded-2xl border bg-card p-5 shadow-xs">
               <h2 className="font-heading text-lg font-bold text-foreground">Visitanos</h2>
-              {/* La dirección sale de la config editable en el panel, no de un
-                      literal: estaba hardcodeada como "Managua, Nicaragua" mientras
-                      `business_info.address` ya existía y nadie la leía, así que
-                      cambiarla desde Configuración no tenía efecto acá. */}
+              {/* La dirección sale de la configuración del panel, no de un texto fijo. */}
               <a
                 href={
                   config?.locationUrl?.trim() ||

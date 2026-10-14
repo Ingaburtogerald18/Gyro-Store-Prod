@@ -1,7 +1,4 @@
-// Dominio storefront público (sin auth): catálogo + combos, pedidos por
-// WhatsApp, config del landing y formulario de contacto. Agrupa los cuatro
-// slices públicos que antes vivían sueltos (catalogApi, ordersApi, landingApi,
-// contactApi); un solo injectEndpoints sobre baseApi, mismos hooks y tags.
+// Tienda pública (sin sesión): catálogo, combos, pedidos, portada y contacto.
 import type {
   CatalogDetail,
   CatalogProduct,
@@ -42,7 +39,7 @@ export interface CreatedPublicOrder {
 /** Línea de un pedido ya resuelta por el servidor (nombre e imagen actuales). */
 export interface PublicOrderLine {
   name: string;
-  /** Combinación elegida; null en pedidos previos a la migración 0019. */
+  /** Combinación elegida; null en pedidos viejos. */
   variantName: string | null;
   image: string | null;
   quantity: number;
@@ -64,17 +61,13 @@ export interface PublicOrderTracking {
 
 export const storefrontApi = baseApi.injectEndpoints({
   endpoints: (build) => ({
-    // ── Catálogo público. Los tipos vienen del contrato
-    // único compartido: el backend valida contra `publicCatalogItemSchema` y
-    // presenta `CatalogProduct` (plano, camelCase) antes de responder.
+    // ── Catálogo público ── El backend valida y presenta `CatalogProduct` antes de responder.
     getCatalog: build.query<CatalogProduct[], void>({
       query: () => 'catalog',
       transformResponse: (response: ItemsResponse<CatalogProduct>) => response.items,
       providesTags: ['Catalog'],
     }),
-    // Detalle con ejes de variante resueltos. La ficha lo carga por SSR
-    // (loader de producto.$id.tsx); este hook es para el QuickAddSheet, que
-    // necesita los ejes desde la tarjeta sin navegar.
+    // La ficha carga el detalle por SSR; este hook es para el selector rápido de la tarjeta.
     getCatalogDetail: build.query<CatalogDetail, string>({
       query: (id) => `catalog/${id}`,
       providesTags: (_res, _err, id) => [{ type: 'Catalog' as const, id }],
@@ -104,8 +97,7 @@ export const storefrontApi = baseApi.injectEndpoints({
       providesTags: ['Landing'],
     }),
 
-    // ── Formulario de contacto público → captura el lead en el CRM
-    // (server/modules/crm/crm.ts). En v2 escribe en el dominio de contactos.
+    // ── Contacto ── Captura el lead en el CRM.
     sendContact: build.mutation<{ ok: boolean }, PublicContactInput>({
       query: (body) => ({ url: 'contact', method: 'POST', body }),
     }),

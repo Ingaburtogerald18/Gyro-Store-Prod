@@ -1,6 +1,4 @@
-// Información comercial vigente, en UN solo lugar: ficha, carrito, checkout y
-// footer la leen de acá. Son las reglas acordadas con la tienda; lo que no está
-// definido (horarios límite, tarifas, cobertura, inicio del plazo) NO se escribe.
+// Información comercial vigente, leída por ficha, carrito, checkout y footer. Lo no definido no se escribe.
 export const STORE_POLICIES = {
   warranty: {
     title: 'Garantía de 1 mes',

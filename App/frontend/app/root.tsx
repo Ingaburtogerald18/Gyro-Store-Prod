@@ -1,6 +1,4 @@
-// Layout raíz de Remix.
-// Responsabilidades: cargar tailwind.css, fijar data-theme/data-skin y exponer
-// las llaves públicas de Supabase al navegador vía window.ENV.
+// Layout raíz: tailwind.css, data-theme y las llaves públicas de Supabase en window.ENV.
 import type { LinksFunction, LoaderFunctionArgs } from '@remix-run/node';
 import {
   Links,
@@ -30,12 +28,7 @@ import tailwindHref from './tailwind.css?url';
 import gyroBag from '~/assets/brand/gyro-bag.png';
 import chivoWoff2 from '@fontsource-variable/chivo/files/chivo-latin-wght-normal.woff2?url';
 
-// Sin Google Fonts: Chivo (catálogo y panel) y Chivo Mono (códigos)
-// se sirven localmente vía @fontsource-variable, importadas desde tailwind.css.
-// Se precarga el woff2 latino de Chivo: es la fuente del primer paint de la
-// tienda y, sin preload, el titular del hero salta de fuente al cargar.
-//
-// El favicon inicial se reemplaza por el configurado al hidratar.
+// Fuentes locales con @fontsource. Se precarga Chivo latino: sin eso el hero salta de fuente al cargar.
 export const links: LinksFunction = () => [
   { rel: 'stylesheet', href: tailwindHref },
   { rel: 'preload', href: chivoWoff2, as: 'font', type: 'font/woff2', crossOrigin: 'anonymous' },
@@ -85,15 +78,8 @@ export function Layout({ children }: { children: ReactNode }) {
       suppressHydrationWarning
     >
       <head>
-        {/* Zod en modo `jitless` — DEBE ir antes que cualquier módulo del bundle.
-            Zod 4 compila los esquemas con `new Function` (JIT). Nuestra CSP
-            (`script-src 'self' 'nonce-…'`, sin `'unsafe-eval'`) bloquea ese eval:
-            aunque Zod lo atrapa y cae a modo interpretado, deja un
-            `securitypolicyviolation` que DevTools muestra como Issue. Pre-seteando
-            `__zod_globalConfig.jitless` acá (script inline, corre en el parseo del
-            <head>, ANTES de que los `type=module` deferidos evalúen Zod) evitamos
-            el probe y el JIT por completo, sin abrir `'unsafe-eval'` en la CSP.
-            Ver zod/src/v4/core/{util,core}.ts y el test jitless-allows-eval. */}
+        {/* Zod en modo jitless antes de cualquier módulo: su JIT usa `new Function`, que la CSP bloquea y
+            DevTools reporta. Así no hace falta abrir 'unsafe-eval'. */}
         <script
           nonce={nonce}
           dangerouslySetInnerHTML={{
@@ -128,9 +114,7 @@ export function ErrorBoundary() {
   return <RouteError />;
 }
 
-/** Sincroniza DOM y Redux después de hidratar, sin depender de un botón visible.
- *  También entre pestañas: elegir el tema en una pestaña lo aplica en las demás
- *  (el evento `storage` solo llega a las OTRAS pestañas del mismo origen). */
+/** Sincroniza DOM y Redux tras hidratar, también entre pestañas (evento `storage`). */
 function ThemeSync() {
   const dispatch = useAppDispatch();
   useEffect(() => {
@@ -146,9 +130,7 @@ function ThemeSync() {
   return null;
 }
 
-/** Favicon dinámico: lee la URL desde la config del admin (Recursos de imágenes)
- *  y la inyecta como `<link rel="icon">` en el `<head>`. Si no hay favicon
- *  configurado, no agrega nada. */
+/** Favicon configurado en Recursos; sin favicon no agrega nada. */
 function DynamicFavicon() {
   const { data: config } = useGetConfigQuery();
   const faviconUrl = config?.images?.favicon;
@@ -182,11 +164,8 @@ export default function App() {
     <Provider store={store}>
       <StoreSync />
       <ThemeSync />
-      {/* TooltipProvider va acá y no dentro de cada vista: las primitivas del
-          registry montan <Tooltip> sin proveedor propio (el `tooltip` de
-          SidebarMenuButton, por ejemplo) y Radix lanza si no encuentra uno.
-          delayDuration 0: en un panel interno el tooltip es una etiqueta del
-          ícono colapsado, no una ayuda opcional — debe salir de inmediato. */}
+      {/* Un solo TooltipProvider: las primitivas montan <Tooltip> sin proveedor y Radix lanza sin uno.
+          delay 0: en el panel el tooltip es la etiqueta del ícono colapsado. */}
       <TooltipProvider delayDuration={0}>
         <GlobalProgress />
         <DynamicFavicon />

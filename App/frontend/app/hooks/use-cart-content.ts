@@ -1,9 +1,5 @@
-// Textos e imágenes del carrito, ya resueltos para pintar.
-//
-// Salen de `landing.cart` (editable en modo edición, se publica con «Guardar
-// cambios»). Mientras se edita, manda el BORRADOR, así el admin ve el cambio en
-// vivo. Cada campo vacío cae al texto de siempre, y cada imagen es una CLAVE de
-// "Recursos de imágenes" que acá se traduce a su URL.
+// Textos e imágenes del carrito ya resueltos. Mientras se edita manda el borrador; vacío cae al texto
+// de siempre y cada imagen es una clave de Recursos.
 import type { CartContent, CartImageKey } from '@shared/schemas';
 import { useStoreConfig, useStoreLanding } from '~/hooks/use-store-config';
 import { useAppSelector } from '~/state/hooks';
@@ -38,12 +34,8 @@ export const CART_IMAGE_FALLBACK = {
 export type CartImages = Partial<Record<CartImageKey, string | undefined>>;
 
 /**
- * Resuelve el contenido con sus valores por defecto. Pura: la usa el carrito y
- * también la vista previa del editor (con el borrador que se está tocando).
- *
- * Imágenes: sin elegir (undefined) cada lugar usa su propia imagen de Recursos;
- * solo "Sin imagen" (cadena vacía) la oculta. Así, subir la imagen en Recursos
- * ya alcanza para que aparezca, sin pasar por el editor.
+ * Pura: la usan el carrito y la vista previa. Sin elegir, cada lugar usa su imagen de Recursos;
+ * solo «Sin imagen» ('') la oculta.
  */
 export function resolveCartContent(raw: CartContent, images: CartImages) {
   const imageUrl = (key: CartContent['emptyImage'], fallback: CartImageKey) => {

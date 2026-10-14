@@ -1,6 +1,4 @@
-// Archivos de una orden de compra (fotos del empaque y factura). Se piden al
-// servidor y no directo al bucket: el bucket es otro dominio y el navegador no
-// deja leerlo desde acá. El agente en Nicaragua pide las fotos para reconocer los bultos.
+// Fotos y factura de una orden, pedidas al servidor: el bucket es otro dominio y no se lee desde acá.
 import { getSupabaseClient } from '~/lib/supabase.client';
 
 async function fetchAdminFile(path: string, fallbackName: string): Promise<File> {

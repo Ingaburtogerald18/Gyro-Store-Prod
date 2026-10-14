@@ -1,8 +1,7 @@
 import { publicOrderInputSchema, type PublicOrderInput, type PublicOrderItemInput } from '@shared/schemas';
 
-// Solo mientras un envío está sin confirmar y solo en esta pestaña. No guardamos
-// el formulario normal en localStorage. El request exacto permite reintentar una
-// respuesta perdida sin cambiar cliente, opciones o cupón.
+// Solo mientras un envío está sin confirmar y en esta pestaña: el request exacto permite reintentar
+// una respuesta perdida sin cambiar cliente, opciones ni cupón.
 export const CHECKOUT_ATTEMPT_KEY = 'gyro:checkout-attempt:v1';
 type AttemptStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 function session(): AttemptStorage | undefined {

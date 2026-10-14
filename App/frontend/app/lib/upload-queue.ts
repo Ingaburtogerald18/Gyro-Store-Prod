@@ -36,11 +36,7 @@ export async function uploadOne(file: File, folder: string): Promise<string> {
   return data.url as string;
 }
 
-/**
- * Recorre recursivamente un objeto (o string o array) buscando URLs temporales (`blob:http...`).
- * Si encuentra una, recupera el archivo de la cola, lo sube a R2 en la carpeta especificada,
- * y reemplaza la URL temporal por la URL definitiva retornada por el servidor.
- */
+/** Busca URLs `blob:` en el objeto, sube cada archivo de la cola y las reemplaza por la URL definitiva. */
 export async function processPendingUploads<T>(data: T, folder: string): Promise<T> {
   if (!data) return data;
 
@@ -50,9 +46,7 @@ export async function processPendingUploads<T>(data: T, folder: string): Promise
       if (file) {
         try {
           const url = await uploadOne(file, folder);
-          // Opcional: remover de la cola para liberar memoria, pero si la UI 
-          // sigue usando el objectURL, dejarlo un rato no hace daño. 
-          // Podemos revocarlo para que no gotee memoria:
+          // Se revoca para no retener memoria.
           URL.revokeObjectURL(data);
           uploadQueue.delete(data);
           return url as T;

@@ -1,6 +1,4 @@
-// Acciones de personal (cambiar rol / dar de baja / restaurar / eliminar) con
-// su mutation + toast + chequeo de usuario protegido. Lo comparten la card de
-// usuario y el diálogo de detalle, para no duplicar los handlers en cada uno.
+// Acciones de Personal (rol, baja, restaurar, eliminar) compartidas por la tarjeta y el detalle.
 import { toast } from "sonner";
 import {
   useUpdateUserRolesMutation,

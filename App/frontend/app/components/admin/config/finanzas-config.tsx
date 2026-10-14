@@ -1,8 +1,6 @@
 import { FormLayout, FormActions, FormBody } from "~/components/ui/form-layout";
 import { FormErrorBanner } from "~/components/ui/form-feedback";
-// Pestaña "Variables" de Configuración: parámetros financieros (tasa, pozos,
-// escalas de costo/margen/comisión, mayoreo). Extraída de admin.configuracion.tsx.
-// Carga y guarda contra /api/admin/config/financial con fallback a /api/admin/config.
+// Pestaña Variables de Configuración: tasa, pozos y escalas de costo, margen, comisión y mayoreo.
 import { HugeIcon } from "~/components/ui/icon";
 import { Delete02Icon } from "@hugeicons/core-free-icons";
 import { Controller, useFieldArray, type Control, type FieldPath } from "react-hook-form";
@@ -29,9 +27,7 @@ const POZO_KEYS = [
   'servicios',
 ] as const;
 
-// El techo de un tramo admite "sin techo" (null → placeholder «Infinito»), así
-// que no puede ir por `register` con `valueAsNumber` (un campo vacío daría NaN,
-// no null). Es el único campo de las escalas que necesita Controller.
+// El techo admite «sin techo» (null): con `valueAsNumber` un campo vacío daría NaN, por eso Controller.
 function CeilingField({
   control,
   name,
@@ -69,11 +65,7 @@ function CeilingField({
 }
 
 export function FinanzasConfig() {
-  // El GET va a la RAÍZ del router, no a `/financial`: ese endpoint de lectura
-  // NUNCA existió (adminConfig.ts expone `GET /` y `PUT /financial`). El código
-  // anterior pedía `/financial`, se comía un 404 en cada apertura de la pestaña,
-  // y recién el "fallback" traía los datos — o sea que el fallback era el camino
-  // real y el primer request, puro desperdicio.
+  // Se lee de la raíz del router (GET /): no existe un GET /financial.
   const { form, loading, loadError, saveError, submit, retry } = useConfigSection<FinancialConfig>({
     loadUrl: '/api/admin/config',
     saveUrl: '/api/admin/config/financial',

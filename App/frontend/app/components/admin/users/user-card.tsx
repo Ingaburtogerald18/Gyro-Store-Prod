@@ -101,10 +101,7 @@ export function UserCard({
         </p>
       )}
 
-      {/* Contacto: solo en la vista de directorio. Para el admin sería ruido —
-          ya tiene la ficha completa a un click— pero para el resto del staff es
-          LO ÚNICO que vienen a buscar acá, y obligarlos a abrir un diálogo por
-          persona para leer un teléfono convierte el directorio en un trámite. */}
+      {/* Contacto solo en el directorio: para el resto del personal es lo que viene a buscar. */}
       {!isAdmin && !user.pending && (user.phone || user.personal_email) && (
         <div className="-mt-1 grid gap-1 text-xs text-muted-foreground">
           {user.phone && (
@@ -136,11 +133,7 @@ export function UserCard({
       {/* Acciones */}
       {isAdmin && (
         <div className="flex items-center gap-2 border-t border-border pt-3">
-          {/* Pendiente: no hay cuenta real todavía, así que ni "Editar"
-              (perfil/banco) ni "Rendimiento" (ventas) tienen nada que
-              mostrar. Solo el rol reservado, que se puede corregir o
-              cancelar — dos botones SEPARADOS y visibles, no uno escondiendo
-              al otro adentro de un menú (ahí no se encontraba "Cancelar"). */}
+          {/* Pendiente: sin cuenta real no hay perfil ni rendimiento; solo el rol reservado, con dos botones visibles. */}
           {user.pending ? (
             <>
               <DropdownMenu>
@@ -194,12 +187,7 @@ export function UserCard({
               </Button>
             </>
           )}
-          {/* Acá vivía un menú «⋮» con el rol y las acciones de baja/eliminación.
-              Se fue entero: la tarjeta es para RECONOCER a alguien y entrar a su
-              ficha, no para administrarlo de refilón. Todo lo administrativo está
-              en la sección «Administración» del diálogo, en un solo lugar y con el
-              estado actual a la vista. Lo único que sigue teniendo acción propia
-              acá es la invitación pendiente, que no tiene ficha a la que entrar. */}
+          {/* Lo administrativo está en la sección «Administración» del diálogo, no en la tarjeta. */}
         </div>
       )}
     </div>

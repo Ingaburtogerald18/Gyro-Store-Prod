@@ -1,6 +1,4 @@
-// Cuotas (Hito 3 admin). Contrato exacto de server/modules/installments/installments-routes.ts —
-// modelo delgado: agenda el cobro de una venta ya aprobada (ver
-// server/modules/installments/installments.ts para el shape real de InstallmentPlan).
+// Cuotas: contrato de installments-routes.ts. El plan agenda el cobro de una venta ya aprobada.
 import { baseApi } from './base-api';
 
 export interface InstallmentPayment {

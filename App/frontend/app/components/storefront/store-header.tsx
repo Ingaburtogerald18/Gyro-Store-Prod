@@ -123,10 +123,7 @@ export function StoreHeader() {
           className="group flex shrink-0 items-center gap-2 rounded-xl py-1 transition-colors hover:bg-primary-2/5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
           aria-label={`Ir al inicio de ${config?.brandName || getBrandName()}`}
         >
-          {/* Logo: el que se sube en el panel (Recursos de imágenes → logo
-              estático o animado). Se muestra a 40px de alto y hasta 140px de
-              ancho (formato recomendado 560×160, 3.5:1). Si el panel no tiene
-              logo, va la bolsa del logo nuevo con el nombre en texto. */}
+          {/* Logo del panel a 40 px de alto y hasta 140 de ancho (recomendado 560×160); sin logo, la bolsa y el nombre. */}
           {logoVideo ? (
             <video
               src={logoVideo}
@@ -165,9 +162,7 @@ export function StoreHeader() {
           )}
         </Link>
 
-        {/* Contenedor central: categorías + búsqueda siempre visible. La búsqueda
-            vivía tras un ícono y solo en la home; en una tienda es la forma más
-            rápida de llegar a un producto, así que está a la vista en toda página. */}
+        {/* La búsqueda está a la vista en toda página: es la forma más rápida de llegar a un producto. */}
         <div className="hidden min-w-0 flex-1 items-center justify-end gap-3 md:flex">
           {showCategories && (
             <div className="hidden min-w-0 flex-1 items-center gap-1 lg:flex">

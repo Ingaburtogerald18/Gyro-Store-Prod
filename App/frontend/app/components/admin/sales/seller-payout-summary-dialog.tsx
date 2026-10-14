@@ -1,6 +1,4 @@
-// Popup que se abre después de aprobar en lote (admin.ventas.tsx): resume
-// cuánto le acabamos de reconocer al vendedor en ESTE lote y cuánto se le
-// debe en total (incluye ventas aprobadas antes, sin pagar todavía).
+// Tras aprobar en lote: cuánto se le reconoció al vendedor en este lote y cuánto se le debe en total.
 import { HugeIcon } from '~/components/ui/icon';
 import { CheckmarkCircle01Icon, Wallet01Icon } from '@hugeicons/core-free-icons';
 
@@ -32,9 +30,7 @@ export function SellerPayoutSummaryDialog({
     skip: !target,
   });
 
-  // Lo que hay que pagarle HOY: las ventas aprobadas sin cobrar todavía, más
-  // cualquier ajuste arrastrado de un corte anterior (mismo cálculo que
-  // `payCommissions` en el backend — no se inventa un total nuevo acá).
+  // Ventas aprobadas sin pagar más ajustes anteriores: el mismo cálculo que `payCommissions`.
   const totalAPagar = summary ? summary.approvedUnpaid.comision + summary.balance : 0;
 
   return (

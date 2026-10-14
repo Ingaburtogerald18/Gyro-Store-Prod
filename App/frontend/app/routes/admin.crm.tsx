@@ -1,8 +1,6 @@
 import { FormLayout, FormDialogContent, FormActions, FormBody } from '~/components/ui/form-layout';
 import { FormErrorBanner, serverErrorMessage } from '~/components/ui/form-feedback';
-// CRM y clientes (fase CRM-A): Agenda de seguimientos + directorio de
-// contactos con Ficha 360. El inbox/bot de WhatsApp (CRM-B/C) llega cuando se
-// conecte la Cloud API de Meta.
+// CRM: seguimientos y contactos con ficha 360. La bandeja de WhatsApp llega con la Cloud API.
 import { HugeIcon } from '~/components/ui/icon';
 import {
   Add01Icon,

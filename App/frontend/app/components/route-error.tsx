@@ -1,10 +1,5 @@
-// Pantalla de error de las rutas. Sin esto, cualquier excepción al renderizar o
-// en un loader mostraba la pantalla por defecto de Remix: en inglés, sin marca y
-// sin salida. Distingue "no existe" (404) de "algo se rompió", porque el usuario
-// puede resolver lo primero y no lo segundo.
-//
-// Ojo: el ErrorBoundary de root.tsx se renderiza FUERA del <Provider> de Redux,
-// así que este componente no puede usar hooks del store ni RTK Query.
+// Pantalla de error con marca, que distingue 404 de un fallo. El ErrorBoundary de root.tsx se
+// renderiza fuera del Provider de Redux: acá no se pueden usar hooks del store.
 import { isRouteErrorResponse, Link, useRouteError } from '@remix-run/react';
 import { useEffect } from 'react';
 import { Alert02Icon, Home01Icon, RefreshIcon } from '@hugeicons/core-free-icons';

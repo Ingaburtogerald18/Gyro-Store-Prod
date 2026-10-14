@@ -1,7 +1,4 @@
-// Tendencia de ventas del periodo. Las barras son el VOLUMEN vendido y las
-// líneas los márgenes (comisión y, si quien mira es admin, ganancia de tienda):
-// mezclarlos en barras agrupadas vuelve ilegible cualquier rango largo, porque
-// tres barras por bucket × 30 buckets no entran en el ancho de una tarjeta.
+// Barras para el volumen y líneas para los márgenes: barras agrupadas no entran en un rango largo.
 import { HugeIcon } from '~/components/ui/icon';
 import { ChartLineData01Icon } from '@hugeicons/core-free-icons';
 import { useMemo } from 'react';

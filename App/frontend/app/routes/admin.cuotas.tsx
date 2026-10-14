@@ -1,18 +1,7 @@
 import { FormLayout, FormDialogContent, FormActions, FormBody } from '~/components/ui/form-layout';
 import { FormErrorBanner, serverErrorMessage } from '~/components/ui/form-feedback';
-// Portal de Cuotas: crear plan sobre una venta aprobada,
-// registrar pagos, ver saldo, cancelar. Solo admin (mismo criterio que v1 y
-// que server/modules/installments/installments-routes.ts).
-//
-// Reciclaje de v1 (admin.cuotas.tsx): se recicla el layout de tarjetas con
-// barra de progreso + historial de pagos expandible — es un patrón sólido y
-// el shape de InstallmentPlan (Hito 3) es parecido. Se reescribe: v1 creaba
-// el plan armando sus propias líneas (con FIFO y comisión incluidos); acá el
-// plan solo agenda el cobro de una venta que Ventas ya aprobó — no hay
-// customerName/customerPhone propios, se usan phone/sellerEmail de la orden
-// vinculada (server/modules/installments/installments.ts los agrega vía join). No hay
-// nextPaymentDate por cuota (no existe esa columna en v2): se muestra solo la
-// fecha de la primera cuota.
+// Cuotas: crear un plan sobre una venta aprobada, registrar pagos y cancelar. Solo admin.
+// Solo se guarda la fecha de la primera cuota.
 import { HugeIcon } from '~/components/ui/icon';
 import {
   Add01Icon,
@@ -78,10 +67,7 @@ function ProgressBar({ paid, total }: { paid: number; total: number }) {
   );
 }
 
-// ── Formularios (react-hook-form + zod) ──
-// La validación de cada campo va en su FieldError; el toast queda para el
-// resultado. Mismas reglas que registerInstallmentPaymentInputSchema y
-// createInstallmentPlanInputSchema del backend.
+// ── Formularios ── El error va en cada campo y el toast queda para el resultado.
 
 /** Número obligatorio desde un <input>: vacío falla (no se convierte en 0). */
 const requiredNumber = (message: string) =>
@@ -425,8 +411,7 @@ export default function AdminCuotas() {
   const [createFor, setCreateFor] = useState<SaleListItem | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
 
-  // Ventas aprobadas sin plan todavía (installments.order_id es UNIQUE — doc
-  // 09 migración 0010).
+  // Ventas aprobadas sin plan (`installments.order_id` es único).
   const salesWithoutPlan = useMemo(
     () => withoutIds(approvedSales, plans.map((p) => p.orderId), (s) => s.id),
     [approvedSales, plans],

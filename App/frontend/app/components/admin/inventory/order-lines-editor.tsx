@@ -1,6 +1,4 @@
-// Líneas de una orden de compra: una por variante de una plantilla. Si el
-// modelo todavía no tiene plantilla, se crea ahí mismo sin perder lo escrito.
-// Al guardar, el servidor crea (sin publicar) o reutiliza el producto del catálogo.
+// Líneas de una orden: una por variante de plantilla. Si el modelo no tiene plantilla, se crea ahí mismo.
 import { Add01Icon, Delete02Icon } from "@hugeicons/core-free-icons";
 import { useMemo, useState } from "react";
 

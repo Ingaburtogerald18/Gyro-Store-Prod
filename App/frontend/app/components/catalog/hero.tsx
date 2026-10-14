@@ -1,20 +1,5 @@
-// Hero slider de la home: contenedor split (media a la izquierda, texto a la
-// derecha), flechas e indicadores discretos.
-//
-// Presentación MANUAL por defecto: no hay una configuración explícita de
-// autoplay, así que el carrusel no rota solo. El botón de reproducir lo activa
-// a pedido; la pausa manual se respeta aunque se toquen los indicadores, y la
-// rotación se detiene fuera de pantalla o con la pestaña oculta.
-//
-// Los slides vienen de /api/landing-config (editables desde el panel). El SSR
-// siembra el primer render con `initialLanding` para que no parpadee; RTK Query
-// se vuelve la fuente de verdad en cliente.
-//
-// ── Modo edición ──
-// Un admin puede activarlo desde el menú del avatar (solo en la home) y editar
-// las diapositivas EN LA PÁGINA: mover, editar, agregar y borrar. Se edita acá y
-// no en el panel porque una diapositiva es composición visual — el texto y la
-// foto se juzgan viendo el resultado, no un formulario en otra pantalla.
+// Banners de la portada. No rotan solos salvo que se active la reproducción; se detienen fuera de
+// pantalla. El SSR siembra el primer render con `initialLanding` para que no parpadee.
 import { HugeIcon } from "~/components/ui/icon";
 import { ArrowDown01Icon, ArrowLeft01Icon, ArrowRight01Icon, ArrowRight02Icon, PauseIcon, PlayIcon } from "@hugeicons/core-free-icons";
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -149,9 +134,8 @@ export function Hero({ initialLanding }: { initialLanding?: LandingConfig | null
             <SlideMedia
               key={activeSlide.id}
               slide={activeSlide}
-              // El video se pausa fuera de pantalla o con movimiento reducido; un
-              // GIF/WebP solo se congela con movimiento reducido (el botón de
-              // pausa detiene la ROTACIÓN de banners, no la animación de la imagen).
+              // El video se pausa fuera de pantalla o con movimiento reducido; la pausa del carrusel detiene la
+              // rotación, no la animación de la imagen.
               paused={Boolean(reduce) || !visible}
               freeze={Boolean(reduce)}
               className="absolute inset-0 h-full w-full object-contain p-2 sm:p-4"

@@ -1,11 +1,5 @@
-// Editor de textos e imágenes del carrito (dentro del editor de la tienda).
-//
-// Una parte por vez (carrito vacío, carrito con productos, pedido recibido),
-// con una vista previa hecha con las MISMAS piezas del carrito real. Cada cambio
-// va directo al borrador, como el resto del editor; la tienda cambia al publicar.
-//
-// Las imágenes se eligen entre las de "Recursos de imágenes"; cada lugar usa la
-// suya por defecto.
+// Textos e imágenes del carrito, una parte a la vez, con vista previa hecha con las piezas reales.
+// Cada cambio va al borrador; la tienda cambia al publicar.
 import { useEffect, useState } from 'react';
 import { Link } from '@remix-run/react';
 
@@ -111,12 +105,7 @@ function ImagePicker({
   );
 }
 
-/**
- * Vista previa con las MISMAS piezas del carrito real (CartEmptyState,
- * CartBanner, CartLine, OrderPlaced) dentro de `.store-preview`: misma escala,
- * textos y estilos que la tienda. Es solo visual: no agrega nada al carrito ni
- * crea pedidos.
- */
+/** Solo visual: no agrega nada al carrito ni crea pedidos. */
 const SAMPLE_LINE: CartItem = {
   catalogId: 'preview',
   name: 'Producto de ejemplo',

@@ -1,19 +1,5 @@
-// Encabezado de una orden de compra de Alibaba: número, fecha, impuesto por
-// unidad, proveedor, factura y fotos del empaque. Lo usan "Registrar compra" y
-// "Editar orden".
-//
-// En "Registrar compra" el número sugiere las órdenes ya registradas, y si
-// coincide con una, el resto del encabezado se reemplaza por `existingSlot`
-// (los productos se agregan a esa orden en vez de crear otra).
-//
-// La factura no es de la orden sino de la compra: Alibaba puede partir un pago
-// en varias órdenes con UNA factura. Se carga una vez ("Factura nueva") y las
-// otras órdenes la eligen de la lista; su total se compara contra la suma de
-// todas las órdenes que cubre.
-//
-// Componente controlado: el formulario que lo usa guarda el estado. El
-// proveedor y la factura pueden ser uno guardado o uno nuevo, y el archivo de
-// la factura se sube al elegirlo, así que el payload se arma al guardar.
+// Encabezado de una orden: número, fecha, impuesto, proveedor, factura y fotos. Si el número coincide con
+// una orden existente, los productos se agregan a esa. Una factura puede cubrir varias órdenes.
 import { useMemo, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 
@@ -169,11 +155,7 @@ export async function orderHeaderPayload(state: OrderHeaderState): Promise<Purch
   };
 }
 
-/**
- * Cuánto falta (o sobra) para llegar al total de la factura. Como los productos
- * se cargan de a uno, que la suma no llegue todavía es lo normal: solo pasarse
- * es raro.
- */
+/** Mientras se cargan productos es normal que la suma no llegue al total; solo pasarse es raro. */
 export function invoiceGapText(invoiceTotal: number | null, linesTotal: number): { text: string; over: boolean } | null {
   if (invoiceTotal == null || linesTotal <= 0) return null;
   const diff = invoiceTotal - linesTotal;

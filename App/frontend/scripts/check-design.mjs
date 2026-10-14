@@ -1,6 +1,5 @@
-// Revisa en los .tsx de app/ las reglas de DESIGN.md que se pueden medir:
-// colores sueltos, tamaños de letra sueltos, colores de la paleta de Tailwind
-// y la variante `secondary`. Sale con código 1 si encuentra alguno.
+// Revisa en los .tsx las reglas medibles de DESIGN.md (colores y tamaños sueltos, paleta de Tailwind,
+// variante `secondary`). Sale con código 1 si encuentra alguno.
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";

@@ -1,7 +1,5 @@
 import { FormDialogContent, FormPanel, FormBody, FormActions } from "~/components/ui/form-layout";
-// Ajuste de stock de un lote: merma (defecto, rotura, pérdida) o corrección de
-// conteo, siempre con motivo. Cada ajuste queda en el historial del lote
-// (`stock_movements`, migración 0023), junto con las devoluciones de ventas.
+// Merma o corrección de conteo de un lote, siempre con motivo; queda en `stock_movements`.
 import { useState } from "react";
 import { toast } from "sonner";
 

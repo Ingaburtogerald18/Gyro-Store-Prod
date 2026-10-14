@@ -1,7 +1,5 @@
-// Devoluciones de una venta aprobada o pagada (garantía de 1 mes por defecto de
-// fábrica, o un cambio). La unidad vuelve a bodega o sale como merma; la línea
-// se recalcula y, si la venta ya se pagó, la diferencia de comisión queda como
-// ajuste para el próximo pago. Requiere la migración 0023.
+// Devoluciones de una venta aprobada o pagada: la unidad vuelve a bodega o sale como merma; si ya
+// se pagó, la diferencia de comisión queda como ajuste.
 import { useState } from 'react';
 import { toast } from 'sonner';
 

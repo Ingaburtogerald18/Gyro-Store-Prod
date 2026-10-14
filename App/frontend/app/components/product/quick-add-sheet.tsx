@@ -1,11 +1,5 @@
-// QuickAddSheet: con >1 combinación, la tarjeta abre este panel para elegir
-// ANTES de agregar.
-//
-// Los ejes no viajan en el listado (solo `variantCount`/`axesSummary`), así que
-// se piden al detalle recién al abrir — RTK Query los cachea por id. Las reglas
-// (qué se puede agregar, qué falta, qué está agotado) son las mismas de la ficha:
-// `lib/purchase.ts`. Mientras carga, si falla o si la combinación no es
-// comprable, no se agrega nada.
+// Con más de una combinación la tarjeta abre este panel. Los ejes se piden al abrir (no vienen en el
+// listado). Mientras carga o si falla, no se agrega nada.
 import { useMemo, useState } from 'react';
 import { Link } from '@remix-run/react';
 import { HugeIcon } from '~/components/ui/icon';

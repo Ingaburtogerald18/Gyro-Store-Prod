@@ -1,10 +1,5 @@
-// Buscador del catálogo. La fuente de verdad es `ui.search` en Redux: el header
-// escribe y la grilla lee, sin pasarse props por media app.
-//
-// El panel de recomendaciones del V1 (términos populares + productos destacados)
-// NO se porta todavía: depende de la telemetría de búsqueda, que en este
-// proyecto no existe (no hay tabla ni endpoint /api/search-events/popular). Un
-// panel con datos inventados sería peor que ninguno.
+// La fuente de verdad es `ui.search` en Redux. No hay panel de búsquedas populares: faltaría un
+// endpoint público sobre la analítica, y con datos inventados sería peor que ninguno.
 import { HugeIcon } from '~/components/ui/icon';
 import { Cancel01Icon, Search01Icon } from '@hugeicons/core-free-icons';
 

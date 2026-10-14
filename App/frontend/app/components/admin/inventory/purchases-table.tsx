@@ -1,10 +1,5 @@
-// Registro de compras (China), agrupado por ORDEN DE ALIBABA (migración 0024).
-// Sin la migración, o para compras sueltas sin orden, se agrupa por lote como
-// antes. Cada grupo conserva su resumen al cerrar los productos. El total
-// completo de la orden se distingue del subtotal de productos filtrados.
-//
-// El filtrado (búsqueda, estado) lo decide la pantalla; esta tabla recibe los
-// valores ya elegidos para que la barra de herramientas sea una sola.
+// Compras agrupadas por orden (las sueltas, por lote). El total de la orden se distingue del
+// subtotal filtrado. El filtro lo decide la pantalla.
 import {
   Add01Icon,
   Delete02Icon,
@@ -54,9 +49,7 @@ import { InvoiceViewerDialog, PackagePhotosDialog } from "./order-file-viewers";
 
 export type PurchaseStatusFilter = "all" | "transit" | "received" | "late" | "incomplete";
 
-// ── Estado: UNA píldora por fila ──
-// Verde = en bodega, azul = en camino, ámbar = en camino más de lo normal
-// (banda "bad" de lib/transit). El rojo no se usa: ninguna compra es un error.
+// Una píldora por fila: verde en bodega, azul en camino, ámbar demorada. Rojo no: ninguna compra es un error.
 type Tone = "ok" | "transit" | "late" | "partial";
 
 const TONE_BADGE: Record<Tone, { status: BadgeStatus; label: string }> = {

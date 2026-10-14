@@ -1,7 +1,4 @@
-// Ventas (Hito 3 admin). Contrato exacto de server/modules/sales/sales-routes.ts — no
-// inventar campos: quote/register devuelven lo que el backend realmente
-// manda (ver server/modules/sales/ para los shapes de QuoteResult/
-// RegisteredSale/SaleListItem).
+// Ventas: contrato de sales-routes.ts; los tipos reflejan lo que el backend manda (ver modules/sales/).
 import { baseApi } from './base-api';
 
 export type SaleStatus = 'pending_approval' | 'approved' | 'paid' | 'rejected';
@@ -81,9 +78,7 @@ export interface RegisteredSale {
   total: number;
 }
 
-// Edición de una venta ya registrada (PUT /api/sales/:id, solo admin).
-// `reason` es OBLIGATORIO cuando la venta ya salió de `pending_approval`:
-// el backend lo rechaza sin él (server/modules/sales/sales-edit.ts → updateSale).
+// PUT /api/sales/:id (admin). `reason` es obligatorio si la venta ya no está pendiente.
 export interface UpdateSaleInput {
   id: string;
   customerName?: string;
@@ -95,13 +90,7 @@ export interface UpdateSaleInput {
   reason?: string;
 }
 
-/**
- * Una venta con sus líneas. La devuelve `GET /api/sales/:id`.
- *
- * Los campos financieros por línea son OPCIONALES porque el backend los recorta
- * por rol: un vendedor recibe qué vendió y a cuánto, nunca el costo ni la
- * ganancia de la tienda.
- */
+/** Los campos financieros por línea son opcionales: un vendedor no recibe costo ni ganancia. */
 export interface SaleWithItems extends SaleListItem {
   items: (SaleLineInput & {
     costeFinalSnap?: number;
@@ -160,10 +149,8 @@ export interface SaleListItem {
   belowMinMargin?: boolean;
 }
 
-// ── Pago de comisiones ──
-// Un lote de pago es inmutable: registra lo que se entregó. Si después se edita
-// una venta ya pagada, la diferencia va a `balance` y se salda en el próximo
-// corte (ver server/modules/sales/seller-payments.ts).
+// ── Pago de comisiones ── Un lote no se reescribe: la diferencia de una venta pagada y editada va a
+// `balance` y se salda en el próximo corte.
 
 export interface CommissionPayment {
   id: string;
@@ -238,12 +225,7 @@ export const salesApi = baseApi.injectEndpoints({
       query: (id) => ({ url: `sales/${id}/approve`, method: 'POST' }),
       // Aprobar mueve reservado → vendido en los lotes: Inventario tiene que refrescarse.
       invalidatesTags: ['Sale', 'Purchase', 'Product'],
-      // ── Optimistic update ──
-      // Aprobar es un click sobre una fila que el admin está mirando. Esperar
-      // el round-trip para que la fila cambie de estado hace que el panel se
-      // sienta lento aunque el backend responda rápido. Acá la fila cambia al
-      // instante y, si el servidor rechaza, `undo()` la devuelve exactamente a
-      // donde estaba — no a un estado "refrescado" que podría diferir.
+      // Actualización optimista: la fila cambia al instante y `undo()` la devuelve si el servidor rechaza.
       async onQueryStarted(id, { dispatch, queryFulfilled }) {
         const patches = [
           // La venta desaparece del listado de pendientes…
@@ -282,7 +264,7 @@ export const salesApi = baseApi.injectEndpoints({
       providesTags: ['Sale'],
     }),
 
-    // ── Devoluciones (admin, migración 0023) ──
+    // ── Devoluciones (admin) ──
     getSaleReturns: build.query<SaleReturn[], string>({
       query: (id) => `sales/${id}/returns`,
       providesTags: ['Sale'],
@@ -326,9 +308,7 @@ export const salesApi = baseApi.injectEndpoints({
       invalidatesTags: ['CommissionPayment'],
     }),
 
-    // ── Portal del vendedor ──
-    // Sin parámetros a propósito: el backend resuelve el vendedor desde el
-    // token, así que nadie puede pedir el resumen de otro.
+    // ── Portal del vendedor ── Sin parámetros: el backend resuelve el vendedor desde el token.
     getMySalesSummary: build.query<SellerSummary, void>({
       query: () => 'sales/my-summary',
       providesTags: ['CommissionPayment', 'Sale'],

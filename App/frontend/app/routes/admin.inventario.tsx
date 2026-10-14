@@ -78,12 +78,10 @@ export default function AdminInventario() {
 
   const tab = searchParams.get("tab");
   const view: View = !isAdmin ? "inventory" : VIEWS.find((v) => v.value === tab && tab !== "purchases")?.value ?? "purchases";
-  // `?type=migrated` de un enlace viejo cae a "current": ese módulo ya no existe.
+  // `?type=migrated` de un enlace viejo cae a "current".
   const stockFilter: StockFilter = searchParams.get("type") === "outOfStock" ? "outOfStock" : "current";
   const period = searchParams.get("period") || "all";
-  // El periodo solo aplica a Compras ("qué compré en marzo"). El stock es una
-  // FOTO de hoy: filtrarlo por mes de compra escondería lotes que siguen en
-  // bodega. Se pasa "all" en vez de solo ocultar el control para que un mes
+  // El periodo solo aplica a Compras: el stock es una foto de hoy. Se pasa "all" para que un mes
   // elegido en Compras no siga filtrando, invisible, en Stock.
   const effectivePeriod = view === "purchases" ? period : "all";
 

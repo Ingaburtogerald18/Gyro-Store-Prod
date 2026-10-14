@@ -1,11 +1,5 @@
-// Editor multilínea de la venta: N líneas a la vez, cada una con producto,
-// cantidad y precio. Portado de `OrderLineItemsTable` de v1.
-//
-// Diferencia de fondo con v1: allá la línea se identificaba por `productId` y
-// el precio sugerido se calculaba en el cliente (`useOrderCalculator` +
-// `getPricingConfig`). Acá la identidad es el NOMBRE del producto — es lo que
-// acepta `SaleLineInput` del backend v2 — y el descuento de mayoreo lo resuelve
-// el servidor en cada cotización, así que no se recalcula de este lado.
+// Editor de líneas de la venta: producto, cantidad y precio. La línea se identifica por el nombre del
+// producto, que es lo que acepta el backend.
 import { HugeIcon } from '~/components/ui/icon';
 import { Add01Icon, Alert02Icon, Delete02Icon, PackageIcon } from '@hugeicons/core-free-icons';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
@@ -18,11 +12,7 @@ import { formatCordobas } from '~/lib/formatters';
 import { cn } from '~/lib/utils';
 import type { SellableProduct } from '~/state/api/sales-api';
 
-/**
- * Línea EN EDICIÓN. Cantidad y precio admiten `''` a propósito: un campo que
- * se está tipeando todavía no es un número, y forzarlo a 0 haría que la línea
- * pareciera válida (y disparara una cotización) antes de tiempo.
- */
+/** Cantidad y precio admiten '': un campo a medio tipear no es un número, y 0 dispararía la cotización. */
 export interface EditorLine {
   uid: string;
   productName: string;
@@ -120,9 +110,7 @@ export function SaleLinesTable({
                       const code = products.find((p) => p.productName === option)?.code;
                       return (
                         <span className="flex shrink-0 items-center gap-2 text-xs">
-                          {/* Se muestra el código para poder confirmar que el
-                              resultado es el que se tipeó cuando la búsqueda fue
-                              por código y no por nombre. */}
+                          {/* El código confirma el resultado cuando se buscó por código. */}
                           {code && <span className="font-mono text-muted-foreground">{code}</span>}
                           <span
                             className={cn(

@@ -1,6 +1,4 @@
-// Códigos de descuento (incentivo por reseña). Crear/listar/activar-desactivar
-// es admin-only; validar (preview) es público — lo usa el checkout y la factura
-// para dar feedback instantáneo sin gastar un uso del código.
+// Códigos de descuento: administrarlos es admin; validar es público y no gasta usos.
 import { baseApi } from './base-api';
 
 export type DiscountType = 'percent' | 'fixed';

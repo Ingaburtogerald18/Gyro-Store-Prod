@@ -1,6 +1,4 @@
-// Validación del borrador de portada ANTES de publicar. Los errores se muestran
-// junto a su campo (en el formulario del banner o en la sección del editor).
-// No corrige nada solo: un destino inválido se informa, no se reemplaza.
+// Validación del borrador de portada antes de publicar: informa junto a cada campo, no corrige nada.
 import { categoryMode, type HeroSlide, type LandingConfig } from '@shared/schemas';
 
 export type SlideField = 'title' | 'buttonText' | 'actionTarget' | 'mediaUrl';

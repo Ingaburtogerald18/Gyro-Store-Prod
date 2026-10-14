@@ -5,17 +5,8 @@ import {
   FormActions,
   FormPanel,
 } from "~/components/ui/form-layout";
-// Diálogo de detalle del empleado con tabs Editar / Rendimiento. Encapsula el
-// formulario de perfil (react-hook-form + updateProfileSchema), la mutation de
-// actualización y las acciones de rol / baja / restauración. Controlado por `user`.
-//
-// ── Dos secciones, dos responsabilidades ──
-// «Datos del empleado» (foto, nombre, contacto, cuenta de pagos) es lo mismo que
-// esa persona puede editarse sola en «Mi perfil»: se acumula en el formulario y
-// se confirma con «Guardar cambios». «Administración» (rol, baja/restauración) es
-// lo que SOLO un admin puede hacer, y se aplica al instante. Estaban mezclados en
-// una sola columna con el botón de dar de baja pegado al de guardar, así que no
-// se distinguía qué cambio quedaba pendiente y cuál ya había ocurrido.
+// Detalle del empleado: «Datos del empleado» se confirma con Guardar; «Administración» (rol, baja)
+// se aplica al instante.
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -66,10 +57,7 @@ export function UserDetailDialog({
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
 
-  // ── Formulario de edición de perfil ──
-  // La validación sale de `updateProfileSchema` (App/shared/schemas/staff.ts), el
-  // mismo contrato que aplica el backend: la regla de Ficohsa se evalúa acá y
-  // allá, así que un request fuera del panel tampoco la puede saltar.
+  // Valida con `updateProfileSchema`, el mismo contrato que el backend.
   const profileForm = useForm<UpdateProfileInput>({
     resolver: zodResolver(updateProfileSchema),
     defaultValues: EMPTY_PROFILE_FORM,
@@ -148,10 +136,7 @@ export function UserDetailDialog({
 
   return (
     <Dialog open={!!user} onOpenChange={(open) => !open && onClose()}>
-      {/* El formulario es más alto que la ventana: el diálogo scrollea SOLO
-              en el cuerpo y el pie con «Guardar» queda fijo. Con el scroll en el
-              contenedor entero había que bajar hasta el final para encontrarlo —
-              y si la ventana era baja, no se alcanzaba nunca. */}
+      {/* Solo scrollea el cuerpo: el pie con «Guardar» queda siempre a la vista. */}
       <FormDialogContent size="long">
         <DialogHeader>
           <DialogTitle>Editar persona</DialogTitle>
@@ -251,10 +236,7 @@ export function UserDetailDialog({
                   </FormSection>
 
                   {/* ── Sección 2: Administración ── */}
-                  {/* Enmarcada y con su propio aviso: estos controles NO esperan al
-                        botón de guardar. Un select de rol que se aplica solo, junto a
-                        un formulario que no, necesita decirlo — si no, se cambia el rol
-                        y se cierra el diálogo creyendo que no se guardó nada. */}
+                  {/* Estos controles se aplican solos, sin Guardar: lo dice para que no se crea que no se guardó. */}
                   <FormSection
                     title="Administración"
                     description="Permisos y estado de la cuenta. Se aplican al instante."
@@ -323,13 +305,8 @@ export function UserDetailDialog({
                           Restaurar Usuario
                         </Button>
 
-                        {/* Borrado PERMANENTE. Solo aparece sobre alguien que ya
-                              está de baja: la papelera de 30 días es la red que evita
-                              que un click borre a un empleado activo por error, y
-                              saltársela desde la ficha la volvería decorativa.
-                              `onRequestDelete` cierra esta ficha y abre el diálogo de
-                              confirmación — apilar dos modales deja el de atrás
-                              inerte y no se entiende cuál está preguntando qué. */}
+                        {/* Borrado permanente solo para quien ya está de baja: la papelera de 30 días es la red contra un error.
+                            Cierra esta ficha antes de abrir la confirmación para no apilar dos modales. */}
                         {onRequestDelete && !isProtectedUser(user) && (
                           <Button
                             variant="ghost"
@@ -351,10 +328,7 @@ export function UserDetailDialog({
                   </FormSection>
                 </FormBody>
 
-                {/* Pie FIJO: fuera del área que scrollea, para que «Guardar»
-                      esté siempre a la vista sin importar cuánto crezca el form.
-                      Es la acción de «Datos del empleado» — lo de «Administración»
-                      ya se aplicó solo. */}
+                {/* Pie fijo con «Guardar» para «Datos del empleado»; lo de «Administración» ya se aplicó. */}
                 <FormActions>
                   <Button
                     type="button"

@@ -1,18 +1,5 @@
-// Cliente de telemetría del storefront. SOLO navegador (todo acceso a window /
-// localStorage vive dentro de funciones; el módulo no tiene efectos al importarse,
-// para no romper el SSR de Remix).
-//
-// Responsabilidades:
-//   · Consentimiento: nada se emite hasta que el visitante acepta (banner).
-//   · sessionId anónimo (sin PII): UUID en localStorage con ventana deslizante de
-//     30 min. Permite deduplicar visitas y armar embudos por sesión.
-//   · Cola + envío por lotes con sendBeacon (con fallback a fetch keepalive), para
-//     no pegarle al server en cada evento y no bloquear la navegación.
-//
-// Reglas anti-data-falsa (objetivo #1 del encargo): el DEBOUNCE y el "commit" de
-// las búsquedas NO viven acá sino en quien llama a `trackSearch` (la grilla, tras
-// la pausa de tecleo). Acá se garantiza lo transversal: no emitir sin
-// consentimiento, no emitir para staff, no emitir en rutas de admin/login.
+// Telemetría de la tienda, solo navegador. Nada se emite sin consentimiento, para personal ni en rutas
+// privadas; sesión anónima de 30 min y envío por lotes con sendBeacon.
 
 import type { AnalyticsEventType } from '@shared/analytics';
 
@@ -82,10 +69,7 @@ function randomId(): string {
   return `s-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
-// Devuelve el sessionId vigente o crea uno nuevo. Cada llamada corre la ventana
-// de expiración 30 min hacia adelante (sesión "deslizante"): mientras el
-// visitante siga activo, sigue siendo la misma sesión; tras 30 min inactivo,
-// la próxima interacción abre una sesión nueva.
+// Sesión deslizante: cada llamada corre el vencimiento 30 min; tras 30 min inactivo empieza otra.
 function getSessionId(): string | undefined {
   if (!isBrowser()) return undefined;
   try {
@@ -103,10 +87,7 @@ function getSessionId(): string | undefined {
   }
 }
 
-// Lee el sessionId VIGENTE sin crear uno nuevo, y solo si hay consentimiento. Lo
-// usa el checkout para mandar la sesión con el pedido y enlazar el embudo
-// vista→pedido en el server. Si no hay consentimiento o sesión, devuelve
-// undefined (el pedido igual se crea; solo no queda enlazado a una sesión).
+// La sesión vigente, sin crear una, para enlazar el pedido con el embudo. Sin consentimiento, undefined.
 export function getAnalyticsSessionId(): string | undefined {
   if (!isBrowser() || getConsent() !== 'granted') return undefined;
   try {
@@ -118,9 +99,8 @@ export function getAnalyticsSessionId(): string | undefined {
 
 // ── Exclusiones ──────────────────────────────────────────────────────────────
 
-// El staff no se trackea: son ventas de humo cada vez que prueban la tienda. El
-// único que inicia sesión con Supabase es el personal (el comprador es anónimo),
-// así que la presencia de un token `sb-…-auth-token` en localStorage delata staff.
+// El personal no se cuenta: hoy solo el personal inicia sesión con Supabase, así que su token lo
+// delata. Con cuentas de comprador esto deja de servir (Docs/05-Pendientes.md §5).
 function hasStaffSession(): boolean {
   if (!isBrowser()) return false;
   try {

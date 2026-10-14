@@ -1,10 +1,5 @@
-// Galería de fotos del producto: zona de arrastre + grilla de miniaturas.
-//
-// La PRIMERA foto es la portada de la tarjeta en la tienda. Por eso se puede
-// promover cualquier miniatura a portada en vez de obligar a re-subir en otro orden.
-//
-// Sube contra `POST /api/upload`, que optimiza a WebP y nombra por hash del
-// contenido: re-subir la misma foto devuelve la misma URL en vez de duplicarla.
+// Galería del producto. La primera foto es la portada: cualquier miniatura se puede promover.
+// /api/upload nombra por hash, así la misma foto no se duplica.
 import { HugeIcon } from '~/components/ui/icon';
 import {
   Cancel01Icon,

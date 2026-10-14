@@ -1,12 +1,6 @@
 import { FormDialogContent, FormBody, FormActions } from '~/components/ui/form-layout';
-// Pago de comisiones a UN vendedor (admin). El servidor ya lo resolvía
-// (`POST /api/sales/pay` y `/settle-balance`, ver server/modules/sales/seller-payments.ts)
-// pero ninguna pantalla lo llamaba: las ventas aprobadas nunca pasaban a
-// "pagada" y los ajustes por editar ventas pagadas nunca se saldaban.
-//
-// El lote es inmutable: registra lo que se entregó. Se elige el vendedor, las
-// ventas aprobadas que se le pagan (todas por defecto), el método y el
-// comprobante (foto) o una justificación de por qué no lo hay.
+// Pago de comisiones a un vendedor (admin). El lote no se reescribe: vendedor, ventas (todas por
+// defecto), método y comprobante o justificación.
 import { HugeIcon } from '~/components/ui/icon';
 import { Alert02Icon, Upload04Icon, Wallet01Icon } from '@hugeicons/core-free-icons';
 import { useEffect, useMemo, useState } from 'react';

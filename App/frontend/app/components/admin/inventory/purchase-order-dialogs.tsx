@@ -1,7 +1,6 @@
 import { FormLayout, FormDialogContent, FormActions, FormBody } from "~/components/ui/form-layout";
-// Diálogos sobre una orden ya registrada: completar o corregir sus datos
-// (también las órdenes viejas, que nacen sin proveedor, factura ni fotos) y
-// agregarle productos que faltaron al cargarla.
+// Completar o corregir una orden ya registrada (también las viejas, sin proveedor ni factura)
+// y agregarle productos.
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";

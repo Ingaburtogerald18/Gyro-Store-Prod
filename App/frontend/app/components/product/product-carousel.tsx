@@ -1,6 +1,4 @@
-// Carrusel horizontal de productos. Fila con scroll-snap nativo (suave, sin
-// reflow) + flechas que se deshabilitan en los extremos y degradado de borde
-// para insinuar continuidad. Portado de la versión que corre hoy en la tienda.
+// Carrusel con scroll-snap nativo, flechas que se apagan en los extremos y degradado de borde.
 import { HugeIcon } from "~/components/ui/icon";
 import { ArrowLeft01Icon, ArrowRight01Icon } from "@hugeicons/core-free-icons";
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -59,9 +57,7 @@ export function ProductCarousel({
           )}
         </div>
 
-        {/* "Ver todo" lleva a la grilla de la categoría. Las flechas quedan para
-            escritorio: en móvil la tarjeta asomada y el degradado ya dicen que la
-            fila se desliza, y "Ver todo" es la salida que faltaba. */}
+        {/* Flechas solo en escritorio: en móvil la tarjeta asomada ya indica que se desliza. */}
         <div className="flex shrink-0 items-center gap-2">
           {href && (
             <Link

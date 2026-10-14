@@ -1,7 +1,4 @@
-// "Mis pedidos" sin cuenta: los pedidos hechos desde ESTE navegador. Solo se
-// guarda el id (el link de seguimiento) y lo justo para listar; el estado real
-// siempre se pide al servidor. Si se borra el navegador, el cliente sigue
-// teniendo el link en su chat de WhatsApp o el rastreo por número + teléfono.
+// «Mis pedidos» sin cuenta: guarda el id y lo justo para listar; el estado se pide siempre al servidor.
 const STORAGE_KEY = 'gyro_orders';
 const MAX_ORDERS = 20;
 

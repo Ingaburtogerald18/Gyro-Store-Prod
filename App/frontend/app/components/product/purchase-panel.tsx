@@ -1,6 +1,4 @@
-// Piezas de compra compartidas por la ficha y el selector rápido: el mensaje de
-// estado de la selección y la línea de carrito que se arma con ella. Así los dos
-// caminos aplican exactamente las mismas reglas (`lib/purchase.ts`).
+// Estado de la selección y línea de carrito, compartidos por la ficha y el selector rápido.
 import type { CatalogProduct, CatalogVariant } from '@shared/schemas';
 import { Button } from '~/components/ui/button';
 import { StockIndicator } from '~/components/product/stock-indicator';
@@ -47,11 +45,7 @@ export function addLabel(state: PurchaseState, { short = false } = {}) {
   }
 }
 
-/**
- * Estado legible de la selección, junto a los controles. Para agotado o sin
- * stock verificable ofrece consultar por WhatsApp y cambiar la selección: nadie
- * queda atrapado en una combinación que no puede comprar.
- */
+/** Para agotado o sin stock verificable ofrece WhatsApp y cambiar la selección: nadie queda atrapado. */
 export function PurchaseStatus({
   state,
   onRetry,

@@ -1,13 +1,5 @@
-// Traduce el NOMBRE de un color de producto ("Negro", "Azul marino") al token
-// visual que le corresponde.
-//
-// Los valores viven en `tailwind.css` como `--swatch-*` y son invariantes al
-// tema: un audífono negro es negro en claro y en oscuro. Acá solo se resuelve
-// el nombre → variable; ningún componente escribe un hex.
-//
-// Si el nombre no está en la tabla NO se inventa un color: se devuelve null y
-// el selector cae a un chip de texto. Un círculo gris genérico mentiría sobre
-// cómo se ve el producto.
+// Nombre del color → token `--swatch-*` (igual en claro y oscuro). Si no está en la tabla, null:
+// el selector usa un chip de texto en vez de inventar un color.
 
 const SWATCHES: Record<string, string> = {
   negro: 'black',

@@ -212,16 +212,8 @@ export function EditPurchaseModal({ purchase, onClose }: { purchase: Purchase | 
                   <FieldError errors={[errors.productName]} />
                 </Field>
 
-                {/* Fila 4: Categoría.
-                  Era un <Input> de texto libre: se podía guardar cualquier cadena,
-                  y la tabla —que resuelve el valor contra la lista de categorías—
-                  la mostraba cruda, sin nombre. Ahora es la MISMA lista que en el
-                  alta: las categorías de Catálogo.
-
-                  `legacyCategory` cubre las compras viejas que quedaron con una
-                  categoría que ya no existe en la lista: sin esa opción el select
-                  no podría representar su valor y lo borraría en silencio al
-                  guardar cualquier otro campo. */}
+                {/* Categoría: la misma lista que en el alta. `legacyCategory` cubre compras con una categoría
+                    que ya no existe, para no borrarla en silencio al guardar. */}
                 <Field data-invalid={!!errors.category}>
                   <FieldLabel htmlFor="edit-purchase-category" required>
                     Categoría

@@ -1,7 +1,4 @@
-// Categorías en móvil. El mega-menú de escritorio no cabe en 360px, así que ahí
-// la navegación es un panel lateral con la lista y el conteo de cada gama.
-//
-// Sobre <Sheet> (Radix): foco atrapado, Escape y bloqueo de scroll resueltos.
+// Categorías en móvil: el mega-menú no cabe en 360 px. Sobre <Sheet>.
 import { useNavigate } from '@remix-run/react';
 import { HugeIcon } from '~/components/ui/icon';
 import { ArrowRight02Icon } from '@hugeicons/core-free-icons';

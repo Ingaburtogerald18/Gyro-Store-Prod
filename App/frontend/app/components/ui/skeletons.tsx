@@ -1,16 +1,5 @@
-// Esqueletos de carga con la FORMA del contenido real.
-//
-// ── La regla ──
-// Cada bloque de datos carga su propio esqueleto, con la misma altura, el mismo
-// radio y la misma grilla que el contenido que va a reemplazar. Nunca un
-// spinner centrado, nunca un salto de layout.
-//
-// Un spinner dice "esperá". Un esqueleto dice "esperá, y esto es lo que va a
-// aparecer": el usuario ya puede orientarse antes de que lleguen los datos, y
-// cuando llegan nada se mueve de lugar.
-//
-// Estas piezas existen para que ninguna vista tenga que inventar la suya. Si
-// una pantalla necesita una forma nueva, se agrega acá — no en la ruta.
+// Esqueletos con la forma del contenido real: mismo alto, radio y grilla, nunca un spinner ni un
+// salto de layout. Una forma nueva se agrega acá, no en la ruta.
 import { Skeleton } from '~/components/ui/skeleton';
 import { cn } from '~/lib/utils';
 
@@ -35,13 +24,7 @@ export function SkeletonStatRow({ n = 4, className }: { n?: number; className?: 
   );
 }
 
-/**
- * Tabla: encabezado + filas.
- *
- * Los anchos de columna varían con un patrón FIJO y no aleatorio: un
- * `Math.random()` acá haría que el esqueleto cambie en cada render y el bloque
- * "tiemble" mientras carga.
- */
+/** Anchos fijos y no aleatorios: con `Math.random()` el esqueleto temblaría en cada render. */
 const COL_WIDTHS = ['w-24', 'w-40', 'w-20', 'w-28', 'w-16', 'w-32'];
 
 export function SkeletonTable({
@@ -71,12 +54,7 @@ export function SkeletonTable({
   );
 }
 
-/**
- * Gráfico: marco, eje y barras de alturas variables.
- *
- * Las alturas salen de un array fijo por el mismo motivo que los anchos de la
- * tabla: un esqueleto que se reacomoda solo es peor que ninguno.
- */
+/** Alturas fijas por el mismo motivo que los anchos de la tabla. */
 const BAR_HEIGHTS = ['h-1/3', 'h-1/2', 'h-2/3', 'h-1/4', 'h-3/4', 'h-2/5', 'h-4/5', 'h-1/2', 'h-3/5', 'h-1/3'];
 
 export function SkeletonChart({ className }: { className?: string }) {

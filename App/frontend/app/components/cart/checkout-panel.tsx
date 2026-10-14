@@ -275,9 +275,8 @@ export function CheckoutPanel({
     } catch (err) {
       const failure = err as { status?: number | string; data?: { error?: string; code?: string; issues?: OrderIssue[] } };
       const data = failure.data;
-      // Solo las validaciones 400/409 permiten corregir el formulario. Un
-      // conflicto de clave, límite de peticiones, red o 5xx conserva el intento:
-      // podría existir un pedido cuya respuesta todavía no recibimos.
+      // Solo un 400/409 de validación deja corregir el formulario. Con red caída o 5xx se conserva
+      // el intento: podría existir un pedido cuya respuesta no llegó.
       if ((failure.status === 400 || failure.status === 409) && data?.code !== 'ORDER_ATTEMPT_CONFLICT') {
         clearCheckoutAttempt();
         dispatch(checkoutExtrasChanged({ attempt: null }));
@@ -729,9 +728,8 @@ function Disclosure({
 }
 
 /**
- * Pedido registrado: número, total y las dos salidas (WhatsApp y seguimiento).
- * Deja claro que abrir WhatsApp no envía el mensaje ni confirma la venta.
- * Exportado para que el editor muestre exactamente esta pantalla.
+ * Pedido registrado: número, total, WhatsApp y seguimiento. Abrir WhatsApp no envía el mensaje.
+ * Exportado para que el editor muestre la misma pantalla.
  */
 export function OrderPlaced({
   order,

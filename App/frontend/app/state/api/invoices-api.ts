@@ -21,17 +21,9 @@ export interface Invoice {
   deliveryName?: string | null;
   /** Vendedor al que Caja le asignó la factura al emitirla (o null). */
   sellerUid?: string | null;
-  /**
-   * Nombre resuelto del vendedor asignado. Lo traen el listado (`GET /invoices`,
-   * `/mine`) y el lookup por código (`/invoices/lookup`), que es de donde lo lee
-   * el editor de ventas para avisar a nombre de quién va a quedar la venta.
-   */
+  /** Nombre del vendedor asignado: el editor de ventas avisa a nombre de quién quedará la venta. */
   sellerName?: string | null;
-  /**
-   * Vendedor que CANJEÓ la factura (la vinculó a su venta) — quien cobra la
-   * comisión. Puede ser distinto de `sellerName` (a quién se la asignó Caja).
-   * Solo tiene valor en facturas `linked`, y solo lo trae el listado.
-   */
+  /** Quien canjeó la factura y cobra la comisión; puede no ser a quien Caja la asignó. Solo en el listado. */
   registeredByName?: string | null;
 }
 
@@ -41,12 +33,7 @@ export interface InvoiceSeller {
   name: string;
 }
 
-/**
- * Campos corregibles de una factura huérfana, líneas incluidas.
- * El CÓDIGO de descuento no está: ya se canjeó al emitir y volver a aplicarlo
- * consumiría otro uso. El monto se conserva y el servidor lo resta al subtotal
- * nuevo.
- */
+/** Campos corregibles de una factura huérfana. Sin código de descuento: reaplicarlo gastaría otro uso. */
 export interface UpdateInvoiceInput {
   method?: 'efectivo' | 'transferencia' | 'tarjeta';
   deliveryFee?: number;

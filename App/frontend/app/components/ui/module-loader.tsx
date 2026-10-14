@@ -6,11 +6,7 @@ import { motion, useReducedMotion } from 'framer-motion';
 import { useGetConfigQuery } from '~/state/api/config-api';
 import { getBrandName } from '~/lib/brand';
 
-/**
- * Overlay de carga entre módulos del admin. Cubre el contenido con un blur y
- * un loader de marca (el mark de Gyro dentro de un anillo cyan girando) mientras
- * el módulo nuevo trae su información. Lo controla `admin.tsx`.
- */
+/** Loader de marca entre módulos del panel; lo controla admin.tsx. */
 export function BrandLoader({ text = 'Cargando…' }: { text?: string }) {
   const reduce = useReducedMotion();
   const { data: config } = useGetConfigQuery();

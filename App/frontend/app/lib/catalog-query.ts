@@ -1,15 +1,5 @@
-// Contrato ÚNICO entre la URL del catálogo y sus filtros.
-//
-//   /?q=kz+negro&categoria=audifonos&min=200&max=900&oferta=1&disponible=1&orden=precio-asc
-//
-// · Un parámetro ausente = filtro en su valor por defecto. Así «volver al inicio»
-//   (/) limpia todo, y quitar un filtro saca su parámetro.
-// · `categoria` lleva el slug; por compatibilidad también se aceptan el id o el
-//   nombre en enlaces viejos, y se normalizan al slug.
-// · Valores inválidos (texto en un precio, orden desconocido) se descartan en vez
-//   de producir un catálogo vacío falso.
-//
-// Puro y sin React: se prueba en tests/catalogQuery.test.ts.
+// Contrato entre la URL del catálogo y sus filtros (/?q=…&categoria=…&min=…&orden=…). Parámetro
+// ausente = valor por defecto; lo inválido se descarta. Probado en tests/catalog-query.test.ts.
 
 export type CatalogSort = 'relevant' | 'price-asc' | 'price-desc';
 

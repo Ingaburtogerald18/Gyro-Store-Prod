@@ -1,8 +1,6 @@
 import { FormDialogContent } from '~/components/ui/form-layout';
-// Editar una factura huérfana con el MISMO formulario con que se emitió, ya
-// relleno. Corregir un número sale gratis; cancelar quema un correlativo para
-// siempre (el número de una factura anulada queda retirado y la secuencia no
-// retrocede), así que este es el camino por defecto ante un error de mostrador.
+// Editar una factura huérfana con el formulario de emisión: anular quema el correlativo, así que
+// este es el camino por defecto ante un error de mostrador.
 import { Dialog, DialogDescription, DialogHeader, DialogTitle } from '~/components/ui/dialog';
 import { Spinner } from '~/components/ui/spinner';
 import { useLookupInvoiceQuery, type Invoice } from '~/state/api/invoices-api';
@@ -17,9 +15,7 @@ export function InvoiceEditDialog({
   invoice: Invoice | null;
   onClose: () => void;
 }) {
-  // El listado NO trae las líneas (sería traer los ítems de todas las facturas
-  // para mostrar una tabla que no los usa). El lookup por código sí las trae,
-  // que es justo lo que el formulario necesita para precargarse.
+  // El listado no trae las líneas; el lookup por código sí, y el formulario las necesita.
   const { data: full, isLoading, isError } = useLookupInvoiceQuery(invoice?.invoiceCode ?? '', {
     skip: !invoice,
   });

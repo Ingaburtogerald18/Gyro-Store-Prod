@@ -57,9 +57,7 @@ export function NotificationsBell() {
   const isAdmin = useAppSelector(selectIsAdmin);
   const navigate = useNavigate();
 
-  // El admin necesita las que esperan su aprobación; el vendedor, el desenlace
-  // de las suyas. El backend ya recorta por rol, así que el vendedor recibe
-  // solo lo propio aunque no se le mande filtro.
+  // El admin ve las que esperan aprobación; el vendedor, el resultado de las suyas (el backend recorta).
   const { data: pending = [], isLoading: pendingLoading, isError: pendingError } = useGetSalesQuery(
     { status: 'pending_approval' },
     { skip: !isAdmin, pollingInterval: 60_000 },

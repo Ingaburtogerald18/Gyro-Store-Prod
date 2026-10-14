@@ -1,16 +1,5 @@
-// Catálogo de la home. Dos vistas bien distintas:
-//
-//   · Por DEFECTO (sin filtros): SuperOfertas + un carrusel por categoría. Se
-//     recorre como una tienda, gama por gama, sin decidir nada primero.
-//   · Con búsqueda o filtro: una GRILLA UNIFORME de resultados. Acá el usuario ya
-//     dijo qué quiere y lo que importa es comparar, no descubrir.
-//
-// Regla dura de esa grilla: todas las tarjetas del mismo tamaño y aspect-ratio,
-// cero huecos. Nada de `col-span-2` ni `grid-auto-flow:dense`.
-//
-// El filtrado NO vive acá: lo hace useCatalogFilter sobre el uiSlice, para que
-// la barra de herramientas y esta grilla cuenten siempre lo mismo. Las
-// categorías se eligen desde el header (CategoryNav / CategoriesDrawer).
+// Sin filtros: ofertas y un carrusel por categoría. Con búsqueda o filtro: grilla uniforme, todas
+// las tarjetas del mismo tamaño. El filtrado lo hace useCatalogFilter.
 import { useMemo } from 'react';
 import { useRevalidator } from '@remix-run/react';
 import { HugeIcon } from '~/components/ui/icon';
@@ -77,9 +66,7 @@ export function ProductGrid({ products, categories = [], isLoading, error }: Pro
     [railMode, landingToUse?.homeCategories],
   );
 
-  // Una fila por categoría CON productos. Las ofertas también siguen en su
-  // categoría: destacarlas arriba no las saca de su recorrido natural.
-  // Se usa el orden de railCategoriesIds si existe; si no, todas.
+  // Una fila por categoría con productos; las ofertas siguen también en su categoría.
   const rows = useMemo(() => {
     const rest = filtered;
     let orderedCategories = categories;

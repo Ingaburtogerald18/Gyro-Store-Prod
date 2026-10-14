@@ -1,6 +1,4 @@
-// Helpers compartidos del frontend. `cn` es el estándar de shadcn/ui (combina
-// clases condicionales y resuelve conflictos de utilidades Tailwind); el resto
-// viene portado de la v1 para que los componentes del storefront se reciclen.
+// `cn` combina clases y resuelve conflictos de Tailwind (estándar de shadcn).
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 

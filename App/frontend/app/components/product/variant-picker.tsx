@@ -1,10 +1,5 @@
-// Selector de opciones de variante (color, conector, etc.). Una fila por eje.
-// Lo usan la ficha y el selector rápido: las reglas viven en `lib/purchase.ts`.
-//
-// Todas las opciones se pueden elegir — también una agotada o sin stock
-// verificable — para que la persona vea su estado y pueda consultarla por
-// WhatsApp. Nada se cambia solo: si la combinación elegida no se puede comprar,
-// el estado lo explica y «Cambiar selección» limpia los ejes.
+// Todas las opciones se pueden elegir, también una agotada, para ver su estado y consultar.
+// Nada cambia solo: «Cambiar selección» limpia los ejes.
 import type { Availability, CatalogAxis, CatalogVariant } from '@shared/schemas';
 import { Button } from '~/components/ui/button';
 import { isLightSwatch, swatchVar } from '~/lib/product-colors';

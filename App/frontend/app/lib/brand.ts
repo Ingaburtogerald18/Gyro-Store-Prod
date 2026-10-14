@@ -1,11 +1,5 @@
-// Marca / negocio de forma ISOMORFA, para <title> (meta) y textos SSR donde no
-// hay acceso a la query RTK de /api/config. En el server lee process.env; en el
-// cliente, window.ENV (inyectado por root.tsx). Para UI reactiva, preferí
-// useGetConfigQuery() (misma fuente en el server).
-//
-// Los valores reales SIEMPRE vienen de env: el backend hace fail-fast si falta
-// BRAND_NAME (ver server/core/config.ts). El fallback de abajo es solo una red de
-// seguridad de render, para que nunca se pinte un título vacío.
+// Marca para <title> y textos SSR (process.env en el servidor, window.ENV en el cliente).
+// BRAND_NAME es opcional: sin ella se usa «Gyro Store».
 const BRAND_FALLBACK = 'Gyro Store';
 
 function readEnv(key: 'BRAND_NAME'): string {

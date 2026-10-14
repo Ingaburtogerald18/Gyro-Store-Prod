@@ -1,7 +1,4 @@
-// Top de productos del periodo. Sirve al admin (todo el negocio) y al vendedor
-// (lo suyo): el backend fuerza el `sellerUid` cuando quien pregunta no es admin,
-// así que la misma tabla es segura en los dos lugares. El margen solo llega
-// para admin, y solo cuando hay costo registrado.
+// Top de productos para admin y vendedor: el backend fuerza `sellerUid` y solo manda margen al admin.
 import { useMemo } from 'react';
 import { HugeIcon } from '~/components/ui/icon';
 import { Tag01Icon } from '@hugeicons/core-free-icons';

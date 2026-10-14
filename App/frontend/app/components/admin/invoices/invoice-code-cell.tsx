@@ -5,15 +5,7 @@ import { toast } from 'sonner';
 
 import { cn } from '~/lib/utils';
 
-/**
- * Número de factura con botón para copiarlo.
- *
- * Es el dato que el vendedor tipea después en Ventas para vincular la venta, y
- * transcribir `GS-PR-137` a mano es justo donde se cuela el error.
- *
- * `stopPropagation` porque la celda vive en una fila que puede ser clickeable:
- * copiar no debería además abrir el detalle.
- */
+/** Copiar el número evita errores al tipearlo en Ventas. `stopPropagation`: la fila puede abrir el detalle. */
 export function InvoiceCodeCell({ code, bold }: { code: string; bold?: boolean }) {
   const [copied, setCopied] = useState(false);
 

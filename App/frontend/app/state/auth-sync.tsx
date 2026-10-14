@@ -4,11 +4,7 @@ import { useLazyGetMeQuery } from '~/state/api/session-api';
 import { useAppDispatch } from '~/state/hooks';
 import { signedOut } from '~/state/slices/auth-slice';
 
-/**
- * Global component that synchronizes the Redux auth state with the Supabase session
- * and the backend's /api/auth/me endpoint.
- * Mount this once in root.tsx.
- */
+/** Sincroniza la sesión de Supabase con el authSlice y /api/auth/me. Se monta una vez en root.tsx. */
 export function AuthSync() {
   const dispatch = useAppDispatch();
   const [getMe] = useLazyGetMeQuery();

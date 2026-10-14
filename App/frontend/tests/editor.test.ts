@@ -1,6 +1,4 @@
-// Editor de portada: historia del borrador, validación antes de publicar y
-// subida con progreso real, cancelación, error y límite de espera. Sin red: la
-// subida usa un XMLHttpRequest falso.
+// Editor de portada: historia del borrador, validación y subida con progreso, sin red.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { landingConfigSchema, type HeroSlide, type LandingConfig } from '@shared/schemas';

@@ -1,6 +1,4 @@
-// Configuración: orquestador delgado. Cada pestaña vive en components/admin/config/
-// (General, Finanzas/Variables, Categorías, Imágenes/Recursos); acá solo se elige
-// cuál mostrar.
+// Configuración: cada pestaña vive en components/admin/config/; acá solo se elige cuál mostrar.
 import { useState } from 'react';
 import type { MetaFunction } from '@remix-run/node';
 import { pageTitle } from '~/lib/brand';

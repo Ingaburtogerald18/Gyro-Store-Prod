@@ -1,7 +1,4 @@
-// Dominio de arranque de sesión + config pública del negocio. Agrupa authApi
-// (quién soy) y configApi (constantes de negocio) — dos slices diminutos que
-// casi todas las pantallas consultan al montar. Un solo injectEndpoints sobre
-// baseApi; mismos hooks, tags y tipos que antes.
+// Sesión (quién soy) y config pública del negocio: casi todas las pantallas los piden al montar.
 import type { StoreBankAccount, Category } from '@shared/schemas';
 import { baseApi } from './base-api';
 import { sessionResolved, signedOut } from '../slices/auth-slice';
@@ -13,12 +10,8 @@ export type { StoreBankAccount, Category as StoreCategory };
 const CONFIG_CACHE_SECONDS = 300;
 
 
-// Espejo de lo que responde GET /api/config: `getPublicConfig()` (desde env) +
-// `getBusinessInfo()` (editable en el panel, pisa brandName/whatsapp/contactEmail
-// y agrega ruc/address) + categorías + imágenes. Ver server/modules/settings/config-routes.ts.
-//
-// Los campos de negocio faltaban acá aunque el endpoint ya los devolvía, así que
-// el footer no podía mostrar la dirección y `config.brandName` no compilaba.
+// Espejo de GET /api/config: lo del entorno, los datos del negocio editados en el panel, categorías
+// e imágenes (ver modules/settings/config-routes.ts).
 export interface StoreConfig {
   // ── Desde env (server/modules/settings/public-config.ts) ──
   brandName: string;
@@ -56,11 +49,7 @@ export interface StoreConfig {
 
 export const sessionApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
-    // Sesión actual. Al resolver, sincroniza el authSlice.
-    //
-    // `providesTags: ['Me']` para que las mutations del perfil PROPIO
-    // (usersApi: updateMyProfile / uploadMyAvatar / deleteMyAvatar) lo invaliden:
-    // así el avatar y el nombre del header se actualizan sin recargar la página.
+    // `providesTags: ['Me']`: las mutations del perfil propio lo invalidan y el header se actualiza solo.
     getMe: builder.query<{ user: any }, void>({
       query: () => '/auth/me',
       providesTags: ['Me'],
@@ -90,7 +79,5 @@ export const sessionApi = baseApi.injectEndpoints({
 
 export const { useGetMeQuery, useLazyGetMeQuery, useGetConfigQuery } = sessionApi;
 
-// Alias de compatibilidad: algún call-site usa `configApi.util.invalidateTags`.
-// Todas las apis inyectadas comparten el mismo baseApi subyacente, así que el
-// objeto merged sirve igual.
+// Alias: algún call-site usa `configApi.util.invalidateTags`; es el mismo baseApi.
 export const configApi = sessionApi;

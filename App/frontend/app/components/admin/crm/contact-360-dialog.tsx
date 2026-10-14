@@ -6,9 +6,7 @@ import {
   FormSection,
 } from '~/components/ui/form-layout';
 import { FormErrorBanner, serverErrorMessage } from '~/components/ui/form-feedback';
-// Ficha 360 (Docs/05-Pendientes.md §4): un contacto con todo su historial en una pantalla —
-// compras (ventas reales + pedidos web), LTV, actividad y seguimientos. Permite
-// cambiar la etapa, agregar notas y agendar/cerrar seguimientos.
+// Ficha 360: compras (ventas y pedidos web), valor del cliente, actividad y seguimientos de un contacto.
 import { HugeIcon } from '~/components/ui/icon';
 import { Add01Icon, Cancel01Icon, CheckmarkCircle02Icon } from '@hugeicons/core-free-icons';
 import { useState } from 'react';

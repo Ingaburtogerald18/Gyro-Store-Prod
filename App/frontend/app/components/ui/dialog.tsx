@@ -16,20 +16,8 @@ function Dialog({
   return <DialogPrimitive.Root data-slot="dialog" {...props} />
 }
 
-// ── Por qué TODOS estos envoltorios llevan forwardRef ──
-// En React 18, pasarle un ref a un componente de función que no lo reenvía deja
-// el ref en `null` (y React avisa: "Function components cannot be given refs").
-// Radix no usa esos refs de adorno: `DismissableLayer` pone `pointer-events:
-// none` en el <body> al abrir un modal y lo REACTIVA sobre el nodo de la capa a
-// través de su ref. Con el ref en null esa reactivación nunca ocurre, así que el
-// diálogo se ve pero NADA de lo que hay adentro se puede clickear — botones que
-// no responden, sin ningún error.
-//
-// Es el mismo motivo por el que `button.tsx` ya lo tenía.
-//
-// NOTA: Se usan arrow functions en forwardRef (no function declarations nombradas)
-// para compatibilidad con esbuild — la sintaxis `forwardRef(function Foo(...))`
-// genera "Expected ) but found function" en versiones antiguas de esbuild/Vite.
+// Todos llevan forwardRef: en React 18 un ref no reenviado queda null y Radix no puede reactivar los
+// pointer-events del modal (se ve, pero nada adentro responde).
 const DialogTrigger = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Trigger>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Trigger>

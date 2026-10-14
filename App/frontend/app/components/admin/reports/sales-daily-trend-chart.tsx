@@ -11,9 +11,7 @@ import { formatCordobas, formatNumber } from '~/lib/formatters';
 import { useGetSalesTrendQuery } from '~/state/api/reports-api';
 import type { PeriodRange } from './period';
 
-// Vendido y ganancia son ingresos: los dos en bordó. Se
-// distinguen por forma e intensidad: barras suaves para lo vendido, línea
-// llena para la ganancia.
+// Vendido y ganancia en bordó: barras suaves para lo vendido, línea llena para la ganancia.
 const dailyChartConfig = {
   total_vendido: { label: 'Vendido', color: 'var(--color-primary-2)' },
   ganancia: { label: 'Ganancia tienda', color: 'var(--color-primary-2)' },

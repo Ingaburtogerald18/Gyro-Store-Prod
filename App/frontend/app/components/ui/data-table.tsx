@@ -56,36 +56,21 @@ interface DataTableProps<T> {
   selectedRowIds?: Set<string | number>;
   onSelectAll?: (selectAll: boolean) => void;
   allSelected?: boolean;
-  /**
-   * Click en LA CASILLA (no en la fila): alterna la selección de esa fila sin
-   * disparar `onRowClick`. Sin esto, una tabla que ya usa `onRowClick` para
-   * abrir un detalle no podía además seleccionar — el click de la fila entera
-   * hacía las dos cosas a la vez. Con `onToggleRow`, la casilla intercepta su
-   * propio click (`stopPropagation`) y el resto de la fila sigue abriendo el
-   * detalle como siempre.
-   */
+  /** Clic en la casilla, no en la fila: selecciona sin disparar `onRowClick`. */
   onToggleRow?: (row: T) => void;
   hideSearch?: boolean;
   globalFilterValue?: string;
   onGlobalFilterChange?: (value: string) => void;
   // Si se provee, en móvil se renderiza cada fila como tarjeta (la tabla queda solo en desktop).
   mobileCard?: (row: T) => ReactNode;
-  /**
-   * Paginación en cliente. Por DEFECTO activada: una tabla que renderiza 4000
-   * filas de una es un problema de rendimiento esperando ocurrir. Las tablas
-   * que muestran totales en `<tfoot>` y necesitan ver todo pasan `false`.
-   */
+  /** Paginación en cliente por defecto. Las tablas con totales en <tfoot> pasan `false`. */
   paginated?: boolean;
   /**
    * Identificador estable de la tabla. Necesario para persistir columnas
    * visibles por tabla; sin él, todas compartirían la misma preferencia.
    */
   tableId?: string;
-  /**
-   * Columnas ocultas de entrada (por id). Para tablas con muchas columnas que
-   * no entran en una laptop: se pueden volver a mostrar desde el botón de
-   * columnas, y esa elección (con `tableId`) queda guardada.
-   */
+  /** Columnas ocultas de entrada; con `tableId` se recuerda si se vuelven a mostrar. */
   defaultHiddenColumns?: string[];
   /** Vacío por FILTRO, distinto del vacío real. Ver nota en el render. */
   emptyFilteredText?: ReactNode;
@@ -137,9 +122,8 @@ export function DataTable<T>({
   const [columnVisibility, setColumnVisibility] = useState<Record<string, boolean>>({});
   const searchRef = useRef<HTMLInputElement>(null);
 
-  // Las preferencias se leen en un efecto y no en el `useState` inicial: el
-  // servidor no tiene `localStorage`, y devolver algo distinto en el primer
-  // render del cliente rompe la hidratación.
+  // Las preferencias se leen en un efecto: el servidor no tiene localStorage y un primer render
+  // distinto rompe la hidratación.
   useEffect(() => {
     const defaults = Object.fromEntries((defaultHiddenColumns ?? []).map((id) => [id, false]));
     setColumnVisibility({ ...defaults, ...readColumnVisibility(tableId), actions: true });
@@ -150,9 +134,7 @@ export function DataTable<T>({
   const setGlobalFilter = onGlobalFilterChange || setInternalGlobalFilter;
   const canChangeSearch = globalFilterValue === undefined || !!onGlobalFilterChange;
 
-  // `/` enfoca el buscador visible; Esc lo limpia. Se ignora si el foco ya está
-  // en un campo de texto: nadie quiere que escribir "/" en un input abra otra
-  // cosa.
+  // `/` enfoca el buscador y Esc lo limpia, salvo que el foco ya esté en un campo de texto.
   useEffect(() => {
     if (hideSearch) return;
     function onKey(e: KeyboardEvent) {
@@ -210,17 +192,10 @@ export function DataTable<T>({
   const hasFilter = globalFilter.trim().length > 0;
   const compact = density === "compact";
 
-  // La columna de casillas depende de la SELECCIÓN, no de `onRowClick`.
-  // Estaban atadas: cualquier tabla que quisiera abrir un detalle al hacer
-  // click en la fila se llevaba de regalo una columna de checkboxes vacíos que
-  // no seleccionaban nada.
+  // Las casillas dependen de la selección, no de `onRowClick`: abrir un detalle no trae checkboxes vacíos.
   const selectable = !!onSelectAll || !!selectedRowIds || selectedRowId !== undefined;
 
-  /**
-   * Exporta LO QUE EL USUARIO VE: columnas visibles, filtro aplicado y orden
-   * actual. Exportar el dataset crudo entrega un archivo que no se parece a la
-   * pantalla desde la que se pidió.
-   */
+  /** Exporta lo que se ve: columnas visibles, filtro y orden actuales. */
   function exportCsv() {
     const visible = table.getVisibleLeafColumns().filter((c) => c.id !== "actions");
     const headers = visible.map((c) => {

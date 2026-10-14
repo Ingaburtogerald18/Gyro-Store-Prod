@@ -1,17 +1,5 @@
-// «Mi perfil»: cada persona del staff edita SUS propios datos, sin pasar por un
-// admin. Cualquier rol entra (se llega desde el menú del avatar del header).
-//
-// ── Qué se puede tocar acá y qué no ──
-// Foto, nombre a mostrar, teléfono, correo personal y cuenta bancaria de pagos.
-// NO el rol (lo asigna un admin en Personal) ni el correo corporativo (lo
-// administra Microsoft Entra ID). Los dos se muestran de solo lectura, porque
-// esconderlos hace que la gente los busque; verlos apagados explica solo que no
-// son negociables desde acá.
-//
-// La foto se aplica AL INSTANTE (`POST /api/me/avatar`) y el resto con «Guardar
-// cambios» (`PATCH /api/me/profile`): una imagen que ya se ve en pantalla pero
-// que todavía no está guardada es una trampa, y al subirla ya se pagó el viaje al
-// servidor de todos modos.
+// «Mi perfil»: foto, nombre, teléfono, correo personal y cuenta de pagos. Rol y correo corporativo se
+// ven de solo lectura. La foto se aplica al instante; el resto, con «Guardar cambios».
 import { FormLayout, FormSection, FormActions } from '~/components/ui/form-layout';
 import { useEffect, useState } from 'react';
 import { FormErrorBanner, serverErrorMessage } from '~/components/ui/form-feedback';

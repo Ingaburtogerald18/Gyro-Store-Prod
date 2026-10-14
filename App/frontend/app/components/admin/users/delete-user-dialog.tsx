@@ -1,6 +1,4 @@
-// Diálogo de confirmación para eliminar un usuario permanentemente (extraído de
-// admin.usuarios.tsx). Controlado por `user`: se abre cuando hay uno y ejecuta
-// el borrado vía useUserActions.
+// Confirmación para eliminar un usuario de forma permanente.
 import type { UserProfile } from "~/state/api/users-api";
 import { Button } from "~/components/ui/button";
 import {

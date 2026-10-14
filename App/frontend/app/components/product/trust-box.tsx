@@ -1,7 +1,4 @@
-// Compra con confianza: la información comercial REAL (garantía, pago y
-// entrega), breve, debajo de la ficha. En móvil queda plegada.
-// Los textos salen de lib/store-policies.ts: no se prometen tarjeta, horarios
-// ni coberturas que la tienda no definió.
+// Garantía, pago y entrega reales, desde lib/store-policies.ts: no se promete lo que la tienda no definió.
 import { HugeIcon } from '~/components/ui/icon';
 import {
   ArrowDown01Icon,

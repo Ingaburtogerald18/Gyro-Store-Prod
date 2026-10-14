@@ -1,6 +1,4 @@
-// Chasis de las rutas públicas: header, el contenido de la ruta, el footer y
-// una sola instancia del carrito (es estado global).
-//
+// Chasis de las rutas públicas: header, contenido, footer y una sola instancia del carrito.
 // El <main> lo pone cada ruta porque los anchos varían.
 import type { ReactNode } from 'react';
 import { useSearchParams } from '@remix-run/react';

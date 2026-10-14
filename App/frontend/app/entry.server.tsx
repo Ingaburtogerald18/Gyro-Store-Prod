@@ -1,14 +1,5 @@
-// Entry de SSR de Remix — versión estándar de streaming para Node, con una sola
-// adición sobre el default: propaga el NONCE de la CSP.
-//
-// Por qué existe (no lo teníamos): el server Express sirve el SSR bajo una CSP
-// con `script-src 'self' 'nonce-…'` (ver server/index.ts). `<Scripts nonce>` en
-// root.tsx firma los scripts de hidratación, PERO los scripts inline de
-// streaming que Remix inyecta al final del body —
-// `window.__remixContext.streamController.enqueue/close` — los emite este entry
-// vía `renderToPipeableStream`, y sin pasarle el nonce quedaban sin firmar → la
-// CSP los bloqueaba. `<RemixServer nonce>` + la opción `nonce` del stream se los
-// aplica.
+// Entry de SSR estándar más el nonce de la CSP: los scripts inline de streaming los emite este
+// entry y sin nonce la CSP los bloqueaba.
 import { PassThrough } from 'node:stream';
 import type { AppLoadContext, EntryContext } from '@remix-run/node';
 import { createReadableStreamFromReadable } from '@remix-run/node';
@@ -25,9 +16,7 @@ export default function handleRequest(
   remixContext: EntryContext,
   loadContext: AppLoadContext,
 ) {
-  // El nonce lo inyecta serve-frontend.ts como loadContext; el mismo valor viaja
-  // en la cabecera CSP (helmet) y acá a los scripts. En dev no hay Express: será
-  // undefined y simplemente no se emite el atributo.
+  // El nonce llega por loadContext desde serve-frontend.ts. En dev no hay Express y no se emite.
   const nonce = (loadContext as { cspNonce?: string } | undefined)?.cspNonce || undefined;
 
   return new Promise((resolve, reject) => {

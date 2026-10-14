@@ -1,13 +1,5 @@
-// Cortes de ventas del período, en una sola tarjeta: una barra 100 % por corte
-// (origen, facturación, código de descuento, forma de cobro y método de pago),
-// con su leyenda debajo. Así se comparan los cortes de un vistazo.
-//
-// Todo es "ventas": un solo tono (bordó) en distinta intensidad, no un color
-// por grupo. Cada grupo llega del backend como
-// {key, count, total}; acá solo se traduce la clave.
-//
-// Todos suman el total vendido (sin delivery), salvo método de pago, que solo
-// existe en las ventas facturadas y lo dice en el título.
+// Cortes de ventas en una tarjeta: una barra 100 % por corte, en bordó con distinta intensidad.
+// Todos suman el total vendido sin delivery, salvo método de pago (solo facturadas).
 import { motion, useReducedMotion } from 'framer-motion';
 import { HugeIcon } from '~/components/ui/icon';
 import { CreditCardIcon, Invoice01Icon, Store01Icon, Tag01Icon, Calendar03Icon, PieChartIcon } from '@hugeicons/core-free-icons';

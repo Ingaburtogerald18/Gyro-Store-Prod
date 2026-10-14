@@ -18,14 +18,11 @@ const appReducer = combineReducers({
 type AppState = ReturnType<typeof appReducer>;
 
 const rootReducer = (state: Parameters<typeof appReducer>[0], action: UnknownAction): AppState => {
-  // Solo si HABÍA sesión. AuthSync también despacha `signedOut` al arrancar
-  // para un visitante anónimo; vaciar la caché ahí tiraba las consultas que ya
-  // estaban en vuelo (p. ej. la página de seguimiento de un pedido quedaba
-  // cargando para siempre).
+  // Solo si había sesión: AuthSync despacha `signedOut` al arrancar y vaciar la caché ahí cortaba
+  // consultas en vuelo (el seguimiento de un pedido quedaba cargando).
   if (state && signedOut.match(action) && state.auth?.status === 'authenticated') {
-    // Al cerrar sesión, destruimos toda la caché de RTK Query (ventas, contactos, etc.)
-    // para evitar que queden datos expuestos si el usuario presiona "Atrás".
-    // Mantenemos solo el carrito (público) y la UI.
+    // Al cerrar sesión se descarta la caché de RTK Query (ventas, contactos…): nada queda al volver atrás.
+    // Se conservan el carrito y la UI.
     state = {
       cart: state.cart,
       ui: state.ui,

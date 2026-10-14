@@ -1,10 +1,5 @@
-// Filtros avanzados en móvil: sube desde abajo, al alcance del pulgar.
-//
-// Sobre <Sheet> de shadcn (Radix): foco atrapado, cierre con Escape, bloqueo del
-// scroll de fondo y aria del diálogo vienen resueltos. El V1 los reimplementaba
-// a mano con un portal y un useEffect sobre document.body.
-//
-// Acá solo se EDITA el estado del uiSlice; quien filtra es useCatalogFilter.
+// Filtros en móvil sobre <Sheet> (foco, Escape y scroll resueltos). Solo edita el uiSlice;
+// quien filtra es useCatalogFilter.
 import { HugeIcon } from '~/components/ui/icon';
 import { PackageSearchIcon, Tag01Icon } from '@hugeicons/core-free-icons';
 

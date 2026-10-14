@@ -1,11 +1,5 @@
-// Menú del header: pedidos, ayuda, apariencia y acceso del personal.
-//
-// Sobre el DropdownMenu de Radix: flechas, Escape, foco visible, cierre al
-// tocar afuera y RETORNO del foco al botón vienen resueltos (el menú anterior
-// era un div propio sin Escape ni manejo de foco).
-//
-// El botón no es un engranaje: para quien compra, «Menú» con sus opciones reales
-// se entiende mejor que una herramienta técnica.
+// Menú del header sobre DropdownMenu de Radix (teclado y foco resueltos). «Menú», no un engranaje:
+// se entiende mejor para quien compra.
 import { HugeIcon } from "~/components/ui/icon";
 import {
   CustomerSupportIcon,

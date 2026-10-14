@@ -1,7 +1,4 @@
-// Navegación de categorías del header (escritorio). Cada categoría es un enlace
-// real (`/?categoria=slug#catalogo`): se puede abrir en otra pestaña, compartir
-// y lo indexan los buscadores. Al hacer clic además filtra la grilla y baja al
-// catálogo con scroll suave.
+// Cada categoría es un enlace real (`/?categoria=slug#catalogo`): se puede compartir e indexar.
 import { Link } from '@remix-run/react';
 import { useReducedMotion } from 'framer-motion';
 

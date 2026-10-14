@@ -18,7 +18,7 @@ export interface AdminPublicOrder {
   codeDiscount: number;
   createdAt: string;
   items: PublicOrderLine[];
-  /** Venta en que se convirtió. Null si todavía no (o sin la migración 0023). */
+  /** Venta en que se convirtió, o null. */
   saleId?: string | null;
 }
 

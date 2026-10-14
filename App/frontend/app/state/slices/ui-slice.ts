@@ -1,12 +1,5 @@
-// Estado efímero de UI compartido entre componentes.
-// El tema se refleja acá; aplicarlo a <html data-theme> y persistirlo en
-// localStorage es trabajo del hook useTheme (ítem 41).
-//
-// Acá vive también el estado del CATÁLOGO PÚBLICO (búsqueda, categoría, precio,
-// orden y toggles). Vive en Redux y no en un useState de la grilla porque tres
-// piezas separadas leen el mismo filtro: la barra de herramientas (que muestra
-// el conteo), la grilla (que renderiza) y los chips de filtros activos. Con
-// estado local se desincronizaban.
+// Estado de UI compartido: el tema (lo aplica useTheme) y los filtros del catálogo, que leen tres
+// piezas a la vez (conteo, grilla y chips).
 import { createSelector, createSlice, type PayloadAction } from '@reduxjs/toolkit';
 import { DEFAULT_THEME, type Theme } from '~/lib/theme';
 import type { CatalogFilters, CatalogSort } from '~/lib/catalog-query';
@@ -14,14 +7,11 @@ import type { CatalogFilters, CatalogSort } from '~/lib/catalog-query';
 export type { Theme } from '~/lib/theme';
 export type { CatalogSort } from '~/lib/catalog-query';
 
-// La apertura del carrito NO vive acá: es estado del propio carrito (cartSlice),
-// igual que en la v1, para que haya una sola fuente de verdad.
+// La apertura del carrito vive en cartSlice.
 interface UiState {
   theme: Theme;
   mobileNavOpen: boolean;
-  // ── Catálogo público ──
-  // Reflejo de la URL de la home (ver lib/catalog-query y CatalogUrlSync): la
-  // URL es la fuente de verdad; estos campos la siguen en los dos sentidos.
+  // ── Catálogo público ── Reflejo de la URL de la home (lib/catalog-query): manda la URL.
   search: string;
   /** slug de categoría, o null = todas. */
   activeCategory: string | null;

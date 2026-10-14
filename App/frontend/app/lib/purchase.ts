@@ -30,11 +30,7 @@ export function resolveVariant(
   return variants.find((v) => axes.every((a, i) => !selection[a.key] || valueAt(v, i) === selection[a.key])) ?? null;
 }
 
-/**
- * Estado de una opción dentro de un eje, dado lo que ya está elegido en los
- * demás: 'available' si lleva a alguna combinación comprable; si no, la mejor
- * de las otras (próximamente, consultar y por último agotado).
- */
+/** 'available' si lleva a una combinación comprable; si no, la mejor de las otras. */
 export function optionAvailability(
   axes: CatalogAxis[],
   variants: CatalogVariant[],
@@ -53,11 +49,7 @@ export function optionAvailability(
   return 'sold_out';
 }
 
-/**
- * Selección inicial: un eje con UNA sola opción válida se elige solo. Válida =
- * lleva a algo comprable; si nada es comprable, cuenta cualquier opción
- * existente. Con varias opciones se exige una elección explícita.
- */
+/** Un eje con una sola opción válida se elige solo; con varias se exige elegir. */
 export function autoSelection(axes: CatalogAxis[], variants: CatalogVariant[]): VariantSelection {
   const selection: VariantSelection = {};
   if (variants.length === 0) return selection;
@@ -82,11 +74,7 @@ export type PurchaseState =
   | { kind: 'unknown'; variant: CatalogVariant }
   | { kind: 'ready'; variant: CatalogVariant; maxQuantity: number };
 
-/**
- * ¿Se puede agregar al carrito? Solo con datos cargados, todos los ejes
- * elegidos y una combinación disponible. Mientras falten datos, haya error o
- * la variante esté agotada o sin stock verificable, no.
- */
+/** Se puede agregar solo con datos cargados, todos los ejes elegidos y la combinación disponible. */
 export function purchaseState({
   loading = false,
   error = false,

@@ -1,14 +1,5 @@
-// Ficha de un compañero, SOLO LECTURA. Es lo que ve el staff que no administra
-// (vendedor, cajero, logística) al abrir a alguien desde Personal.
-//
-// ── Por qué no es el UserDetailDialog con los botones apagados ──
-// Ese diálogo monta un formulario, mutations de perfil y las acciones de rol y
-// baja. Reusarlo «deshabilitado» dejaría todo eso a un `disabled` de distancia y
-// habría que acordarse de apagar cada control nuevo que se agregue. Acá
-// directamente no hay formulario que enviar: los datos se pintan como texto.
-//
-// La cuenta bancaria NO está, ni oculta ni tachada: `/api/staff/directory` no la
-// manda, así que este componente ni siquiera la recibe.
+// Ficha de un compañero, solo lectura, sin formulario: no es el diálogo del admin con los botones
+// apagados. La cuenta bancaria ni llega desde /api/staff/directory.
 import type { AppRole, UserProfile } from '~/state/api/users-api';
 
 import { Avatar, AvatarFallback, AvatarImage } from '~/components/ui/avatar';

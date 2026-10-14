@@ -1,6 +1,4 @@
-// Home del storefront. El catálogo y la config se piden en el SERVIDOR (loader),
-// no en el cliente: mejora SEO y primer render, y evita el parpadeo de carga.
-// /api/catalog y /api/config son públicos, así que no hace falta token.
+// Catálogo y config en el loader: mejor SEO y primer render, sin parpadeo. Son públicos: sin token.
 import type { HeadersFunction, LoaderFunctionArgs, MetaFunction } from '@remix-run/node';
 import type { ShouldRevalidateFunction } from '@remix-run/react';
 import { getBrandName } from '~/lib/brand';
@@ -56,9 +54,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   return { origin, products, config, landing, catalogError };
 }
 
-// Los filtros viven en la URL (?q=, ?categoria=, …). Cambiarlos NO vuelve a pedir
-// catálogo, config y portada al servidor: la grilla filtra lo que ya tiene. Sí se
-// revalida al llegar desde otra ruta, después de un envío o al pedir reintento.
+// Cambiar filtros (viven en la URL) no vuelve a pedir datos: la grilla filtra lo que ya tiene.
 export const shouldRevalidate: ShouldRevalidateFunction = ({ currentUrl, nextUrl, formMethod, defaultShouldRevalidate }) => {
   if (!formMethod && currentUrl.pathname === nextUrl.pathname && currentUrl.search !== nextUrl.search) return false;
   return defaultShouldRevalidate;
@@ -70,9 +66,7 @@ export const meta: MetaFunction<typeof loader> = ({ data }) => {
   const title = brand;
   const description =
     'Audífonos KZ, adaptadores Bluetooth y accesorios de tecnología en Managua, Nicaragua.';
-  // Imagen para compartir: el logo configurado en el panel. Si no hay, no se
-  // declara ninguna (antes apuntaba a /logo.jpg, que no existe). Una imagen
-  // social propia (1200×630) está pendiente: ver el reporte de contenido.
+  // Imagen para compartir: el logo configurado; si no hay, ninguna. Falta una social propia de 1200×630.
   const image = data?.config?.images?.logoStatic || '';
 
   return [

@@ -17,10 +17,7 @@ export interface UserProfile {
   created_at: string;
   avatar_url?: string | null;
 
-  // ── Contacto y pago ──
-  // `bank_account` es dato sensible: solo viaja por los endpoints de admin
-  // (`/api/admin/users`) y por el del perfil PROPIO (`/api/me/profile`). El
-  // directorio que ve el resto del staff (`/api/staff/directory`) no lo trae.
+  // ── Contacto y pago ── `bank_account` solo viaja por los endpoints de admin y del perfil propio.
   phone?: string | null;
   personal_email?: string | null;
   /** Objeto jsonb `{ bank, currency, number }`, o null si no cargó cuenta. */
@@ -35,12 +32,8 @@ export interface UserProfile {
    */
   isProtected?: boolean;
   /**
-   * Entrada SINTÉTICA (no una fila real de `profiles`): un rol reservado por
-   * correo para alguien que un admin agregó desde Personal pero que todavía no
-   * inició sesión con Microsoft ni una vez. `id` es `pending:<email>`, no un
-   * uuid real — no sirve para /suspend, /restore, /profile ni /performance.
-   * Se activa sola (y desaparece de acá) en cuanto esa persona entra de
-   * verdad. Ver la sección `pending_role_grants` de database/01_schema.sql.
+   * Fila sintética: rol reservado para alguien que todavía no entró. `id` es `pending:<email>`, no un
+   * uuid: no sirve para suspender ni editar. Desaparece con su primer login.
    */
   pending?: boolean;
 }
@@ -52,12 +45,7 @@ export interface UserPerformance {
   balance: number;
 }
 
-/**
- * Perfil propio (`/api/me/profile`). Es el MISMO shape que `UserProfile` pero
- * sin los campos que solo tienen sentido mirando a otra persona (`isProtected`,
- * `pending`, `last_login`): acá siempre es uno mismo. La cuenta bancaria SÍ
- * viene — es la propia.
- */
+/** Perfil propio: como `UserProfile` sin los campos de mirar a otra persona; con la cuenta bancaria. */
 export type MyProfile = Pick<
   UserProfile,
   | 'id'
@@ -79,12 +67,7 @@ export const usersApi = baseApi.injectEndpoints({
       query: () => '/admin/users',
       providesTags: ['Config'], // Reuse Config tag for now, or we can add 'Users' later
     }),
-    /**
-     * Directorio para NO-admins (`/api/staff/directory`, requireAnyRole). Mismo
-     * tipo que `getUsers` pero el backend nunca manda `bank_account` ni
-     * `last_login`, y no incluye invitaciones pendientes. Un vendedor pegándole
-     * a `/admin/users` recibe 403 y la lista queda vacía: por eso hay dos.
-     */
+    /** Directorio para no-admins: sin cuenta bancaria, last_login ni invitaciones. /admin/users da 403. */
     getStaffDirectory: builder.query<UserProfile[], void>({
       query: () => '/staff/directory',
       providesTags: ['Config'],
@@ -137,9 +120,7 @@ export const usersApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ['Config'],
     }),
-    // El backend valida con `updateProfileSchema` (App/shared/schemas/staff.ts).
-    // Un string vacío significa "borrar el dato" y se guarda como NULL; omitir
-    // la clave deja el valor como está.
+    // Vacío significa «borrar el dato» (NULL); omitir la clave lo deja como está.
     updateUserProfile: builder.mutation<
       { message: string; data: UserProfile[] },
       {
@@ -149,11 +130,7 @@ export const usersApi = baseApi.injectEndpoints({
         personal_email?: string;
         /** `null` limpia la cuenta guardada. */
         bank_account?: BankAccount | null;
-        /**
-         * URL ya subida a R2 por `/api/upload` (carpeta `avatars`). `null` quita
-         * la foto; OMITIR la clave la deja como está — no mandarla nunca sería
-         * lo mismo que borrarla en cada guardado.
-         */
+        /** URL ya subida a R2. `null` la quita; omitir la clave la deja. */
         avatar_url?: string | null;
       }
     >({
@@ -167,10 +144,7 @@ export const usersApi = baseApi.injectEndpoints({
       invalidatesTags: ['Config', 'Me'],
     }),
 
-    // ── Perfil propio (self-service, cualquier rol) ──
-    // Todas invalidan 'Me' para que el avatar y el nombre del header se
-    // actualicen sin recargar, y 'Config' para que la lista de Personal (que
-    // muestra a esta misma persona) se refresque.
+    // ── Perfil propio ── Invalidan 'Me' (header) y 'Config' (la lista de Personal).
     getMyProfile: builder.query<MyProfile, void>({
       query: () => '/me/profile',
       providesTags: ['Me'],
@@ -191,12 +165,7 @@ export const usersApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ['Me', 'Config'],
     }),
-    /**
-     * Sube la foto propia. `FormData` como body a propósito: `fetchBaseQuery` lo
-     * pasa tal cual (no lo serializa a JSON) y deja que el navegador ponga el
-     * `Content-Type` con el boundary del multipart — fijarlo a mano rompe la
-     * subida.
-     */
+    /** FormData tal cual: el navegador pone el Content-Type con el boundary; fijarlo a mano rompe la subida. */
     uploadMyAvatar: builder.mutation<{ avatar_url: string }, File>({
       query: (file) => {
         const body = new FormData();

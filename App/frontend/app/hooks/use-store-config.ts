@@ -1,12 +1,5 @@
-// Config pública de la tienda (logo, categorías, WhatsApp, moneda) disponible
-// también en el HTML del servidor.
-//
-// El header, el pie y el hero leían la config solo de RTK Query, que en el SSR
-// no tiene datos: la página salía sin logo, sin categorías en el header y sin
-// número de WhatsApp hasta que el cliente terminaba su propio fetch. Las rutas
-// públicas ya traen esa misma config en su loader, así que se usa como respaldo
-// mientras RTK no responde. RTK sigue siendo la fuente de verdad en el cliente
-// (refleja cambios del panel sin recargar).
+// Config pública también en el HTML del servidor: RTK no tiene datos en SSR y la página salía sin
+// logo ni WhatsApp. Se usa el loader como respaldo; en el cliente manda RTK.
 import { useMatches } from '@remix-run/react';
 import { useAppSelector } from '~/state/hooks';
 import { selectDraftLandingConfig, selectPreviewCatalog } from '~/state/slices/builder-slice';
@@ -46,9 +39,7 @@ export function useStoreLanding(): LandingConfig | undefined {
   return undefined;
 }
 
-/** Catálogo público. Si la ruta lo trajo en su loader (la home), ESE es la
- *  fuente: header, conteos y grilla leen lo mismo y no se repite la consulta en
- *  el cliente. En otras rutas, RTK Query. */
+/** Si la ruta trajo el catálogo en su loader, ese es la fuente; si no, RTK Query. */
 export function useStoreCatalog(): CatalogProduct[] {
   const preview = useAppSelector(selectPreviewCatalog);
   const matches = useMatches();

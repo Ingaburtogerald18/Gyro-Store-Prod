@@ -6,14 +6,8 @@ import {
   FormActions,
   FormSection,
 } from "~/components/ui/form-layout";
-// Recibir en Nicaragua. El envío se escribe TOTAL y se reparte entre las
-// unidades recibidas (decisión 2026-10-09; por peso/CBM queda para después).
-// Se marca qué productos llegaron y cuántos: lo que no llegó sigue en tránsito
-// y se recibe después.
-//
-// Un envío del agente suele traer varias órdenes de Alibaba (una por
-// proveedor). Se abre desde una orden y se le suman las demás que llegaron en
-// el mismo envío: el envío total se divide entre las unidades de todas.
+// Recibir en Nicaragua: el envío se escribe total y se reparte entre las unidades recibidas de todas
+// las órdenes del envío. Lo que no llegó sigue en tránsito.
 import { Cancel01Icon } from "@hugeicons/core-free-icons";
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -89,9 +83,7 @@ export function ReceiveOrderDialog({
   const [preview, setPreview] = useState<ReceiptPreview | null>(null);
   const [errors, setErrors] = useState<Partial<Record<"arrivalDate" | "shippingTotal" | "exchangeRate" | "lines", string>>>({});
 
-  // Al abrir, todo limpio. Las filas no se inicializan acá: sin estado, cada
-  // línea usa `defaultRow`, así sirve igual si las líneas cargan tarde o se
-  // suma otra orden.
+  // Al abrir, todo limpio. Cada línea usa `defaultRow`, así sirve si las líneas cargan tarde.
   useEffect(() => {
     if (!order) return;
     setExtraIds([]);

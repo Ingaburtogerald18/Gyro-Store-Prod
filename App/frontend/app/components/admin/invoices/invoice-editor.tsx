@@ -75,16 +75,8 @@ export function InvoiceEditor({
   const [lines, setLines] = useState<InvoiceLine[]>([
     { uid: crypto.randomUUID(), productName: '', quantity: '', unitPrice: '' }
   ]);
-  // A qué vendedor le pertenece el ticket. Solo se elige al CREAR: una vez
-  // emitida, cambiar el dueño de la factura no está soportado (mismo criterio
-  // que las líneas — si está mal, se anula y se emite otra).
-  //
-  // El campo es de texto libre (Combobox: escribe y matchea contra las
-  // opciones), no un <Select> cerrado. `sellerQuery` es lo que se ve en el
-  // input; `sellerUid` sale de matchear ese texto EXACTO contra un vendedor
-  // real — si no matchea ninguno, no hay id y el submit queda bloqueado
-  // (mismo patrón que el resto del formulario: una razón visible, nunca un
-  // estado a medias).
+  // Vendedor del ticket, solo al crear. Texto libre que tiene que coincidir con un vendedor real:
+  // si no coincide no hay id y el botón queda bloqueado con su motivo.
   const [sellerQuery, setSellerQuery] = useState('');
   const [customerName, setCustomerName] = useState('');
   const [phone, setPhone] = useState('');
@@ -107,10 +99,7 @@ export function InvoiceEditor({
   const [codeInput, setCodeInput] = useState('');
   const [appliedCode, setAppliedCode] = useState<DiscountCodeValidation | null>(null);
 
-  // ── Precarga en modo edición ──
-  // Se rellena todo con lo que ya tenía la factura, incluidos los switches: si
-  // la factura trae envío, la sección de delivery arranca abierta, o el dato
-  // quedaría escondido y se perdería al guardar.
+  // En edición se precarga todo, también los switches: si no, el envío quedaría escondido y se perdería.
   useEffect(() => {
     if (!invoice) return;
     setLines(
@@ -134,20 +123,14 @@ export function InvoiceEditor({
   }, [invoice]);
 
   const sellerNames = useMemo(() => sellers.map((s) => s.name), [sellers]);
-  // Se colapsan los espacios INTERNOS además de las puntas. `trim()` solo no
-  // alcanza: un nombre guardado como "Gerald  Aburto" se dibuja "Gerald Aburto"
-  // —HTML colapsa los espacios repetidos— así que quien lo tecleaba como lo veía
-  // nunca matcheaba, y el submit quedaba bloqueado sin decir por qué.
+  // Se colapsan los espacios internos: el HTML los colapsa al dibujar y el nombre no coincidía.
   const sellerUid = useMemo(() => {
     const normalize = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ');
     const target = normalize(sellerQuery);
     return sellers.find((s) => normalize(s.name) === target)?.id ?? '';
   }, [sellers, sellerQuery]);
 
-  // El catálogo solo trae lo que HOY tiene stock. Un producto de la factura que
-  // se agotó desde entonces no estaría en el desplegable y su línea aparecería
-  // en blanco — con el precio intacto pero sin nombre. Se le suman los propios
-  // productos de la factura para que siempre se pueda ver y re-elegir.
+  // Se suman los productos de la factura: uno agotado desde entonces no estaría en el desplegable.
   const products = useMemo<SellableProduct[]>(() => {
     if (!invoice?.items?.length) return catalog;
     const byName = new Map(catalog.map((p) => [p.productName, p]));
@@ -183,9 +166,7 @@ export function InvoiceEditor({
     }));
   };
 
-  // `Number.isFinite` y no `typeof === 'number'`: un `parseInt('-')` devuelve
-  // NaN, que ES un number y pasaba el filtro — la línea se contaba como válida
-  // y el total salía NaN.
+  // `Number.isFinite`: `parseInt('-')` es NaN, que es number, y el total salía NaN.
   const validLines = lines.filter(
     (l) =>
       l.productName &&
@@ -206,10 +187,7 @@ export function InvoiceEditor({
   const totalDiscount = Math.min(codeDiscount, subtotal);
   const total = Math.max(0, subtotal - totalDiscount + effectiveDeliveryFee);
 
-  // UNA sola razón visible a la vez: el botón deshabilitado SIEMPRE explica por
-  // qué. Sin esto, "Crear e Imprimir" se veía apagado sin ninguna pista — y si
-  // no hay stock en bodega, el desplegable de productos viene vacío y no había
-  // forma de habilitarlo nunca.
+  // Una sola razón visible a la vez: el botón deshabilitado siempre explica por qué.
   const disabledReason =
     products.length === 0
       ? 'No hay productos con stock disponible en bodega.'
@@ -496,9 +474,7 @@ export function InvoiceEditor({
             </Field>
           </FormSection>
 
-          {/* En edición el código ya se canjeó al emitir: volver a aplicarlo
-                consumiría otro uso. El monto descontado se conserva tal cual y el
-                servidor lo resta al subtotal nuevo. */}
+          {/* En edición el código ya se canjeó: se conserva el monto, reaplicarlo gastaría otro uso. */}
           {isEdit && (invoice?.discount ?? 0) > 0 && (
             <div className="rounded-2xl border border-primary/30 bg-primary/10 px-4 py-3 text-sm">
               <span className="font-medium text-primary">
@@ -511,9 +487,7 @@ export function InvoiceEditor({
             </div>
           )}
 
-          {/* ── Descuento ──
-                Switch, no campo libre: si está apagado NO hay descuento. Al
-                encenderlo se pide el código, que es lo único que descuenta. */}
+          {/* ── Descuento ── Con el switch apagado no hay descuento; encendido se pide el código. */}
           {!isEdit && (
             <FormSection
               title="Descuento"

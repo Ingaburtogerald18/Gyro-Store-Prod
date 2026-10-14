@@ -1,6 +1,4 @@
-// Órdenes de compra como tarjetas que se abren, con un título de sección como
-// «Resultados» en el catálogo de la tienda. Cada tarjeta conserva su resumen
-// (número, estado, proveedor, total) aunque los productos estén cerrados.
+// Órdenes de compra como tarjetas que se abren; cada una conserva su resumen cerrada.
 import { useId, useReducer, type ReactNode } from 'react';
 import { ArrowDown01Icon } from '@hugeicons/core-free-icons';
 import { HugeIcon } from '~/components/ui/icon';

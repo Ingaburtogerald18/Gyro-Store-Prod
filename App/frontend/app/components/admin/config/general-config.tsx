@@ -1,8 +1,5 @@
 import { FormLayout, FormActions, FormBody } from "~/components/ui/form-layout";
-// Pestaña "General" de Configuración: información del negocio (nombre, RUC,
-// WhatsApp, correo, dirección) y las cuentas bancarias de la tienda.
-// El valor inicial se siembra desde las env vars; una vez guardado, manda la BD.
-// La carga y el guardado los hace `useConfigSection`, igual que las otras tres.
+// Pestaña General de Configuración: datos del negocio y cuentas bancarias de la tienda.
 import { HugeIcon } from "~/components/ui/icon";
 import { FloppyDiskIcon, Delete02Icon } from "@hugeicons/core-free-icons";
 import { useFieldArray } from "react-hook-form";
@@ -294,9 +291,7 @@ export function GeneralConfig() {
               </div>
             ))}
 
-            {/* `bank: ''` es el estado "sin elegir" que admite el schema: la fila
-                  nace vacía con el placeholder puesto, y el superRefine la rechaza al
-                  guardar si nadie eligió. */}
+            {/* `bank: ''` = sin elegir: la fila nace vacía y el schema la rechaza al guardar. */}
             <Button
               type="button"
               variant="outline"

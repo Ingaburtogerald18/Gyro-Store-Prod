@@ -1,16 +1,5 @@
-// Resuelve el valor guardado en `purchases.category` a un nombre legible.
-//
-// ── Por qué es un hook compartido y no una función en cada tabla ──
-// Lo consumen la tabla de Compras y la de Inventario actual. Cuando cada una
-// tenía su propia resolución, arreglar una dejaba a la otra mostrando uuids
-// crudos — que es exactamente lo que pasó.
-//
-// ── Por qué resuelve en cada render y no se guarda el nombre ──
-// La compra guarda el ID de la categoría. Eso es lo que hace que renombrarla en
-// Catálogo se refleje en las tablas sin tocar una sola fila: al invalidarse el
-// tag `Categories`, la query refetchea y el rótulo cambia solo. Si se guardara
-// el nombre, cada compra quedaría congelada con el rótulo que tenía el día que
-// se registró.
+// Nombre legible de `purchases.category`, compartido por Compras e Inventario actual. Se guarda el id,
+// así renombrar la categoría se refleja sin tocar las filas.
 import { useCallback } from 'react';
 
 import { useGetCategoriesQuery } from '~/state/api/catalog-admin-api';
@@ -35,9 +24,7 @@ export function useCategoryLabel() {
       const fromConfig = config?.categories?.find((c) => c.id === value);
       if (fromConfig) return `${fromConfig.icon} ${fromConfig.name}`;
 
-      // 3) Un uuid que ya no está en ninguna lista es una categoría BORRADA;
-      //    imprimirlo crudo no le dice nada a nadie. Un valor que no es uuid es
-      //    texto viejo escrito a mano, y ahí el texto sí es la mejor etiqueta.
+      // Un uuid que no está en la lista es una categoría borrada; un texto que no es uuid es un valor viejo.
       return UUID_RE.test(value) ? 'Categoría eliminada' : value;
     },
     [categories, config],

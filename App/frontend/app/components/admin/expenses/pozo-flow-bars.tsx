@@ -1,15 +1,5 @@
-// Estado de los pozos del mes: una barra por pozo, en la escala de SU
-// presupuesto (heredado + recogido), con segmentos que dicen a dónde fue la
-// plata y de dónde salió lo que faltó:
-//
-//   verde           gastado con su propio pozo
-//   ámbar rayado    prestado a otros pozos que se pasaron
-//   ámbar           cubierto por otros (bolsa extra u otros pozos)
-//   rojo            cubierto por la ganancia
-//   fondo vacío     lo que pasa al mes siguiente
-//
-// Si el pozo se pasó, la barra se alarga más allá de su presupuesto y una
-// marca vertical señala dónde terminaba. Reglas: Docs/03-Finanzas.md §12.
+// Una barra por pozo en la escala de su presupuesto: verde gastado, ámbar rayado prestado, ámbar
+// cubierto por otros, rojo cubierto por la ganancia. Si se pasó, una marca indica dónde terminaba.
 import type { CSSProperties, KeyboardEvent, ReactNode } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { HugeIcon } from '~/components/ui/icon';

@@ -25,27 +25,13 @@ export function TicketPrintModal({
     skip: !invoiceId,
   });
 
-  // El portal se monta contra `document.body`, que no existe en el render de
-  // servidor (Remix SSR). Se difiere a un efecto para renderizarlo solo en el
-  // cliente.
+  // `document.body` no existe en el render de servidor: el portal se monta después de hidratar.
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
   /**
-   * Abre el diálogo de impresión del navegador.
-   *
-   * El ticket NO se imprime desde su copia dentro del `Dialog`: ese diálogo es
-   * `position: fixed`, y un ancestro fijo (a) posiciona mal al hijo absoluto
-   * —saliéndose del área de 80 mm, cortando la parte derecha— y (b) se REPITE en
-   * cada página impresa en varios navegadores (el ticket salía duplicado). En su
-   * lugar se imprime una copia renderizada como hijo directo de `<body>` (el
-   * portal `#ticket-print-portal`), sin ancestros `fixed` ni `overflow`.
-   *
-   * Imprimir y "Descargar PDF" son EL MISMO camino: en el diálogo del navegador,
-   * elegir "Guardar como PDF" produce un PDF con texto vectorial real
-   * (seleccionable, nítido a cualquier zoom, unos pocos KB). Rasterizar el
-   * ticket con html2canvas para armar el PDF a mano daría una imagen borrosa,
-   * pesada y sin texto seleccionable — peor resultado y dos dependencias más.
+   * Se imprime una copia hija directa de <body>: dentro del Dialog (fixed) se cortaba y se repetía
+   * en cada página. «Guardar como PDF» del navegador da un PDF con texto real.
    */
   const openPrintDialog = (hint?: string) => {
     if (!ticket || !mounted) return;
@@ -54,9 +40,7 @@ export function TicketPrintModal({
     style.innerHTML = `
       @page { size: 80mm auto; margin: 0; }
       @media print {
-        /* Se oculta TODO lo que cuelga de <body> (root de la app, overlay del
-           diálogo, toasts…) y se muestra solo el portal del ticket, que es un
-           hijo directo de <body> — sin el ancestro fijo que rompía el layout. */
+        /* Oculta todo lo que cuelga de <body> salvo el portal del ticket, que no tiene ancestro fijo. */
         body > *:not(#${PRINT_PORTAL_ID}) { display: none !important; }
         #${PRINT_PORTAL_ID} { display: block !important; }
         html, body {
@@ -77,10 +61,8 @@ export function TicketPrintModal({
     `;
     document.head.appendChild(style);
 
-    // La limpieza va en `afterprint` y NO justo después de `window.print()`: en
-    // Firefox y Safari `print()` no bloquea, así que quitar el <style> en la
-    // línea siguiente lo removería ANTES de que el navegador compusiera la
-    // página — y saldría impresa la pantalla entera en vez del ticket.
+    // La limpieza va en `afterprint`: en Firefox y Safari `print()` no bloquea, y quitar el <style> en la
+    // línea siguiente imprimía la pantalla entera.
     const cleanup = () => {
       style.remove();
       window.removeEventListener('afterprint', cleanup);
@@ -144,10 +126,7 @@ export function TicketPrintModal({
         </DialogContent>
       </Dialog>
 
-      {/* Copia SOLO para impresión, montada como hijo directo de <body>. En
-          pantalla va oculta (`display:none` inline); el CSS de `@media print`
-          de `openPrintDialog` la revela y esconde el resto. Al no vivir dentro
-          del diálogo `fixed`, se posiciona respecto a la hoja y no se repite. */}
+      {/* Copia solo para imprimir, hija directa de <body>: en pantalla oculta y revelada por @media print. */}
       {mounted &&
         ticket &&
         createPortal(

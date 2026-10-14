@@ -20,10 +20,7 @@ export const baseApi = createApi({
       return headers;
     },
   }),
-  // Tags de invalidación disponibles para los slices del Hito 1; los dominios
-  // posteriores (sales, inventory, crm, …) agregan los suyos con addTagTypes.
-  // 'Purchase'/'Product' faltaban acá pese a que inventory-api.ts
-  // (Hito 2) ya los usaba — typecheck del frontend nunca se había corrido.
+  // Tags de invalidación; cada dominio agrega los suyos con addTagTypes.
   tagTypes: [
     'Config',
     'Landing',

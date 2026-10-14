@@ -50,9 +50,7 @@ export function PageHeader({
         {actions && <div className="admin-page-actions flex max-w-full flex-wrap items-center gap-2 lg:justify-end">{actions}</div>}
       </div>
 
-      {/* Los filtros van en su propia fila, separados por un borde. Apilados a
-          la derecha del título desbalanceaban la fila y en móvil se acomodaban
-          de forma impredecible. */}
+      {/* Filtros en su propia fila: a la derecha del título desbalanceaban y en móvil se acomodaban mal. */}
       {filters && (
         <div className="mt-4 flex flex-wrap items-end gap-3 border-t border-border pt-4">
           {filters}

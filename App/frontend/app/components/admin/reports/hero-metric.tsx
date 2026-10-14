@@ -106,12 +106,8 @@ export function HeroMetric({
 }
 
 /**
- * KPI secundario: label chico, valor mediano, delta. Sin CountUp, sin
- * spotlight, sin sombra — todo eso está reservado al héroe.
- *
- * El VALOR va en `text-foreground`, siempre. El color del acento queda para el
- * icono y para el delta: si cada tarjeta pinta su número de un tono distinto,
- * el color deja de significar algo y la pantalla se vuelve un arcoíris.
+ * KPI secundario: sin CountUp ni sombra. El valor siempre en tinta: el color de acento queda para
+ * el ícono y el delta, si no deja de significar algo.
  */
 export function CompactKpi({
   icon,

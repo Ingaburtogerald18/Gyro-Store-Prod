@@ -1,12 +1,5 @@
-// Footer del catálogo público, compacto y con datos REALES de la configuración:
-// contacto, dirección y mapa, pedidos y ayuda, y la información comercial
-// de garantía, pago y entrega siempre visible. No se inventan
-// horarios ni datos que la tienda no cargó en el panel.
-//
-//   - Claro: fondo blanco (bg-card) con una línea tinta arriba, el mismo trazo
-//     de los botones. Oscuro: el gris de las tarjetas con un borde fino.
-//   - Marca: el logo configurado en el panel (el mismo del header); sin logo, la
-//     bolsa de Gyro con el nombre.
+// Footer con datos reales de la configuración; no se inventan horarios ni datos que falten.
+// Sin logo cargado, la bolsa de Gyro con el nombre.
 import { Link } from '@remix-run/react';
 import { HugeIcon } from '~/components/ui/icon';
 import { Location01Icon, Mail01Icon } from '@hugeicons/core-free-icons';

@@ -1,6 +1,4 @@
-// Selector de periodo: los presets rápidos como pestañas y, al elegir "Rango",
-// dos DatePicker para el rango libre. El estado vive arriba (la ruta) porque
-// TODAS las queries del reporte dependen de él.
+// Presets y rango libre. El estado vive en la ruta: todas las queries del reporte dependen de él.
 import { DatePicker } from '~/components/ui/date-picker';
 import { AnimatedTabs } from '~/components/ui/animated-tabs';
 import { cn } from '~/lib/utils';

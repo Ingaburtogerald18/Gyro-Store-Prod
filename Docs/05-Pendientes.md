@@ -15,22 +15,21 @@ borra de acá y se describe en el documento que corresponda.
   muestra Ventas, Pedidos web, Personal y CRM: no llega a Facturación.
 - **Tramos de mayoreo en Configuración.** Configuración → Finanzas deja editar los tramos de mayoreo,
   pero el cotizador no los usa (03-Finanzas §5). O se ocultan o se reactiva el mayoreo.
+- **Imagen para compartir.** La portada usa el logo como imagen social; falta una propia de 1200×630.
 - **Ficha del combo.** Muestra el combo como una unidad (nombre, precio, foto y cantidad de
   artículos). Podría listar su contenido: cada combo ya guarda el nombre y la cantidad de cada
   producto (`comboSchema.items`).
 
 ## 2. Orden del código
 
-Plan acordado para ordenar el repositorio. Cada paso es un commit que pasa `npm run check` y los tests.
-El servidor y el frontend ya están ordenados por tema y en kebab-case, y los archivos gigantes del
-servidor y de `shared/` ya están partidos (ver 02-Arquitectura §3).
+El repositorio ya está ordenado: servidor y frontend por tema, nombres en kebab-case, archivos
+gigantes partidos y comentarios de 1 o 2 líneas sin historia (ver 02-Arquitectura §3). Quedan dos
+piezas grandes de lógica:
 
-1. **Partir dos piezas grandes de lógica**: `components/editor/landing-editor.tsx` es un solo
-   componente de 850 líneas y `updateSale` (`modules/sales/sales-edit.ts`) una sola función de 420.
-   Partirlas cambia código, no solo orden: hay que probar el modo edición en claro y oscuro, a varios
-   anchos y con teclado, y editar ventas de punta a punta.
-2. **Comentarios** de 1 o 2 líneas y sin historia (unos 770 bloques largos). Incluye corregir los
-   que dicen algo falso, como el de `lib/brand.ts` que asegura que el servidor exige `BRAND_NAME`.
+- `components/editor/landing-editor.tsx` es un solo componente de 850 líneas y `updateSale`
+  (`modules/sales/sales-edit.ts`) una sola función de 420. Partirlas cambia código, no solo orden: hay
+  que probar el modo edición en claro y oscuro, a varios anchos y con teclado, y editar ventas de punta
+  a punta.
 
 ## 3. Deuda técnica
 

@@ -8,10 +8,7 @@ export const Ticket = forwardRef<HTMLDivElement, { invoice: TicketData }>(functi
   ref,
 ) {
   const { data: config } = useGetConfigQuery();
-  // El logo sale de Configuración → Recursos de Imágenes. `posLogo` es el que se
-  // sube pensando en la térmica (300x300, blanco y negro puro); si todavía no
-  // hay uno cargado se cae al logo general, y si tampoco hay, el ticket sale
-  // solo con el nombre en texto — que ya está más abajo y se imprime perfecto.
+  // `posLogo` es el preparado para la térmica; si no hay, el logo general, y si tampoco, solo el nombre.
   const logoUrl = config?.images?.posLogo || config?.images?.logoStatic || '';
 
   // URL pública de la tienda para el QR y el texto del pie. `storeHost` es solo
@@ -36,14 +33,10 @@ export const Ticket = forwardRef<HTMLDivElement, { invoice: TicketData }>(functi
       }}
       className="mx-auto bg-white px-4 pb-3 pt-0.5 text-[13px] leading-snug text-black"
     >
-      {/* ═══════════════════════════════════════════
-          CABECERA: Logo centrado + info de contacto
-          ═══════════════════════════════════════════ */}
+      {/* ── Cabecera: logo y contacto ── */}
       <div className="mb-2 text-center">
         {logoUrl && (
-          // `object-contain` y sin recorte: `posLogo` se sube ya preparado para
-          // el ticket, así que se imprime entero. El `grayscale` protege de un
-          // logo a color en una impresora térmica, que es monocromo.
+          // Sin recorte: `posLogo` ya viene preparado. `grayscale` por si el logo es a color (la térmica es monocroma).
           <img
             src={logoUrl}
             alt=""
@@ -66,9 +59,7 @@ export const Ticket = forwardRef<HTMLDivElement, { invoice: TicketData }>(functi
 
       <DashedSep />
 
-      {/* ═══════════════════════════════════════════
-          DATOS DEL TICKET
-          ═══════════════════════════════════════════ */}
+      {/* ── Datos del ticket ── */}
       <div className="mb-1 space-y-0.5 text-[12px]">
         <Row label="Factura Nº" value={String(invoice.ticketNumber)} bold />
         <Row
@@ -98,9 +89,7 @@ export const Ticket = forwardRef<HTMLDivElement, { invoice: TicketData }>(functi
 
       <DashedSep />
 
-      {/* ═══════════════════════════════════════════
-          DETALLE DE PRODUCTOS
-          ═══════════════════════════════════════════ */}
+      {/* ── Productos ── */}
       <div className="space-y-0">
         {invoice.items.map((l, i) => (
           <div key={i} className="border-b border-dotted border-black/40 py-2">
@@ -117,9 +106,7 @@ export const Ticket = forwardRef<HTMLDivElement, { invoice: TicketData }>(functi
         ))}
       </div>
 
-      {/* ═══════════════════════════════════════════
-          RESUMEN FINANCIERO
-          ═══════════════════════════════════════════ */}
+      {/* ── Resumen ── */}
       <div className="mt-2 space-y-1 text-[12px]">
         <Row label="Subtotal" value={formatCordobas(invoice.subtotal)} />
         {invoice.discount > 0 && (
@@ -146,9 +133,7 @@ export const Ticket = forwardRef<HTMLDivElement, { invoice: TicketData }>(functi
 
       <DashedSep />
 
-      {/* ═══════════════════════════════════════════
-          DESPEDIDA + QR
-          ═══════════════════════════════════════════ */}
+      {/* ── Despedida y QR ── */}
       <div className="text-center">
         <p className="text-[14px] font-black tracking-wide">¡GRACIAS POR TU COMPRA!</p>
         <p className="mt-1 text-[11px]">Visita nuestra tienda en línea</p>
@@ -170,9 +155,7 @@ export const Ticket = forwardRef<HTMLDivElement, { invoice: TicketData }>(functi
 
       <Separator />
 
-      {/* ═══════════════════════════════════════════
-          POLÍTICAS DE GARANTÍA
-          ═══════════════════════════════════════════ */}
+      {/* ── Políticas de garantía ── */}
       <div className="mt-2 px-0.5 text-[11px] leading-tight">
         <p className="mb-1 text-center text-[12px] font-bold uppercase tracking-wider">
           Políticas de Garantía

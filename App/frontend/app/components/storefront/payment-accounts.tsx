@@ -15,10 +15,7 @@ const CURRENCY_LABELS: Record<string, string> = {
 function AccountRow({ account }: { account: StoreBankAccount }) {
   const [copied, setCopied] = useState(false);
 
-  // El número de cuenta se copia con un botón y no se deja para seleccionar a
-  // mano: en el celular —que es de donde viene casi todo el tráfico— seleccionar
-  // veinte dígitos sin equivocarse es incómodo, y un dígito de más manda la
-  // transferencia a otro lado.
+  // Botón para copiar: en el celular seleccionar veinte dígitos es fácil de errar.
   async function copy() {
     try {
       await navigator.clipboard.writeText(account.number);
@@ -39,9 +36,7 @@ function AccountRow({ account }: { account: StoreBankAccount }) {
             {CURRENCY_LABELS[account.currency] ?? account.currency}
           </span>
         </p>
-        {/* `tabular-nums` para que los dígitos tengan ancho fijo: un número de
-            cuenta con ancho variable es más difícil de cotejar contra el que uno
-            está tipeando en la app del banco. */}
+        {/* Dígitos de ancho fijo para cotejarlos con los de la app del banco. */}
         <p className="mt-0.5 break-all font-mono text-sm tabular-nums text-muted-foreground">
           {account.number}
         </p>

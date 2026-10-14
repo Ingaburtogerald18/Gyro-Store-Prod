@@ -1,11 +1,5 @@
-// Telemetría del storefront montada una sola vez en la raíz. Hace dos cosas:
-//   1. Registra `page_view` en cada cambio de ruta pública (el gating —
-//      consentimiento, staff, rutas privadas— vive en analytics.client).
-//   2. Muestra el BANNER DE CONSENTIMIENTO (no bloqueante, abajo) mientras el
-//      visitante no haya decidido. Nada se emite hasta que acepta.
-//
-// Todo corre solo en el cliente: los efectos y el estado se activan tras montar,
-// así que el SSR pinta sin banner y sin tocar localStorage.
+// Telemetría de la tienda: `page_view` por ruta y el banner de consentimiento. Solo en el cliente:
+// el SSR pinta sin banner y sin tocar localStorage.
 import { useEffect, useRef, useState } from 'react';
 import { useLocation } from '@remix-run/react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
@@ -45,9 +39,7 @@ export function StorefrontAnalytics() {
     }
   }, [location.pathname]);
 
-  // page_view por navegación. El pathname como dependencia cubre tanto la carga
-  // inicial como cada transición de Remix. El propio track descarta rutas
-  // privadas y visitantes sin consentimiento, así que no hace falta filtrar acá.
+  // El pathname cubre la carga inicial y cada transición; track ya descarta lo que no corresponde.
   useEffect(() => {
     trackPageView(location.pathname);
   }, [location.pathname]);

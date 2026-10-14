@@ -1,19 +1,6 @@
 import { FormDialogContent } from '~/components/ui/form-layout';
-// Portal de Ventas: cotizador + registro + aprobar/rechazar
-// (admin) + listado scoped por rol (lo scopea el backend, no el frontend).
-//
-// Esta ruta es solo el SHELL: monta el editor y el listado. El armado de la
-// venta vive en `components/admin/sales/` (SaleEditor + SaleLinesTable +
-// QuoteSummary), como en v1.
-//
-// Reciclaje de v1 (admin.ventas.tsx + AdminSales.tsx): se recicla la idea de
-// "un shell, admin y vendedor ven lo mismo, el rol decide qué botones
-// aparecen". Se reescribe todo lo demás: v1 resolvía productos nativos+migrados
-// con foto de recibo y admin-en-nombre-de un vendedor — el backend v2 (MVP
-// Hito 3) solo tiene inventario nativo, sin fotos, y cada vendedor registra su
-// propia venta (ver server/modules/sales/sales-register.ts). Un producto no puede repetirse
-// en dos líneas (mismo límite del backend, evita la lógica de "distribuir
-// reservas" de v1).
+// Ventas: shell del editor y el listado; admin y vendedor ven lo mismo y el rol decide los botones.
+// El listado lo recorta el backend. El armado vive en components/admin/sales/.
 import { HugeIcon } from '~/components/ui/icon';
 import { Add01Icon, CheckmarkCircle02Icon } from '@hugeicons/core-free-icons';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
@@ -63,9 +50,7 @@ import {
   type SaleWithItems,
 } from '~/state/api/sales-api';
 import { Spinner } from '~/components/ui/spinner';
-// `SaleEditor` son 22 KB que hoy se descargaban al abrir Ventas aunque nadie
-// registrara nada. Con `lazy` el chunk viaja recién al abrir el diálogo — y
-// para entonces el usuario ya decidió esperar.
+// `lazy`: el editor (22 KB) viaja recién al abrir el diálogo.
 const SaleEditor = lazy(() =>
   import('~/components/admin/sales/sale-editor').then((m) => ({ default: m.SaleEditor })),
 );
@@ -94,9 +79,7 @@ export default function AdminVentas() {
 
   const [approveSale] = useApproveSaleMutation();
   const [rejectSale] = useRejectSaleMutation();
-  // Estado propio y no `isLoading` del hook: al rechazar varias en paralelo
-  // (`Promise.allSettled`) el `isLoading` del hook solo refleja la ÚLTIMA
-  // llamada disparada, no el lote completo.
+  // Estado propio: al rechazar varias en paralelo, `isLoading` solo refleja la última llamada.
   const [rejecting, setRejecting] = useState(false);
 
   const [isEditorOpen, setIsEditorOpen] = useState(false);
@@ -109,15 +92,11 @@ export default function AdminVentas() {
     setEditingSale(null);
   }
 
-  // El filtro vive en la URL para que la campana de notificaciones pueda
-  // enlazar directo al estado que anuncia ("3 ventas esperan tu aprobación").
-  // Con estado local a secas el enlace llegaba a la pestaña equivocada.
+  // El filtro vive en la URL para que la campana enlace al estado que anuncia.
   const [searchParams, setSearchParams] = useSearchParams();
   const statusFilter = searchParams.get('status') ?? 'pending_approval';
 
-  // `?nueva=1` abre el editor: la acción "Registrar venta" queda ENLAZABLE
-  // (una notificación o un mensaje pueden apuntar directo al formulario) sin
-  // subir el estado del diálogo a un store global.
+  // `?nueva=1` abre el editor: «Registrar venta» queda enlazable.
   useEffect(() => {
     if (searchParams.get('nueva') === '1') {
       setIsEditorOpen(true);
@@ -134,9 +113,7 @@ export default function AdminVentas() {
     }
   }, [searchParams, setSearchParams]);
 
-  // `?sale=<id>` abre el detalle. Vive en la URL, no en estado local, para que
-  // una notificación pueda enlazar al REGISTRO exacto y no solo a la pestaña
-  // que lo contiene.
+  // `?sale=<id>` abre el detalle: una notificación enlaza al registro exacto.
   const openSaleId = searchParams.get('sale');
   const openSale = (id: string | null) =>
     setSearchParams(
@@ -165,11 +142,8 @@ export default function AdminVentas() {
     status: statusFilter === 'all' ? undefined : statusFilter,
   });
 
-  // Filtro por vendedor: vive fuera de la URL (a diferencia de `statusFilter`)
-  // porque nada externo necesita enlazar directo a "las pendientes de Fulano".
-  // Las opciones salen de la pestaña ACTUAL (`sales`, ya scopeada por status),
-  // no de `filteredSales`: si no, elegir un vendedor haría desaparecer al resto
-  // de la lista de opciones.
+  // El vendedor no va en la URL. Las opciones salen de la pestaña actual, no de lo filtrado, para que
+  // elegir uno no haga desaparecer al resto.
   const [sellerFilter, setSellerFilter] = useState('all');
   // Búsqueda de la barra (vendedor, factura…): la resuelve el filtro global
   // de la tabla sobre el valor de cada celda.
@@ -186,9 +160,7 @@ export default function AdminVentas() {
     setSellerFilter('all');
   }, [statusFilter]);
 
-  // Lo que la tabla y el resumen de dinero realmente muestran: la pestaña
-  // (ya la filtró el servidor) + el vendedor (client-side, mismo criterio que
-  // `filteredPurchases` en Inventario).
+  // Lo que se muestra: la pestaña (filtrada en el servidor) más el vendedor (en el cliente).
   const filteredSales = useMemo(
     () =>
       sellerFilter === 'all'
@@ -202,21 +174,14 @@ export default function AdminVentas() {
   const [rejectFor, setRejectFor] = useState<SaleListItem[] | null>(null);
   const [rejectReason, setRejectReason] = useState('');
 
-  // ── Selección múltiple: SOLO en "Pendientes" y SOLO admin (es quien puede
-  // aprobar/rechazar; a un vendedor mirando sus propias pendientes no le sirve
-  // de nada seleccionar varias). Se resetea al cambiar de pestaña para no
-  // dejar ids seleccionados de un listado que ya no se está viendo. ──
+  // Selección múltiple solo en Pendientes y para admin; se reinicia al cambiar de pestaña.
   const canBulkSelect = isAdmin && statusFilter === 'pending_approval';
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   useEffect(() => {
     setSelectedIds(new Set());
   }, [statusFilter, sellerFilter]);
 
-  // El pago se hace por vendedor (es lo que arma el popup de resumen), así
-  // que un lote mezclado no tendría un "cuánto le debemos" que tenga sentido.
-  // Se bloquea agregar una venta de OTRO vendedor a una selección existente
-  // en vez de dejar mezclar y recién avisar al aprobar — así el usuario nunca
-  // llega a un estado que después haya que deshacer.
+  // El pago es por vendedor: no se mezclan ventas de otro vendedor en una selección.
   const selectedSellerEmail = useMemo(() => {
     const firstId = selectedIds.values().next().value;
     return firstId ? sales.find((s) => s.id === firstId)?.sellerEmail ?? null : null;
@@ -366,10 +331,7 @@ export default function AdminVentas() {
       {
         id: 'vendedor',
         header: 'Vendedor',
-        // `accessorFn` y no `accessorKey`: el filtro global de la tabla busca
-        // sobre el VALOR de la celda, así que el nombre tiene que ser el valor
-        // para que "buscar por vendedor" funcione. El correo queda de respaldo
-        // para las cuentas que nunca completaron el perfil.
+        // `accessorFn`: el buscador filtra por el valor de la celda, así el nombre tiene que ser el valor.
         accessorFn: (row) => row.sellerName || row.sellerEmail,
         cell: ({ row }) => (
           <span className="font-medium text-foreground">
@@ -456,9 +418,7 @@ export default function AdminVentas() {
     return cols;
   }, [isAdmin]);
 
-  // La comisión de una venta rechazada no se le debe a nadie — el rótulo
-  // avisa qué representa el número en CADA pestaña en vez de un genérico
-  // "Comisión" que en Pendientes/Aprobadas se leería como ya pagada.
+  // El rótulo dice qué representa la comisión en cada pestaña (la de una rechazada no se debe).
   const comisionLabel =
     statusFilter === 'pending_approval'
       ? 'Comisión pendiente'
@@ -514,9 +474,7 @@ export default function AdminVentas() {
           </DialogHeader>
 
           <div className="flex min-h-0 flex-1 flex-col">
-            {/* El fallback tiene la ALTURA aproximada del editor: con un spinner
-                    chico el panel se abriría casi vacío y saltaría al llegar el
-                    chunk. */}
+            {/* Fallback con la altura del editor para que el panel no salte al llegar el chunk. */}
             <Suspense fallback={<SkeletonCard lines={8} className="border-none" />}>
               <SaleEditor sale={editingSale} onDone={closeEditor} onCancel={closeEditor} />
             </Suspense>
@@ -524,9 +482,7 @@ export default function AdminVentas() {
         </FormDialogContent>
       </Dialog>
 
-      {/* El vendedor no tiene Dashboard en su nav, así que su reportería propia
-              vive acá. Al admin no se le muestra: ya la tiene completa (y de todo
-              el equipo) en /admin. */}
+      {/* El vendedor no tiene Reportería: su desempeño vive acá. */}
       {!isAdmin && <SellerPerformance />}
 
       <Workspace>
@@ -550,9 +506,7 @@ export default function AdminVentas() {
           />
         </WorkspaceToolbar>
 
-        {/* Resumen de dinero de lo que se está VIENDO (estado + vendedor), no
-                del total sin filtrar. La cantidad de ventas va como dato del
-                importe para que la franja quepa en cuatro. */}
+        {/* Resumen de lo que se ve (estado + vendedor), no del total sin filtrar. */}
         <MetricStrip columns={statusFilter === 'rejected' || !isAdmin ? 2 : 4}>
           <Metric
             label="Importe"
@@ -615,13 +569,8 @@ export default function AdminVentas() {
             </div>
           )}
 
-          {/* Sin `<Card>` envolvente: `DataTable` ya trae su borde y su fondo, así
-                que envolverla daba doble borde y una sombra de más sobre el
-                contenido más importante de la pantalla. La tabla va directo en el
-                flujo, a ancho completo. */}
-          {/* `isLoading` (primera vez) → esqueleto; `isFetching` (refetch)
-                → los datos que ya estaban, atenuados. Cambiar de pestaña no
-                debería vaciar la tabla. */}
+          {/* Sin <Card>: DataTable ya trae borde y fondo, y envolverla daba doble borde. */}
+          {/* Primera carga → esqueleto; recarga → los datos de antes, atenuados. */}
           <QueryState
             loading={loadingSales}
             fetching={fetchingSales}

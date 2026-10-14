@@ -1,7 +1,5 @@
-// Theming dark/light. El atributo `data-theme` en
-// <html> es la fuente visual (los tokens CSS flipean con él); Redux solo lo
-// refleja para que cualquier componente pueda leerlo. El script anti-flash de
-// root.tsx aplica el tema guardado ANTES del primer paint.
+// `data-theme` en <html> es la fuente visual; Redux solo lo refleja. El script anti-flash de root.tsx
+// aplica el tema antes del primer paint.
 import { useCallback } from 'react';
 import { useAppDispatch, useAppSelector } from '~/state/hooks';
 import { selectTheme, themeSet, type Theme } from '~/state/slices/ui-slice';

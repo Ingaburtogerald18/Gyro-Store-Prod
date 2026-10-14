@@ -1,6 +1,4 @@
-// Número que cuenta hacia su valor (easing easeOutCubic): desde 0 al aparecer y
-// desde el valor anterior cuando cambia (p. ej. al cambiar de mes). Acepta un
-// formateador (p. ej. formatCordobas). Respeta prefers-reduced-motion.
+// Cuenta hacia su valor desde 0 o desde el anterior. Respeta prefers-reduced-motion.
 import { useEffect, useRef, useState } from "react";
 import { useReducedMotion } from "framer-motion";
 

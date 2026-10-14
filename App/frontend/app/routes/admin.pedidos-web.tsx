@@ -1,6 +1,4 @@
-// Pedidos web (Centro de Administración): lo que entra por el checkout de la
-// tienda. Acá se mueve el estado que el cliente ve en su link de seguimiento
-// (/pedido/<id>), sin que tenga cuenta.
+// Pedidos web: acá se mueve el estado que el cliente ve en su link de seguimiento (/pedido/<id>).
 import { HugeIcon } from '~/components/ui/icon';
 import {
   ArrowDown01Icon,
@@ -219,9 +217,8 @@ export default function AdminPedidosWeb() {
   );
 }
 
-// Convertir en venta: crea la venta pendiente en Ventas, a nombre de quien
-// convierte (se corrige editando la venta), con el stock que el pedido ya tenía
-// apartado. Solo admin, y una sola vez por pedido.
+// Crea la venta pendiente con el stock que el pedido ya apartaba, a nombre de quien convierte.
+// Solo admin, una vez por pedido.
 function ConvertToSale({ order }: { order: AdminPublicOrder }) {
   const isAdmin = useAppSelector(selectIsAdmin);
   const navigate = useNavigate();

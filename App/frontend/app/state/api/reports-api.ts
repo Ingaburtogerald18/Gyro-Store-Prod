@@ -1,10 +1,6 @@
 import { baseApi } from './base-api';
 
-// Los campos de estructura de costos son OPCIONALES porque el backend los
-// recorta por rol (server/modules/finance/reports-routes.ts): un vendedor recibe su volumen y
-// su comisión, nunca el coste, la ganancia de la tienda ni los pozos. Marcarlos
-// `?` es lo que obliga al panel a contemplar el caso en vez de imprimir
-// `undefined`.
+// Opcionales porque el backend los recorta por rol: el panel tiene que contemplar que falten.
 export interface FinancialKPIs {
   total_ventas: number;
   total_unidades: number;
@@ -15,11 +11,8 @@ export interface FinancialKPIs {
   salary_acumulado?: number;
   pozos_recogidos?: Record<string, number>;
 
-  // ── Periodo anterior de igual duración (migración 0017) ──
-  // `coste_total_prev` y `ganancia_tienda_total_prev` son opcionales por el
-  // mismo motivo que sus pares actuales: el backend los recorta para quien no
-  // es admin. Con el valor anterior y el delta se reconstruye el actual, así
-  // que se podan juntos.
+  // ── Periodo anterior ── Los de costo y ganancia se recortan con sus pares: con el delta se
+  // reconstruiría el actual.
   total_ventas_prev?: number;
   total_unidades_prev?: number;
   total_vendido_prev?: number;
@@ -325,9 +318,7 @@ export const reportsApi = baseApi.injectEndpoints({
 export const {
   useGetKpisQuery,
   useGetLossesQuery,
-  // Solo la variante lazy: la exportación de CSV se dispara por click, no al
-  // montar. `useGetSalesExportQuery` (la versión ansiosa del MISMO endpoint) no
-  // tiene consumidores y se quitó de acá.
+  // Solo la variante lazy: la exportación se dispara con un clic.
   useLazyGetSalesExportQuery,
   useGetExpensesByPozoQuery,
   useGetExpensesOverflowQuery,

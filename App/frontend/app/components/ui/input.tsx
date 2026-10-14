@@ -2,23 +2,12 @@ import * as React from "react"
 
 import { cn } from "~/lib/utils"
 
-// forwardRef es la ÚNICA desviación respecto del registry: shadcn ya asume React
-// 19 (ref como prop normal), pero este proyecto está en React 18, donde el jsx
-// runtime intercepta `ref` del spread y jamás llega al <input>. Sin esto,
-// `{...register("x")}` de react-hook-form registra el onChange pero no el nodo:
-// reset() y setValue() dejan de escribir en el DOM. Conservar en cada
-// `shadcn add --overwrite`.
+// forwardRef es la única desviación del registry: en React 18 sin él react-hook-form no registra el
+// nodo y reset() deja de escribir en el DOM. Conservarlo en cada `shadcn add --overwrite`.
 const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
   function Input({ className, type, onWheel, ...props }, ref) {
-  // Rueda del mouse sobre un `type="number"` ENFOCADO: el navegador lo trata
-  // como el stepper y le suma/resta un `step` por cada tic. En un campo de
-  // precio con `step="0.01"` eso convierte un 80 en 79.99 sin que nadie toque
-  // el teclado — y así queda impreso en la factura (pasó en GS-PR-11).
-  //
-  // Se hace `blur()` en vez de `preventDefault()`: React 17+ registra `onWheel`
-  // como listener PASIVO en la raíz, así que ahí `preventDefault` no hace nada.
-  // Al desenfocar, el input deja de ser objetivo del stepper y la página
-  // scrollea normal. El valor tipeado no se pierde.
+  // La rueda sobre un number enfocado cambia el valor (un 80 pasó a 79.99 en GS-PR-11): se desenfoca.
+  // `blur()` porque React registra `onWheel` como pasivo y `preventDefault` no hace nada.
   const handleWheel = (event: React.WheelEvent<HTMLInputElement>) => {
     if (event.currentTarget.type === "number" && document.activeElement === event.currentTarget) {
       event.currentTarget.blur()

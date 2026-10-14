@@ -1,12 +1,5 @@
-// Desglose de la cotización en vivo. Portado de `QuoteSummary` de v1, pero
-// reconstruido sobre el shape de v2: allá el servidor devolvía totales planos
-// (`saleTotal`, `costReal`, `costosFijos`…) más un `linesFinancials`; acá
-// `QuoteResult` trae `lines[]` con el desglose POR LÍNEA y tres totales.
-//
-// El desglose por línea vive en `FinancialBreakdown`: es el MISMO que muestra
-// el detalle de una venta ya registrada, solo que acá con números estimados y
-// allá con el snapshot congelado. Una sola copia para los dos momentos, igual
-// que `commission.ts` hace del lado del cálculo.
+// Desglose de la cotización en vivo; el detalle por línea es el mismo FinancialBreakdown del detalle
+// de una venta, con números estimados.
 import { HugeIcon } from '~/components/ui/icon';
 import { Alert02Icon, Invoice01Icon, Wallet01Icon } from '@hugeicons/core-free-icons';
 
@@ -25,12 +18,7 @@ export function QuoteSummary({
   result: QuoteResult | null;
   loading: boolean;
   errorMsg?: string;
-  /**
-   * Factura ya verificada de la que nace la venta. Cuando existe, el importe
-   * que se cobra NO es la suma de las líneas: la cotización no conoce el
-   * descuento ni el delivery, y el botón mostraba C$970 mientras acá se leía
-   * C$850. Con la factura a mano se imprime el mismo desglose que el ticket.
-   */
+  /** Con factura, el importe es el de la factura: la cotización no conoce descuento ni delivery. */
   invoice?: Invoice | null;
 }) {
   return (
@@ -90,9 +78,7 @@ export function QuoteSummary({
                 {result.totalGananciaTienda !== undefined && (
                   <ChainRow label="Ganancia tienda total" total={formatCordobas(result.totalGananciaTienda)} strong />
                 )}
-                {/* Con factura manda SU total: incluye descuento y delivery, que
-                    la suma de líneas no conoce. Repetir acá `result.total`
-                    contradecía el desglose de arriba y el botón. */}
+                {/* Con factura manda su total (incluye descuento y delivery). */}
                 <ChainRow
                   label={invoice ? 'Total a cobrar' : 'Importe total'}
                   total={formatCordobas(invoice ? invoice.total : result.total)}
@@ -107,12 +93,7 @@ export function QuoteSummary({
   );
 }
 
-/**
- * Desglose del importe cuando la venta nace de una factura: mismo orden y
- * mismos conceptos que el ticket impreso (subtotal → descuento → delivery →
- * total), para que el vendedor pueda contrastarlo contra el papel que tiene en
- * la mano. Las filas intermedias solo aparecen si tienen valor.
- */
+/** Mismo orden que el ticket impreso (subtotal → descuento → delivery → total) para contrastarlo. */
 function InvoiceTotalBreakdown({ invoice }: { invoice: Invoice }) {
   const subtotal = invoice.subtotal ?? 0;
   const discount = invoice.discount ?? 0;
@@ -165,12 +146,7 @@ function InvoiceTotalBreakdown({ invoice }: { invoice: Invoice }) {
   );
 }
 
-/**
- * Avisos del cotizador. El stock insuficiente bloquea; el margen mínimo no
- * (la venta entra marcada para que el admin decida) y solo lo ve el admin. Son lo único del desglose que es propio del
- * cotizador: una venta ya registrada no tiene "stock insuficiente" que avisar,
- * porque la reserva ya se hizo.
- */
+/** El stock insuficiente bloquea; el margen mínimo no (lo ve solo el admin). Son propios del cotizador. */
 function QuoteWarnings({ line }: { line: QuoteLine }) {
   if (!line.insufficientStock && !line.belowMinMargin) return null;
 

@@ -1,8 +1,5 @@
-// Cascada de lo vendido a la ganancia real: cada descuento cuelga desde donde
-// terminó el paso anterior; los subtotales arrancan en 0.
-//
-// Colores: esmeralda = ingresos y ganancias, celeste = costos esperados,
-// rosa = lo que la ganancia tuvo que pagar o un resultado negativo.
+// Cascada de lo vendido a la ganancia real: cada descuento cuelga del paso anterior; los subtotales
+// arrancan en 0.
 import { motion, useReducedMotion } from 'framer-motion';
 import { HugeIcon } from '~/components/ui/icon';
 import { ChartBarLineIcon } from '@hugeicons/core-free-icons';

@@ -1,6 +1,4 @@
-// Detalle de una venta en diálogo centrado: el cuerpo scrollea y las acciones
-// quedan fijas abajo. Es enlazable (`?sale=<id>`) para que las notificaciones
-// apunten al registro exacto.
+// Detalle de una venta: cuerpo con scroll y acciones fijas. Enlazable con `?sale=<id>`.
 import { HugeIcon } from '~/components/ui/icon';
 import {
   ArrowDown01Icon,
@@ -44,10 +42,7 @@ export function SaleDetailDrawer({
 
   const meta = sale ? statusMeta(SALE_STATUS, sale.status) : null;
   const pending = sale?.status === 'pending_approval';
-  // El backend ya manda `comision` por línea a CUALQUIER rol (solo poda costo
-  // y ganancia de tienda para no-admin, ver server/modules/sales/sales-routes.ts → GET
-  // /:id) — el vendedor necesita ver cuánto va a ganar ANTES de que un admin
-  // apruebe, no solo después.
+  // El vendedor recibe `comision` por línea: tiene que ver cuánto gana antes de que se apruebe.
   const hasComision = !!sale?.items.some((it) => it.comision !== undefined);
   const totalComision = sale?.items.reduce((s, it) => s + (it.comision ?? 0), 0) ?? 0;
 
@@ -146,9 +141,7 @@ export function SaleDetailDrawer({
                   </div>
                 </section>
 
-                {/* Solo admin. El backend ya recorta estos campos para el
-                    vendedor, así que acá vendrían undefined — pero no se
-                    dibuja el bloque para no dejar un encabezado vacío. */}
+                {/* Solo admin; para el vendedor vendrían undefined y quedaría un encabezado vacío. */}
                 {isAdmin && sale.items.some((it) => it.gananciaTienda !== undefined) && (
                   <FinancialSection sale={sale} />
                 )}
@@ -202,9 +195,7 @@ export function SaleDetailDrawer({
 
           {isAdmin && pending && sale && (
             <div className="flex flex-col gap-2">
-              {/* Corregir antes de decidir: abre el editor con la venta cargada.
-                  Va arriba y como botón visible (no ghost) porque es el paso
-                  previo natural a aprobar/rechazar si hay un dato malo. */}
+              {/* Corregir antes de decidir: botón visible arriba, es el paso previo a aprobar o rechazar. */}
               {onEdit && (
                 <Button
                   variant="outline"
@@ -247,16 +238,8 @@ export function SaleDetailDrawer({
 }
 
 /**
- * El desglose financiero de la venta, en dos capas.
- *
- * Arriba, siempre visible: los dos números que resumen la venta (qué costó la
- * mercadería y qué le quedó a la tienda). Debajo, tras un botón: la cadena
- * completa producto por producto y el reparto en pozos.
- *
- * Es progressive disclosure a propósito. Nueve de cada diez veces se abre una
- * venta para ver QUÉ se vendió y por cuánto, no para auditar de dónde salió
- * cada córdoba; poner las ~40 cifras del detalle de entrada convertiría el
- * diálogo en un muro y escondería lo que sí se viene a buscar.
+ * Arriba los dos números que resumen la venta; la cadena completa y los pozos tras un botón:
+ * casi siempre se abre una venta para ver qué se vendió, no para auditarla.
  */
 function FinancialSection({ sale }: { sale: SaleWithItems }) {
   const [expanded, setExpanded] = useState(false);
@@ -264,10 +247,8 @@ function FinancialSection({ sale }: { sale: SaleWithItems }) {
   const costoMercaderia = sale.items.reduce((s, it) => s + (it.costeFinalSnap ?? 0) * it.quantity, 0);
   const gananciaTienda = sale.items.reduce((s, it) => s + (it.gananciaTienda ?? 0), 0);
 
-  // El snapshot de `order_items` se llena DOS veces: al registrar con el costo
-  // FIFO estimado, y al aprobar con el de los lotes que realmente se
-  // consumieron (Docs/03-Finanzas.md, regla de oro). Mientras la venta no esté aprobada, lo
-  // que se muestra puede moverse — y quien lo lee tiene derecho a saberlo.
+  // El snapshot se llena al registrar (estimado) y al aprobar (costo real): mientras no esté aprobada
+  // puede moverse, y se avisa.
   const definitivo = sale.status === 'approved' || sale.status === 'paid';
 
   const pozos = useMemo(() => sumPozos(sale.items), [sale.items]);
@@ -368,10 +349,7 @@ function FinancialSection({ sale }: { sale: SaleWithItems }) {
 
               <PozosBars pozos={pozos} formatMoney={(n) => formatCordobas(n, 'C$', 2)} barsReady={barsReady} />
 
-              {/* Sin esta línea, "C$210 en pozos" se lee como plata disponible o
-                  como una tajada que compite con la ganancia. Es ninguna de las
-                  dos: el Costo F/U ya venía descontado dentro del costo del
-                  producto (Docs/03-Finanzas.md §2). */}
+              {/* Sin esta línea los pozos se leen como plata disponible; ya venían dentro del costo (Docs/03-Finanzas.md §2). */}
               <p className="mt-3 text-2xs leading-snug text-muted-foreground">
                 Ya está incluido en el costo de mercadería de arriba —{' '}
                 <span className="font-medium">no sale de la ganancia</span>. Cada venta recoge el

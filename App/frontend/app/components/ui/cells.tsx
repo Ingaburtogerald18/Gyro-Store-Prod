@@ -1,6 +1,4 @@
-// Celdas canónicas para DataTable: UN solo estilo de dinero/código en todo el
-// admin. Dinero = sans con tabular-nums (clase `nums`); font-mono queda
-// reservado para códigos de producto.
+// Celdas de DataTable: dinero con `nums` (sans tabular); font-mono solo para códigos.
 import { cn } from "~/lib/utils";
 import { formatCordobas, formatUsd } from "~/lib/formatters";
 

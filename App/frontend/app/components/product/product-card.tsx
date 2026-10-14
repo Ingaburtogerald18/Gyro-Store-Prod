@@ -1,12 +1,5 @@
-// ProductCard — foto, nombre, uno o dos datos con su etiqueta, precio,
-// disponibilidad en palabras y la acción. La tarjeta entera es un enlace a la
-// ficha; la acción va aparte (una tarjeta = un solo enlace enfocable).
-//
-// Acciones según el producto:
-//   · Disponible, una combinación → «Agregar» directo al carrito.
-//   · Disponible, varias          → «Elegir opciones» (selector rápido).
-//   · Agotado o sin stock verificable → «Consultar por WhatsApp», sin inventar
-//     existencias ni prometer avisos automáticos.
+// La tarjeta entera enlaza a la ficha y la acción va aparte: una opción → «Agregar»; varias →
+// «Elegir opciones»; agotado o sin stock verificable → «Consultar por WhatsApp».
 import { HugeIcon } from "~/components/ui/icon";
 import { ImageNotFound01Icon, ShoppingCart02Icon } from "@hugeicons/core-free-icons";
 import { useEffect, useRef, useState } from 'react';

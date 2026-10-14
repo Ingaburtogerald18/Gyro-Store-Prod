@@ -1,11 +1,5 @@
-// Fieldset de la cuenta bancaria de pagos, compartido por el diálogo del admin
-// (UserDetailDialog) y «Mi perfil» (admin.mi-perfil.tsx).
-//
-// Vive aparte porque son ~100 líneas con tres reglas finas —sembrar la moneda al
-// elegir banco por primera vez, forzar USD en Ficohsa, poder limpiar la cuenta
-// entera— y duplicarlas en dos pantallas garantiza que una de las dos se quede
-// atrás. Los dos formularios validan con `updateProfileSchema`, así que reciben
-// el `useForm` entero y no una lista de props sueltas.
+// Cuenta bancaria de pagos, compartida por el diálogo del admin y «Mi perfil»: tres reglas finas
+// (sembrar la moneda, USD en Ficohsa, limpiar la cuenta) en un solo lugar.
 import { useEffect } from 'react';
 import { Controller, type UseFormReturn } from 'react-hook-form';
 import {
@@ -45,9 +39,7 @@ export function ProfileBankFields({
     formState: { errors },
   } = form;
 
-  // Ficohsa solo opera cuentas en dólares: al elegirlo se fuerza la moneda y se
-  // deshabilita Córdobas. El `superRefine` del schema lo respalda del lado del
-  // servidor, así que un request fuera del panel tampoco se la salta.
+  // Ficohsa solo opera en dólares: se fuerza la moneda; el schema lo repite en el servidor.
   const bankAccount = watch('bank_account');
   const isFicohsa = watch('bank_account.bank') === 'ficohsa';
 
@@ -71,9 +63,7 @@ export function ProfileBankFields({
               value={field.value ?? ''}
               onValueChange={(v) => {
                 field.onChange(v);
-                // Primera vez que se elige banco: la cuenta pasa de null a
-                // objeto, así que hay que sembrar la moneda o quedaría
-                // `undefined` y el schema la rechazaría sin decir por qué.
+                // Primera vez que se elige banco: se siembra la moneda o el schema la rechazaría sin decir por qué.
                 if (!bankAccount?.currency) {
                   setValue('bank_account.currency', v === 'ficohsa' ? 'USD' : 'NIO');
                 }

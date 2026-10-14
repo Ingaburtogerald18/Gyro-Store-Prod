@@ -82,9 +82,7 @@ export function EditArrivalModal({
     if (!purchase) return;
     setServerError(null);
     try {
-      // Combinamos los datos actuales con los campos de arribo editados.
-      // Enviar suggestedPrice explícito es lo que permite cambiar el precio de venta
-      // del producto en bodega (el server solo toca el precio cuando viene explícito).
+      // `suggestedPrice` explícito: el servidor solo cambia el precio de venta del lote cuando viene.
       const body = {
         ...purchase,
         arrivalDate: data.arrivalDate,

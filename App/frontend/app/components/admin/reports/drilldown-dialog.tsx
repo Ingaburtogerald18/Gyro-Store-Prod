@@ -1,9 +1,4 @@
-// Pop-up de drilldown: las FILAS detrás de un KPI.
-//
-// Los KPIs de Reportería dan el agregado; esto responde "¿de dónde salió ese
-// número?" sin sacar al usuario de la pantalla. Por eso el footer es sticky y
-// va con el total: al scrollear una lista larga, la cifra que se está
-// auditando tiene que seguir a la vista para poder compararla con la tarjeta.
+// Las filas detrás de un KPI. El total va en un pie fijo para compararlo con la tarjeta al scrollear.
 import type { ReactNode } from 'react';
 import type { IconSvgElement } from '@hugeicons/react';
 

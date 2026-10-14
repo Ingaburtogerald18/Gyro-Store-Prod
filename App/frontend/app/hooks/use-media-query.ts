@@ -1,6 +1,4 @@
-// Media query reactiva. Arranca en `false` y se resuelve al montar: en SSR no
-// hay viewport, así que asumir "móvil" evita un salto de layout en el teléfono,
-// que es donde se navega la tienda.
+// Arranca en `false`: en SSR no hay viewport, y asumir móvil evita el salto en el teléfono.
 import { useEffect, useState } from 'react';
 
 export function useMediaQuery(query: string): boolean {

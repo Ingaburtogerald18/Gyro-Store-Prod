@@ -1,9 +1,5 @@
-// Ficha de producto. La URL lleva slug + id (`/producto/kz-edx-pro--<uuid>`):
-// el slug es para humanos y buscadores, el id es lo que resuelve el producto,
-// así el nombre puede cambiar sin romper links viejos.
-//
-// El dato se carga en el SERVIDOR para que el título, la descripción y la foto
-// estén en el HTML (Open Graph al compartir por WhatsApp).
+// URL con slug + id (`/producto/kz-edx-pro--<uuid>`): el id resuelve, así un cambio de nombre no rompe
+// links. Se carga en el servidor para que el preview de WhatsApp tenga título y foto.
 import { HugeIcon } from "~/components/ui/icon";
 import { Notification03Icon, ShoppingCart02Icon } from "@hugeicons/core-free-icons";
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -90,9 +86,7 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
   return { product, related, products, config, origin };
 }
 
-// Datos estructurados de la oferta. Solo «InStock» con stock verificado: sin
-// datos de bodega no se afirma disponibilidad. Con precios distintos por
-// variante, rango (AggregateOffer) en vez de un precio único engañoso.
+// «InStock» solo con stock verificado; con precios distintos por variante, un rango (AggregateOffer).
 function productOffers(product: CatalogDetail, url: string) {
   // «Próximamente» todavía no tiene precio: no se publica una oferta.
   if (product.availability === 'coming_soon') return undefined;
@@ -129,9 +123,7 @@ export const meta: MetaFunction<typeof loader> = ({ data }) => {
     ...(product.images[0] ? [{ property: 'og:image', content: product.images[0] }] : []),
     { property: 'og:url', content: `${data?.origin ?? ''}${getProductUrl(product.id, product.name)}` },
     { name: 'twitter:card', content: 'summary_large_image' },
-    // Datos estructurados: es lo que hace que Google muestre precio y
-    // disponibilidad en el resultado de búsqueda. Sale del mismo dato que ya
-    // pinta la página, así que no puede desincronizarse.
+    // Datos estructurados para que Google muestre precio y disponibilidad, del mismo dato que pinta la página.
     {
       'script:ld+json': {
         '@context': 'https://schema.org/',

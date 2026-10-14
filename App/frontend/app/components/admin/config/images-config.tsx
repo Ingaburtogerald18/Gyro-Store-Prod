@@ -1,7 +1,5 @@
 import { FormLayout, FormActions, FormBody } from "~/components/ui/form-layout";
-// Pestaña "Recursos" de Configuración: subida de logos/favicon a R2 (extraída de
-// admin.configuracion.tsx). Maneja su propia carga/guardado contra
-// /api/admin/config/images y limpia los uploads huérfanos de la sesión.
+// Pestaña Recursos: logos y favicon en R2. Limpia lo subido en la sesión que no se guardó.
 import { HugeIcon } from "~/components/ui/icon";
 import { Cancel01Icon, CloudUploadIcon, FloppyDiskIcon } from "@hugeicons/core-free-icons";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -34,9 +32,7 @@ export function ImagesConfig() {
     loadUrl: '/api/admin/config/images',
     resolver: zodResolver(imageResourcesSchema),
     defaultValues: EMPTY_IMAGES,
-    // El backend devuelve `null` en las que no están cargadas, y un `null` en un
-    // <input> lo vuelve no-controlado (React protesta y el campo deja de
-    // responder). Se normalizan a cadena vacía.
+    // El backend manda `null` en las vacías y un `null` vuelve el input no controlado: se pasa a ''.
     normalize: (raw: Partial<ImageResources> | null) => ({
       logoStatic: raw?.logoStatic || '',
       logoAnimated: raw?.logoAnimated || '',
