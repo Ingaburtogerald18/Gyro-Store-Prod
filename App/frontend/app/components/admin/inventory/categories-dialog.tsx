@@ -27,6 +27,7 @@ import {
 } from "~/components/ui/form-feedback";
 import { HugeIcon } from "~/components/ui/icon";
 import { Input } from "~/components/ui/input";
+import { Textarea } from "~/components/ui/textarea";
 import {
   useCreateCategoryMutation,
   useDeleteCategoryMutation,
@@ -43,8 +44,10 @@ const categoryFormSchema = z.object({
     .max(80)
     .regex(/^[a-z0-9-]+$/, "Solo minúsculas, números y guiones."),
   icon: z.string().max(16),
+  description: z.string().trim().max(500, "Máximo 500 caracteres."),
 });
 type CategoryForm = z.infer<typeof categoryFormSchema>;
+const EMPTY_CATEGORY: CategoryForm = { name: "", slug: "", icon: "", description: "" };
 
 const slugify = (value: string) =>
   value
@@ -151,11 +154,15 @@ function CategoryFormDialog({
     setValue,
     getFieldState,
     formState: { errors, isDirty, isSubmitting },
-  } = useForm<CategoryForm>({ resolver: zodResolver(categoryFormSchema), defaultValues: { name: "", slug: "", icon: "" } });
+  } = useForm<CategoryForm>({ resolver: zodResolver(categoryFormSchema), defaultValues: EMPTY_CATEGORY });
 
   useEffect(() => {
     if (!open) return;
-    reset(category ? { name: category.name, slug: category.slug, icon: category.icon ?? "" } : { name: "", slug: "", icon: "" });
+    reset(
+      category
+        ? { name: category.name, slug: category.slug, icon: category.icon ?? "", description: category.description ?? "" }
+        : EMPTY_CATEGORY,
+    );
     setServerError(null);
   }, [open, category, reset]);
 
@@ -227,6 +234,21 @@ function CategoryFormDialog({
                 <FieldLabel htmlFor="category-icon">Ícono</FieldLabel>
                 <Input id="category-icon" maxLength={16} {...register("icon")} />
                 <FieldError errors={[errors.icon]} />
+              </Field>
+              <Field data-invalid={!!errors.description}>
+                <FieldLabel htmlFor="category-description">Texto de la categoría</FieldLabel>
+                <Textarea
+                  id="category-description"
+                  rows={3}
+                  placeholder="Ej. Audífonos in-ear KZ con cable desmontable, para música, juegos y llamadas."
+                  aria-invalid={!!errors.description}
+                  {...register("description")}
+                />
+                <FieldDescription>
+                  Una o dos frases propias: qué hay y para quién. Se ve debajo del título de la categoría y lo
+                  leen Google y los asistentes de IA.
+                </FieldDescription>
+                <FieldError errors={[errors.description]} />
               </Field>
             </FormBody>
             <FormActions>

@@ -1,6 +1,6 @@
 // Pedidos web en el panel (admin + vendedor): la lista que entra por el checkout
 // y el cambio de estado que ve el cliente en su página de seguimiento.
-import type { PublicOrderStatus } from '@shared/schemas';
+import type { PublicOrderOperation, PublicOrderStatus, StoredDeliveryMethod } from '@shared/schemas';
 import { baseApi } from './base-api';
 import type { PublicOrderLine } from './storefront-api';
 
@@ -9,7 +9,7 @@ export interface AdminPublicOrder {
   status: PublicOrderStatus;
   customerName: string | null;
   phone: string | null;
-  deliveryMethod: 'retiro' | 'envio' | null;
+  deliveryMethod: StoredDeliveryMethod | null;
   address: string | null;
   locationUrl: string | null;
   note: string | null;
@@ -20,6 +20,8 @@ export interface AdminPublicOrder {
   items: PublicOrderLine[];
   /** Venta en que se convirtió, o null. */
   saleId?: string | null;
+  /** Pagos, transporte y recepción (solo panel). */
+  operation: PublicOrderOperation;
 }
 
 export const publicOrdersApi = baseApi.injectEndpoints({
@@ -51,6 +53,24 @@ export const publicOrdersApi = baseApi.injectEndpoints({
       },
       invalidatesTags: (_res, _err, { id }) => [{ type: 'Orders' as const, id }],
     }),
+    // Pagos, transporte y recepción: la fila se actualiza con lo que devolvió el servidor.
+    updatePublicOrderOperation: build.mutation<PublicOrderOperation, { id: string; operation: PublicOrderOperation }>({
+      query: ({ id, operation }) => ({ url: `orders/admin/${id}/operation`, method: 'PATCH', body: operation }),
+      transformResponse: (response: { operation: PublicOrderOperation }) => response.operation,
+      async onQueryStarted({ id }, { dispatch, queryFulfilled }) {
+        try {
+          const { data } = await queryFulfilled;
+          dispatch(
+            publicOrdersApi.util.updateQueryData('getAdminPublicOrders', undefined, (draft) => {
+              const row = draft.find((o) => o.id === id);
+              if (row) row.operation = data;
+            }),
+          );
+        } catch {
+          // El formulario muestra el error y conserva lo escrito.
+        }
+      },
+    }),
     // Crea una venta pendiente con el stock que el pedido ya tenía apartado.
     convertPublicOrderToSale: build.mutation<
       { saleId: string; newlyReserved: number },
@@ -69,5 +89,6 @@ export const publicOrdersApi = baseApi.injectEndpoints({
 export const {
   useGetAdminPublicOrdersQuery,
   useUpdatePublicOrderStatusMutation,
+  useUpdatePublicOrderOperationMutation,
   useConvertPublicOrderToSaleMutation,
 } = publicOrdersApi;

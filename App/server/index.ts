@@ -37,6 +37,7 @@ import { startUserCleanupCron } from './modules/users/cleanup-users';
 import { logSpoStatusOnce } from './modules/sharepoint/graph-token';
 import { startSpoWorker } from './modules/sharepoint/spo-worker';
 import { serveFrontend } from './core/serve-frontend';
+import { clearMemos } from './utils/memo-cache';
 
 const app: Express = express();
 
@@ -101,7 +102,28 @@ app.use(express.urlencoded({ extended: true, limit: '5mb' }));
 // Defensa en profundidad: recorta strings del body antes de que lo vean las rutas.
 app.use(sanitizeBody);
 
+// Las páginas y consultas lentas quedan en el log de Render con su duración.
+app.use((req: Request, res: Response, next: NextFunction) => {
+  const started = performance.now();
+  res.on('finish', () => {
+    const ms = Math.round(performance.now() - started);
+    if (ms >= 1500) logger.warn('[lento] petición lenta', { method: req.method, path: req.path, status: res.statusCode, ms });
+  });
+  next();
+});
+
 app.use('/api', apiLimiter);
+
+// Una escritura que sale bien puede cambiar lo que se guardó en memoria (la tienda, el libro de pozos):
+// se borran todas las copias. La telemetría no cambia nada de eso y llega seguido.
+app.use('/api', (req: Request, res: Response, next: NextFunction) => {
+  if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method) && !req.path.startsWith('/analytics')) {
+    res.on('finish', () => {
+      if (res.statusCode < 400) clearMemos();
+    });
+  }
+  next();
+});
 
 // ── Rutas ──
 

@@ -1,3 +1,5 @@
+import type { SpecRow } from '@shared/schemas';
+
 /** Cifra con separador de miles y `decimals` fijos. Base de todo formato numérico. */
 export function formatNumber(value: number, decimals = 0): string {
   return (value || 0).toLocaleString('es-NI', {
@@ -136,28 +138,25 @@ export function htmlToText(html: string | null | undefined): string {
     .trim();
 }
 
-/** «Pedir» solo con una selección válida (variante, cantidad y precio); «consultar» no promete stock. */
+/** Ficha técnica que ve el cliente: la marca primero, solo si está cargada en la plantilla. */
+export function specsWithBrand(specs: SpecRow[], brand: string | undefined): SpecRow[] {
+  const name = brand?.trim();
+  return name ? [{ label: 'Marca', value: name }, ...specs] : specs;
+}
+
+/** Consulta por WhatsApp con producto, opción elegida y enlace. No es un pedido: «disponible» no promete stock. */
 export function productWhatsappMessage({
   kind,
   name,
   variant,
-  quantity = 1,
-  total,
   url,
 }: {
-  kind: 'order' | 'availability' | 'info';
+  kind: 'availability' | 'info';
   name: string;
   variant?: string;
-  quantity?: number;
-  /** Ya formateado con formatCordobas. */
-  total?: string;
   url: string;
 }): string {
   const label = variant ? `${name} (${variant})` : name;
-  if (kind === 'order') {
-    const qty = quantity > 1 ? `${quantity}× ` : '';
-    return `Hola, quiero pedir: ${qty}${label}${total ? ` — ${total}` : ''}. ${url}`;
-  }
   if (kind === 'availability') return `Hola, ¿tienen disponible ${label}? ${url}`;
   return `Hola, quiero consultar por ${label}. ${url}`;
 }

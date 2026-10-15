@@ -8,8 +8,10 @@ import {
   updateImageResources,
   getBusinessInfo,
   updateBusinessInfo,
+  getStorePolicies,
+  updateStorePolicies,
 } from './app-config';
-import { financialConfigSchema, imageResourcesSchema, businessInfoSchema } from '../../../shared/schemas';
+import { financialConfigSchema, imageResourcesSchema, businessInfoSchema, storePoliciesSchema } from '../../../shared/schemas';
 import { deleteFileByUrl } from '../files/storage';
 import { logger } from '../../utils/logger';
 
@@ -102,6 +104,28 @@ router.put(
     }
     const updated = await updateBusinessInfo(parsed.data);
     res.json(updated);
+  })
+);
+
+// Atención: pagos, entregas y garantía. Solo admin: incluye la página de garantía en borrador.
+router.get(
+  '/policies',
+  requireAdmin,
+  asyncHandler(async (_req, res) => {
+    res.json(await getStorePolicies());
+  })
+);
+
+router.put(
+  '/policies',
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const parsed = storePoliciesSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: 'Datos de atención inválidos.', issues: parsed.error.issues });
+      return;
+    }
+    res.json(await updateStorePolicies(parsed.data));
   })
 );
 

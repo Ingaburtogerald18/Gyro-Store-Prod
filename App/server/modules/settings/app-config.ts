@@ -8,11 +8,14 @@ import {
   type ImageResources,
   businessInfoSchema,
   type BusinessInfo,
+  storePoliciesSchema,
+  type StorePolicies,
 } from '../../../shared/schemas';
 
 const FINANCIAL_CONFIG_KEY = 'financial_config';
 const IMAGE_RESOURCES_KEY = 'image_resources';
 const BUSINESS_INFO_KEY = 'business_info';
+const STORE_POLICIES_KEY = 'store_policies';
 
 // Valor inicial de la info del negocio: se siembra desde las env vars mientras
 // nadie la edite desde el panel. Una vez guardada, mandan los valores de la BD.
@@ -27,6 +30,11 @@ function defaultBusinessInfo(): BusinessInfo {
     currency: config.currency,
     socialLinks: { instagram: '', facebook: '', tiktok: '' },
     bankAccounts: [],
+    // Horario confirmado por el dueño el 14 oct 2026; desde que se guarde en el panel manda la BD.
+    businessHours: [
+      { days: 'Lunes a viernes', hours: '8:00 a. m. a 5:00 p. m.' },
+      { days: 'Sábados y domingos', hours: '9:00 a. m. a 4:00 p. m.' },
+    ],
   };
 }
 
@@ -215,5 +223,81 @@ export async function updateBusinessInfo(payload: unknown): Promise<BusinessInfo
 
   if (error) throw error;
   return info;
+}
+
+// Textos iniciales con lo que el dueño confirmó el 14 oct 2026. La página de garantía nace en borrador:
+// sus condiciones completas esperan revisión antes de publicarse.
+function defaultStorePolicies(): StorePolicies {
+  return {
+    payment: {
+      title: 'Efectivo o transferencia',
+      text: 'En Managua pagás al recibir. Fuera de Managua, el producto se paga antes del despacho.',
+    },
+    managua: {
+      title: 'Delivery en Managua',
+      text: 'Entrega el mismo día. El delivery tiene un costo adicional que se cotiza con el repartidor. Pagás al recibir, en efectivo o por transferencia.',
+    },
+    outside: {
+      title: 'Envíos al resto del país',
+      text: 'Por Cargo Trans, con un plazo informado de 24 a 48 horas. El producto se paga antes del despacho y el transporte se paga aparte, cuando te enviamos el comprobante de Cargo Trans.',
+    },
+    pickup: {
+      title: 'Retiro',
+      text: 'Coordiná por WhatsApp el día y la hora para retirar en el punto de retiro.',
+    },
+    warranty: {
+      title: 'Garantía de 1 mes',
+      text: 'Por fallas de fábrica, desde que recibís el producto.',
+    },
+    shippingNote: 'El costo del envío se cotiza por WhatsApp: no hay tarifa fija ni está incluido en el precio.',
+    warrantyPage: {
+      status: 'draft',
+      text: [
+        'Garantía: un mes por fallas de fábrica, contado desde que recibís el producto. Si se confirma la falla, te lo cambiamos por el mismo modelo nuevo en caja; si ese modelo se agotó, te ofrecemos alternativas.',
+        'Cambios: el mismo día de la compra, con el artículo sin usar, podés cambiarlo por otro de mayor valor pagando la diferencia.',
+        'Para una garantía o un cambio, escribinos por WhatsApp con tu número de pedido.',
+      ].join('\n\n'),
+      updatedAt: null,
+    },
+  };
+}
+
+let cachedStorePolicies: StorePolicies | null = null;
+let storePoliciesCachedAt = 0;
+
+export async function getStorePolicies(): Promise<StorePolicies> {
+  if (cachedStorePolicies && Date.now() - storePoliciesCachedAt < 60_000) {
+    return cachedStorePolicies;
+  }
+
+  const { data, error } = await db.from('app_config').select('value').eq('key', STORE_POLICIES_KEY).maybeSingle();
+  if (error) throw error;
+  if (!data) return defaultStorePolicies();
+
+  const parsed = storePoliciesSchema.safeParse({ ...defaultStorePolicies(), ...(data.value as object) });
+  if (!parsed.success) {
+    logger.error('Políticas de la tienda inválidas en la BD', { issues: parsed.error.issues });
+    return defaultStorePolicies();
+  }
+
+  cachedStorePolicies = parsed.data;
+  storePoliciesCachedAt = Date.now();
+  return parsed.data;
+}
+
+export async function updateStorePolicies(policies: StorePolicies): Promise<StorePolicies> {
+  const current = await getStorePolicies();
+  const page = policies.warrantyPage;
+  // La fecha la pone el servidor y solo cuando cambia algo de la página: guardar los resúmenes no la mueve.
+  const changed = page.text !== current.warrantyPage.text || page.status !== current.warrantyPage.status;
+  const next: StorePolicies = {
+    ...policies,
+    warrantyPage: { ...page, updatedAt: changed ? new Date().toISOString() : current.warrantyPage.updatedAt },
+  };
+
+  storePoliciesCachedAt = 0;
+  const { error } = await db.from('app_config').upsert({ key: STORE_POLICIES_KEY, value: next as any });
+  if (error) throw error;
+  return next;
 }
 

@@ -1,18 +1,29 @@
 import '../../core/load-env'; // Fuente única de variables de entorno.
 import { logger } from '../../utils/logger';
+import { thumbnailUrl, THUMBNAIL_WIDTH } from '../../../shared/image-variants';
 
-// sharp is optional
-let sharp: any = null;
-try {
-  // We will initialize sharp asynchronously
-  import('sharp').then((m) => {
-    sharp = m.default || m;
-  }).catch(() => {
-    // sharp not available
-  });
-} catch (e) {
-  /* no sharp */
+// sharp es opcional: sin él las fotos se suben como llegan. Se espera la carga para que un script que
+// optimiza apenas arranca no suba originales por llegar antes que el import.
+const sharpReady: Promise<any> = import('sharp')
+  .then((m) => {
+    const sharp = m.default || m;
+    // Poca memoria en el servidor: sin caché de libvips y un hilo por imagen.
+    sharp.cache(false);
+    sharp.concurrency(1);
+    return sharp;
+  })
+  .catch(() => null);
+
+// De a una imagen por vez: varias fotos grandes en paralelo pueden pasar la memoria del servidor.
+let imageQueue: Promise<unknown> = Promise.resolve();
+function oneImageAtATime<T>(task: () => Promise<T>): Promise<T> {
+  const run = imageQueue.then(task, task);
+  imageQueue = run.catch(() => undefined);
+  return run;
 }
+
+// Tope de píxeles de entrada (una foto de 48 MP pasa): frena imágenes armadas para reventar la memoria.
+const MAX_INPUT_PIXELS = 100_000_000;
 
 const R2_ACCOUNT_ID = (process.env.R2_ACCOUNT_ID || '').trim();
 const R2_ACCESS_KEY_ID = (process.env.R2_ACCESS_KEY_ID || '').trim();
@@ -47,18 +58,27 @@ export async function getClient() {
 }
 
 export async function optimizeImageBuffer(buffer: Buffer, { maxDim = 1200, quality = 82 } = {}) {
+  const sharp = await sharpReady;
   if (!sharp) return { buffer, contentType: null, ext: null };
   try {
-    const out = await sharp(buffer, { animated: true })
-      .rotate()
-      .resize(maxDim, maxDim, { fit: 'inside', withoutEnlargement: true })
-      .webp({ quality })
-      .toBuffer();
+    const out: Buffer = await oneImageAtATime(() =>
+      sharp(buffer, { animated: true, limitInputPixels: MAX_INPUT_PIXELS })
+        .rotate()
+        .resize(maxDim, maxDim, { fit: 'inside', withoutEnlargement: true })
+        .webp({ quality })
+        .toBuffer(),
+    );
     return { buffer: out, contentType: 'image/webp', ext: '.webp' };
   } catch (err: any) {
     logger.error('optimizeImageBuffer falló, se sube el original', { message: err.message });
     return { buffer, contentType: null, ext: null };
   }
+}
+
+/** Miniatura WebP para tarjetas y listados; `null` si no se pudo generar (sin sharp o imagen ilegible). */
+export async function makeThumbnail(buffer: Buffer): Promise<Buffer | null> {
+  const thumb = await optimizeImageBuffer(buffer, { maxDim: THUMBNAIL_WIDTH, quality: 78 });
+  return thumb.contentType === 'image/webp' ? thumb.buffer : null;
 }
 
 export function sanitizePathSegment(value: string | undefined | null) {
@@ -96,12 +116,15 @@ export async function deleteFileByUrl(publicUrl?: string | null) {
   if (!publicUrl || typeof publicUrl !== 'string') return;
   const prefix = `${R2_PUBLIC_URL}/`;
   if (!R2_PUBLIC_URL || !publicUrl.startsWith(prefix)) return;
-  const key = decodeURI(publicUrl.slice(prefix.length));
+  // La miniatura se va con su foto; si no existe, R2 responde igual sin error.
+  const urls = [publicUrl, thumbnailUrl(publicUrl)].filter((url): url is string => Boolean(url));
   try {
     const { client, awsSdk } = await getClient();
-    await client.send(
-      new awsSdk.DeleteObjectCommand({ Bucket: R2_BUCKET_NAME, Key: key })
-    );
+    for (const url of urls) {
+      await client.send(
+        new awsSdk.DeleteObjectCommand({ Bucket: R2_BUCKET_NAME, Key: decodeURI(url.slice(prefix.length)) })
+      );
+    }
   } catch (err: any) {
     logger.error('Error al borrar de R2', { message: err.message });
   }

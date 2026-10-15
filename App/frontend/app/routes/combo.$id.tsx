@@ -6,17 +6,18 @@ import { redirect, type HeadersFunction, type LoaderFunctionArgs, type MetaFunct
 import { getBrandName, pageTitle } from '~/lib/brand';
 import { canonicalLink } from '~/lib/seo';
 import { siteOrigin } from '~/lib/site-url.server';
+import { readStoreFrame, storeReader } from '~/lib/store-reader.server';
 import { Link, useLoaderData } from '@remix-run/react';
 
 import { toast } from 'sonner';
-import type { Combo } from '@shared/schemas';
 import { StorefrontShell } from '~/components/storefront/storefront-shell';
 import { Badge } from '~/components/ui/badge';
 import { Button } from '~/components/ui/button';
-import type { StoreConfig } from '~/state/api/session-api';
 import { useAppDispatch } from '~/state/hooks';
 import { addItem, openCart } from '~/state/slices/cart-slice';
 import { buildWhatsappUrl, comboName, formatCordobas, getComboUrl } from "~/lib/formatters";
+import { CATALOG_PATH } from '~/lib/catalog-query';
+import { trackAddToCart, trackWhatsappOpen } from '~/lib/analytics.client';
 
 export const headers: HeadersFunction = () => ({
   'Cache-Control': 'public, max-age=60, stale-while-revalidate=300',
@@ -29,38 +30,21 @@ function firstImageUrl(images: unknown[]): string | null {
   return typeof first === 'string' ? first : null;
 }
 
-export async function loader({ params, request }: LoaderFunctionArgs) {
+export async function loader({ params, request, context }: LoaderFunctionArgs) {
   const url = new URL(request.url);
-  const origin = url.origin;
   const raw = params.id ?? '';
   const comboId = raw.split('--').pop() ?? '';
+  const store = storeReader(context, request);
 
-  let combo: Combo | null = null;
-  let config: StoreConfig | null = null;
-  // Igual que la ficha de producto: solo un 404 del API es «no existe»; una caída es reintentable.
-  let comboStatus = 0;
-
-  try {
-    const [comboRes, configRes] = await Promise.all([
-      fetch(`${origin}/api/combos/${comboId}`),
-      fetch(`${origin}/api/config`).catch(() => null),
-    ]);
-    comboStatus = comboRes.status;
-    if (comboRes.ok) combo = (await comboRes.json()) as Combo;
-    if (configRes?.ok) config = (await configRes.json()) as StoreConfig;
-  } catch {
-    // La config es accesoria; sin combo decide el estado de abajo.
-  }
-
-  if (!combo) {
-    if (comboStatus === 404) throw new Response('Combo no encontrado', { status: 404 });
-    throw new Response('No pudimos cargar este combo. Probá de nuevo en un momento.', { status: 503 });
-  }
+  // La config es accesoria. Igual que la ficha de producto: una caída es reintentable, no «no existe».
+  const [combo, frame] = await Promise.all([store.combo(comboId).catch(() => 'error' as const), readStoreFrame(store)]);
+  if (combo === 'error') throw new Response('No pudimos cargar este combo. Probá de nuevo en un momento.', { status: 503 });
+  if (!combo) throw new Response('Combo no encontrado', { status: 404 });
 
   const canonicalPath = getComboUrl(combo.id, comboName(combo.name));
   if (url.pathname !== canonicalPath) throw redirect(`${canonicalPath}${url.search}`, 301);
 
-  return { combo, config, canonicalUrl: `${siteOrigin(request)}${canonicalPath}` };
+  return { combo, ...frame, canonicalUrl: `${siteOrigin(request)}${canonicalPath}` };
 }
 
 export const meta: MetaFunction<typeof loader> = ({ data }) => {
@@ -109,19 +93,21 @@ export default function ComboDetail() {
     );
     dispatch(openCart());
     toast.success('Combo agregado al carrito');
+    trackAddToCart(combo.id, 1, 'combo');
   }
 
   function handleWhatsApp() {
     const url = typeof window !== 'undefined' ? window.location.href : '';
     const message = `Hola, quiero el combo: ${name} — ${formatCordobas(price, config?.currency)}. ${url}`;
     window.open(buildWhatsappUrl(config?.whatsapp ?? '', message), '_blank', 'noopener,noreferrer');
+    trackWhatsappOpen('consult');
   }
 
   return (
     <StorefrontShell>
       <main className="mx-auto w-full max-w-7xl px-4 py-6">
         <Button variant="ghost" size="sm" asChild className="mb-4 -ml-2 text-muted-foreground">
-          <Link to="/#catalogo" prefetch="intent">
+          <Link to={CATALOG_PATH} prefetch="intent">
             <HugeIcon icon={ArrowLeft01Icon} size={16} strokeWidth={2} aria-hidden /> Volver al catálogo
           </Link>
         </Button>

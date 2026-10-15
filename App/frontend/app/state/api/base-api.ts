@@ -1,11 +1,12 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
-import { getAccessToken } from '~/lib/supabase.client';
+import { getAccessToken } from '~/lib/session.client';
 
 export const baseApi = createApi({
   reducerPath: 'api',
-  keepUnusedDataFor: 60,
-  // Revalida al montar; se conserva la política usada en producción.
-  refetchOnMountOrArgChange: true,
+  // Volver a una pantalla muestra lo guardado al instante y solo lo pide de nuevo si tiene más de 30 s.
+  // Lo que cambia el propio panel no espera: cada mutación invalida sus tags.
+  keepUnusedDataFor: 300,
+  refetchOnMountOrArgChange: 30,
   baseQuery: fetchBaseQuery({
     // En dev, Vite proxya /api → Express :3000; en prod es el mismo origen
     // (monolito, Docs/02-Arquitectura.md): la URL relativa sirve en ambos casos.

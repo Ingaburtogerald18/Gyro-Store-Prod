@@ -3,6 +3,7 @@ import type { z } from "zod";
 
 import { templateInputSchema, type Category } from "@shared/schemas";
 import { Chip } from "~/components/ui/chip";
+import { specsWithBrand } from "~/lib/formatters";
 
 // Mientras el formulario se carga o se agrega una fila, algún campo llega vacío.
 const text = (value: unknown) => (typeof value === "string" ? value.trim() : "");
@@ -14,14 +15,15 @@ export function TemplatePreview({
   control: Control<z.input<typeof templateInputSchema>>;
   categories: Category[];
 }) {
-  const [name, categoryId, description, axes, specs] = useWatch({
+  const [name, brand, categoryId, description, axes, specs] = useWatch({
     control,
-    name: ["name", "categoryId", "description", "axes", "specs"],
+    name: ["name", "brand", "categoryId", "description", "axes", "specs"],
   });
   const category = categories.find((item) => item.id === categoryId);
   const visibleAxes = (axes ?? []).filter((axis) => text(axis?.label));
-  const visibleSpecs = (specs ?? []).filter(
-    (spec) => text(spec?.label) && text(spec?.value)
+  const visibleSpecs = specsWithBrand(
+    (specs ?? []).filter((spec) => text(spec?.label) && text(spec?.value)),
+    text(brand)
   );
 
   return (

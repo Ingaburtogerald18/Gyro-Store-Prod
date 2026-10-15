@@ -1,7 +1,7 @@
 import { db } from '../../core/supabase';
 import type { Category } from '../../../shared/schemas';
 
-const CATEGORY_COLUMNS = 'id, name, slug, icon';
+const CATEGORY_COLUMNS = 'id, name, slug, icon, description';
 
 export async function listCategories(): Promise<Category[]> {
   const { data, error } = await db
@@ -13,10 +13,10 @@ export async function listCategories(): Promise<Category[]> {
   return data as Category[];
 }
 
-export async function createCategory(name: string, slug: string, icon: string = ''): Promise<Category> {
+export async function createCategory(name: string, slug: string, icon: string = '', description: string = ''): Promise<Category> {
   const { data, error } = await db
     .from('categories')
-    .insert({ name, slug, icon })
+    .insert({ name, slug, icon, description })
     .select(CATEGORY_COLUMNS)
     .single();
 
@@ -24,10 +24,16 @@ export async function createCategory(name: string, slug: string, icon: string = 
   return data as Category;
 }
 
-export async function updateCategory(id: string, name: string, slug: string, icon: string = ''): Promise<Category | null> {
+export async function updateCategory(
+  id: string,
+  name: string,
+  slug: string,
+  icon: string = '',
+  description: string = '',
+): Promise<Category | null> {
   const { data, error } = await db
     .from('categories')
-    .update({ name, slug, icon })
+    .update({ name, slug, icon, description })
     .eq('id', id)
     .select(CATEGORY_COLUMNS)
     .maybeSingle();

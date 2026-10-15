@@ -232,7 +232,7 @@ export function CartContentEditor({
                 <p className="pt-2 text-sm font-bold">Banner de promo (opcional)</p>
                 {picker('bannerImage')}
                 {text('bannerText', 'Texto del banner', 'Ej.: Seguinos en redes y pedí tu código', 120)}
-                {text('bannerLink', 'Enlace al tocarlo (opcional)', '/?categoria=audifonos o https://…', 2048)}
+                {text('bannerLink', 'Enlace al tocarlo (opcional)', '/categoria/audifonos o https://…', 2048)}
                 <p className="pt-2 text-sm font-bold">Pie</p>
                 {text('checkoutButton', 'Botón', CART_DEFAULTS.checkoutButton, 40)}
                 {text('footerNote', 'Nota chica (opcional)', 'Ej.: ¿Tenés código? Lo aplicás al finalizar', 160)}

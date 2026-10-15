@@ -1,19 +1,18 @@
 // Catálogo y config en el loader: mejor SEO y primer render, sin parpadeo. Son públicos: sin token.
-import { json, type HeadersFunction, type LoaderFunctionArgs, type MetaFunction } from '@remix-run/node';
+import { json, redirect, type HeadersFunction, type LoaderFunctionArgs, type MetaFunction } from '@remix-run/node';
 import type { ShouldRevalidateFunction } from '@remix-run/react';
 import { getBrandName } from '~/lib/brand';
+import { CATALOG_PATH, legacyCatalogRedirect } from '~/lib/catalog-query';
 import { canonicalLink, storeJsonLd } from '~/lib/seo';
 import { siteOrigin } from '~/lib/site-url.server';
-import { useLoaderData } from '@remix-run/react';
-import type { CatalogProduct, LandingConfig } from '@shared/schemas';
-import { ActiveFilters } from '~/components/catalog/active-filters';
-import { CatalogUrlSync } from '~/components/catalog/catalog-url-sync';
-import { FilterBar } from '~/components/catalog/filter-bar';
-import { FilterSheet } from '~/components/catalog/filter-sheet';
+import { storeReader } from '~/lib/store-reader.server';
+import { Link, useLoaderData } from '@remix-run/react';
 import { Hero } from '~/components/catalog/hero';
+import { HomeGuides } from '~/components/catalog/home-guides';
+import { Novedades } from '~/components/catalog/novedades';
 import { ProductGrid } from '~/components/catalog/product-grid';
 import { StorefrontShell } from '~/components/storefront/storefront-shell';
-import type { StoreConfig } from '~/state/api/session-api';
+import { Button } from '~/components/ui/button';
 import { useAppSelector } from '~/state/hooks';
 import { selectPreviewCatalog } from '~/state/slices/builder-slice';
 
@@ -24,36 +23,23 @@ export const headers: HeadersFunction = ({ loaderHeaders }) => ({
   'Cache-Control': loaderHeaders.get('Cache-Control') ?? 'public, max-age=60, stale-while-revalidate=300',
 });
 
-export async function loader({ request }: LoaderFunctionArgs) {
-  const origin = new URL(request.url).origin;
+export async function loader({ request, context }: LoaderFunctionArgs) {
+  const url = new URL(request.url);
   const siteUrl = siteOrigin(request);
-  let products: CatalogProduct[] = [];
-  let config: StoreConfig | null = null;
-  let landing: LandingConfig | null = null;
-  // Una caída del API no se disfraza de «catálogo vacío»: la grilla muestra un
-  // error con reintento.
-  let catalogError = false;
-
-  const [catalogRes, configRes, landingRes] = await Promise.all([
-    fetch(`${origin}/api/catalog`).catch(() => null),
-    fetch(`${origin}/api/config`).catch(() => null),
-    fetch(`${origin}/api/landing-config`).catch(() => null),
+  const store = storeReader(context, request);
+  // Config y portada son accesorias: sin ellas la home sale con sus valores por defecto.
+  const [catalog, config, landing] = await Promise.all([
+    store.catalog().catch(() => null),
+    store.config().catch(() => null),
+    store.landing().catch(() => null),
   ]);
-  try {
-    if (catalogRes?.ok) {
-      products = ((await catalogRes.json()) as { items?: CatalogProduct[] }).items ?? [];
-    } else {
-      catalogError = true;
-    }
-  } catch {
-    catalogError = true;
-  }
-  try {
-    if (configRes?.ok) config = (await configRes.json()) as StoreConfig;
-    if (landingRes?.ok) landing = (await landingRes.json()) as LandingConfig;
-  } catch {
-    // Config y portada son accesorias: la home sale con sus valores por defecto.
-  }
+  // Una caída no se disfraza de «catálogo vacío»: la grilla muestra un error con reintento.
+  const catalogError = catalog === null;
+  const products = catalog ?? [];
+
+  // Búsqueda y filtros viven en /catalogo: los enlaces viejos (/?q=…, /?categoria=…) llevan ahí.
+  const legacy = legacyCatalogRedirect(url.pathname, url.searchParams, config?.categories ?? []);
+  if (legacy) throw redirect(legacy, 301);
 
   const data = { siteUrl, products, config, landing, catalogError };
   // Sin catálogo la portada no cumple su función: el buscador recibe 503 y vuelve más tarde.
@@ -61,7 +47,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   return json(data);
 }
 
-// Cambiar filtros (viven en la URL) no vuelve a pedir datos: la grilla filtra lo que ya tiene.
+// Cambiar solo la query (p. ej. la vista previa del modo edición) no vuelve a pedir datos.
 export const shouldRevalidate: ShouldRevalidateFunction = ({ currentUrl, nextUrl, formMethod, defaultShouldRevalidate }) => {
   if (!formMethod && currentUrl.pathname === nextUrl.pathname && currentUrl.search !== nextUrl.search) return false;
   return defaultShouldRevalidate;
@@ -95,6 +81,7 @@ export const meta: MetaFunction<typeof loader> = ({ data }) => {
         brand,
         logo: image,
         email: config?.contactEmail,
+        telephone: config?.whatsapp,
         socialLinks: [social?.facebook, social?.instagram, social?.tiktok],
       }),
     },
@@ -107,24 +94,23 @@ export default function Index() {
   const products = useAppSelector(selectPreviewCatalog) ?? published;
   const categories = config?.categories;
 
+  // Orden de DESIGN.md §10: Presentación, Destacados y filas por categoría, Novedades, Cómo comprar y Mayoreo.
   return (
     <StorefrontShell>
-      <CatalogUrlSync categories={categories} />
       <main key="home">
         <Hero initialLanding={landing} />
-        <div data-landing-section="products" id="catalogo" className="mx-auto max-w-7xl scroll-mt-20 px-4 py-6 md:py-8">
+        {/* `id="catalogo"`: los enlaces viejos a /#catalogo siguen bajando a los productos. */}
+        <div data-landing-section="products" id="catalogo" className="mx-auto max-w-7xl scroll-mt-32 px-4 py-6 md:scroll-mt-20 md:py-8">
+          <ProductGrid products={products} categories={categories} error={catalogError} layout="home" />
           {!catalogError && products.length > 0 && (
-            <>
-              <FilterBar products={products} categories={categories} />
-              <ActiveFilters categories={categories} />
-            </>
+            <Button variant="outline" asChild className="h-12 px-6">
+              <Link to={CATALOG_PATH}>Ver todo el catálogo</Link>
+            </Button>
           )}
-          <ProductGrid products={products} categories={categories} error={catalogError} />
         </div>
+        <Novedades initialLanding={landing} />
+        <HomeGuides />
       </main>
-
-      {/* Vive fuera del <main>: es un panel modal, no contenido de la página. */}
-      <FilterSheet />
     </StorefrontShell>
   );
 }

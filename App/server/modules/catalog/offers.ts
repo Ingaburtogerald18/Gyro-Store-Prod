@@ -86,10 +86,18 @@ function itemName(item: PublicCatalogItem): string {
   return item.template?.name?.trim() || 'Producto';
 }
 
-/** Suma a cada fila de Stock actual su producto y color, y la oferta vigente. */
-export async function withOffers(rows: InventoryRow[]): Promise<InventoryRowWithOffer[]> {
+/** Lo que withOffers lee del catálogo. No depende de las filas: se pide a la vez que ellas. */
+export async function loadOfferContext() {
   const [items, offers] = await Promise.all([listCatalogForPricing(), fetchActiveOffers()]);
   const lots = await getLotsByCodes(items.flatMap(collectMappedCodes));
+  return { items, offers, lots };
+}
+
+/** Suma a cada fila de Stock actual su producto y color, y la oferta vigente. */
+export function withOffers(
+  rows: InventoryRow[],
+  { items, offers, lots }: Awaited<ReturnType<typeof loadOfferContext>>,
+): InventoryRowWithOffer[] {
 
   // Código de lote → producto y combinación. Incluye los vinculados por columna (withLinkedLots).
   const byCode = new Map<string, { item: PublicCatalogItem; variantKey: string }>();

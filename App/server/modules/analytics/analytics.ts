@@ -15,6 +15,8 @@ export interface IngestEvent {
   payload?: Record<string, unknown>;
 }
 
+const NEEDS_0032 = new Set<AnalyticsEventType>(['add_to_cart', 'whatsapp_open']);
+
 // Techo de filas por consulta para no traer millones a memoria.
 // Si el volumen se acerca, hay que pasar a tablas de resumen.
 const QUERY_ROW_CAP = 100_000;
@@ -40,7 +42,12 @@ export async function ingestEvents(events: IngestEvent[]): Promise<void> {
     path: e.path ?? null,
     payload: e.payload ?? {},
   }));
-  const { error } = await db.from('analytics_events').insert(rows);
+  let { error } = await db.from('analytics_events').insert(rows);
+  // Base sin la 0032: los tipos nuevos violan la restricción y se perdería el lote entero. Se guarda el resto.
+  if (error?.code === '23514') {
+    const known = rows.filter((row) => !NEEDS_0032.has(row.type));
+    ({ error } = known.length ? await db.from('analytics_events').insert(known) : { error: null });
+  }
   if (error) {
     // Un fallo de telemetría no debe escalar; queda el rastro para depurar.
     logger.warn('[analytics] No se pudo insertar el lote de eventos', { message: error.message });

@@ -34,6 +34,8 @@ import {
 } from '~/state/slices/cart-slice';
 import type { CreatedPublicOrder } from '~/state/api/storefront-api';
 import { formatCordobas } from "~/lib/formatters";
+import { CATALOG_PATH } from '~/lib/catalog-query';
+import { ThumbnailImg } from '~/components/product/thumbnail-img';
 import { selectCheckoutDraft } from '~/state/slices/checkout-slice';
 
 type Step = 'cart' | 'checkout';
@@ -71,11 +73,10 @@ export function CartDrawer() {
     }
   }
 
-  // "Seguir comprando": cierra el carrito y baja a la grilla del catálogo.
+  // "Seguir comprando": cierra el carrito y lleva al catálogo.
   function keepShopping() {
     close();
-    navigate('/#catalogo');
-    setTimeout(() => document.getElementById('catalogo')?.scrollIntoView({ block: 'start' }), 120);
+    navigate(CATALOG_PATH);
   }
 
   const inCheckout = step === 'checkout' && (items.length > 0 || placed || attempt);
@@ -218,7 +219,7 @@ export function CartLine({ item, itemKey, currency }: { item: import('~/types/ca
     <li className="flex gap-3 rounded-xl border border-border bg-background p-3">
       <div className="product-stage size-16 shrink-0 overflow-hidden rounded-xl bg-card">
         {item.image ? (
-          <img src={item.image} alt="" width={64} height={64} loading="lazy" className="h-full w-full object-contain" />
+          <ThumbnailImg src={item.image} alt="" width={64} height={64} loading="lazy" className="h-full w-full object-contain" />
         ) : (
           <div className="grid h-full place-items-center text-muted-foreground">
             <HugeIcon icon={ImageNotFound01Icon} size={20} strokeWidth={2} aria-hidden />

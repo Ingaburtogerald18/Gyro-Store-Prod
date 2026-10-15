@@ -200,3 +200,9 @@ export const trackSearch = (queryNormalized: string, resultsCount: number) =>
 
 export const trackCheckoutStart = (itemCount: number, total: number) =>
   track('checkout_start', { itemCount, total });
+
+export const trackAddToCart = (itemId: string, quantity: number, source: 'ficha' | 'combo') =>
+  track('add_to_cart', { itemId, quantity, source });
+
+// Abrir WhatsApp no es enviar el mensaje: se cuenta qué tipo de conversación se abrió, sin datos de la persona.
+export const trackWhatsappOpen = (context: 'consult' | 'order' | 'wholesale') => track('whatsapp_open', { context });

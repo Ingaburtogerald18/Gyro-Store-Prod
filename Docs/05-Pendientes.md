@@ -15,21 +15,30 @@ borra de acá y se describe en el documento que corresponda.
   muestra Ventas, Pedidos web, Personal y CRM: no llega a Facturación.
 - **Tramos de mayoreo en Configuración.** Configuración → Finanzas deja editar los tramos de mayoreo,
   pero el cotizador no los usa (03-Finanzas §5). O se ocultan o se reactiva el mayoreo.
-- **robots.txt con el servicio dormido.** El dominio no pasa por el Cloudflare de la cuenta (registros
-  en «solo DNS»): lo sirve Render, que tiene su propio Cloudflare delante. Con el servicio despierto,
-  `/robots.txt` no bloquea nada. El 14 oct 2026 a las 15:30 UTC, con el servicio dormido, respondió
-  `User-agent: *` / `Disallow: /` y esa respuesta quedó en caché 4 horas. Mientras el plan free duerma
-  el servicio, un buscador puede toparse con ese bloqueo. Después del deploy, verificar el dominio en
-  Search Console y enviar `/sitemap.xml`.
-- **Plan free de Render.** El servicio se duerme sin tráfico y la primera visita tardó más de 20 s
-  (14 oct 2026). Afecta al rastreo, al robots.txt de arriba y a la velocidad medida; subir de plan es
-  decisión de costo.
-- **`APP_URL` en Render.** Cargar `APP_URL=https://gyrostorenic.com`. Hoy `appUrl` es
-  `https://gyro-store-3sr6.onrender.com`: el enlace de seguimiento de los pedidos y el QR del ticket
-  llevan al dominio de Render.
-- **Servicios viejos en Render.** El servicio real es `gyro-store-3sr6`. `gyro-store.onrender.com` sirve
-  una versión anterior de la tienda y `gyro-store-prod.onrender.com` no tiene servidor, pero es el destino
-  del CNAME de `www`. Suspender lo que no se use y apuntar `www` al destino que indique Render.
+- **Search Console.** Verificar `gyrostorenic.com` como propiedad de dominio (el TXT de Google ya está
+  en Cloudflare), enviar `/sitemap.xml` y pedir la indexación de la portada.
+- **Plan de Render en `render.yaml`.** El servicio ya está en un plan pago, pero el archivo dice
+  `plan: free`. Poner el plan contratado, para que un despliegue desde el archivo no lo baje.
+- **Llaves y región de Supabase.** Revisar en Supabase si el proyecto firma con el secreto (HS256,
+  necesita `SUPABASE_JWT_SECRET` en Render) o con las llaves nuevas (se validan solas con JWKS), y en
+  qué región está (Render corre en Oregon). Si el log muestra `[auth] El token se valida preguntando a
+  Supabase`, falta una de las dos.
+- **Revisar el log después de publicar.** `[límite]` dice a quién frenó un límite de uso y `[lento]`
+  qué página o consulta tardó 1,5 s o más.
+- **Servicio viejo en Render.** `gyro-store.onrender.com` sirve una versión anterior de la tienda.
+  Revisar si tiene las llaves de Supabase de producción y suspenderlo.
+- **Garantía y cambios.** La página nace en borrador en Configuración → Atención con lo que el dueño
+  confirmó. Faltan definir quién paga el transporte de cambios y garantías, qué pasa con un cambio del
+  mismo día cuando Cargo Trans entrega después, las alternativas cuando no hay el mismo modelo y las
+  cancelaciones de pedidos pagados, y revisarlo contra la Ley 842 antes de publicar.
+- **Nosotros, Términos y Privacidad.** No existen: faltan textos reales (historia y forma de trabajar,
+  datos legales, conservación de datos). No se publican páginas vacías.
+- **Textos de la tienda.** Cargar el texto de cada categoría (Inventario → Plantillas → Categorías),
+  la marca de cada plantilla y las descripciones que faltan (el 14 oct 2026, 4 de 7 productos no
+  tenían). Es lo que leen los buscadores y los asistentes de IA. Antes, correr la migración 0033.
+- **Miniaturas de las fotos viejas.** Las fotos subidas antes del 14 oct 2026 no tienen miniatura y
+  las tarjetas bajan la de 1200 px. Desde `App/`, con las credenciales de R2: `npm run
+  thumbnails:backfill` cuenta las que faltan y `npm run thumbnails:backfill -- --apply` las genera.
 - **Imagen para compartir.** La portada usa el logo como imagen social; falta una propia de 1200×630.
 - **Ficha del combo.** Muestra el combo como una unidad (nombre, precio, foto y cantidad de
   artículos). Podría listar su contenido: cada combo ya guarda el nombre y la cantidad de cada
@@ -58,8 +67,14 @@ piezas grandes de lógica:
   facturación, inventario). Solución: `limit`/`cursor` en los endpoints y `manualPagination` en
   TanStack.
 - **Periodo en todos los módulos.** Solo Reportería e Inventario filtran por fechas. Ventas y
-  Facturación no aceptan fechas ni en el panel ni en sus endpoints. Primero el filtro en el backend;
-  después, un selector de periodo común.
+  Facturación no aceptan fechas en el panel (el endpoint de ventas ya acepta `from` y `to`). Primero
+  el filtro en el backend; después, un selector de periodo común. Abrir Ventas con los últimos 90 días
+  cambia lo que ve el dueño: es decisión suya. Cuotas y el pago de comisiones necesitan todas las
+  ventas aprobadas, sin recorte.
+- **Stock actual con más de 1000 lotes.** `fetchPurchaseRows` (`modules/inventory/inventory.ts`) no
+  pagina: PostgREST corta en 1000 filas sin avisar. Pasarlo a `fetchAllRows` antes de llegar ahí.
+- **Compilar el servidor.** Corre con `tsx`; compilarlo solo acelera el arranque después de cada
+  despliegue. Hay que revisar las rutas que `serve-frontend.ts` arma desde `import.meta.url`.
 - **Comparación con el periodo anterior** (`<Delta>`): solo `get_financial_kpis` la devuelve. Faltan
   los KPIs de inventario, vendedores y desglose de ventas.
 - **Datos viejos atenuados durante una recarga** (`fetching` de `QueryState`): solo está en Ventas.

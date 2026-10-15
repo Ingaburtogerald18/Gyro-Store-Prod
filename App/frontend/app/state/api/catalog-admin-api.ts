@@ -56,7 +56,7 @@ export const catalogAdminApi = baseApi.injectEndpoints({
       query: () => '/admin/catalog/categories',
       providesTags: ['Categories'],
     }),
-    createCategory: builder.mutation<Category, { name: string; slug: string; icon?: string }>({
+    createCategory: builder.mutation<Category, { name: string; slug: string; icon?: string; description?: string }>({
       query: (body) => ({
         url: '/admin/catalog/categories',
         method: 'POST',
@@ -66,7 +66,7 @@ export const catalogAdminApi = baseApi.injectEndpoints({
     }),
     updateCategory: builder.mutation<
       Category,
-      { id: string; name: string; slug: string; icon?: string }
+      { id: string; name: string; slug: string; icon?: string; description?: string }
     >({
       query: ({ id, ...body }) => ({
         url: `/admin/catalog/categories/${id}`,

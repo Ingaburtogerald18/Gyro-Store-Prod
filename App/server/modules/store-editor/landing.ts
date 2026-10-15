@@ -20,7 +20,7 @@ const DEFAULT_LANDING: LandingConfig = {
       mediaType: 'image',
       buttonText: 'Ver catálogo',
       actionType: 'link',
-      actionTarget: '/#catalogo',
+      actionTarget: '/catalogo',
       locked: true,
     },
   ],

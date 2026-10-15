@@ -4,8 +4,8 @@
 import type { StoreCategory } from '~/state/api/session-api';
 import { Button } from '~/components/ui/button';
 import { Chip } from '~/components/ui/chip';
-import { useGetConfigQuery } from '~/state/api/session-api';
-import { useAppDispatch, useAppSelector } from '~/state/hooks';
+import { useStoreConfig } from '~/hooks/use-store-config';
+import { useAppDispatch } from '~/state/hooks';
 import {
   categorySet,
   filtersClearedAll,
@@ -14,13 +14,8 @@ import {
   priceMaxSet,
   priceMinSet,
   searchSet,
-  selectActiveCategory,
-  selectOnlyInStock,
-  selectOnlyOnSale,
-  selectPriceMax,
-  selectPriceMin,
-  selectSearch,
 } from '~/state/slices/ui-slice';
+import { useCatalogFilters } from '~/hooks/use-catalog-filter';
 import { formatCordobas } from '~/lib/formatters';
 import { findCategory, priceRangeError } from '~/lib/catalog-query';
 
@@ -32,15 +27,11 @@ interface ActiveFilter {
 
 export function ActiveFilters({ categories = [] }: { categories?: StoreCategory[] }) {
   const dispatch = useAppDispatch();
-  const { data: config } = useGetConfigQuery();
+  const config = useStoreConfig();
   const currency = config?.currency;
 
-  const search = useAppSelector(selectSearch);
-  const activeCategory = useAppSelector(selectActiveCategory);
-  const priceMin = useAppSelector(selectPriceMin);
-  const priceMax = useAppSelector(selectPriceMax);
-  const onlyOnSale = useAppSelector(selectOnlyOnSale);
-  const onlyInStock = useAppSelector(selectOnlyInStock);
+  // Lo que se muestra sale de la URL (igual que la grilla); quitar un chip pasa por Redux y CatalogUrlSync.
+  const { search, category: activeCategory, priceMin, priceMax, onlyOnSale, onlyInStock } = useCatalogFilters(categories);
 
   const chips: ActiveFilter[] = [];
 

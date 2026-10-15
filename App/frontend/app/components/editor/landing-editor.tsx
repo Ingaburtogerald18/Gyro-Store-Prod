@@ -71,6 +71,7 @@ import {
 import { useGetAdminCombosQuery } from '~/state/api/catalog-admin-api';
 import { InlineCategoryNavEditor } from './inline-category-nav-editor';
 import { InlineRailsEditor } from './inline-rails-editor';
+import { InlineFeaturedEditor } from './inline-featured-editor';
 import { HomeEditorPanel } from './home-editor-panel';
 import { StoreChangeReview } from './store-change-review';
 import { FormDialogContent, FormPanel, FormBody, FormActions } from '~/components/ui/form-layout';
@@ -440,7 +441,7 @@ export function LandingEditor({
       mediaType: 'image',
       buttonText: 'Ver catálogo',
       actionType: 'link',
-      actionTarget: '/#catalogo',
+      actionTarget: '/catalogo',
     };
     dispatch(updateHeroSlides([...draft.heroSlides, next]));
     selectSection('banners', next.id);
@@ -696,14 +697,15 @@ export function LandingEditor({
             )}
             {section === 'products' && (
               <>
+                <InlineFeaturedEditor products={shownProducts} disabled={busy} />
                 <CategoryModeField
-                  label="Secciones del inicio"
+                  label="Filas por categoría"
                   mode={homeMode}
                   onChange={(mode) => dispatch(setCategoryMode({ zone: 'home', mode }))}
                   descriptions={{
-                    auto: 'Una sección por categoría con productos.',
-                    custom: 'Solo las secciones que elijas, en ese orden.',
-                    hidden: 'Se muestra el catálogo completo en una grilla.',
+                    auto: 'Una fila por categoría con productos. Con 8 productos o menos en la tienda no se muestran: ya están todos a la vista.',
+                    custom: 'Solo las filas que elijas, en ese orden.',
+                    hidden: 'Sin filas por categoría: la portada muestra los destacados y el enlace al catálogo.',
                   }}
                   error={publishErrors?.homeCategories}
                 />

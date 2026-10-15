@@ -1,4 +1,4 @@
-import { getAccessToken } from './supabase.client';
+import { getAccessToken } from '~/lib/session.client';
 
 interface UploadOptions {
   signal: AbortSignal;

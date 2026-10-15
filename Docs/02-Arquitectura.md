@@ -35,7 +35,7 @@ stock por fuera de la app. Así, **toda la lógica y la autorización viven en e
 | Datos | Supabase Postgres vía `@supabase/supabase-js` con `service_role`; funciones SQL para lo atómico |
 | Validación | Zod 4, con los esquemas compartidos en `App/shared/schemas/` (un archivo por tema) |
 | Seguridad HTTP | helmet (CSP con nonce), cors, express-rate-limit, `sanitizeBody` |
-| Archivos | multer (hasta 25 MB) → sharp (WebP, lado mayor 1200 px) → R2 con `@aws-sdk/client-s3` |
+| Archivos | multer (hasta 25 MB) → sharp (WebP, lado mayor 1200 px, y miniatura de 480) → R2 con `@aws-sdk/client-s3` |
 | PDF | pdf-lib (comprobantes) |
 | Tienda y panel | Remix 2 sobre Vite 6, React 18, Tailwind 4, shadcn/ui (Radix), Redux Toolkit + RTK Query |
 | UI | React Hook Form, TanStack Table, dnd-kit, Recharts, Framer Motion, Hugeicons, Sonner, cmdk, letra Chivo |
@@ -98,12 +98,22 @@ FIFO de inventario), pero las rutas solo las monta `index.ts`.
 ## 4. Flujo de una petición
 
 **Tienda (pública).** `GET /api/catalog` → valida la query con Zod → lee con `service_role` → responde
-sin columnas de costo.
+sin columnas de costo. Catálogo, ficha, combos, configuración y portada se guardan 60 s en memoria
+(`modules/storefront/store-reader.ts`) y cualquier escritura de `/api` que sale bien borra todas las
+copias (`clearMemos` en `index.ts`), así un cambio del panel se ve al instante. Los loaders de Remix
+leen esos datos en el mismo proceso: Express los pasa en el contexto (`store`) y no hay pedidos del
+servidor a sí mismo; en desarrollo no hay contexto y se piden a `/api` (`lib/store-reader.server.ts`).
+Al navegador viajan ya listos: el visitante no vuelve a pedir config ni portada, y header y pie
+reciben solo cuántos productos hay por categoría (el catálogo entero viaja solo en la portada).
+supabase-js se descarga solo si el navegador guarda una sesión del personal o al abrir el login
+(`lib/session.client.ts`).
 
 **Panel.** El personal entra con Microsoft (Supabase Auth, proveedor Azure). Cada petición lleva
 `Authorization: Bearer <JWT>` y el servidor:
 
-1. Verifica el token: localmente con `SUPABASE_JWT_SECRET` si está, o preguntándole a Supabase.
+1. Verifica el token en el servidor: con `SUPABASE_JWT_SECRET` (HS256) o con la llave pública del
+   proyecto (JWKS) si usa las llaves de firma nuevas. Si no se puede, le pregunta a Supabase y lo deja
+   en el log, porque así cada petición suma una consulta.
 2. Exige un correo `@INTERNAL_DOMAIN` (o el de `PROTECTED_ADMIN_EMAIL`) **y** que la identidad venga
    del proveedor Azure. Si no se exigiera, cualquiera podría registrarse con correo y contraseña
    usando un correo del dominio.
@@ -114,18 +124,49 @@ sin columnas de costo.
 
 Lo que oculta el frontend según el rol es solo comodidad: la barrera es el servidor.
 
-**Subida de imagen.** multer → sharp (WebP) → R2 con nombre por hash del contenido → la URL pública
-se guarda en Postgres. Ninguna dirección de imagen está escrita en el código.
+**Subida de imagen.** multer → sharp (WebP; de a una imagen por vez, sin caché y con tope de 100 MP
+para no pasar la memoria) → R2 con nombre por hash del contenido → la URL pública se guarda en Postgres. Ninguna dirección de imagen está escrita en el código. Al lado de cada foto se
+sube su miniatura de 480 px (`<hash>-480.webp`, nombre en `shared/image-variants.ts`), que usan las
+tarjetas, las miniaturas de la galería y el carrito; si no existe, la tienda pide la original. Borrar
+una foto borra también su miniatura. `npm run thumbnails:backfill` genera las que faltan.
 
 **Pedido de la tienda.** `POST /api/orders/public` recibe ids y cantidades, nunca precios. El
 servidor recalcula el total, registra el intento con una clave de idempotencia
 (`public_order_attempts`) y crea el pedido en una sola función SQL. Una recarga o un doble clic no
-duplican el pedido.
+duplican el pedido. La entrega es `managua`, `cargo_trans` o `retiro` (`envio` queda en los pedidos
+anteriores a la 0032 y se acepta al reintentar uno guardado). El mensaje de WhatsApp
+(`modules/orders/order-message.ts`) usa el número de Configuración → Negocio. Pago del producto,
+costo y pago del transporte, comprobante de Cargo Trans y fecha de recepción los carga el panel
+(`PATCH /api/orders/admin/:id/operation`), cada uno por separado y con rastro en `audit_logs`; el
+estado del pedido no los completa y la vista pública solo muestra la fecha de recepción.
 
 **Buscadores.** `/robots.txt` y `/sitemap.xml` son rutas de Remix (`lib/seo.ts`). Canonical, `og:url`,
 sitemap y robots usan `APP_URL`; un producto o combo pedido con otro slug redirige con 301 a su URL.
 Panel, login y la vista previa del modo edición llevan `noindex` desde `root.tsx`; Mis pedidos y el
-seguimiento, el suyo. Si el catálogo no responde, la portada sale con 503 y sin caché.
+seguimiento, el suyo. Si el catálogo no responde, portada y listados salen con 503 y sin caché. Cada
+producto del sitemap lleva `lastmod`: el último cambio del producto o de su plantilla (`updatedAt` del
+catálogo, mantenido por el trigger `set_updated_at`). Los datos estructurados declaran todo nuevo en
+caja (`NewCondition`, confirmado por el dueño); la ficha suma la categoría y la ficha técnica como
+`additionalProperty`, y el negocio va con ciudad y país (Managua, NI), sin calle, y el WhatsApp de
+Configuración como contacto.
+
+**Catálogo.** `/catalogo` y `/categoria/:slug` comparten loader (`lib/catalog-listing.server.ts`) y
+página (`components/catalog/catalog-listing.tsx`). La categoría se resuelve en el servidor: el HTML
+inicial trae solo sus productos, y un id o nombre viejo en la ruta redirige al slug. Los demás filtros
+viven en la query y la grilla los lee de la URL, así que también salen filtrados desde el servidor;
+Redux solo acompaña a los campos mientras se escribe (`CatalogUrlSync`). Indexación: la portada, el
+catálogo y cada categoría con productos tienen canonical propio; con búsqueda, filtros u orden en la
+query, o sin productos, llevan `noindex, follow`. No hay paginación: el catálogo entra en una página.
+
+**Contenido editable.** Horarios en `app_config.business_info` (`businessHours`); pagos, entregas y
+garantía en `app_config.store_policies` (Configuración → Atención, solo admin). `GET /api/config` las
+entrega con `toPublicPolicies`: la página de garantía en borrador nunca sale en la respuesta pública ni
+en su caché. Ayuda (`routes/ayuda.*`) y Por mayor tienen estructura fija y leen esos datos
+(`lib/info-page.server.ts`); sin config responden 503. Los destacados de la portada son
+`featuredProductIds` en la configuración de portada (borrador, versiones y publicación como el resto).
+El texto de cada categoría (`categories.description`) sale en `/categoria/<slug>` y es su meta
+description; la marca de la plantilla (`templates.brand`) llega al catálogo como `brand` y se publica
+como `Brand` en el JSON-LD. Vacíos, no se muestran ni se declaran.
 
 ## 5. Patrones obligatorios
 
@@ -175,23 +216,31 @@ Orden del middleware en `server/index.ts`:
 
 ```
 trust proxy → nonce de CSP → helmet (CSP) → cors → json/urlencoded (5 MB) → sanitizeBody
-→ apiLimiter → límites propios por ruta → rutas → 404 de /api → frontend (prod) → errorHandler
+→ registro de lentas → apiLimiter → borrado de copias en memoria → límites propios por ruta → rutas
+→ 404 de /api → frontend (prod) → errorHandler
 ```
 
 - **CSP**: scripts solo propios o con el nonce de cada petición; imágenes y video de Supabase y R2.
 - **CORS**: en producción solo `CORS_ORIGIN` (o la URL de Render).
-- **Límites de uso** (por IP): general 300 cada 15 min; telemetría 20 cada 5 min; pedido web,
-  contacto y seguimiento de pedido 10 cada 15 min; avisos de stock 5 cada 15 min.
-- **`trust proxy = 1`**: sin esto el límite vería la IP del proxy de Render.
+- **Límites de uso**: general 1000 cada 15 min, por persona si el token tiene firma válida y si no por
+  cliente; telemetría 20 cada 5 min; pedido web, contacto y seguimiento de pedido 10 cada 15 min;
+  avisos de stock 5 cada 15 min. Cada rechazo queda en el log como `[límite]`.
+- **Cliente**: `CF-Connecting-IP` (la escribe Cloudflare); sin ella, `req.ip` con `trust proxy = 1`.
+- **Registro de lentas**: toda petición de 1,5 s o más queda en el log como `[lento]` con su duración.
 
 ## 8. Despliegue
 
-`render.yaml` define un Web Service (`rootDir: App`, plan free, Oregon):
+`render.yaml` define un Web Service (`rootDir: App`, Oregon). El servicio está en un plan pago y ya no
+se duerme; el archivo todavía dice `plan: free` (ver Pendientes).
 
 - **Build**: instala el servidor con devDependencies, corre `typecheck`, instala y compila el frontend.
 - **Start**: `npm start` → `tsx server/index.ts`. En producción Express sirve también el build de Remix.
 - **Health check**: `GET /api/health`.
 - `autoDeploy: true`: cada push a la rama desplegada publica.
+- **Dominio**: el DNS está en Cloudflare. `gyrostorenic.com` y `www` son CNAME en *Proxied* a
+  `gyro-store-3sr6.onrender.com`; como Render también usa Cloudflare, primero aplica la zona propia y
+  después la de Render (O2O). Una regla de caché de la zona no guarda `/robots.txt`, para que una
+  respuesta de un mal momento no quede fija por horas. `APP_URL` es `https://gyrostorenic.com`.
 
 **En desarrollo** son dos procesos: `npm run dev` en `App/` (API en :3000) y `npm run dev:frontend`
 (Vite en :5173, que redirige `/api` a :3000).
@@ -208,7 +257,7 @@ En Render se cargan en el panel. En desarrollo, `load-env.ts` lee el archivo que
 |---|---|
 | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | Obligatorias: el servidor no arranca sin ellas. 🔒 la service_role |
 | `SUPABASE_ANON_KEY` | Login del personal en el navegador. No da acceso a datos |
-| `SUPABASE_JWT_SECRET` | 🔒 Opcional: verifica el token localmente sin consultar a Supabase en cada petición |
+| `SUPABASE_JWT_SECRET` | 🔒 Opcional: verifica tokens HS256 sin consultar a Supabase en cada petición. Con las llaves de firma nuevas no hace falta: se usa la llave pública (JWKS) |
 | `PROTECTED_ADMIN_EMAIL` | El `global_admin`. Obligatoria en producción |
 | `INTERNAL_DOMAIN` | Dominio del personal (`gyrostorenic.com` por defecto) |
 | `NODE_ENV`, `PORT` | |
@@ -247,7 +296,7 @@ commit), `npm test`, `npm run build`.
 | Supabase Postgres | Todos los datos | La API responde 5xx |
 | Cloudflare R2 | Imágenes | No se ven fotos; la tienda muestra el reemplazo |
 | Microsoft Graph | Comprobantes | Las ventas se aprueban igual y los PDF se suben cuando vuelve |
-| Render | Hosting | El plan free duerme el servicio sin tráfico: la primera visita tarda |
+| Render | Hosting | No hay tienda ni panel |
 
 ## 12. Decisiones vigentes
 
@@ -257,6 +306,8 @@ commit), `npm test`, `npm run build`.
 | Supabase Postgres con `service_role` y RLS cerrada | Transacciones, FKs, `CHECK` y SQL para reportes; la base no queda expuesta |
 | Login del personal solo con Microsoft Entra | Una sola fuente de identidad; altas y bajas desde Microsoft 365 |
 | Rol leído de `profiles` en cada petición (con caché corta) | Cambiar un rol aplica al instante, sin renovar el token |
+| Copias en memoria (tienda 60 s, libro de pozos 30 s) que borra cualquier escritura | La tienda no consulta la base en cada visita y un cambio del panel se ve al instante. Vale con una sola instancia: con varias, cada una tendría su copia |
+| El panel vuelve a pedir un dato al abrir una pantalla solo si tiene más de 30 s | Navegar no repite consultas; lo que cambia el propio panel se actualiza por los tags de RTK Query |
 | Pedido por WhatsApp, sin pasarela de pago | Así compra el cliente local; el pago queda como evento futuro del pedido |
 | Imágenes en R2 con WebP y nombre por hash | Sin costo de salida; subir dos veces el mismo archivo no duplica |
 | TypeScript en todo, esquemas Zod compartidos | Un solo contrato entre cliente y servidor |

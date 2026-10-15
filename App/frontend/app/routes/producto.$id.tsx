@@ -5,12 +5,15 @@ import { Notification03Icon, ShoppingCart02Icon } from "@hugeicons/core-free-ico
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { redirect, type HeadersFunction, type LoaderFunctionArgs, type MetaFunction } from '@remix-run/node';
 import { getBrandName, pageTitle } from '~/lib/brand';
-import { canonicalLink, metaDescription, productOffers } from '~/lib/seo';
+import { breadcrumbJsonLd, canonicalLink, metaDescription, productOffers } from '~/lib/seo';
+import { categoryHref, findCategory } from '~/lib/catalog-query';
 import { siteOrigin } from '~/lib/site-url.server';
-import { useLoaderData } from '@remix-run/react';
+import { categoryCountsOf, storeReader } from '~/lib/store-reader.server';
+import { Link, useLoaderData } from '@remix-run/react';
+import { STORE_PAGES } from '~/lib/store-pages';
+import { INFO_LINK } from '~/components/storefront/store-details';
 import { useReducedMotion } from 'framer-motion';
 
-import type { CatalogDetail, CatalogProduct } from '@shared/schemas';
 import { StorefrontShell } from '~/components/storefront/storefront-shell';
 import { ProductCarousel } from '~/components/product/product-carousel';
 import { ProductDetailTabs } from '~/components/product/product-detail-tabs';
@@ -27,70 +30,51 @@ import { autoSelection, isConsultOnly, pickableAxes, purchaseState, variantLabel
 import { Badge } from '~/components/ui/badge';
 import { Button } from '~/components/ui/button';
 import { Separator } from '~/components/ui/separator';
-import type { StoreConfig } from '~/state/api/session-api';
 import { useAppDispatch } from '~/state/hooks';
 import { addItem, openCart } from '~/state/slices/cart-slice';
-import { buildWhatsappUrl, formatCordobas, getProductUrl, htmlToText, productWhatsappMessage } from "~/lib/formatters";
-import { trackProductView } from '~/lib/analytics.client';
+import { buildWhatsappUrl, formatCordobas, getProductUrl, htmlToText, productWhatsappMessage, specsWithBrand } from "~/lib/formatters";
+import { trackAddToCart, trackProductView, trackWhatsappOpen } from '~/lib/analytics.client';
 
 export const headers: HeadersFunction = () => ({
   'Cache-Control': 'public, max-age=60, stale-while-revalidate=300',
 });
 
-export async function loader({ params, request }: LoaderFunctionArgs) {
+export async function loader({ params, request, context }: LoaderFunctionArgs) {
   const url = new URL(request.url);
-  const origin = url.origin;
   const raw = params.id ?? '';
   const productId = raw.split('--').pop() ?? '';
+  const store = storeReader(context, request);
 
-  let product: CatalogDetail | null = null;
-  let related: CatalogProduct[] = [];
-  // El catálogo completo viaja con la ficha: header, footer y conteos leen el
-  // mismo dato que el servidor ya pidió (sin repetir la consulta en el cliente).
-  let products: CatalogProduct[] = [];
-  let config: StoreConfig | null = null;
-  // «No existe» y «no se pudo cargar» son cosas distintas: solo un 404 real
-  // del API es «Producto no encontrado»; una caída es un error reintentable.
-  let detailStatus = 0;
+  // El catálogo arma los relacionados y los conteos del header y el pie; no viaja entero al navegador.
+  // Catálogo y config son accesorios: si fallan, la ficha sale igual.
+  const [product, catalog, config, landing] = await Promise.all([
+    store.product(productId).catch(() => 'error' as const),
+    store.catalog().catch(() => null),
+    store.config().catch(() => null),
+    store.landing().catch(() => null),
+  ]);
 
-  try {
-    const [detailRes, catalogRes, configRes] = await Promise.all([
-      fetch(`${origin}/api/catalog/${productId}`),
-      fetch(`${origin}/api/catalog`).catch(() => null),
-      fetch(`${origin}/api/config`).catch(() => null),
-    ]);
-    detailStatus = detailRes.status;
-    if (detailRes.ok) product = (await detailRes.json()) as CatalogDetail;
-    if (catalogRes?.ok) {
-      const items = ((await catalogRes.json()) as { items?: CatalogProduct[] }).items ?? [];
-      products = items;
-      // "Tal vez te pueda interesar": productos de la misma categoría; solo si
-      // son pocos se completa con el resto del catálogo.
-      const others = items.filter((p) => p.id !== productId);
-      const category = product?.category;
-      const sameCategory = category ? others.filter((p) => p.category === category) : [];
-      // Primero lo que se puede comprar: no se llena con agotados si hay
-      // alternativas disponibles.
-      const pool = sameCategory.length >= 4 ? sameCategory : others;
-      related = [...pool]
-        .sort((a, b) => Number(b.availability === 'available') - Number(a.availability === 'available'))
-        .slice(0, 12);
-    }
-    if (configRes?.ok) config = (await configRes.json()) as StoreConfig;
-  } catch {
-    // Relacionados y config son accesorios: si fallan, la ficha sale igual.
-  }
+  // «No existe» y «no se pudo cargar» son cosas distintas: una caída es un error reintentable.
+  if (product === 'error') throw new Response('No pudimos cargar este producto. Probá de nuevo en un momento.', { status: 503 });
+  if (!product) throw new Response('Producto no encontrado', { status: 404 });
 
-  if (!product) {
-    if (detailStatus === 404) throw new Response('Producto no encontrado', { status: 404 });
-    throw new Response('No pudimos cargar este producto. Probá de nuevo en un momento.', { status: 503 });
-  }
+  const products = catalog ?? [];
+  // "Tal vez te pueda interesar": productos de la misma categoría; solo si son pocos se completa con
+  // el resto del catálogo. Primero lo que se puede comprar, no se llena con agotados.
+  const others = products.filter((p) => p.id !== productId);
+  const sameCategory = product.category ? others.filter((p) => p.category === product.category) : [];
+  const pool = sameCategory.length >= 4 ? sameCategory : others;
+  const related = [...pool]
+    .sort((a, b) => Number(b.availability === 'available') - Number(a.availability === 'available'))
+    .slice(0, 12);
 
   // Un nombre viejo o un slug cualquiera delante del id lleva, con 301, a la única URL de la ficha.
   const canonicalPath = getProductUrl(product.id, product.name);
   if (url.pathname !== canonicalPath) throw redirect(`${canonicalPath}${url.search}`, 301);
 
-  return { product, related, products, config, canonicalUrl: `${siteOrigin(request)}${canonicalPath}` };
+  const siteUrl = siteOrigin(request);
+  const categoryCounts = categoryCountsOf(catalog, config);
+  return { product, related, categoryCounts, config, landing, siteUrl, canonicalUrl: `${siteUrl}${canonicalPath}` };
 }
 
 export const meta: MetaFunction<typeof loader> = ({ data }) => {
@@ -101,6 +85,14 @@ export const meta: MetaFunction<typeof loader> = ({ data }) => {
   const title = pageTitle(product.name);
   const description = metaDescription(product.description, `${product.name} en ${brand}, Managua, Nicaragua.`);
   const canonicalUrl = data.canonicalUrl;
+  // Mismo recorrido que la barra de la ficha (ProductTopNav): Inicio › categoría › producto.
+  const categories = data.config?.categories ?? [];
+  const category = findCategory(categories, product.categoryId) ?? findCategory(categories, product.category);
+  const trail = [
+    { name: 'Inicio', url: `${data.siteUrl}/` },
+    ...(category ? [{ name: category.name, url: `${data.siteUrl}${categoryHref(category.slug)}` }] : []),
+    { name: product.name, url: canonicalUrl },
+  ];
 
   return [
     { title },
@@ -121,9 +113,16 @@ export const meta: MetaFunction<typeof loader> = ({ data }) => {
         image: product.images,
         description,
         url: canonicalUrl,
+        ...(product.brand ? { brand: { '@type': 'Brand', name: product.brand } } : {}),
+        ...(category ? { category: category.name } : {}),
+        // La ficha técnica de la plantilla: los mismos datos que se ven en la página.
+        ...(product.specs.length
+          ? { additionalProperty: product.specs.map((s) => ({ '@type': 'PropertyValue', name: s.label, value: s.value })) }
+          : {}),
         offers: productOffers(product, canonicalUrl),
       },
     },
+    { 'script:ld+json': breadcrumbJsonLd(trail) },
   ];
 };
 
@@ -175,6 +174,7 @@ export default function ProductDetail() {
   const showPromoBadge = onSale || (variant ? variant.isPromo : product.promoScope === 'all');
   const description = htmlToText(product.description);
   const selectedLabel = variantLabel(product.axes, selection);
+  const specs = specsWithBrand(product.specs, product.brand);
 
   const colorAxis = product.axes.find((a) => a.isColor);
   const selectedColor = colorAxis ? selection[colorAxis.key] : undefined;
@@ -200,27 +200,20 @@ export default function ProductDetail() {
     if (state.kind !== 'ready') return;
     dispatch(addItem(cartItemFor(product, state.variant, activeImages[0], safeQuantity)));
     dispatch(openCart());
+    trackAddToCart(product.id, safeQuantity, 'ficha');
   }
 
+  // Consultar no es pedir: el mensaje lleva producto, opción elegida y enlace, sin cantidades ni total.
   function handleWhatsApp() {
     const url = typeof window !== 'undefined' ? window.location.href : '';
-    const message =
-      state.kind === 'ready'
-        ? productWhatsappMessage({
-            kind: 'order',
-            name: product.name,
-            variant: selectedLabel || undefined,
-            quantity: safeQuantity,
-            total: formatCordobas(price * safeQuantity, currency),
-            url,
-          })
-        : productWhatsappMessage({
-            kind: isConsultOnly(state.kind) ? 'availability' : 'info',
-            name: product.name,
-            variant: selectedLabel || undefined,
-            url,
-          });
+    const message = productWhatsappMessage({
+      kind: isConsultOnly(state.kind) ? 'availability' : 'info',
+      name: product.name,
+      variant: selectedLabel || undefined,
+      url,
+    });
     window.open(buildWhatsappUrl(config?.whatsapp ?? '', message), '_blank', 'noopener,noreferrer');
+    trackWhatsappOpen('consult');
   }
 
   // Agotado, próximamente o sin stock verificable: la acción principal es consultar,
@@ -228,7 +221,6 @@ export default function ProductDetail() {
   const consultOnly = isConsultOnly(state.kind);
   const notifyVariant = state.kind === 'sold_out' || state.kind === 'coming_soon' ? state.variant : null;
   const comingSoon = variant ? variant.availability === 'coming_soon' : product.availability === 'coming_soon';
-  const whatsappLabel = state.kind === 'ready' ? 'Pedir por WhatsApp' : 'Consultar por WhatsApp';
 
   return (
     <StorefrontShell>
@@ -240,7 +232,8 @@ export default function ProductDetail() {
         />
 
         <div className="grid gap-5 py-5 md:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] md:grid-rows-[auto_1fr] md:gap-x-10 md:gap-y-5 md:py-6">
-          {/* En móvil, nombre y precio identifican el producto antes de la foto. */}
+          {/* En móvil la foto va primero (order-first en la galería) y debajo nombre y precio; la descripción
+              completa está en Detalles. El H1 sigue primero en el HTML. */}
           <div className="min-w-0 space-y-2.5 md:col-start-2 md:row-start-1">
             {showPromoBadge && (
               <Badge variant="promo" className="tabular-nums">{onSale ? `−${discountPct}%` : 'Oferta'}</Badge>
@@ -249,7 +242,7 @@ export default function ProductDetail() {
               {product.name}
             </h1>
             {description && (
-              <p className="line-clamp-2 text-base leading-relaxed text-muted-foreground">
+              <p className="hidden text-base leading-relaxed text-muted-foreground md:line-clamp-2">
                 {description}
               </p>
             )}
@@ -276,7 +269,7 @@ export default function ProductDetail() {
             )}
           </div>
 
-          <div className="min-w-0 md:sticky md:top-28 md:col-start-1 md:row-start-1 md:row-span-2 md:self-start">
+          <div className="order-first min-w-0 md:sticky md:top-28 md:order-none md:col-start-1 md:row-start-1 md:row-span-2 md:self-start">
             <ProductGallery images={activeImages} name={product.name} soldOut={state.kind === 'sold_out'} />
           </div>
 
@@ -348,35 +341,50 @@ export default function ProductDetail() {
                   Consultar por WhatsApp
                 </Button>
               ) : (
+                // WhatsApp es la acción principal; el carrito, el camino para registrar el pedido en línea.
                 <>
                   <Button
-                    onClick={handleAddToCart}
+                    variant="whatsapp"
+                    onClick={handleWhatsApp}
                     className="h-12 min-h-12 w-full shrink-0 text-base sm:flex-1 md:flex-none lg:flex-1"
+                  >
+                    <WhatsappIcon className="size-4" />
+                    Consultar por WhatsApp
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={handleAddToCart}
+                    className="h-12 min-h-12 w-full shrink-0 justify-center text-base sm:w-auto sm:px-4 md:w-full lg:w-auto"
                   >
                     <HugeIcon icon={ShoppingCart02Icon} size={18} strokeWidth={2} aria-hidden />
                     {addLabel(state)}
                   </Button>
-                  <Button
-                    variant="whatsappOutline"
-                    onClick={handleWhatsApp}
-                    className="h-12 min-h-12 w-full shrink-0 justify-center text-base sm:w-auto sm:px-4 md:w-full lg:w-auto"
-                  >
-                    <WhatsappIcon className="size-4" />
-                    {whatsappLabel}
-                  </Button>
                 </>
               )}
             </div>
+
+            {/* Junto a la decisión: cuándo responden y las condiciones en una línea, con el enlace a las completas. */}
+            {(config?.businessHours?.length ?? 0) > 0 && (
+              <p className="text-xs text-muted-foreground">
+                Te respondemos por WhatsApp: {config?.businessHours?.map((row) => `${row.days} ${row.hours}`).join(' · ').replace(/\.?$/, '.')}
+              </p>
+            )}
+            {config?.policies && (
+              <p className="text-xs text-muted-foreground">
+                {[config.policies.warranty.title, config.policies.managua.title, config.policies.outside.title].join(' · ')}.{' '}
+                <Link to={STORE_PAGES.paymentsDelivery} className={INFO_LINK}>Ver condiciones</Link>
+              </p>
+            )}
           </div>
         </div>
 
         <div className="space-y-5 border-t border-border py-6 sm:space-y-8 sm:py-8">
-          {(description || product.specs.length > 0) && (
+          {(description || specs.length > 0) && (
             <section aria-labelledby="product-details-heading" className="min-w-0 space-y-4">
               <h2 id="product-details-heading" className="font-heading text-xl font-bold text-foreground">
                 {description ? 'Detalles del producto' : 'Especificaciones'}
               </h2>
-              <ProductDetailTabs description={description} specs={product.specs} />
+              <ProductDetailTabs description={description} specs={specs} />
             </section>
           )}
           <TrustBox />

@@ -22,7 +22,12 @@ export function StoreSync() {
     const attempt = loadCheckoutAttempt();
     if (attempt) {
       const { customerName, phone, deliveryMethod, address, locationUrl, note } = attempt;
-      store.dispatch(checkoutFieldsChanged({ customerName, phone, deliveryMethod, address, locationUrl, note }));
+      // Un intento guardado antes de separar Managua de Cargo Trans dice 'envio': el formulario muestra
+      // Managua y la persona lo cambia si hace falta. El intento guardado sigue igual para recuperarlo.
+      store.dispatch(checkoutFieldsChanged({
+        customerName, phone, address, locationUrl, note,
+        deliveryMethod: deliveryMethod === 'envio' ? 'managua' : deliveryMethod,
+      }));
       store.dispatch(checkoutExtrasChanged({ attempt, codeInput: attempt.discountCode ?? '' }));
     }
     let items = store.getState().cart.items;

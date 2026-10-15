@@ -1,8 +1,6 @@
 import { Router } from 'express';
 import { asyncHandler } from '../../utils/async-handler';
-import { getPublicConfig } from './public-config';
-import { getImageResources, getBusinessInfo, getFinancialConfig } from './app-config';
-import { listCategories } from '../catalog/categories';
+import { readConfig } from '../storefront/store-reader';
 
 const router = Router();
 
@@ -10,16 +8,8 @@ const router = Router();
 router.get(
   '/',
   asyncHandler(async (_req, res) => {
-    const publicConfig = getPublicConfig();
-    const [images, categories, business, financial] = await Promise.all([
-      getImageResources(),
-      listCategories(),
-      getBusinessInfo(),
-      getFinancialConfig(),
-    ]);
     res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
-    // Lo editado en el panel (`business`, `financial`) pisa lo que viene del entorno.
-    res.json({ ...publicConfig, ...business, exchangeRate: financial.exchangeRate, categories, images });
+    res.json(await readConfig());
   })
 );
 

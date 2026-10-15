@@ -8,6 +8,7 @@ import { ArrowLeft01Icon, ArrowRight01Icon, ImageNotFound01Icon, ZoomInAreaIcon 
 import { Badge } from '~/components/ui/badge';
 import { Dialog, DialogContent, DialogTitle } from '~/components/ui/dialog';
 import { cn } from '~/lib/utils';
+import { ThumbnailImg } from '~/components/product/thumbnail-img';
 
 /** Píxeles de arrastre para pasar de foto. Menos que esto es un toque, no swipe. */
 const SWIPE_THRESHOLD = 50;
@@ -139,7 +140,7 @@ export function ProductGallery({
                 i === active ? 'border-primary-2' : 'border-border hover:border-foreground/25',
               )}
             >
-              <img src={src} alt="" loading="lazy" className="h-full w-full object-contain" />
+              <ThumbnailImg src={src} alt="" loading="lazy" className="h-full w-full object-contain" />
             </button>
           ))}
         </div>

@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
-import { getSupabaseClient } from '~/lib/supabase.client';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import { hasStoredSession, loadSupabase, onSupabaseCreated } from '~/lib/session.client';
 import { useLazyGetMeQuery } from '~/state/api/session-api';
 import { useAppDispatch } from '~/state/hooks';
 import { signedOut } from '~/state/slices/auth-slice';
@@ -11,33 +12,40 @@ export function AuthSync() {
 
   useEffect(() => {
     let active = true;
-    const supabase = getSupabaseClient();
+    let unsubscribe = () => {};
 
-    // 1. Check initial session
-    supabase.auth.getSession().then(({ data }) => {
+    const follow = (supabase: SupabaseClient) => {
       if (!active) return;
-      if (data.session) {
-        getMe(); // Fetch full user profile from backend (will populate Redux)
-      } else {
-        dispatch(signedOut());
-      }
-    });
+      // 1. Sesión inicial
+      supabase.auth.getSession().then(({ data }) => {
+        if (!active) return;
+        if (data.session) getMe();
+        else dispatch(signedOut());
+      });
+      // 2. Cambios: login, renovación del token, salida
+      const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+        if (!active) return;
+        if (session) getMe();
+        else dispatch(signedOut());
+      });
+      unsubscribe = () => sub.subscription.unsubscribe();
+    };
 
-    // 2. Listen for auth changes
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!active) return;
-      if (session) {
-        getMe(); // Re-fetch on login/refresh
-      } else {
-        dispatch(signedOut());
-      }
-    });
+    let stopWaiting = () => {};
+    if (hasStoredSession()) {
+      loadSupabase().then(({ getSupabaseClient }) => follow(getSupabaseClient()));
+    } else {
+      // Visitante: no se carga supabase-js. Si después abre el login, el cliente nace ahí y se sigue desde entonces.
+      dispatch(signedOut());
+      stopWaiting = onSupabaseCreated(follow);
+    }
 
     return () => {
       active = false;
-      sub.subscription.unsubscribe();
+      stopWaiting();
+      unsubscribe();
     };
   }, [dispatch, getMe]);
 
-  return null; // This component has no UI
+  return null;
 }

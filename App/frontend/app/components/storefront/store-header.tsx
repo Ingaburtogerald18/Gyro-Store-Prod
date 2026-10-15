@@ -1,18 +1,18 @@
-// Header del catálogo público (Amazon-style): logo · búsqueda (filtra la grilla
-// de la home) · carrito con contador animado · acceso (HeaderSettingsMenu).
-import { useEffect, useMemo, useRef, useState } from 'react';
+// Header de la tienda: menú, logo, búsqueda siempre a la vista y carrito. En el celular y la tableta todo
+// lo demás vive en un solo menú (StoreMenu); en escritorio, la fila de categorías y HeaderSettingsMenu.
+import { useEffect, useMemo, useRef } from 'react';
 
 import { Link } from '@remix-run/react';
 import { motion, AnimatePresence, useAnimationControls, useReducedMotion } from 'framer-motion';
-import { GridViewIcon, ShoppingCart02Icon, Search01Icon, Cancel01Icon } from '@hugeicons/core-free-icons';
+import { Menu01Icon, ShoppingCart02Icon } from '@hugeicons/core-free-icons';
 import { categoryMode } from '@shared/schemas';
-import { inCategory } from '~/components/storefront/category-nav';
+import { categoriesWithProducts } from '~/lib/catalog-query';
 import { SearchBar } from '~/components/catalog/search-bar';
-import { CategoriesDrawer } from '~/components/storefront/categories-drawer';
+import { StoreMenu } from '~/components/storefront/store-menu';
 import { CategoryNav } from '~/components/storefront/category-nav';
 import { Button } from '~/components/ui/button';
 import { HugeIcon } from '~/components/ui/icon';
-import { useStoreCatalog, useStoreConfig, useStoreLanding } from '~/hooks/use-store-config';
+import { useCategoryCounts, useStoreConfig, useStoreLanding } from '~/hooks/use-store-config';
 import { useAppDispatch, useAppSelector } from '~/state/hooks';
 import { selectCartCount, toggleCart } from '~/state/slices/cart-slice';
 import { HeaderSettingsMenu } from './header-settings-menu';
@@ -65,10 +65,6 @@ function CartButton() {
 }
 
 export function StoreHeader() {
-
-  const [categoriesOpen, setCategoriesOpen] = useState(false);
-  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
-
   const config = useStoreConfig();
   const reduceMotion = useReducedMotion();
   // Logo del panel. El animado solo si es video y no hay movimiento reducido;
@@ -77,7 +73,7 @@ export function StoreHeader() {
   const animatedIsVideo = Boolean(animated && /\.(webm|mp4|mov|m4v)($|\?)/i.test(animated));
   const logoVideo = animatedIsVideo && !reduceMotion ? animated : undefined;
   const logoImage = config?.images?.logoStatic || (animatedIsVideo ? undefined : animated);
-  const products = useStoreCatalog();
+  const counts = useCategoryCounts();
   const landing = useStoreLanding();
 
   const allCategories = useMemo(
@@ -90,33 +86,26 @@ export function StoreHeader() {
   const mode = categoryMode(landing?.headerCategoriesMode, landing?.headerCategories);
   const headerNavCategories = useMemo(() => {
     if (mode === 'hidden') return [];
-    if (mode === 'auto') {
-      const withProducts = allCategories.filter((c) => products.length === 0 || products.some((p) => inCategory(p, c)));
-      return withProducts.slice(0, 7);
-    }
+    if (mode === 'auto') return categoriesWithProducts(allCategories, counts).slice(0, 7);
     return (landing?.headerCategories ?? [])
       .map(id => allCategories.find(c => c.id === id))
       .filter((c): c is NonNullable<typeof c> => Boolean(c))
       .slice(0, 7);
-  }, [mode, allCategories, products, landing?.headerCategories]);
+  }, [mode, allCategories, counts, landing?.headerCategories]);
   const showCategories = headerNavCategories.length > 0;
 
   return (
     <header data-landing-section="navigation" className="store-header sticky top-0 z-40 border-b border-border transition-all">
       <div className="mx-auto flex h-14 max-w-7xl items-center gap-2 px-4 sm:gap-3">
-        {/* Categorías en panel hasta escritorio ancho: en tablet, la fila de
-            categorías y el buscador se tapaban entre sí. */}
-        {showCategories && (
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setCategoriesOpen(true)}
-            aria-label="Ver categorías"
-            className="size-11 shrink-0 text-primary-2 lg:hidden"
-          >
-            <HugeIcon icon={GridViewIcon} size={20} strokeWidth={2} aria-hidden />
+        {/* Hasta escritorio ancho: en tablet, la fila de categorías y el buscador se tapaban entre sí. */}
+        <StoreMenu
+          categories={mode === 'hidden' ? [] : mode === 'custom' ? headerNavCategories : allCategories}
+          counts={counts}
+        >
+          <Button variant="ghost" size="icon" aria-label="Abrir menú" className="-ml-2 size-11 shrink-0 text-primary-2 lg:hidden">
+            <HugeIcon icon={Menu01Icon} size={20} strokeWidth={2} aria-hidden />
           </Button>
-        )}
+        </StoreMenu>
 
         <Link
           to="/"
@@ -166,49 +155,22 @@ export function StoreHeader() {
         <div className="hidden min-w-0 flex-1 items-center justify-end gap-3 md:flex">
           {showCategories && (
             <div className="hidden min-w-0 flex-1 items-center gap-1 lg:flex">
-              <CategoryNav categories={headerNavCategories} products={products} />
+              <CategoryNav categories={headerNavCategories} />
             </div>
           )}
 
           <SearchBar className="w-full max-w-sm shrink lg:w-72 lg:shrink-0 xl:w-80" />
         </div>
-        {/* Zona derecha */}
         <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-3">
-          {(
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setMobileSearchOpen((o) => !o)}
-              aria-label={mobileSearchOpen ? 'Cerrar búsqueda' : 'Buscar productos'}
-              aria-expanded={mobileSearchOpen}
-              className="size-11 text-primary-2 md:hidden"
-            >
-              <HugeIcon
-                icon={mobileSearchOpen ? Cancel01Icon : Search01Icon}
-                size={20}
-                strokeWidth={2}
-                aria-hidden
-              />
-            </Button>
-          )}
-          {<CartButton />}
-          {<HeaderSettingsMenu />}
+          <CartButton />
+          <HeaderSettingsMenu />
         </div>
       </div>
 
-      {mobileSearchOpen && (
-        <div className="px-4 pb-3 md:hidden">
-          <SearchBar />
-        </div>
-      )}
-
-
-      <CategoriesDrawer
-        open={categoriesOpen}
-        onOpenChange={setCategoriesOpen}
-        categories={mode === 'custom' ? headerNavCategories : allCategories}
-        products={products}
-      />
+      {/* Celular: el buscador en su propia fila, sin lupa que haya que descubrir. */}
+      <div className="px-4 pb-2 md:hidden">
+        <SearchBar />
+      </div>
     </header>
   );
 }

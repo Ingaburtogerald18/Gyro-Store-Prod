@@ -3,6 +3,7 @@ export * from './staff';
 export * from './catalog';
 export * from './catalog-admin';
 export * from './landing';
+export * from './store-policies';
 export * from './store-editor';
 export * from './combos';
 export * from './crm';

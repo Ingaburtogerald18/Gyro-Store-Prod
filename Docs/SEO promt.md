@@ -382,7 +382,7 @@ Agrupación aprobada (DESIGN.md, sección 10):
 3. Ayuda: cómo comprar, pagos y entregas, garantía y cambios, mis pedidos y contacto, según contenido publicado.
 4. Contacto: WhatsApp, correo real, punto de retiro con «Cómo llegar» y horarios de atención.
 
-En móvil: Gyro Store y Contacto a todo el ancho, Comprar y Ayuda en dos columnas. Todo alineado a la izquierda (hoy está centrado) y sin desplegables.
+En móvil (decisión del dueño del 14 de octubre de 2026, opción A): Gyro Store y Contacto a todo el ancho; Comprar y Ayuda en una fila cada uno, con los enlaces uno al lado del otro y sin las categorías, que ya están en el menú; WhatsApp y correo como botones. Todo alineado a la izquierda y sin desplegables.
 
 Parte inferior:
 - Privacidad y términos cuando estén aprobados y publicados.
@@ -790,21 +790,18 @@ No son una orden de modificar a ciegas; pueden haber cambiado.
 Resuelto en la fase A (14 de octubre de 2026; comprobalo en el código antes de rehacerlo; requiere `APP_URL` en Render): canonical y `og:url` desde `APP_URL` (`app/lib/site-url.server.ts`, `shared/site-url.ts`), `config.appUrl` con `APP_URL` antes que `RENDER_EXTERNAL_URL`, `/robots.txt` y `/sitemap.xml` como rutas de Remix (`app/lib/seo.ts`), 301 al slug canónico en producto y combo, 404/503 en combo, 503 sin caché en la home si falla el catálogo, JSON-LD sin variantes próximas ni precios cero, Organization y WebSite en la home, `noindex` en panel, login, auth y vista previa, y `lang="es-NI"`.
 
 Comprobado el 14 de octubre de 2026 y todavía externo al código:
-- El dominio no pasa por el Cloudflare de la cuenta (DNS en «solo DNS», apunta a Render); el `Server: cloudflare` de las respuestas es el CDN de Render. Los ajustes de robots o bots del panel de Cloudflare no aplican.
-- Con el servicio despierto, `/robots.txt` devuelve solo el preámbulo de content signals, sin reglas. Con el servicio dormido (15:30 UTC) devolvió `User-agent: *` / `Disallow: /` y quedó en caché 4 horas. Está en Docs/05-Pendientes.
-- El servicio real es `gyro-store-3sr6.onrender.com` (`appUrl` actual). `gyro-store.onrender.com` sirve una versión anterior y `gyro-store-prod.onrender.com`, destino del CNAME de `www`, no tiene servidor.
+- `gyrostorenic.com` y `www` están en *Proxied* hacia Render, que también usa Cloudflare (O2O): primero aplican los ajustes de la zona propia (caché, robots administrado, bots) y después los de Render. Por eso el DNS público muestra IPs de Render.
+- Antes del deploy, `/robots.txt` devolvía solo el preámbulo de content signals, sin reglas. Con el servicio dormido (15:30 UTC) devolvió `User-agent: *` / `Disallow: /` y quedó en caché 4 horas. Está en Docs/05-Pendientes.
+- El servicio real es `gyro-store-3sr6.onrender.com`. `gyro-store.onrender.com` sirve una versión anterior y `gyro-store-prod.onrender.com`, destino de los CNAME de `gyrostorenic.com` y `www`, no tiene servidor.
 - El plan free de Render duerme el servicio; en frío la portada tardó más de 20 s.
 
 Vigentes:
 - La home ya usa loader SSR para catálogo/configuración/portada.
-- El filtro de categoría se sincroniza en cliente (`catalog-url-sync.tsx`); distintas URLs de categoría reciben el mismo HTML inicial.
 - Los loaders piden la API por el origen de la petición (`${origin}/api/...`): en producción cada SSR sale a Cloudflare y vuelve. /catalogo, las categorías y el sitemap multiplican esas vueltas; evaluá llamar a los servicios en el mismo proceso.
 - Home/producto/combo usan caché pública, que requiere cuidado al añadir borradores o personalización.
 - El menú de ajustes público mezcla ayuda, apariencia y acceso del personal.
 - El footer incluye varios párrafos comerciales que pueden pasar a ayuda.
 - Datos generales de configuración se usan también en tickets y facturas.
-- El envío actual solo distingue retiro/envío.
-- No se encontró fecha real de recepción en la actualización del estado del pedido.
 - La interfaz no debe mostrar stock exacto; el contrato público actual sí puede incluir cantidades para lógica de compra. No afirmes que el dato ya está ausente de todas las APIs ni lo elimines sin revisar consumidores.
 - Ya hay dimensiones, alt y lazy loading en varias imágenes. La optimización pendiente debe medirse; no asumir que todo está mal.
 - No se hizo una auditoría visual interactiva completa ni una medición de Core Web Vitals.
@@ -817,9 +814,9 @@ Confirmá cada hallazgo relevante y corregí lo que siga vigente.
 Trabajá por fases, cada una revisable y commiteable por separado (el dueño revisa y commitea entre una y otra):
 
 - A. SEO técnico sin cambios visuales. Hecha el 14 de octubre de 2026 (ver sección 22).
-- B. /catalogo y /categoria/:slug con productos en el HTML inicial; 301 de /?categoria=x a /categoria/x y de /?q= a /catalogo?q=; /#catalogo resuelto en cliente; categorías en el sitemap y BreadcrumbList en la ficha cuando el recorrido visible use esas URLs.
-- C. Portada (Presentación, Destacados, Novedades), header, tarjeta, ficha, footer, ayuda, contacto, por mayor, horarios y pestaña Atención en Configuración, y vuelta de `add_to_cart`/`whatsapp_open`.
-- D. Entrega Managua, Cargo Trans o retiro y fecha real de recepción en pedidos (migración 0032).
+- B. /catalogo y /categoria/:slug con productos en el HTML inicial; 301 de /?categoria=x a /categoria/x y de /?q= a /catalogo?q=; /#catalogo sigue como ancla de los productos de la portada; categorías en el sitemap y BreadcrumbList en listados y ficha. Hecha el 14 de octubre de 2026 (ver Docs/02-Arquitectura, «Catálogo»).
+- C. Portada (Presentación, Destacados, Novedades), header, tarjeta, ficha, footer, ayuda, contacto, por mayor, horarios y pestaña Atención en Configuración. Hecha el 14 de octubre de 2026 (ver Docs/01-Producto y Docs/02-Arquitectura, «Contenido editable»). Nosotros, Términos y Privacidad esperan textos reales (Docs/05).
+- D. Entrega Managua, Cargo Trans o retiro y fecha real de recepción en pedidos, y vuelta de `add_to_cart`/`whatsapp_open`, todo en la migración 0032. Hecha el 14 de octubre de 2026 (ver App/database/README.md y Docs/02-Arquitectura, «Pedido de la tienda»). El comprobante de Cargo Trans se guarda como número de guía; subir la foto necesita almacenamiento privado (hoy R2 es público).
 - Guías, reseñas y políticas legales: cuando haya contenido aprobado.
 
 Dentro de cada fase seguí este orden cuando aplique: verificar reglas y estado, definir fuente de datos y compatibilidad, implementar, completar accesibilidad y medición, y verificar recorridos completos. El orden puede ajustarse por dependencias. No dejés el editor desincronizado de la portada ni generés temporalmente páginas públicas con información comercial falsa.

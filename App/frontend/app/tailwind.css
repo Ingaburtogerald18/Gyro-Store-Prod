@@ -357,8 +357,8 @@ html[data-theme='dark'] .store-palette {
   --header-search-border: rgb(255 255 255 / 24%);
 }
 
-/* Altura constante de 57px en ambos temas: la ficha se ancla debajo del header.
-   La línea es interna, para no alterar esa medida. */
+/* Desde tableta, 57px en ambos temas: la ficha se ancla debajo del header. En el celular suma la fila
+   del buscador (109px). La línea es interna, para no alterar esa medida. */
 html[data-area='store'] .store-header {
   --ring: var(--primary-2);
   background-color: var(--header-background);

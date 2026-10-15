@@ -19,6 +19,8 @@ export const heroSlideSchema = z.object({
 
 // Techo de diapositivas: el hero es una vitrina, no un carrusel infinito.
 export const MAX_HERO_SLIDES = 12;
+// Destacados de la portada: una selección corta, no otra copia del catálogo.
+export const MAX_FEATURED_PRODUCTS = 8;
 
 // Las imágenes del carrito guardan qué recurso usar, no la URL: si cambia el recurso, el carrito
 // lo toma solo. Vacío = el texto o ícono por defecto.
@@ -57,6 +59,8 @@ export const landingConfigSchema = z.object({
   heroSlides: z.array(heroSlideSchema).max(MAX_HERO_SLIDES),
   // Categorías que se muestran como carriles en la home.
   homeCategories: z.array(z.string().max(64)).max(50).optional(),
+  // Destacados de la portada, por id y en orden. Opcional: sin él (configuraciones viejas), los primeros del catálogo.
+  featuredProductIds: z.array(z.string().max(64)).max(MAX_FEATURED_PRODUCTS).optional(),
   homeCategoriesMode: z.enum(CATEGORY_MODES).optional(),
   // Textos e imágenes del carrito (modo edición). Opcional: sin esto, los de siempre.
   cart: cartContentSchema.optional(),
@@ -64,6 +68,11 @@ export const landingConfigSchema = z.object({
 
 export type HeroSlide = z.infer<typeof heroSlideSchema>;
 export type LandingConfig = z.infer<typeof landingConfigSchema>;
+
+/** La presentación es el banner principal (`locked`); en configuraciones sin él, el primero. El resto son novedades. */
+export function presentationSlideId(slides: HeroSlide[]): string | undefined {
+  return (slides.find((slide) => slide.locked) ?? slides[0])?.id;
+}
 
 /** Modo efectivo de una zona, compatible con configuraciones sin modo. */
 export function categoryMode(mode: CategoryMode | undefined, ids: string[] | undefined): CategoryMode {

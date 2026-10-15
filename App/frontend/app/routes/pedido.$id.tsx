@@ -10,6 +10,7 @@ import {
 import { useEffect } from 'react';
 import { Link, useParams } from '@remix-run/react';
 import type { LoaderFunctionArgs, MetaFunction } from '@remix-run/node';
+import { readStoreFrame, storeReader } from '~/lib/store-reader.server';
 
 import { pageTitle } from '~/lib/brand';
 import { StorefrontShell } from '~/components/storefront/storefront-shell';
@@ -19,10 +20,10 @@ import { WhatsappIcon } from '~/components/ui/whatsapp-icon';
 import { cn } from '~/lib/utils';
 import { buildWhatsappUrl, formatCordobas, formatLongDate } from '~/lib/formatters';
 import { PUBLIC_ORDER_STEPS, publicOrderStatusLabel } from '~/lib/status';
+import { DELIVERY_LABELS } from '@shared/schemas';
 import { saveOrder } from '~/lib/order-history';
 import { useStoreConfig } from '~/hooks/use-store-config';
 import { useGetPublicOrderQuery, type PublicOrderTracking } from '~/state/api/storefront-api';
-import type { StoreConfig } from '~/state/api/session-api';
 
 export const meta: MetaFunction = () => [
   { title: pageTitle('Seguimiento de pedido') },
@@ -30,16 +31,10 @@ export const meta: MetaFunction = () => [
   { name: 'robots', content: 'noindex, nofollow' },
 ];
 
-export async function loader({ request }: LoaderFunctionArgs) {
-  const origin = new URL(request.url).origin;
-  let config: StoreConfig | null = null;
-  try {
-    const res = await fetch(`${origin}/api/config`);
-    if (res.ok) config = (await res.json()) as StoreConfig;
-  } catch {
-    // Sin config la página sale igual.
-  }
-  return { config };
+export async function loader({ request, context }: LoaderFunctionArgs) {
+  // Sin config la página sale igual.
+  const frame = await readStoreFrame(storeReader(context, request));
+  return frame;
 }
 
 const shortId = (id: string) => `#${id.slice(0, 8).toUpperCase()}`;
@@ -52,7 +47,8 @@ function stepHint(status: string, deliveryMethod: string | null): string {
     case 'preparing':
       return 'Estamos alistando tus productos.';
     case 'shipped':
-      return deliveryMethod === 'retiro' ? 'Ya podés pasar a retirarlo a la tienda.' : 'Tu pedido va en camino.';
+      if (deliveryMethod === 'retiro') return 'Ya podés coordinar el retiro por WhatsApp.';
+      return deliveryMethod === 'cargo_trans' ? 'Tu pedido va por Cargo Trans.' : 'Tu pedido va en camino.';
     case 'delivered':
       return '¡Listo! Gracias por tu compra.';
     case 'cancelled':
@@ -132,11 +128,16 @@ function OrderView({
           {order.firstName ? `Hola ${order.firstName} · ` : ''}Pedido{' '}
           <span className="font-spec font-semibold text-foreground">{shortId(order.id)}</span> ·{' '}
           {formatLongDate(order.createdAt)}
+          {order.deliveryMethod && <> · {DELIVERY_LABELS[order.deliveryMethod]}</>}
         </p>
         <h1 className="mt-1 font-heading text-3xl font-extrabold tracking-tight text-foreground">
           {publicOrderStatusLabel(order.status, order.deliveryMethod)}
         </h1>
         {cancelled && <p className="mt-1 text-muted-foreground">{stepHint(order.status, order.deliveryMethod)}</p>}
+        {/* Desde esta fecha corre la garantía; la registra la tienda al confirmar la entrega. */}
+        {order.receivedDate && (
+          <p className="mt-1 text-sm text-muted-foreground">Recibido el {formatLongDate(order.receivedDate)}</p>
+        )}
       </div>
 
       {cancelled ? (

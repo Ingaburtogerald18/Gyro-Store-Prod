@@ -19,10 +19,10 @@ function memoryStorage() {
 }
 test('datos y cupón viven fuera del panel y se limpian al completar el pedido', () => {
   const store = createAppStore();
-  store.dispatch(checkoutFieldsChanged({ customerName: 'Prueba', phone: '88888888', deliveryMethod: 'envio', address: 'Managua', note: 'Nota' }));
+  store.dispatch(checkoutFieldsChanged({ customerName: 'Prueba', phone: '88888888', deliveryMethod: 'managua', address: 'Bo Monseñor Lezcano', note: 'Nota' }));
   store.dispatch(checkoutExtrasChanged({ noteOpen: true, couponOpen: true, codeInput: 'GS-TEST',
     appliedCode: { ok: true, code: 'GS-TEST', type: 'fixed', value: 50 } }));
-  assert.equal(store.getState().checkout.fields.address, 'Managua');
+  assert.equal(store.getState().checkout.fields.address, 'Bo Monseñor Lezcano');
   assert.equal(store.getState().checkout.appliedCode?.code, 'GS-TEST');
   store.dispatch(checkoutCleared());
   assert.equal(store.getState().checkout.fields.customerName, '');
