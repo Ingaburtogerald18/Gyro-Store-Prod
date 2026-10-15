@@ -11,6 +11,11 @@ borra de acá y se describe en el documento que corresponda.
   `blob:`, así que no se repite por ese camino.
 - **Pagos de préstamo a gastos.** Correr la migración 0018 con el OK del dueño. Pasos en
   [03-Finanzas §13](03-Finanzas.md).
+- **Lotes viejos sin vínculo.** 26 lotes de LT1–LT3 (191 unidades libres al 14 oct 2026) no están
+  vinculados a ninguna plantilla y la tienda no los ve. Correr la migración 0034 con el OK del dueño;
+  lo que liste sin vincular (plantilla u opción que falta) se completa en Plantillas y se vuelve a
+  correr. No vincularlos desde «Editar compra»: renombra el lote y las ventas viejas ya no se pueden
+  devolver.
 - **Rol Cajero.** El servidor le permite emitir y anular facturas, pero el menú del panel solo le
   muestra Ventas, Pedidos web, Personal y CRM: no llega a Facturación.
 - **Tramos de mayoreo en Configuración.** Configuración → Finanzas deja editar los tramos de mayoreo,

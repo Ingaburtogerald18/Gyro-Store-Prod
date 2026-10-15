@@ -9,6 +9,8 @@ export const heroSlideSchema = z.object({
   description: z.string().max(400),
   mediaUrl: z.string().max(2048),
   mediaType: z.enum(['image', 'video']),
+  // Alternativa para el celular, solo en banners de imagen. Sin ella (o vacía) se usa `mediaUrl`.
+  mobileImageUrl: z.string().max(2048).optional(),
   buttonText: z.string().max(40),
   actionType: z.enum(['modal', 'link', 'social']),
   actionTarget: z.string().max(2048),
@@ -72,6 +74,23 @@ export type LandingConfig = z.infer<typeof landingConfigSchema>;
 /** La presentación es el banner principal (`locked`); en configuraciones sin él, el primero. El resto son novedades. */
 export function presentationSlideId(slides: HeroSlide[]): string | undefined {
   return (slides.find((slide) => slide.locked) ?? slides[0])?.id;
+}
+
+/** Imagen del celular que se muestra; undefined si no hay alternativa (o es un video): va la principal. */
+export function mobileImageOf(slide: Pick<HeroSlide, 'mediaType' | 'mobileImageUrl'>): string | undefined {
+  return (slide.mediaType === 'image' && slide.mobileImageUrl?.trim()) || undefined;
+}
+
+/**
+ * Todos los archivos que nombra una portada guardada. Lee con tolerancia (borradores y versiones
+ * viejas): lo que decide si un archivo se puede borrar no puede mirar solo `mediaUrl`.
+ */
+export function landingMediaUrls(landing: unknown): string[] {
+  const slides = (landing as { heroSlides?: unknown } | null)?.heroSlides;
+  if (!Array.isArray(slides)) return [];
+  return slides
+    .flatMap((slide) => [slide?.mediaUrl, slide?.mobileImageUrl])
+    .filter((url): url is string => typeof url === 'string' && url.trim() !== '');
 }
 
 /** Modo efectivo de una zona, compatible con configuraciones sin modo. */

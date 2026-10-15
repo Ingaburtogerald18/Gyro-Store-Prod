@@ -424,7 +424,8 @@ export function LandingEditor({
     } else setSection(next);
   }
   function editBanner(next: HeroSlide) {
-    const key = Object.keys(next).find(
+    // También las claves que desaparecen (quitar la imagen del celular borra la suya).
+    const key = [...new Set([...Object.keys(next), ...Object.keys(slide ?? {})])].find(
       (key) => next[key as keyof HeroSlide] !== slide?.[key as keyof HeroSlide],
     );
     dispatch(updateHeroSlide({ slide: next, key: `${next.id}:${key}` }));

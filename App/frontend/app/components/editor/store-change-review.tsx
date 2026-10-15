@@ -1,10 +1,23 @@
-import type { AdminCombo, EditorProduct, LandingConfig, StoreDraftProducts } from '@shared/schemas';
+import type { AdminCombo, EditorProduct, HeroSlide, LandingConfig, StoreDraftProducts } from '@shared/schemas';
 import { Button } from '~/components/ui/button';
 import { FormSection } from '~/components/ui/form-layout';
 import { describeProductChanges, hasDraftProductChanges } from '~/lib/store-draft-products';
 
 type ReviewSection = 'banners' | 'navigation' | 'products' | 'items' | 'combos' | 'cart';
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+
+/** Qué pasó con la imagen del celular; null si no cambió. Vacía y ausente son lo mismo. */
+export function mobileImageChange(
+  previous: Pick<HeroSlide, 'mobileImageUrl'>,
+  next: Pick<HeroSlide, 'mobileImageUrl'>,
+): string | null {
+  const before = previous.mobileImageUrl?.trim() || '';
+  const after = next.mobileImageUrl?.trim() || '';
+  if (before === after) return null;
+  if (!before) return 'Imagen para móvil agregada';
+  if (!after) return 'Imagen para móvil quitada';
+  return 'Imagen para móvil reemplazada';
+}
 
 export function StoreChangeReview({
   draft,
@@ -77,6 +90,7 @@ export function StoreChangeReview({
                       [slide.mediaUrl, slide.mediaType],
                       [previous.mediaUrl, previous.mediaType],
                     ) && 'Imagen o video',
+                    mobileImageChange(previous, slide),
                     !same(
                       [slide.title, slide.description, slide.eyebrow],
                       [previous.title, previous.description, previous.eyebrow],

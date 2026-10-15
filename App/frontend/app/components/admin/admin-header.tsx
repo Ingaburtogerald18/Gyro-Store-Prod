@@ -13,12 +13,9 @@ import { allowedNavGroups, currentNavItem } from '~/lib/admin-navigation';
 import { useTheme } from '~/hooks/use-theme';
 import { useLocalPreference } from '~/hooks/use-local-preference';
 import { DENSITY_KEY, isDensity, isStringList, type TableDensity } from '~/lib/ui-preferences';
+import { roleLabel } from '~/lib/roles';
 
 const NO_MODULES: string[] = [];
-const ROLE_LABELS: Record<string, string> = {
-  global_admin: 'Administrador general', admin: 'Administrador', seller: 'Vendedor',
-  cashier: 'Cajero', logistics_admin: 'Logística',
-};
 
 export function AdminHeader({ isAdmin, role, userId, name, email, photo, onSignOut }: {
   isAdmin: boolean; role: string | null; userId: string; name: string; email: string;
@@ -99,7 +96,7 @@ export function AdminHeader({ isAdmin, role, userId, name, email, photo, onSignO
               <DropdownMenuLabel className="space-y-1 font-normal">
                 <p className="truncate font-medium">{name}</p>
                 <p className="truncate text-xs text-muted-foreground">{email}</p>
-                <p className="text-xs text-primary">{ROLE_LABELS[role ?? ''] ?? 'Colaborador'}</p>
+                <p className="text-xs text-primary">{roleLabel(role)}</p>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild><Link to="/admin/mi-perfil"><HugeIcon icon={UserCircleIcon} size={16} />Mi perfil</Link></DropdownMenuItem>
