@@ -100,7 +100,7 @@ export default function Index() {
       <main key="home">
         <Hero initialLanding={landing} />
         {/* `id="catalogo"`: los enlaces viejos a /#catalogo siguen bajando a los productos. */}
-        <div data-landing-section="products" id="catalogo" className="mx-auto max-w-7xl scroll-mt-32 px-4 py-6 md:scroll-mt-20 md:py-8">
+        <div data-landing-section="products" id="catalogo" className="scroll-below-header mx-auto max-w-7xl px-4 py-6 md:py-8">
           <ProductGrid products={products} categories={categories} error={catalogError} layout="home" />
           {!catalogError && products.length > 0 && (
             <Button variant="outline" asChild className="h-12 px-6">

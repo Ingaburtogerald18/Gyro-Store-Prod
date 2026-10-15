@@ -1,15 +1,8 @@
 // Mapa de roles y utilidades de perfil compartidos por la vista de Personal.
-import type { AppRole, UserProfile } from "~/state/api/users-api";
+import type { UserProfile } from "~/state/api/users-api";
 import type { UpdateProfileInput } from "@shared/schemas";
 
-export const ROLE_LABELS: Record<AppRole, string> = {
-  global_admin: "Administrador general",
-  admin: "Admin",
-  seller: "Vendedor",
-  cashier: "Cajero",
-  logistics_admin: "Logística (Admin)",
-  logistics_customer: "Logística (Lectura)",
-};
+export { ROLE_LABELS } from "~/lib/roles";
 
 export const isProtectedUser = (user: UserProfile) => user.isProtected === true;
 

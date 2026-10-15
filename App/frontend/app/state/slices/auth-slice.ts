@@ -1,5 +1,6 @@
 // La fuente de verdad del rol es el backend (/api/auth/me); acá solo se cachea. El JWT no vive en Redux.
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
+import { isAdminRole, isStaffRole } from '~/lib/roles';
 
 export type AuthStatus = 'unknown' | 'anonymous' | 'authenticated';
 
@@ -49,10 +50,9 @@ const authSlice = createSlice({
   selectors: {
     selectAuthStatus: (state) => state.status,
     selectUser: (state) => state.user,
-    selectIsStaff: (state) =>
-      state.user?.role != null && state.user.role !== 'customer',
+    selectIsStaff: (state) => isStaffRole(state.user?.role),
     selectEditMode: (state) => state.editMode,
-    selectIsAdmin: (state) => state.user?.role === 'admin' || state.user?.role === 'global_admin',
+    selectIsAdmin: (state) => isAdminRole(state.user?.role),
     selectIsGlobalAdmin: (state) => state.user?.role === 'global_admin',
     // Cadena vacía → null, para que el `??` del call site caiga al fallback.
     selectUserPhoto: (state) => state.user?.photoURL || null,

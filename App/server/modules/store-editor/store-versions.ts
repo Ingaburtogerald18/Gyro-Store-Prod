@@ -5,6 +5,7 @@ import { firstOfEmbed } from '../../utils/first-of-embed';
 import { NotFoundError } from '../../utils/http-error';
 import {
   landingConfigSchema,
+  landingMediaUrls,
   type LandingConfig,
   type StoreDraftProducts,
   type StoreVersion,
@@ -249,17 +250,13 @@ export async function getVersionSnapshot(id: string): Promise<{ snapshot: StoreS
   };
 }
 
-const mediaOf = (landing: unknown): string[] => {
-  const slides = (landing as { heroSlides?: Array<{ mediaUrl?: unknown }> } | null)?.heroSlides;
-  return Array.isArray(slides) ? slides.map((s) => s?.mediaUrl).filter((u): u is string => typeof u === 'string' && !!u) : [];
-};
-
 /**
- * Borra de R2 las fotos de banners que la tienda dejó de usar, salvo las que
- * siguen en una versión o en el borrador. Corre en segundo plano.
+ * Borra de R2 las fotos de banners (principal y del celular) que la tienda dejó de usar, salvo las
+ * que siguen en una versión o en el borrador. Corre en segundo plano.
  */
 export async function cleanupLandingMedia(before: LandingConfig, after: LandingConfig) {
-  const candidates = mediaOf(before).filter((url) => !mediaOf(after).includes(url));
+  const kept = landingMediaUrls(after);
+  const candidates = landingMediaUrls(before).filter((url) => !kept.includes(url));
   if (candidates.length === 0) return;
   const [versions, draft] = await Promise.all([
     db.from('store_versions').select('landing'),
@@ -269,9 +266,9 @@ export async function cleanupLandingMedia(before: LandingConfig, after: LandingC
   if (versions.error && !MISSING_TABLE.includes(versions.error.code ?? '')) return;
   if (draft.error && !MISSING_TABLE.includes(draft.error.code ?? '')) return;
   const used = new Set([
-    ...mediaOf(after),
-    ...(versions.data ?? []).flatMap((v) => mediaOf(v.landing)),
-    ...(draft.data ?? []).flatMap((d) => mediaOf(d.landing)),
+    ...kept,
+    ...(versions.data ?? []).flatMap((v) => landingMediaUrls(v.landing)),
+    ...(draft.data ?? []).flatMap((d) => landingMediaUrls(d.landing)),
   ]);
   for (const url of candidates) {
     if (!used.has(url)) deleteFileByUrl(url).catch((err) => logger.error('Error limpiando R2', err));

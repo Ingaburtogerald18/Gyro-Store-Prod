@@ -109,6 +109,11 @@
   background-color: transparent;
 }
 
+/* Ancla de la tienda: al saltar a una sección, queda debajo del header fijo y no tapada por él. */
+@utility scroll-below-header {
+  scroll-margin-top: calc(var(--store-header-height) + 1.25rem);
+}
+
 /* Curva de salida exponencial: entradas rápidas que desaceleran con elegancia. */
 @utility ease-expo {
   transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
@@ -267,7 +272,7 @@ html[data-area='admin'],
   /* Navbar: bordó para navegar, amarillo para el carrito con sombra bordó. */
   --header-nav-foreground: var(--primary-2);
   --header-selected-background: var(--selection);
-  --header-control-background: var(--muted);
+  --header-control-background: var(--card);
   --header-search-background: var(--card);
   --header-search-border: rgb(42 29 29 / 28%);
   --header-divider: var(--primary-2);
@@ -357,8 +362,20 @@ html[data-theme='dark'] .store-palette {
   --header-search-border: rgb(255 255 255 / 24%);
 }
 
-/* Desde tableta, 57px en ambos temas: la ficha se ancla debajo del header. En el celular suma la fila
-   del buscador (109px). La línea es interna, para no alterar esa medida. */
+/* Alto del header fijo, igual en ambos temas: la barra de la ficha y las anclas quedan debajo. Suma sus
+   filas más el borde: 56 + 52 del buscador en el celular y la tableta; 64 + 48 de las categorías en
+   escritorio. La línea es interna, para no alterar esa medida. */
+html[data-area='store'] {
+  --store-header-height: 109px;
+}
+@media (width >= 64rem) {
+  html[data-area='store'] {
+    --store-header-height: 113px;
+  }
+  html[data-area='store']:has(.store-header[data-category-row='off']) {
+    --store-header-height: 65px;
+  }
+}
 html[data-area='store'] .store-header {
   --ring: var(--primary-2);
   background-color: var(--header-background);
@@ -369,17 +386,17 @@ html[data-area='store'] .store-header {
 html[data-area='store'] .store-header .store-category-link {
   color: var(--header-nav-foreground);
 }
-html[data-area='store'] .store-header .store-category-link:is(:hover, [aria-current='page']) {
+html[data-area='store'] .store-header .store-category-link:is(:hover, [aria-current='page'], [data-selected], [aria-expanded='true']) {
   background-color: var(--header-selected-background);
   color: var(--primary-2);
 }
-html[data-area='store'] .store-header .store-account-button {
+html[data-area='store'] .store-header .store-header-control {
   background-color: var(--header-control-background);
   border-color: color-mix(in srgb, var(--primary-2) 40%, transparent);
   color: var(--primary-2);
 }
-html[data-area='store'] .store-header .store-account-button:hover,
-html[data-area='store'] .store-header .store-account-button[aria-expanded='true'] {
+html[data-area='store'] .store-header .store-header-control:hover,
+html[data-area='store'] .store-header .store-header-control[aria-expanded='true'] {
   background-color: var(--header-selected-background);
   border-color: var(--primary-2);
 }

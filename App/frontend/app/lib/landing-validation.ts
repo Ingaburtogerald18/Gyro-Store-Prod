@@ -1,5 +1,5 @@
 // Validación del borrador de portada antes de publicar: informa junto a cada campo, no corrige nada.
-import { categoryMode, type HeroSlide, type LandingConfig } from '@shared/schemas';
+import { categoryMode, mobileImageOf, type HeroSlide, type LandingConfig } from '@shared/schemas';
 
 export type SlideField = 'title' | 'buttonText' | 'actionTarget' | 'mediaUrl';
 export type SlideErrors = Partial<Record<SlideField, string>>;
@@ -28,6 +28,8 @@ export function isValidTarget(target: string): boolean {
 export function validateSlide(slide: HeroSlide, ctx: ValidationContext): SlideErrors {
   const errors: SlideErrors = {};
   if (!slide.title.trim()) errors.title = 'Escribí un título.';
+  // La móvil sola dejaría el escritorio sin imagen: la principal es la que se usa ahí.
+  if (mobileImageOf(slide) && !slide.mediaUrl.trim()) errors.mediaUrl = 'Cargá la imagen principal: se usa en escritorio.';
   if (slide.actionType !== 'modal' && !slide.buttonText.trim()) errors.buttonText = 'Escribí el texto del botón.';
   if (slide.actionType === 'social') {
     if (ctx.socialCount === 0) errors.actionTarget = 'No hay redes con enlace en Configuración. Cargalas o elegí otra acción.';

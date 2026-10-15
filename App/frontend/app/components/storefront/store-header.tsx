@@ -1,12 +1,11 @@
-// Header de la tienda: menú, logo, búsqueda siempre a la vista y carrito. En el celular y la tableta todo
-// lo demás vive en un solo menú (StoreMenu); en escritorio, la fila de categorías y HeaderSettingsMenu.
+// Header de la tienda. Escritorio: logo, buscador, «Menú», carrito y avatar del personal arriba, y las
+// categorías debajo. Celular y tableta: ☰ con todo lo demás, logo, carrito y el buscador en su fila.
 import { useEffect, useMemo, useRef } from 'react';
 
 import { Link } from '@remix-run/react';
 import { motion, AnimatePresence, useAnimationControls, useReducedMotion } from 'framer-motion';
 import { Menu01Icon, ShoppingCart02Icon } from '@hugeicons/core-free-icons';
-import { categoryMode } from '@shared/schemas';
-import { categoriesWithProducts } from '~/lib/catalog-query';
+import { headerCategories } from '~/lib/store-navigation';
 import { SearchBar } from '~/components/catalog/search-bar';
 import { StoreMenu } from '~/components/storefront/store-menu';
 import { CategoryNav } from '~/components/storefront/category-nav';
@@ -15,7 +14,7 @@ import { HugeIcon } from '~/components/ui/icon';
 import { useCategoryCounts, useStoreConfig, useStoreLanding } from '~/hooks/use-store-config';
 import { useAppDispatch, useAppSelector } from '~/state/hooks';
 import { selectCartCount, toggleCart } from '~/state/slices/cart-slice';
-import { HeaderSettingsMenu } from './header-settings-menu';
+import { HeaderMenu, StaffMenu } from './header-menus';
 import { getBrandName } from '~/lib/brand';
 import gyroBag from '~/assets/brand/gyro-bag.png';
 
@@ -76,32 +75,23 @@ export function StoreHeader() {
   const counts = useCategoryCounts();
   const landing = useStoreLanding();
 
-  const allCategories = useMemo(
-    () => config?.categories ?? [],
-    [config?.categories],
+  // La misma lista para la fila del escritorio y el ☰: la zona que eligió el dueño, sin las vacías.
+  const categories = useMemo(
+    () => headerCategories(landing, config?.categories ?? [], counts),
+    [landing, config?.categories, counts],
   );
-
-  // Modo de la zona (auto / elegidas / oculta), compatible con configuraciones
-  // viejas sin modo. «Automático» = las categorías que tienen productos.
-  const mode = categoryMode(landing?.headerCategoriesMode, landing?.headerCategories);
-  const headerNavCategories = useMemo(() => {
-    if (mode === 'hidden') return [];
-    if (mode === 'auto') return categoriesWithProducts(allCategories, counts).slice(0, 7);
-    return (landing?.headerCategories ?? [])
-      .map(id => allCategories.find(c => c.id === id))
-      .filter((c): c is NonNullable<typeof c> => Boolean(c))
-      .slice(0, 7);
-  }, [mode, allCategories, counts, landing?.headerCategories]);
-  const showCategories = headerNavCategories.length > 0;
+  const showCategoryRow = categories.length > 0;
 
   return (
-    <header data-landing-section="navigation" className="store-header sticky top-0 z-40 border-b border-border transition-all">
-      <div className="mx-auto flex h-14 max-w-7xl items-center gap-2 px-4 sm:gap-3">
-        {/* Hasta escritorio ancho: en tablet, la fila de categorías y el buscador se tapaban entre sí. */}
-        <StoreMenu
-          categories={mode === 'hidden' ? [] : mode === 'custom' ? headerNavCategories : allCategories}
-          counts={counts}
-        >
+    <header
+      data-landing-section="navigation"
+      // Sin fila de categorías el header es más bajo: tailwind.css ajusta --store-header-height.
+      data-category-row={showCategoryRow ? undefined : 'off'}
+      className="store-header sticky top-0 z-40 border-b border-border"
+    >
+      <div className="mx-auto flex h-14 max-w-7xl items-center gap-2 px-4 sm:gap-3 lg:h-16 lg:gap-4">
+        {/* Hasta escritorio: en la tableta, categorías, buscador y menús en una fila quedaban apretados. */}
+        <StoreMenu categories={categories} counts={counts}>
           <Button variant="ghost" size="icon" aria-label="Abrir menú" className="-ml-2 size-11 shrink-0 text-primary-2 lg:hidden">
             <HugeIcon icon={Menu01Icon} size={20} strokeWidth={2} aria-hidden />
           </Button>
@@ -122,7 +112,7 @@ export function StoreHeader() {
               playsInline
               preload="metadata"
               aria-hidden
-              className="h-9 w-auto max-w-24 shrink-0 object-contain object-left sm:h-10 sm:max-w-[140px]"
+              className="h-10 w-auto max-w-[140px] shrink-0 object-contain object-left"
             />
           ) : logoImage ? (
             <img
@@ -131,7 +121,7 @@ export function StoreHeader() {
               height={40}
               loading="eager"
               decoding="async"
-              className="h-9 w-auto max-w-24 shrink-0 object-contain object-left sm:h-10 sm:max-w-[140px]"
+              className="h-10 w-auto max-w-[140px] shrink-0 object-contain object-left"
             />
           ) : (
             <>
@@ -152,23 +142,24 @@ export function StoreHeader() {
         </Link>
 
         {/* La búsqueda está a la vista en toda página: es la forma más rápida de llegar a un producto. */}
-        <div className="hidden min-w-0 flex-1 items-center justify-end gap-3 md:flex">
-          {showCategories && (
-            <div className="hidden min-w-0 flex-1 items-center gap-1 lg:flex">
-              <CategoryNav categories={headerNavCategories} />
-            </div>
-          )}
-
-          <SearchBar className="w-full max-w-sm shrink lg:w-72 lg:shrink-0 xl:w-80" />
+        <div className="hidden min-w-0 flex-1 justify-center lg:flex">
+          <SearchBar className="max-w-2xl" />
         </div>
-        <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-3">
+        <div className="ml-auto flex shrink-0 items-center gap-2 sm:gap-3">
+          <HeaderMenu />
           <CartButton />
-          <HeaderSettingsMenu />
+          <StaffMenu />
         </div>
       </div>
 
-      {/* Celular: el buscador en su propia fila, sin lupa que haya que descubrir. */}
-      <div className="px-4 pb-2 md:hidden">
+      {showCategoryRow && (
+        <div className="mx-auto hidden h-12 max-w-7xl items-start px-4 lg:flex">
+          <CategoryNav categories={categories} />
+        </div>
+      )}
+
+      {/* Celular y tableta: el buscador en su propia fila, sin lupa que haya que descubrir. */}
+      <div className="px-4 pb-2 lg:hidden">
         <SearchBar />
       </div>
     </header>

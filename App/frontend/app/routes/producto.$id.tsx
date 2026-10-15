@@ -269,13 +269,14 @@ export default function ProductDetail() {
             )}
           </div>
 
-          <div className="order-first min-w-0 md:sticky md:top-28 md:order-none md:col-start-1 md:row-start-1 md:row-span-2 md:self-start">
+          {/* Desde tableta, debajo del header y de la barra de migas (48 px). */}
+          <div className="order-first min-w-0 md:sticky md:top-[calc(var(--store-header-height)+3.5rem)] md:order-none md:col-start-1 md:row-start-1 md:row-span-2 md:self-start">
             <ProductGallery images={activeImages} name={product.name} soldOut={state.kind === 'sold_out'} />
           </div>
 
           <div className="flex min-w-0 flex-col gap-5 rounded-2xl border border-border bg-card p-4 sm:p-5 md:col-start-2 md:row-start-2 md:self-start">
             {axes.length > 0 && (
-              <div id="variantes" ref={pickerRef} className="scroll-mt-32">
+              <div id="variantes" ref={pickerRef} className="scroll-below-header md:scroll-mt-[calc(var(--store-header-height)+4.25rem)]">
                 <VariantPicker
                   layout="rows"
                   idPrefix="ficha"

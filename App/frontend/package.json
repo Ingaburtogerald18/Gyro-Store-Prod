@@ -11,7 +11,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint app",
     "check": "npm run typecheck && npm run lint && node scripts/check-design.mjs",
-    "test": "node --import ../node_modules/tsx/dist/loader.mjs --test tests/cart.test.ts tests/purchase.test.ts tests/catalog-query.test.ts tests/editor.test.ts tests/checkout.test.ts tests/admin-ui.test.ts tests/seo.test.ts"
+    "test": "node --import ../node_modules/tsx/dist/loader.mjs --test tests/cart.test.ts tests/purchase.test.ts tests/catalog-query.test.ts tests/editor.test.ts tests/checkout.test.ts tests/admin-ui.test.ts tests/seo.test.ts tests/store-navigation.test.ts tests/banner-images.test.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

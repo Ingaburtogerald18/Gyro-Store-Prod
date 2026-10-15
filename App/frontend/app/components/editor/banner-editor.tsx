@@ -53,15 +53,24 @@ export function BannerEditor({
     values: slide,
     mode: 'onChange',
   });
-  const [upload, setUpload] = useState<UploadState>({ kind: 'idle' });
+  const [uploading, setUploading] = useState(false);
   const [actionChoice, setActionChoice] = useState<ActionChoice>(actionOf(slide));
-  const controller = useRef<AbortController | null>(null);
-  const fileInput = useRef<HTMLInputElement>(null);
   const latest = useRef(slide);
   latest.current = slide;
   const products = useStoreCatalog();
   const ids = useId();
-  const busy = disabled || upload.kind === 'sending' || upload.kind === 'processing';
+  const busy = disabled || uploading;
+  const isVideo = slide.mediaType === 'video';
+
+  // Cada imagen se sube por su lado: el editor queda ocupado hasta que terminen todas, no la primera.
+  const activeUploads = useRef(new Set<string>());
+  const reportUpload = (key: string, active: boolean) => {
+    if (active) activeUploads.current.add(key);
+    else activeUploads.current.delete(key);
+    setUploading(activeUploads.current.size > 0);
+    onBusy(activeUploads.current.size > 0);
+  };
+
   useEffect(() => {
     if (slide.actionTarget || slide.actionType !== 'link')
       setActionChoice(
@@ -74,56 +83,26 @@ export function BannerEditor({
           : 'link',
       );
   }, [slide.actionTarget, slide.actionType]);
-  // Limpieza al desmontar: una carga en curso se corta.
-  useEffect(() => () => controller.current?.abort(), []);
 
   const set = <K extends keyof HeroSlide>(key: K, value: HeroSlide[K]) => {
     form.setValue(key, value as PathValue<HeroSlide, K>, { shouldValidate: true });
     onChange({ ...slide, [key]: value });
   };
 
-  function finish(next: UploadState) {
-    setUpload(next);
-    onBusy(false);
-    // Permite volver a elegir el MISMO archivo para reintentar.
-    if (fileInput.current) fileInput.current.value = '';
+  // `latest`: mientras sube, el resto del banner pudo cambiar (incluida la otra imagen).
+  function setMainMedia(mediaUrl: string, file: File) {
+    const video = file.type.startsWith('video/');
+    const next: HeroSlide = { ...latest.current, mediaUrl, mediaType: video ? 'video' : 'image' };
+    // Un video no lleva imagen del celular: el selector desaparece y no queda una oculta en los datos.
+    if (video) delete next.mobileImageUrl;
+    onChange(next);
   }
 
-  async function startUpload(file?: File) {
-    if (!file) return;
-    const request = new AbortController();
-    controller.current?.abort();
-    controller.current = request;
-    setUpload({ kind: 'sending', percent: 0 });
-    onBusy(true);
-    try {
-      const mediaUrl = await uploadSlideMedia(file, {
-        signal: request.signal,
-        onProgress: (percent) => setUpload({ kind: 'sending', percent }),
-        onTransferred: () => setUpload({ kind: 'processing' }),
-      });
-      if (request.signal.aborted) return;
-      onChange({
-        ...latest.current,
-        mediaUrl,
-        mediaType: file.type.startsWith('video/') ? 'video' : 'image',
-      });
-      finish({ kind: 'done' });
-    } catch (err) {
-      if (controller.current !== request) return; // la reemplazó otra carga
-      if (request.signal.aborted) finish({ kind: 'cancelled' });
-      else
-        finish({
-          kind: 'error',
-          message: err instanceof Error ? err.message : 'No se pudo subir el archivo.',
-        });
-    }
-  }
-
-  function cancelUpload() {
-    controller.current?.abort();
-    // El estado se restablece acá mismo: no depende de que XHR avise.
-    finish({ kind: 'cancelled' });
+  function setMobileImage(mobileImageUrl: string | undefined) {
+    const next: HeroSlide = { ...latest.current, mobileImageUrl };
+    // Sin alternativa se borra la clave: así un banner viejo y uno al que se le quitó quedan iguales.
+    if (!mobileImageUrl) delete next.mobileImageUrl;
+    onChange(next);
   }
 
   function changeAction(choice: ActionChoice) {
@@ -168,96 +147,45 @@ export function BannerEditor({
 
   return (
     <div className="space-y-5">
-      <div>
-        <Field>
-          <FieldLabel htmlFor={`${ids}-file`}>Imagen o video</FieldLabel>
-          <div className="overflow-hidden rounded-xl border bg-muted">
-            {slide.mediaUrl ? (
-              slide.mediaType === 'video' ? (
-                <video
-                  src={slide.mediaUrl}
-                  muted
-                  controls
-                  className="aspect-video w-full object-contain"
-                />
-              ) : (
-                <img
-                  src={slide.mediaUrl}
-                  alt="Imagen actual del banner"
-                  className="aspect-video w-full object-contain"
-                />
-              )
-            ) : (
-              <div className="grid aspect-video place-items-center text-sm text-muted-foreground">
-                Sin imagen todavía
-              </div>
-            )}
-          </div>
-          <Input
-            ref={fileInput}
-            id={`${ids}-file`}
-            type="file"
-            accept="image/*,video/*"
-            disabled={busy}
-            aria-describedby={`${ids}-file-hint ${ids}-upload-status`}
-            onChange={(event) => void startUpload(event.target.files?.[0])}
-          />
-          <FieldDescription id={`${ids}-file-hint`}>
-            PNG, JPG, WebP, GIF o video. Revisá también el encuadre en móvil.
-          </FieldDescription>
-          <FieldError>{errors.mediaUrl}</FieldError>
+      <MediaUploadField
+        id={`${ids}-file`}
+        label={isVideo ? 'Imagen o video' : 'Imagen principal'}
+        hint={
+          isVideo
+            ? 'PNG, JPG, WebP, GIF o video. Revisá también el encuadre en móvil.'
+            : 'Se usa en escritorio y también en móvil si no cargás una alternativa. PNG, JPG, WebP, GIF o video.'
+        }
+        accept="image/*,video/*"
+        url={slide.mediaUrl}
+        video={isVideo}
+        previewAlt="Imagen principal actual del banner"
+        removeLabel={isVideo ? 'Quitar video' : 'Quitar imagen'}
+        error={errors.mediaUrl}
+        disabled={busy}
+        onBusyChange={(active) => reportUpload('main', active)}
+        onUploaded={setMainMedia}
+        onRemove={() => set('mediaUrl', '')}
+      />
 
-          <div id={`${ids}-upload-status`} aria-live="polite" className="space-y-2">
-            {upload.kind === 'sending' && (
-              <>
-                <Progress value={upload.percent ?? null} aria-label="Progreso de la carga" />
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-sm">
-                    {upload.percent === null ? 'Enviando archivo…' : `Enviando ${upload.percent}%`}
-                  </p>
-                  <Button type="button" variant="cancel" onClick={cancelUpload}>
-                    Cancelar carga
-                  </Button>
-                </div>
-              </>
-            )}
-            {upload.kind === 'processing' && (
-              <>
-                <Progress value={null} aria-label="Procesando el archivo" />
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-sm">Procesando archivo…</p>
-                  <Button type="button" variant="cancel" onClick={cancelUpload}>
-                    Cancelar carga
-                  </Button>
-                </div>
-              </>
-            )}
-            {upload.kind === 'done' && (
-              <p className="text-sm text-foreground">Archivo listo en el borrador.</p>
-            )}
-            {upload.kind === 'cancelled' && (
-              <p className="text-sm text-muted-foreground">
-                Carga cancelada. La imagen anterior no cambió.
-              </p>
-            )}
-            {upload.kind === 'error' && (
-              <p role="alert" className="text-sm text-destructive">
-                {upload.message} La imagen anterior no cambió.
-              </p>
-            )}
-          </div>
-          {slide.mediaUrl && !busy && (
-            <Button
-              type="button"
-              variant="destructive"
-              className="w-fit"
-              onClick={() => set('mediaUrl', '')}
-            >
-              Quitar imagen
-            </Button>
-          )}
-        </Field>
-      </div>
+      {/* Solo en banners de imagen: los videos se ven igual en todos los tamaños. */}
+      {!isVideo && (
+        <MediaUploadField
+          id={`${ids}-mobile`}
+          label="Imagen para móvil (opcional)"
+          hint="Usá una composición preparada para pantallas pequeñas. PNG, JPG, WebP o GIF."
+          accept="image/*"
+          imagesOnly
+          url={slide.mobileImageUrl ?? ''}
+          previewAlt="Imagen para móvil actual del banner"
+          emptyText="Sin imagen para móvil: se usa la principal"
+          removeLabel="Quitar imagen para móvil"
+          unavailable={slide.mediaUrl ? undefined : 'Primero cargá la imagen principal.'}
+          disabled={busy}
+          onBusyChange={(active) => reportUpload('mobile', active)}
+          onUploaded={(url) => setMobileImage(url)}
+          onRemove={() => setMobileImage(undefined)}
+        />
+      )}
 
       <fieldset disabled={busy} className="space-y-5">
         <div>
@@ -406,6 +334,180 @@ export function BannerEditor({
         <span className="ml-auto text-xs text-muted-foreground">Se aplica al publicar.</span>
       </label>
     </div>
+  );
+}
+
+/**
+ * Un archivo del banner con su propia carga: progreso, cancelar, reintentar y quitar. Dos a la vez
+ * (principal y móvil) no se pisan: cada una tiene su estado y solo cambia su campo.
+ */
+function MediaUploadField({
+  id,
+  label,
+  hint,
+  accept,
+  imagesOnly = false,
+  url,
+  video = false,
+  previewAlt,
+  emptyText = 'Sin imagen todavía',
+  removeLabel,
+  unavailable,
+  error,
+  disabled,
+  onBusyChange,
+  onUploaded,
+  onRemove,
+}: {
+  id: string;
+  label: string;
+  hint: string;
+  accept: string;
+  /** Rechaza videos antes de subir (la imagen del celular). */
+  imagesOnly?: boolean;
+  url: string;
+  video?: boolean;
+  previewAlt: string;
+  emptyText?: string;
+  removeLabel: string;
+  /** Por qué todavía no se puede cargar; deshabilita el control. */
+  unavailable?: string;
+  error?: string;
+  disabled: boolean;
+  onBusyChange: (active: boolean) => void;
+  onUploaded: (url: string, file: File) => void;
+  onRemove: () => void;
+}) {
+  const [upload, setUpload] = useState<UploadState>({ kind: 'idle' });
+  const controller = useRef<AbortController | null>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
+  const lastFile = useRef<File | null>(null);
+  const sending = upload.kind === 'sending' || upload.kind === 'processing';
+  // Limpieza al desmontar: una carga en curso se corta.
+  useEffect(() => () => controller.current?.abort(), []);
+
+  function finish(next: UploadState) {
+    setUpload(next);
+    onBusyChange(false);
+    // Permite volver a elegir el MISMO archivo para reintentar.
+    if (fileInput.current) fileInput.current.value = '';
+  }
+
+  async function startUpload(file?: File | null) {
+    if (!file) return;
+    lastFile.current = file;
+    if (imagesOnly && !file.type.startsWith('image/')) {
+      setUpload({ kind: 'error', message: 'Elegí una imagen: PNG, JPG, WebP o GIF.' });
+      if (fileInput.current) fileInput.current.value = '';
+      return;
+    }
+    const request = new AbortController();
+    controller.current?.abort();
+    controller.current = request;
+    setUpload({ kind: 'sending', percent: 0 });
+    onBusyChange(true);
+    try {
+      const uploaded = await uploadSlideMedia(file, {
+        signal: request.signal,
+        onProgress: (percent) => setUpload({ kind: 'sending', percent }),
+        onTransferred: () => setUpload({ kind: 'processing' }),
+      });
+      if (request.signal.aborted) return;
+      // La imagen anterior se reemplaza recién con la URL confirmada por el servidor.
+      onUploaded(uploaded, file);
+      finish({ kind: 'done' });
+    } catch (err) {
+      if (controller.current !== request) return; // la reemplazó otra carga
+      if (request.signal.aborted) finish({ kind: 'cancelled' });
+      else
+        finish({
+          kind: 'error',
+          message: err instanceof Error ? err.message : 'No se pudo subir el archivo.',
+        });
+    }
+  }
+
+  function cancelUpload() {
+    controller.current?.abort();
+    // El estado se restablece acá mismo: no depende de que XHR avise.
+    finish({ kind: 'cancelled' });
+  }
+
+  const kept = url ? ' La imagen anterior no cambió.' : '';
+  return (
+    <Field data-invalid={Boolean(error)}>
+      <FieldLabel htmlFor={id}>{label}</FieldLabel>
+      <div className="overflow-hidden rounded-xl border bg-muted">
+        {url ? (
+          video ? (
+            <video src={url} muted controls className="aspect-video w-full object-contain" />
+          ) : (
+            <img src={url} alt={previewAlt} className="aspect-video w-full object-contain" />
+          )
+        ) : (
+          <div className="grid aspect-video place-items-center px-4 text-center text-sm text-muted-foreground">
+            {emptyText}
+          </div>
+        )}
+      </div>
+      <Input
+        ref={fileInput}
+        id={id}
+        type="file"
+        accept={accept}
+        disabled={disabled || sending || Boolean(unavailable)}
+        aria-describedby={`${id}-hint ${id}-status`}
+        aria-invalid={Boolean(error)}
+        onChange={(event) => void startUpload(event.target.files?.[0])}
+      />
+      <FieldDescription id={`${id}-hint`}>{unavailable ?? hint}</FieldDescription>
+      <FieldError>{error}</FieldError>
+
+      <div id={`${id}-status`} aria-live="polite" className="space-y-2">
+        {sending && (
+          <>
+            <Progress
+              value={upload.kind === 'sending' ? (upload.percent ?? null) : null}
+              aria-label={upload.kind === 'sending' ? `Progreso de la carga: ${label}` : `Procesando: ${label}`}
+            />
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm">
+                {upload.kind === 'processing'
+                  ? 'Procesando archivo…'
+                  : upload.percent === null
+                  ? 'Enviando archivo…'
+                  : `Enviando ${upload.percent}%`}
+              </p>
+              <Button type="button" variant="cancel" onClick={cancelUpload}>
+                Cancelar carga
+              </Button>
+            </div>
+          </>
+        )}
+        {upload.kind === 'done' && <p className="text-sm text-foreground">Archivo listo en el borrador.</p>}
+        {upload.kind === 'cancelled' && (
+          <p className="text-sm text-muted-foreground">Carga cancelada.{kept}</p>
+        )}
+        {upload.kind === 'error' && (
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p role="alert" className="text-sm text-destructive">
+              {upload.message}
+              {kept}
+            </p>
+            {lastFile.current && (!imagesOnly || lastFile.current.type.startsWith('image/')) && (
+              <Button type="button" variant="outline" disabled={disabled} onClick={() => void startUpload(lastFile.current)}>
+                Reintentar
+              </Button>
+            )}
+          </div>
+        )}
+      </div>
+      {url && !disabled && !sending && (
+        <Button type="button" variant="destructive" className="w-fit" onClick={onRemove}>
+          {removeLabel}
+        </Button>
+      )}
+    </Field>
   );
 }
 
