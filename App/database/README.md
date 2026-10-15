@@ -8,7 +8,7 @@ Esquema de Gyro Store sobre Supabase/Postgres.
 |---|---|
 | `01_schema.sql` | **Todo el esquema, en su estado final**, ordenado por módulo (Personal, Catálogo, Clientes, Compras, Ventas, Tienda web, Stock, Descuentos, Finanzas, Sistema, Reportes, Seguridad). Cada tabla está completa en un solo `create table`. |
 | `02_seed.sql` | Datos de arranque: categorías, las 8 plantillas iniciales y la configuración financiera. |
-| `migrations/` | Lo que **falta correr** en producción: `0018_loan_payments_a_gastos.sql`, `0032_entregas_y_pagos_de_pedidos.sql` y `0033_texto_de_categorias_y_marca.sql`. |
+| `migrations/` | Lo que **falta correr** en producción: `0018_loan_payments_a_gastos.sql`, `0032_entregas_y_pagos_de_pedidos.sql`, `0033_texto_de_categorias_y_marca.sql` y `0034_vincular_lotes_viejos.sql`. |
 | `historial/` | El esquema anterior y las migraciones ya aplicadas (0015–0031, salvo la 0018). Solo como registro: **no se corren**. |
 
 ## Base de producción (la que ya tiene datos)
@@ -17,7 +17,7 @@ Producción está igual a `01_schema.sql` salvo lo que agregan las migraciones
 pendientes de abajo: la 0025 la ordenó y la 0026–0031 se corrieron después en el
 SQL Editor de Supabase.
 
-Quedan tres pendientes:
+Quedan cuatro pendientes:
 
 - **`migrations/0032_entregas_y_pagos_de_pedidos.sql`**: entrega en Managua, por
   Cargo Trans o retiro; pagos, transporte y recepción de los pedidos web; y los
@@ -34,6 +34,11 @@ Quedan tres pendientes:
   `expenses` como gastos del pozo Préstamos. Necesita el OK del dueño. Mientras no
   corra, la app lee los pagos de las dos tablas y no los cuenta dos veces. Los
   pasos están en `Docs/03-Finanzas.md` §13.
+- **`migrations/0034_vincular_lotes_viejos.sql`**: vincula a su plantilla y
+  variante los lotes viejos (LT1–LT3) que la tienda no ve, leyendo el nombre del
+  lote. Solo cambia datos y no toca `product_name`, del que dependen las ventas y
+  devoluciones. Necesita el OK del dueño. Al final lista lo que quedó sin
+  vincular; se completa en Plantillas y se vuelve a correr.
 
 Caja y Bancos (`accounts`, `account_movements`, `cash_closures`) quedaron
 archivados en el esquema `archivo`, con sus datos. Para devolver una tabla:
