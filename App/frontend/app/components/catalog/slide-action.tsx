@@ -8,13 +8,18 @@ import { Button } from '~/components/ui/button';
 import { HugeIcon } from '~/components/ui/icon';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '~/components/ui/dropdown-menu';
 import { FacebookIcon, InstagramIcon, TikTokIcon } from '~/components/ui/social-icons';
-import { useStoreConfig } from '~/hooks/use-store-config';
+import { useStoreCatalog, useStoreConfig } from '~/hooks/use-store-config';
 import { CATALOG_PATH } from '~/lib/catalog-query';
+import { productFromTarget } from '~/lib/detail-links';
+import { getProductUrl } from '~/lib/formatters';
 import { cn } from '~/lib/utils';
 
-// Los banners guardados antes de /catalogo apuntan a `/#catalogo`: llevan al catálogo nuevo.
-function slideTarget(slide: HeroSlide): string {
-  return !slide.actionTarget || slide.actionTarget === '/#catalogo' ? CATALOG_PATH : slide.actionTarget;
+// Los banners guardados antes de /catalogo apuntan a `/#catalogo`: llevan al catálogo nuevo. Uno que lleva
+// a un producto guarda su id (o un enlace viejo): se muestra con la URL del nombre, sin pasar por redirección.
+function slideTarget(slide: HeroSlide, products: Parameters<typeof productFromTarget>[1]): string {
+  const target = !slide.actionTarget || slide.actionTarget === '/#catalogo' ? CATALOG_PATH : slide.actionTarget;
+  const product = productFromTarget(target, products);
+  return product ? getProductUrl(product) : target;
 }
 
 export function SlideAction({
@@ -27,6 +32,7 @@ export function SlideAction({
   className?: string;
 }) {
   const config = useStoreConfig();
+  const products = useStoreCatalog();
   const social = config?.socialLinks;
   const socialItems = [
     { key: 'facebook', label: 'Facebook', href: social?.facebook?.trim(), Icon: FacebookIcon },
@@ -58,7 +64,7 @@ export function SlideAction({
     );
   }
 
-  const target = slideTarget(slide);
+  const target = slideTarget(slide, products);
   const content = (
     <>
       {slide.buttonText || 'Ver catálogo'}

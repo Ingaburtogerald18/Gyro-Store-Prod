@@ -697,7 +697,7 @@ export function CheckoutPanel({
                   )}
                   {(issue.reason === 'variant_required' || issue.reason === 'invalid_variant') && !issue.item.comboId && (
                     <Button type="button" variant="outline" className="h-11" asChild>
-                      <Link to={getProductUrl(issue.item.catalogId, issue.item.name)} onClick={onDone}>Elegir opciones</Link>
+                      <Link to={getProductUrl({ id: issue.item.catalogId })} onClick={onDone}>Elegir opciones</Link>
                     </Button>
                   )}
                   <Button type="button" variant="ghost" className="h-11 text-destructive" onClick={() => {

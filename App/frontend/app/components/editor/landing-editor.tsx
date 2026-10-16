@@ -91,7 +91,7 @@ import {
   normalizeDraftProducts,
   previewCatalog,
 } from '~/lib/store-draft-products';
-import { errMsg, formatNicaraguaDateTime, getProductUrl } from '~/lib/formatters';
+import { errMsg, formatNicaraguaDateTime } from '~/lib/formatters';
 import { cn } from '~/lib/utils';
 import { ProductsPanel } from './products-panel';
 import { EditorCombosPanel } from './editor-combos-panel';
@@ -221,7 +221,7 @@ export function LandingEditor({
     : null;
   const validationContext = useMemo(
     () => ({
-      productUrls: products.map((p) => getProductUrl(p.id, p.name)),
+      products,
       socialCount: [
         config?.socialLinks?.facebook,
         config?.socialLinks?.instagram,

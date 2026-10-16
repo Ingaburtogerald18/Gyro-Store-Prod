@@ -12,11 +12,11 @@ router.get(
   })
 );
 
-// Detalle de un combo publicado (página de combo). Un id que no es uuid también es 404.
+// Detalle de un combo publicado, por su slug o por id (enlaces viejos). El JSON trae `id` y `slug`.
 router.get(
-  '/:id',
+  '/:ref',
   asyncHandler(async (req, res) => {
-    const combo = await readCombo(String(req.params.id));
+    const combo = await readCombo(String(req.params.ref));
     if (!combo) {
       res.status(404).json({ error: 'Combo no encontrado.' });
       return;

@@ -2,7 +2,7 @@
 // contacto, productos y combos publicados. Pedidos, panel, login, búsquedas y borradores quedan fuera.
 import type { LoaderFunctionArgs } from '@remix-run/node';
 import { categoryHref, inCategory } from '~/lib/catalog-query';
-import { comboName, getComboUrl, getProductUrl } from '~/lib/formatters';
+import { getComboUrl, getProductUrl } from '~/lib/formatters';
 import { buildSitemap } from '~/lib/seo';
 import { STORE_PAGES } from '~/lib/store-pages';
 import { siteOrigin } from '~/lib/site-url.server';
@@ -26,8 +26,8 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
       ...(config.policies?.warrantyPage ? [`${site}${STORE_PAGES.warranty}`] : []),
       `${site}${STORE_PAGES.wholesale}`,
       `${site}${STORE_PAGES.contact}`,
-      ...products.map((p) => ({ loc: `${site}${getProductUrl(p.id, p.name)}`, lastmod: p.updatedAt })),
-      ...combos.map((c) => `${site}${getComboUrl(c.id, comboName(c.name))}`),
+      ...products.map((p) => ({ loc: `${site}${getProductUrl(p)}`, lastmod: p.updatedAt })),
+      ...combos.map((c) => `${site}${getComboUrl(c)}`),
     ]);
     return new Response(xml, {
       headers: { 'Content-Type': 'application/xml; charset=utf-8', 'Cache-Control': 'public, max-age=900' },

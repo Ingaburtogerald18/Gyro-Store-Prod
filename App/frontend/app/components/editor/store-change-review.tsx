@@ -91,6 +91,7 @@ export function StoreChangeReview({
                       [previous.mediaUrl, previous.mediaType],
                     ) && 'Imagen o video',
                     mobileImageChange(previous, slide),
+                    Boolean(slide.mobileTextInImage) !== Boolean(previous.mobileTextInImage) && 'Texto integrado en la imagen móvil',
                     !same(
                       [slide.title, slide.description, slide.eyebrow],
                       [previous.title, previous.description, previous.eyebrow],

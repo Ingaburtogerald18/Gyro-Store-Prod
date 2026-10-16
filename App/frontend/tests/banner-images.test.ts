@@ -25,7 +25,7 @@ const old: HeroSlide = {
 };
 const both: HeroSlide = { ...old, mobileImageUrl: MOBILE };
 const landing = (slide: HeroSlide): LandingConfig => ({ headerCategories: [], heroSlides: [slide] });
-const ctx = { productUrls: [], socialCount: 0 };
+const ctx = { products: [], socialCount: 0 };
 const session = '3f1c0b1e-0000-4000-8000-000000000001';
 
 test('un banner guardado antes de la imagen del celular se lee igual y usa la principal', () => {
@@ -43,6 +43,14 @@ test('la imagen del celular sobrevive al validar, guardar el borrador y publicar
   assert.equal(publish.landing.heroSlides[0]?.mobileImageUrl, MOBILE);
   // Mismo límite que la principal.
   assert.equal(landingConfigSchema.safeParse(landing({ ...old, mobileImageUrl: `https://x/${'a'.repeat(2048)}` })).success, false);
+});
+
+test('ocultar texto repetido exige una decisión explícita y se conserva al publicar', () => {
+  assert.equal(landingConfigSchema.parse(landing(both)).heroSlides[0]?.mobileTextInImage, undefined);
+  const slide = { ...both, mobileTextInImage: true };
+  const draft = storeDraftInputSchema.parse({ session, landing: landing(slide), products: { items: {}, combos: {} } });
+  const published = storePublishInputSchema.parse({ session, landing: draft.landing, products: { items: {}, combos: {} } });
+  assert.equal(published.landing.heroSlides[0]?.mobileTextInImage, true);
 });
 
 test('se elige la del celular solo en banners de imagen y con una URL de verdad', () => {

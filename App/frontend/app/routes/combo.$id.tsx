@@ -32,16 +32,16 @@ function firstImageUrl(images: unknown[]): string | null {
 
 export async function loader({ params, request, context }: LoaderFunctionArgs) {
   const url = new URL(request.url);
-  const raw = params.id ?? '';
-  const comboId = raw.split('--').pop() ?? '';
+  // El slug del nombre o un enlace viejo con el id: el servidor resuelve los dos.
+  const ref = params.id ?? '';
   const store = storeReader(context, request);
 
   // La config es accesoria. Igual que la ficha de producto: una caída es reintentable, no «no existe».
-  const [combo, frame] = await Promise.all([store.combo(comboId).catch(() => 'error' as const), readStoreFrame(store)]);
+  const [combo, frame] = await Promise.all([store.combo(ref).catch(() => 'error' as const), readStoreFrame(store)]);
   if (combo === 'error') throw new Response('No pudimos cargar este combo. Probá de nuevo en un momento.', { status: 503 });
   if (!combo) throw new Response('Combo no encontrado', { status: 404 });
 
-  const canonicalPath = getComboUrl(combo.id, comboName(combo.name));
+  const canonicalPath = getComboUrl(combo);
   if (url.pathname !== canonicalPath) throw redirect(`${canonicalPath}${url.search}`, 301);
 
   return { combo, ...frame, canonicalUrl: `${siteOrigin(request)}${canonicalPath}` };

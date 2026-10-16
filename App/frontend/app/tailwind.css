@@ -386,7 +386,7 @@ html[data-area='store'] .store-header {
 html[data-area='store'] .store-header .store-category-link {
   color: var(--header-nav-foreground);
 }
-html[data-area='store'] .store-header .store-category-link:is(:hover, [aria-current='page'], [data-selected], [aria-expanded='true']) {
+html[data-area='store'] .store-header .store-category-link:is([aria-current='page'], [data-selected], [aria-expanded='true']) {
   background-color: var(--header-selected-background);
   color: var(--primary-2);
 }
@@ -395,7 +395,6 @@ html[data-area='store'] .store-header .store-header-control {
   border-color: color-mix(in srgb, var(--primary-2) 40%, transparent);
   color: var(--primary-2);
 }
-html[data-area='store'] .store-header .store-header-control:hover,
 html[data-area='store'] .store-header .store-header-control[aria-expanded='true'] {
   background-color: var(--header-selected-background);
   border-color: var(--primary-2);
@@ -406,9 +405,6 @@ html[data-area='store'] .store-header .store-cart-button {
   color: var(--primary-foreground);
   box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), 2px 2px 0 var(--header-cart-shadow);
 }
-html[data-area='store'] .store-header .store-cart-button:hover {
-  background-color: color-mix(in srgb, var(--primary) 92%, var(--ink));
-}
 html[data-area='store'] .store-header .store-cart-button:active {
   box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), 1px 1px 0 var(--header-cart-shadow);
 }
@@ -417,9 +413,6 @@ html[data-area='store'] .store-header .store-cart-button:active {
 :is(html[data-area='store'], html[data-area='admin'], .store-palette, .store-preview) [data-slot='button'][data-variant='default']:not([aria-pressed]) {
   background-color: var(--action);
   color: var(--action-foreground);
-}
-:is(html[data-area='store'], html[data-area='admin'], .store-palette, .store-preview) [data-slot='button'][data-variant='default']:not([aria-pressed]):hover:not(:disabled) {
-  background-color: var(--action-hover);
 }
 :is(html[data-area='store'], html[data-area='admin'], .store-palette, .store-preview) [data-slot='button']:is([data-variant='default'], [data-variant='whatsapp'], [data-variant='destructiveSolid']):not([aria-pressed]) {
   border: 2px solid var(--action-outline);
@@ -474,8 +467,50 @@ html[data-area='store'] .store-header .store-cart-button:active {
   border: 2px solid var(--primary-2);
   font-weight: 600;
 }
-:is(html[data-area='store'], html[data-area='admin'], .store-preview) [data-slot='button'][aria-pressed='true']:hover {
-  background-color: color-mix(in srgb, var(--primary-2) 8%, var(--selection));
+
+/* Hover solo con mouse: en una pantalla táctil el último toque dejaría el estado pegado (es lo mismo
+   que hace `hover:` de Tailwind). */
+@media (hover: hover) {
+  html[data-area='store'] .store-header .store-category-link:hover {
+    background-color: var(--header-selected-background);
+    color: var(--primary-2);
+  }
+  html[data-area='store'] .store-header .store-header-control:hover {
+    background-color: var(--header-selected-background);
+    border-color: var(--primary-2);
+  }
+  html[data-area='store'] .store-header .store-cart-button:hover {
+    background-color: color-mix(in srgb, var(--primary) 92%, var(--ink));
+  }
+  :is(html[data-area='store'], html[data-area='admin'], .store-palette, .store-preview) [data-slot='button'][data-variant='default']:not([aria-pressed]):hover:not(:disabled) {
+    background-color: var(--action-hover);
+  }
+  :is(html[data-area='store'], html[data-area='admin'], .store-preview) [data-slot='button'][aria-pressed='true']:hover {
+    background-color: color-mix(in srgb, var(--primary-2) 8%, var(--selection));
+  }
+}
+
+@media (max-width: 767px) {
+  html[data-area='store'] :is([data-slot='sheet-close'], [data-slot='dialog-close'])[data-size='icon-sm'] {
+    width: 2.75rem;
+    height: 2.75rem;
+    top: 0.625rem;
+    right: 0.625rem;
+  }
+  :is(html[data-area='store'], .store-preview) [data-slot='switch'][data-state='checked'] {
+    background-color: var(--primary-2);
+    border-color: var(--primary-2);
+  }
+  html[data-area='store'] :is([data-slot='dialog-content'], [data-slot='dialog-overlay'], [data-slot='sheet-content'], [data-slot='sheet-overlay']) {
+    --tw-duration: 200ms;
+    animation-duration: 200ms;
+  }
+}
+@media (max-width: 767px) and (prefers-reduced-motion: reduce) {
+  html[data-area='store'] :is([data-slot='dialog-content'], [data-slot='dialog-overlay'], [data-slot='sheet-content'], [data-slot='sheet-overlay']) {
+    animation: none;
+    transition: none;
+  }
 }
 
 /* Relieve de las filas: se oscurecen apenas hacia abajo y llevan un brillo arriba, que junto
