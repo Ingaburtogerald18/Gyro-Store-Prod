@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from '@remix-run/react';
 import { useReducedMotion } from 'framer-motion';
 
-import { presentationSlideId, type LandingConfig } from '@shared/schemas';
+import { mobileImageOf, presentationSlideId, type LandingConfig } from '@shared/schemas';
 import { SlideAction } from '~/components/catalog/slide-action';
 import { SlideMedia } from '~/components/catalog/slide-media';
 import { Button } from '~/components/ui/button';
@@ -83,6 +83,8 @@ export function Hero({ initialLanding }: { initialLanding?: LandingConfig | null
   // Una imagen va en el celular a todo el ancho, con su proporción. El video y el espacio vacío
   // conservan el marco de altura fija de siempre.
   const fluid = slide.mediaType === 'image' && Boolean(slide.mediaUrl);
+  // Solo se oculta el texto cuando el dueño confirma que ya está en la imagen móvil.
+  const artCarriesText = fluid && Boolean(mobileImageOf(slide)) && slide.mobileTextInImage === true;
 
   return (
     <section
@@ -129,7 +131,10 @@ export function Hero({ initialLanding }: { initialLanding?: LandingConfig | null
                 data-landing-element="title"
                 role={editing ? 'button' : undefined}
                 tabIndex={editing ? 0 : undefined}
-                className="font-heading text-2xl leading-[1.1] font-extrabold tracking-tight text-balance text-foreground md:text-3xl md:leading-[1.08] lg:text-5xl"
+                className={cn(
+                  'font-heading text-2xl leading-[1.1] font-extrabold tracking-tight text-balance text-foreground md:text-3xl md:leading-[1.08] lg:text-5xl',
+                  artCarriesText && 'max-md:sr-only',
+                )}
               >
                 {slide.title}
               </h1>
@@ -140,7 +145,7 @@ export function Hero({ initialLanding }: { initialLanding?: LandingConfig | null
                   data-landing-element="description"
                   role={editing ? 'button' : undefined}
                   tabIndex={editing ? 0 : undefined}
-                  className="max-w-lg text-sm leading-relaxed text-muted-foreground sm:text-base"
+                  className={cn('max-w-lg text-sm leading-relaxed text-muted-foreground sm:text-base', artCarriesText && 'max-md:hidden')}
                 >
                   {slide.description}
                 </p>

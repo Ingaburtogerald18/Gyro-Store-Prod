@@ -85,12 +85,11 @@ export function ProductDetailTabs({
             >
               {tab.label}
               {selected && (
+                // Bordó: es navegación, no una acción (el amarillo queda para comprar). Sin rebote.
                 <motion.div
                   layoutId={`${baseId}-tab-indicator`}
-                  className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-primary"
-                  transition={
-                    reduce ? { duration: 0 } : { type: 'spring', stiffness: 400, damping: 34 }
-                  }
+                  className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-primary-2 md:bg-primary"
+                  transition={reduce ? { duration: 0 } : { duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
                 />
               )}
             </button>

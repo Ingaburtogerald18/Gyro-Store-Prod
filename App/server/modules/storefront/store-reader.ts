@@ -2,6 +2,7 @@
 // loaders de Remix; cualquier escritura del panel lo borra (clearMemos en index.ts).
 import { z } from 'zod';
 import type { StoreReader } from '../../../shared/store-reader';
+import { findByDetailParam, parseDetailParam, slugify, uniqueSlugs } from '../../../shared/detail-slug';
 import { toPublicPolicies } from '../../../shared/schemas';
 import { createMemo } from '../../utils/memo-cache';
 import { logger } from '../../utils/logger';
@@ -17,34 +18,58 @@ import { getLandingConfig } from '../store-editor/landing';
 
 const memo = createMemo(60_000);
 const isUuid = (id: string) => z.uuid().safeParse(id).success;
+// Mismo nombre que muestra la tienda para un combo sin nombre («Combo especial»).
+const COMBO_SLUG = 'combo-especial';
 
 export function readCatalog() {
   return memo.get('catalog', async () => {
     const rows = await listPublishedCatalog();
     // Una sola consulta a bodega para todo el listado, en vez de una por producto.
     const [lots, offers] = await Promise.all([getLotsByCodes(rows.flatMap(collectMappedCodes)), getActiveOffers()]);
-    return rows.map((row) => toCatalogProduct(row, lots, offers.get(row.id)));
+    const products = rows.map((row) => toCatalogProduct(row, lots, offers.get(row.id)));
+    // El slug se decide con todo el catálogo a la vista: así dos con el mismo nombre no comparten URL.
+    const slugs = uniqueSlugs(products, 'producto');
+    return products.map((product) => ({ ...product, slug: slugs.get(product.id)! }));
   });
 }
 
-// Un id mal formado es «no existe» sin tocar la base: si no, sale como error 500 de Postgres.
-export function readProduct(id: string) {
-  if (!isUuid(id)) return Promise.resolve(null);
-  return memo.get(`product:${id}`, async () => {
-    const item = await getPublishedCatalogItem(id);
-    if (!item) return null;
-    const [lots, offers] = await Promise.all([getLotsByCodes(collectMappedCodes(item)), getActiveOffers()]);
-    return toCatalogDetail(item, lots, offers.get(item.id));
-  });
+// `ref`: el slug de la URL o el id (enlaces viejos). Un id mal formado es «no existe» sin tocar la base:
+// si no, sale como error 500 de Postgres.
+export async function readProduct(ref: string) {
+  const parsed = parseDetailParam(ref);
+  const catalog = readCatalog();
+  // Con el id, detalle y catálogo se leen a la vez; con el slug, el catálogo dice cuál es.
+  const id = 'id' in parsed ? parsed.id : findByDetailParam(await catalog, ref)?.id;
+  if (!id || !isUuid(id)) return null;
+  const [detail, products] = await Promise.all([
+    memo.get(`product:${id}`, async () => {
+      const item = await getPublishedCatalogItem(id);
+      if (!item) return null;
+      const [lots, offers] = await Promise.all([getLotsByCodes(collectMappedCodes(item)), getActiveOffers()]);
+      return toCatalogDetail(item, lots, offers.get(item.id));
+    }),
+    catalog,
+  ]);
+  if (!detail) return null;
+  return { ...detail, slug: products.find((p) => p.id === detail.id)?.slug ?? (slugify(detail.name) || 'producto') };
 }
 
 export function readCombos() {
-  return memo.get('combos', listPublishedCombos);
+  return memo.get('combos', async () => {
+    const combos = await listPublishedCombos();
+    const slugs = uniqueSlugs(combos, COMBO_SLUG);
+    return combos.map((combo) => ({ ...combo, slug: slugs.get(combo.id)! }));
+  });
 }
 
-export function readCombo(id: string) {
-  if (!isUuid(id)) return Promise.resolve(null);
-  return memo.get(`combo:${id}`, () => getPublishedCombo(id));
+export async function readCombo(ref: string) {
+  const parsed = parseDetailParam(ref);
+  const list = readCombos();
+  const id = 'id' in parsed ? parsed.id : findByDetailParam(await list, ref)?.id;
+  if (!id || !isUuid(id)) return null;
+  const [combo, combos] = await Promise.all([memo.get(`combo:${id}`, () => getPublishedCombo(id)), list]);
+  if (!combo) return null;
+  return { ...combo, slug: combos.find((c) => c.id === combo.id)?.slug ?? (slugify(combo.name ?? '') || COMBO_SLUG) };
 }
 
 // Lo editado en el panel (`business`, `financial`) pisa lo que viene del entorno. De las políticas

@@ -282,11 +282,12 @@ function ProgressiveResults({ products, resetKey }: { products: CatalogProduct[]
   );
 }
 
+// En el celular, una tarjeta horizontal por fila (foto de unos 150 px); desde tableta, la grilla de siempre.
 const GRID = {
-  // Listado: 2 columnas en el celular, 3 en tableta y 4 en escritorio.
-  listing: { className: 'grid grid-cols-2 gap-x-3 gap-y-4 sm:grid-cols-3 sm:gap-5 lg:grid-cols-4', sizes: '(min-width: 1024px) 300px, (min-width: 640px) 33vw, 50vw' },
-  // Portada: bloques de 4, en dos filas de 2 en el celular y en una sola fila desde tableta.
-  shelf: { className: 'grid grid-cols-2 gap-x-3 gap-y-4 md:grid-cols-4 md:gap-5', sizes: '(min-width: 1280px) 300px, (min-width: 768px) 25vw, 50vw' },
+  // Listado: 3 columnas en tableta y 4 en escritorio.
+  listing: { className: 'grid grid-cols-1 gap-3 md:grid-cols-3 md:gap-5 lg:grid-cols-4', sizes: '(min-width: 1024px) 300px, (min-width: 768px) 33vw, 152px' },
+  // Portada: bloques de 4, en una sola fila desde tableta.
+  shelf: { className: 'grid grid-cols-1 gap-3 md:grid-cols-4 md:gap-5', sizes: '(min-width: 1280px) 300px, (min-width: 768px) 25vw, 152px' },
 } as const;
 
 // Grilla uniforme: el `h-full` de cada celda lleva precio y estado al pie de la tarjeta.
@@ -323,12 +324,13 @@ function GridSkeleton() {
   return (
     <div className={GRID.listing.className}>
       {Array.from({ length: 8 }).map((_, i) => (
-        <div key={i} className="flex flex-col gap-3">
-          {/* Mismo aspect que el stage real de ProductCard: evita el salto de layout. */}
-          <Skeleton className="aspect-square w-full rounded-2xl" />
-          <Skeleton className="h-4 w-3/4" />
-          <Skeleton className="h-4 w-1/3" />
-          <Skeleton className="h-11 w-full" />
+        <div key={i} className="flex gap-3 rounded-2xl border border-border p-2 md:flex-col md:border-0 md:p-0">
+          <Skeleton className="aspect-square w-[clamp(8.25rem,36vw,9.5rem)] shrink-0 rounded-2xl md:w-full" />
+          <div className="flex min-w-0 flex-1 flex-col gap-3">
+            <Skeleton className="h-4 w-3/4" />
+            <Skeleton className="h-4 w-1/3" />
+            <Skeleton className="h-11 w-full" />
+          </div>
         </div>
       ))}
     </div>

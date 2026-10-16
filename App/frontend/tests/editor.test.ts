@@ -43,10 +43,10 @@ test('composición y visibilidad se conservan sin romper configuraciones anterio
   assert.equal(parsed.heroSlides[0]?.layout, 'right');
   assert.equal(parsed.heroSlides[0]?.visible, false);
   assert.equal(landingConfigSchema.safeParse({ ...config, heroSlides: [{ ...slide, layout: 'free' }] }).success, false);
-  assert.equal(hasLandingErrors(validateLanding({ ...config, heroSlides: [{ ...slide, title: '', visible: false }] }, { productUrls: [], socialCount: 0 })), false);
+  assert.equal(hasLandingErrors(validateLanding({ ...config, heroSlides: [{ ...slide, title: '', visible: false }] }, { products: [], socialCount: 0 })), false);
 });
 
-const ctx = { productUrls: ['/producto/kz-edx-pro--1'], socialCount: 0 };
+const ctx = { products: [{ id: '3f1c0b1e-0000-4000-8000-000000000001', name: 'KZ EDX Pro', slug: 'kz-edx-pro' }], socialCount: 0 };
 
 test('destinos, títulos y acciones se validan sin corregirse solos', () => {
   assert.equal(isValidTarget('/#catalogo'), true);

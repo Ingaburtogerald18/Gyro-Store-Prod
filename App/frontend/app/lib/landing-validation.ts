@@ -1,12 +1,13 @@
 // Validación del borrador de portada antes de publicar: informa junto a cada campo, no corrige nada.
 import { categoryMode, mobileImageOf, type HeroSlide, type LandingConfig } from '@shared/schemas';
+import { productFromTarget } from './detail-links';
 
 export type SlideField = 'title' | 'buttonText' | 'actionTarget' | 'mediaUrl';
 export type SlideErrors = Partial<Record<SlideField, string>>;
 
 export interface ValidationContext {
-  /** URLs de producto publicadas (`/producto/slug--id`). */
-  productUrls: string[];
+  /** Productos publicados: un banner puede llevar a uno por su slug, su id o un enlace viejo. */
+  products: { id: string; name: string; slug?: string }[];
   /** Cantidad de redes con enlace cargado en Configuración. */
   socialCount: number;
 }
@@ -36,7 +37,7 @@ export function validateSlide(slide: HeroSlide, ctx: ValidationContext): SlideEr
   } else if (slide.actionType === 'link') {
     const target = slide.actionTarget.trim();
     if (target.startsWith('/producto/')) {
-      if (!ctx.productUrls.includes(target)) errors.actionTarget = 'Ese producto ya no está publicado. Elegí otro.';
+      if (!productFromTarget(target, ctx.products)) errors.actionTarget = 'Ese producto ya no está publicado. Elegí otro.';
     } else if (!isValidTarget(target)) {
       errors.actionTarget = 'Usá un enlace de la tienda (empieza con /) o una dirección https://.';
     }

@@ -97,12 +97,38 @@ export function purchaseState({
   if (variant.availability === 'unknown') return { kind: 'unknown', variant };
   if (variant.availability === 'coming_soon') return { kind: 'coming_soon', variant };
   if (variant.availability === 'sold_out' || variant.stock <= 0) return { kind: 'sold_out', variant };
+  if (!(variant.price > 0)) return { kind: 'unknown', variant };
   return { kind: 'ready', variant, maxQuantity: variant.stock };
 }
 
 /** Ni comprable ni con precio que mostrar: solo se consulta. */
 export const isConsultOnly = (kind: PurchaseState['kind']) =>
   kind === 'sold_out' || kind === 'coming_soon' || kind === 'unknown';
+
+/** Alguna combinación se puede pedir hoy. Sin ninguna, la intención es pedir aviso, no comprar. */
+export const anyOrderable = (variants: CatalogVariant[]) =>
+  variants.some((v) => v.availability === 'available' && v.stock > 0 && v.price > 0);
+
+export type PriceDisplay =
+  | { kind: 'price'; amount: number; from: boolean }
+  | { kind: 'coming_soon' }
+  /** Sin precio confirmado: nunca se presenta como gratis. */
+  | { kind: 'consult' };
+
+type Priced = { availability: Availability; price: number };
+
+/**
+ * Qué precio se muestra en la ficha y en la barra: el de la combinación elegida o, sin elegir, el del
+ * producto («Desde» si las variantes no valen lo mismo). Un 0 o «Próximamente» no son un precio.
+ */
+export function priceDisplay(product: Priced & { priceFrom?: boolean }, variant: Priced | null): PriceDisplay {
+  const source = variant ?? product;
+  if (source.availability === 'coming_soon') return { kind: 'coming_soon' };
+  if (!(source.price > 0)) return { kind: 'consult' };
+  return { kind: 'price', amount: source.price, from: !variant && Boolean(product.priceFrom) };
+}
+
+export const CONSULT_PRICE_LABEL = 'Consultar precio y disponibilidad';
 
 /** Texto cualitativo de disponibilidad: nunca cantidades. */
 export const AVAILABILITY_LABEL: Record<Availability, string> = {

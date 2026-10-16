@@ -11,6 +11,7 @@ export const heroSlideSchema = z.object({
   mediaType: z.enum(['image', 'video']),
   // Alternativa para el celular, solo en banners de imagen. Sin ella (o vacía) se usa `mediaUrl`.
   mobileImageUrl: z.string().max(2048).optional(),
+  mobileTextInImage: z.boolean().optional(),
   buttonText: z.string().max(40),
   actionType: z.enum(['modal', 'link', 'social']),
   actionTarget: z.string().max(2048),

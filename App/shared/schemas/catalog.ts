@@ -90,6 +90,8 @@ export type Availability = z.infer<typeof availabilitySchema>;
 
 export const catalogProductSchema = z.object({
   id: z.uuid(),
+  // URL de la ficha (/producto/<slug>): el nombre, único en el catálogo (shared/detail-slug.ts).
+  slug: z.string().optional(),
   name: z.string(),
   description: z.string().optional(),
   // Nombre de la categoría a la que pertenece

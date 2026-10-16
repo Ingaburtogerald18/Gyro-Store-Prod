@@ -25,7 +25,7 @@ const old: HeroSlide = {
 };
 const both: HeroSlide = { ...old, mobileImageUrl: MOBILE };
 const landing = (slide: HeroSlide): LandingConfig => ({ headerCategories: [], heroSlides: [slide] });
-const ctx = { productUrls: [], socialCount: 0 };
+const ctx = { products: [], socialCount: 0 };
 const session = '3f1c0b1e-0000-4000-8000-000000000001';
 
 test('un banner guardado antes de la imagen del celular se lee igual y usa la principal', () => {

@@ -10,6 +10,8 @@ export type ComboItem = z.infer<typeof comboItemSchema>;
 
 export const comboSchema = z.object({
   id: z.uuid(),
+  // URL de la ficha (/combo/<slug>); solo en los combos publicados.
+  slug: z.string().optional(),
   name: z.string().nullable(),
   price: z.number().nullable(),
   // Contenido del combo: productos del catálogo con su cantidad.

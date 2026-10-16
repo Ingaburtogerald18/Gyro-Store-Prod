@@ -20,25 +20,13 @@ export function buildWhatsappUrl(phone: string, message: string): string {
   return `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
 }
 
-/** "Audífonos KZ EDX Pro" → "audifonos-kz-edx-pro" */
-export function createSlug(name: string): string {
-  return name
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '') // quita acentos
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/(^-|-$)/g, '');
-}
-
-// URL del detalle: slug legible + id al final para que la ruta lo resuelva sin
-// depender del nombre (que puede cambiar).
-function detailUrl(base: string, id: string, name: string): string {
-  const slug = createSlug(name);
-  return `/${base}/${slug ? `${slug}--${id}` : id}`;
-}
-export const getProductUrl = (id: string, name: string) => detailUrl('producto', id, name);
-export const getComboUrl = (id: string, name: string) => detailUrl('combo', id, name);
-// Ficha, enlaces y sitemap usan el mismo nombre: si difiriera, la URL del sitemap redirigiría.
+// URL de la ficha: el slug que manda la API («/producto/kz-edx-pro»). Sin él (el carrito guarda solo el
+// id) va el id, y la ficha redirige a la del nombre.
+type DetailRef = { id: string; slug?: string };
+const detailUrl = (base: string, { id, slug }: DetailRef) => `/${base}/${encodeURIComponent(slug || id)}`;
+export const getProductUrl = (product: DetailRef) => detailUrl('producto', product);
+export const getComboUrl = (combo: DetailRef) => detailUrl('combo', combo);
+// Nombre visible de un combo sin nombre cargado (su slug, en el servidor, es «combo-especial»).
 export const comboName = (name: string | null | undefined) => name?.trim() || 'Combo especial';
 
 export const EXCHANGE_RATE = 36.6241;

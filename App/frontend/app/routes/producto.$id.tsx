@@ -1,7 +1,7 @@
-// URL con slug + id (`/producto/kz-edx-pro--<uuid>`): el id resuelve, así un cambio de nombre no rompe
-// links. Se carga en el servidor para que el preview de WhatsApp tenga título y foto.
+// Ficha de producto (`/producto/kz-edx-pro`). Se carga en el servidor para que el preview de WhatsApp tenga
+// título y foto.
 import { HugeIcon } from "~/components/ui/icon";
-import { Notification03Icon, ShoppingCart02Icon } from "@hugeicons/core-free-icons";
+import { Clock01Icon, Notification03Icon, SecurityCheckIcon, ShoppingCart02Icon } from "@hugeicons/core-free-icons";
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { redirect, type HeadersFunction, type LoaderFunctionArgs, type MetaFunction } from '@remix-run/node';
 import { getBrandName, pageTitle } from '~/lib/brand';
@@ -26,7 +26,19 @@ import { PurchaseStatus, addLabel, cartItemFor } from '~/components/product/purc
 import { TrustBox } from '~/components/product/trust-box';
 import { WhatsappIcon } from '~/components/ui/whatsapp-icon';
 import { VariantPicker } from '~/components/product/variant-picker';
-import { autoSelection, isConsultOnly, pickableAxes, purchaseState, variantLabel, type VariantSelection } from '~/lib/purchase';
+import {
+  CONSULT_PRICE_LABEL,
+  anyOrderable,
+  autoSelection,
+  isConsultOnly,
+  pickableAxes,
+  priceDisplay,
+  purchaseState,
+  variantLabel,
+  type VariantSelection,
+} from '~/lib/purchase';
+import { sortProducts } from '~/lib/catalog-products';
+import { ProductResultsGrid } from '~/components/catalog/product-grid';
 import { Badge } from '~/components/ui/badge';
 import { Button } from '~/components/ui/button';
 import { Separator } from '~/components/ui/separator';
@@ -41,14 +53,14 @@ export const headers: HeadersFunction = () => ({
 
 export async function loader({ params, request, context }: LoaderFunctionArgs) {
   const url = new URL(request.url);
-  const raw = params.id ?? '';
-  const productId = raw.split('--').pop() ?? '';
+  // El slug del nombre («kz-edx-pro») o un enlace viejo con el id: el servidor resuelve los dos.
+  const ref = params.id ?? '';
   const store = storeReader(context, request);
 
   // El catálogo arma los relacionados y los conteos del header y el pie; no viaja entero al navegador.
   // Catálogo y config son accesorios: si fallan, la ficha sale igual.
   const [product, catalog, config, landing] = await Promise.all([
-    store.product(productId).catch(() => 'error' as const),
+    store.product(ref).catch(() => 'error' as const),
     store.catalog().catch(() => null),
     store.config().catch(() => null),
     store.landing().catch(() => null),
@@ -61,21 +73,28 @@ export async function loader({ params, request, context }: LoaderFunctionArgs) {
   const products = catalog ?? [];
   // "Tal vez te pueda interesar": productos de la misma categoría; solo si son pocos se completa con
   // el resto del catálogo. Primero lo que se puede comprar, no se llena con agotados.
-  const others = products.filter((p) => p.id !== productId);
+  const others = products.filter((p) => p.id !== product.id);
   const sameCategory = product.category ? others.filter((p) => p.category === product.category) : [];
   const pool = sameCategory.length >= 4 ? sameCategory : others;
   const related = [...pool]
     .sort((a, b) => Number(b.availability === 'available') - Number(a.availability === 'available'))
     .slice(0, 12);
+  // En el celular, pocos y relacionados: primero los de la misma categoría; el resto solo completa hasta 4.
+  const relatedCompact = [
+    ...sortProducts(sameCategory, 'relevant'),
+    ...sortProducts(others.filter((p) => p.category !== product.category), 'relevant'),
+  ].slice(0, RELATED_COMPACT);
 
-  // Un nombre viejo o un slug cualquiera delante del id lleva, con 301, a la única URL de la ficha.
-  const canonicalPath = getProductUrl(product.id, product.name);
+  // Un enlace viejo (con el id) o un slug que cambió lleva, con 301, a la única URL de la ficha.
+  const canonicalPath = getProductUrl(product);
   if (url.pathname !== canonicalPath) throw redirect(`${canonicalPath}${url.search}`, 301);
 
   const siteUrl = siteOrigin(request);
   const categoryCounts = categoryCountsOf(catalog, config);
-  return { product, related, categoryCounts, config, landing, siteUrl, canonicalUrl: `${siteUrl}${canonicalPath}` };
+  return { product, related, relatedCompact, categoryCounts, config, landing, siteUrl, canonicalUrl: `${siteUrl}${canonicalPath}` };
 }
+
+const RELATED_COMPACT = 4;
 
 export const meta: MetaFunction<typeof loader> = ({ data }) => {
   const product = data?.product;
@@ -127,7 +146,7 @@ export const meta: MetaFunction<typeof loader> = ({ data }) => {
 };
 
 export default function ProductDetail() {
-  const { product, related, config } = useLoaderData<typeof loader>();
+  const { product, related, relatedCompact, config } = useLoaderData<typeof loader>();
   const dispatch = useAppDispatch();
   const reduce = useReducedMotion();
   // Los ejes con una sola opción válida ya vienen elegidos; con varias, la
@@ -147,6 +166,7 @@ export default function ProductDetail() {
     setSelection(autoSelection(product.axes, product.variants));
     setQuantity(1);
     setShowMissing(false);
+    setNoticeOpen(false);
   }
 
   // Telemetría: una vista de producto por ficha abierta. El track descarta la
@@ -163,13 +183,14 @@ export default function ProductDetail() {
   // Cambiar a una variante con menos unidades no deja una cantidad imposible.
   const safeQuantity = Math.min(quantity, Math.max(1, maxQuantity));
 
-  // La combinación elegida manda: su precio y su promoción. Sin elegir, el
-  // precio del producto («Desde» si las variantes no valen lo mismo).
-  const price = variant?.price ?? product.price;
+  // La combinación elegida manda: su precio y su promoción. Sin elegir, el precio del producto («Desde» si
+  // las variantes no valen lo mismo). Ficha y barra leen el mismo `shown`: nunca dicen cosas distintas.
+  const shown = priceDisplay(product, variant);
+  const price = shown.kind === 'price' ? shown.amount : 0;
   const compareAt = variant ? variant.compareAtPrice : product.compareAtPrice;
-  const onSale = Boolean(compareAt && compareAt > price);
+  const onSale = shown.kind === 'price' && Boolean(compareAt && compareAt > price);
   const discountPct = onSale && compareAt ? Math.round((1 - price / compareAt) * 100) : 0;
-  const showFrom = !variant && product.priceFrom;
+  const showFrom = shown.kind === 'price' && shown.from;
   const promoNote = !variant && product.promoScope === 'some';
   const showPromoBadge = onSale || (variant ? variant.isPromo : product.promoScope === 'all');
   const description = htmlToText(product.description);
@@ -190,6 +211,17 @@ export default function ProductDetail() {
     // Con la barra fija del móvil el selector puede estar fuera de pantalla.
     pickerRef.current?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'center' });
     pickerRef.current?.querySelector<HTMLElement>('[aria-pressed]')?.focus({ preventScroll: true });
+  }
+
+  // Ninguna combinación se puede pedir (todas agotadas o en camino): se pide aviso, no se compra.
+  const orderable = anyOrderable(product.variants);
+
+  function handleNotify() {
+    if (state.kind === 'missing' || state.kind === 'invalid') {
+      goToPicker();
+      return;
+    }
+    setNoticeOpen(true);
   }
 
   function handleAddToCart() {
@@ -218,9 +250,10 @@ export default function ProductDetail() {
 
   // Agotado, próximamente o sin stock verificable: la acción principal es consultar,
   // o pedir aviso cuando la opción elegida está agotada o en camino.
-  const consultOnly = isConsultOnly(state.kind);
+  const consultOnly = isConsultOnly(state.kind) || state.kind === 'error' || (!orderable && product.variants.every((v) => v.availability === 'unknown'));
   const notifyVariant = state.kind === 'sold_out' || state.kind === 'coming_soon' ? state.variant : null;
-  const comingSoon = variant ? variant.availability === 'coming_soon' : product.availability === 'coming_soon';
+  // Sin nada para pedir y sin elegir todavía: el botón es «Avisame» y lleva a elegir la opción.
+  const notifyIntent = Boolean(notifyVariant) || (!orderable && product.variants.some((v) => v.availability === 'sold_out' || v.availability === 'coming_soon') && (state.kind === 'missing' || state.kind === 'invalid'));
 
   return (
     <StorefrontShell>
@@ -231,10 +264,10 @@ export default function ProductDetail() {
           categoryId={product.categoryId ?? undefined}
         />
 
-        <div className="grid gap-5 py-5 md:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] md:grid-rows-[auto_1fr] md:gap-x-10 md:gap-y-5 md:py-6">
+        <div className="grid gap-4 py-4 md:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] md:grid-rows-[auto_1fr] md:gap-x-10 md:gap-y-5 md:py-6">
           {/* En móvil la foto va primero (order-first en la galería) y debajo nombre y precio; la descripción
               completa está en Detalles. El H1 sigue primero en el HTML. */}
-          <div className="min-w-0 space-y-2.5 md:col-start-2 md:row-start-1">
+          <div className="min-w-0 space-y-2 md:col-start-2 md:row-start-1 md:space-y-2.5">
             {showPromoBadge && (
               <Badge variant="promo" className="tabular-nums">{onSale ? `−${discountPct}%` : 'Oferta'}</Badge>
             )}
@@ -246,8 +279,10 @@ export default function ProductDetail() {
                 {description}
               </p>
             )}
-            {comingSoon ? (
+            {shown.kind === 'coming_soon' ? (
               <p className="font-heading text-xl font-bold text-foreground">Próximamente</p>
+            ) : shown.kind === 'consult' ? (
+              <p className="font-heading text-xl font-bold text-foreground">{CONSULT_PRICE_LABEL}</p>
             ) : (
               <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
                 <span className="font-heading text-3xl font-extrabold tracking-tight text-primary-2 tabular-nums">
@@ -314,10 +349,10 @@ export default function ProductDetail() {
             )}
 
             <div id="product-buy-actions" className="flex flex-col gap-3 sm:flex-row md:flex-col lg:flex-row">
-              {notifyVariant ? (
+              {notifyIntent ? (
                 <>
                   <Button
-                    onClick={() => setNoticeOpen(true)}
+                    onClick={handleNotify}
                     className="h-12 min-h-12 w-full shrink-0 text-base sm:flex-1 md:flex-none lg:flex-1"
                   >
                     <HugeIcon icon={Notification03Icon} size={18} strokeWidth={2} aria-hidden />
@@ -364,17 +399,27 @@ export default function ProductDetail() {
               )}
             </div>
 
-            {/* Junto a la decisión: cuándo responden y las condiciones en una línea, con el enlace a las completas. */}
-            {(config?.businessHours?.length ?? 0) > 0 && (
-              <p className="text-xs text-muted-foreground">
-                Te respondemos por WhatsApp: {config?.businessHours?.map((row) => `${row.days} ${row.hours}`).join(' · ').replace(/\.?$/, '.')}
-              </p>
-            )}
-            {config?.policies && (
-              <p className="text-xs text-muted-foreground">
-                {[config.policies.warranty.title, config.policies.managua.title, config.policies.outside.title].join(' · ')}.{' '}
-                <Link to={STORE_PAGES.paymentsDelivery} className={INFO_LINK}>Ver condiciones</Link>
-              </p>
+            {/* Junto a la decisión: cuándo responden y las condiciones, una línea cada una, con el enlace a las completas. */}
+            {((config?.businessHours?.length ?? 0) > 0 || config?.policies) && (
+              <ul className="space-y-2 text-sm leading-snug text-muted-foreground md:text-xs">
+                {(config?.businessHours?.length ?? 0) > 0 && (
+                  <li className="flex gap-2">
+                    <HugeIcon icon={Clock01Icon} size={16} strokeWidth={2} aria-hidden className="mt-0.5 shrink-0 text-primary-2" />
+                    <span>
+                      Te respondemos por WhatsApp: {config?.businessHours?.map((row) => `${row.days} ${row.hours}`).join(' · ').replace(/\.?$/, '.')}
+                    </span>
+                  </li>
+                )}
+                {config?.policies && (
+                  <li className="flex gap-2">
+                    <HugeIcon icon={SecurityCheckIcon} size={16} strokeWidth={2} aria-hidden className="mt-0.5 shrink-0 text-primary-2" />
+                    <span>
+                      {[config.policies.warranty.title, config.policies.managua.title, config.policies.outside.title].join(' · ')}.{' '}
+                      <Link to={STORE_PAGES.paymentsDelivery} className={INFO_LINK}>Ver condiciones</Link>
+                    </span>
+                  </li>
+                )}
+              </ul>
             )}
           </div>
         </div>
@@ -392,7 +437,7 @@ export default function ProductDetail() {
         </div>
 
         {related.length > 0 && (
-          <div className="mt-6 sm:mt-12">
+          <div className="mt-6 hidden sm:mt-12 md:block">
             <ProductCarousel
               title="También te puede gustar"
               products={related}
@@ -400,20 +445,34 @@ export default function ProductDetail() {
             />
           </div>
         )}
+        {/* Celular: hasta 4, primero de la misma categoría, en la misma lista que el catálogo. */}
+        {relatedCompact.length > 0 && (
+          <section aria-labelledby="related-compact" className="mt-6 space-y-4 md:hidden">
+            <h2 id="related-compact" className="font-heading text-2xl font-bold tracking-tight text-foreground">
+              También te puede gustar
+            </h2>
+            <ProductResultsGrid products={relatedCompact} variant="listing" />
+          </section>
+        )}
 
         {/* Aire al pie para que la barra fija no tape el final del contenido. */}
-        <div className="h-24 md:hidden" aria-hidden />
+        <div className="h-32 md:hidden" aria-hidden />
       </main>
 
       <MobileBuyBar
         key={product.id}
         buyActionsId="product-buy-actions"
         name={product.name}
-        price={comingSoon ? 'Próximamente' : `${showFrom ? 'Desde ' : ''}${formatCordobas(price * (state.kind === 'ready' ? safeQuantity : 1), currency)}`}
-        mode={notifyVariant ? 'notify' : consultOnly ? 'consult' : 'add'}
-        addLabel={addLabel(state, { short: true })}
+        price={
+          shown.kind === 'coming_soon'
+            ? 'Próximamente'
+            : shown.kind === 'consult'
+            ? 'Consultar precio'
+            : `${showFrom ? 'Desde ' : ''}${formatCordobas(price * (state.kind === 'ready' ? safeQuantity : 1), currency)}`
+        }
+        mode={notifyIntent ? 'notify' : consultOnly ? 'consult' : 'add'}
         onAdd={handleAddToCart}
-        onNotify={() => setNoticeOpen(true)}
+        onNotify={handleNotify}
         onWhatsApp={handleWhatsApp}
       />
       {notifyVariant && (

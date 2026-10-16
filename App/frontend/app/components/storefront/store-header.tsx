@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { Link } from '@remix-run/react';
 import { motion, AnimatePresence, useAnimationControls, useReducedMotion } from 'framer-motion';
 import { Menu01Icon, ShoppingCart02Icon } from '@hugeicons/core-free-icons';
-import { headerCategories } from '~/lib/store-navigation';
+import { headerCategories, menuCategories } from '~/lib/store-navigation';
 import { SearchBar } from '~/components/catalog/search-bar';
 import { StoreMenu } from '~/components/storefront/store-menu';
 import { CategoryNav } from '~/components/storefront/category-nav';
@@ -17,6 +17,7 @@ import { selectCartCount, toggleCart } from '~/state/slices/cart-slice';
 import { HeaderMenu, StaffMenu } from './header-menus';
 import { getBrandName } from '~/lib/brand';
 import gyroBag from '~/assets/brand/gyro-bag.png';
+import { useMediaQuery } from '~/hooks/use-media-query';
 
 /** Botón del carrito con contador y "pop" al agregar (lee cartSlice). */
 function CartButton() {
@@ -25,20 +26,22 @@ function CartButton() {
   const controls = useAnimationControls();
   // Con movimiento reducido el contador cambia sin "pop" ni escalas al hover.
   const reduce = useReducedMotion();
+  const mobile = useMediaQuery('(max-width: 767px)');
   const prev = useRef(count);
 
   useEffect(() => {
-    if (count > prev.current && !reduce) {
+    if (count > prev.current && !reduce && !mobile) {
       controls.start({ scale: [1, 1.25, 0.95, 1], transition: { duration: 0.4, ease: "easeOut" } });
     }
     prev.current = count;
-  }, [count, controls, reduce]);
+  }, [count, controls, reduce, mobile]);
 
   return (
     <motion.button
       animate={controls}
-      whileHover={reduce ? undefined : { scale: 1.06 }}
-      whileTap={reduce ? undefined : { scale: 0.92 }}
+      whileHover={reduce || mobile ? undefined : { scale: 1.06 }}
+      whileTap={reduce ? undefined : { scale: mobile ? 0.98 : 0.92 }}
+      transition={mobile ? { duration: 0.15 } : undefined}
       onClick={() => dispatch(toggleCart())}
       aria-label={count > 0 ? `Abrir carrito, ${count} artículo${count === 1 ? "" : "s"}` : "Abrir carrito"}
       className="store-cart-button relative grid size-11 place-items-center rounded-full border transition-[background-color,box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
@@ -51,7 +54,7 @@ function CartButton() {
             initial={{ scale: 0, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0, opacity: 0 }}
-            transition={reduce ? { duration: 0 } : { type: "spring", stiffness: 520, damping: 20 }}
+            transition={reduce ? { duration: 0 } : mobile ? { duration: 0.15 } : { type: "spring", stiffness: 520, damping: 20 }}
             // ring-background lo separa del header con un halo del color de fondo → "flota".
             className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-destructive px-1 text-2xs font-bold tabular-nums text-destructive-foreground ring-2 ring-background"
           >
@@ -65,6 +68,7 @@ function CartButton() {
 
 export function StoreHeader() {
   const config = useStoreConfig();
+  const mobile = useMediaQuery('(max-width: 767px)');
   const reduceMotion = useReducedMotion();
   // Logo del panel. El animado solo si es video y no hay movimiento reducido;
   // si no, el estático (o el animado si es una imagen, p. ej. un GIF/WebP).
@@ -80,6 +84,11 @@ export function StoreHeader() {
     () => headerCategories(landing, config?.categories ?? [], counts),
     [landing, config?.categories, counts],
   );
+  // El ☰ suma las que tienen productos y no están elegidas para el header (solo en el celular).
+  const mobileCategories = useMemo(
+    () => menuCategories(landing, config?.categories ?? [], counts),
+    [landing, config?.categories, counts],
+  );
   const showCategoryRow = categories.length > 0;
 
   return (
@@ -91,7 +100,7 @@ export function StoreHeader() {
     >
       <div className="mx-auto flex h-14 max-w-7xl items-center gap-2 px-4 sm:gap-3 lg:h-16 lg:gap-4">
         {/* Hasta escritorio: en la tableta, categorías, buscador y menús en una fila quedaban apretados. */}
-        <StoreMenu categories={categories}>
+        <StoreMenu categories={mobile ? mobileCategories : categories}>
           <Button variant="ghost" size="icon" aria-label="Abrir menú" className="-ml-2 size-11 shrink-0 text-primary-2 lg:hidden">
             <HugeIcon icon={Menu01Icon} size={20} strokeWidth={2} aria-hidden />
           </Button>

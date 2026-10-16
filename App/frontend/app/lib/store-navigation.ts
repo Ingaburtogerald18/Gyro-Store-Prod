@@ -70,6 +70,21 @@ export function headerCategories<T extends { id: string }>(
 }
 
 /**
+ * Categorías del ☰ del celular: las del header y, si el dueño eligió algunas, después las demás que tienen
+ * productos (una categoría nueva no queda sin acceso en el celular). Con la zona oculta, ninguna.
+ */
+export function menuCategories<T extends { id: string }>(
+  landing: Pick<LandingConfig, 'headerCategories' | 'headerCategoriesMode'> | null | undefined,
+  categories: T[],
+  counts: Record<string, number> | undefined,
+): T[] {
+  const header = headerCategories(landing, categories, counts);
+  if (categoryMode(landing?.headerCategoriesMode, landing?.headerCategories) !== 'custom') return header;
+  const shown = new Set(header.map((c) => c.id));
+  return [...header, ...categoriesWithProducts(categories, counts).filter((c) => !shown.has(c.id))];
+}
+
+/**
  * Cuántos enlaces entran en `available` px, en orden. Si no entran todos, deja lugar para el botón
  * «Más categorías» (`moreWidth`). `gap` es el espacio entre elementos.
  */

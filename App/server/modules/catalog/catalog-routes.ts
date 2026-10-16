@@ -14,11 +14,12 @@ router.get(
   })
 );
 
-// Detalle público de un producto. Un id que no es uuid también es 404 (ver readProduct).
+// Detalle público de un producto, por su slug («/api/catalog/kz-edx-pro») o por id (enlaces viejos).
+// El JSON trae los dos: `id` y `slug`.
 router.get(
-  '/:id',
+  '/:ref',
   asyncHandler(async (req, res) => {
-    const product = await readProduct(String(req.params.id));
+    const product = await readProduct(String(req.params.ref));
     if (!product) {
       res.status(404).json({ error: 'Producto no encontrado.' });
       return;

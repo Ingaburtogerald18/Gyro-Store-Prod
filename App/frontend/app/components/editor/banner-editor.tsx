@@ -5,6 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { heroSlideSchema, type HeroSlide } from '@shared/schemas';
 import { Button } from '~/components/ui/button';
 import { Input } from '~/components/ui/input';
+import { Switch } from '~/components/ui/switch';
 import { Textarea } from '~/components/ui/textarea';
 import { NativeSelect } from '~/components/ui/native-select';
 import { Combobox } from '~/components/ui/combobox';
@@ -12,7 +13,7 @@ import { Progress } from '~/components/ui/progress';
 import { Field, FieldDescription, FieldError, FieldLabel } from '~/components/ui/field';
 import { uploadSlideMedia } from '~/lib/upload-slide-media';
 import { useStoreCatalog } from '~/hooks/use-store-config';
-import { getProductUrl } from '~/lib/formatters';
+import { productFromTarget, productTarget } from '~/lib/detail-links';
 import type { SlideErrors } from '~/lib/landing-validation';
 import { cn } from '~/lib/utils';
 
@@ -58,6 +59,7 @@ export function BannerEditor({
   const latest = useRef(slide);
   latest.current = slide;
   const products = useStoreCatalog();
+  const selectedProduct = productFromTarget(slide.actionTarget, products);
   const ids = useId();
   const busy = disabled || uploading;
   const isVideo = slide.mediaType === 'video';
@@ -94,13 +96,17 @@ export function BannerEditor({
     const video = file.type.startsWith('video/');
     const next: HeroSlide = { ...latest.current, mediaUrl, mediaType: video ? 'video' : 'image' };
     // Un video no lleva imagen del celular: el selector desaparece y no queda una oculta en los datos.
-    if (video) delete next.mobileImageUrl;
+    if (video) {
+      delete next.mobileImageUrl;
+      delete next.mobileTextInImage;
+    }
     onChange(next);
   }
 
   function setMobileImage(mobileImageUrl: string | undefined) {
     const next: HeroSlide = { ...latest.current, mobileImageUrl };
     // Sin alternativa se borra la clave: así un banner viejo y uno al que se le quitó quedan iguales.
+    delete next.mobileTextInImage;
     if (!mobileImageUrl) delete next.mobileImageUrl;
     onChange(next);
   }
@@ -169,6 +175,7 @@ export function BannerEditor({
 
       {/* Solo en banners de imagen: los videos se ven igual en todos los tamaños. */}
       {!isVideo && (
+        <div className="space-y-3">
         <MediaUploadField
           id={`${ids}-mobile`}
           label="Imagen para móvil (opcional)"
@@ -185,6 +192,16 @@ export function BannerEditor({
           onUploaded={(url) => setMobileImage(url)}
           onRemove={() => setMobileImage(undefined)}
         />
+        {slide.mobileImageUrl && (
+          <Field>
+            <div className="flex items-center justify-between gap-3">
+              <FieldLabel htmlFor={`${ids}-mobile-text`}>La imagen móvil ya incluye el título y la descripción</FieldLabel>
+              <Switch id={`${ids}-mobile-text`} checked={slide.mobileTextInImage === true} disabled={busy} onCheckedChange={(value) => set('mobileTextInImage', value)} />
+            </div>
+            <FieldDescription>En la Presentación, evita repetir esos textos debajo de la imagen en el celular. Los botones siguen visibles y el título conserva su versión accesible.</FieldDescription>
+          </Field>
+        )}
+        </div>
       )}
 
       <fieldset disabled={busy} className="space-y-5">
@@ -277,13 +294,14 @@ export function BannerEditor({
                 <NativeSelect
                   className="w-full"
                   id={`${ids}-product`}
-                  value={slide.actionTarget}
+                  // Un enlace guardado en otro formato (o con el nombre de antes) sigue mostrando su producto.
+                  value={selectedProduct ? productTarget(selectedProduct) : ''}
                   aria-invalid={Boolean(errors.actionTarget)}
                   onChange={(event) => set('actionTarget', event.target.value)}
                 >
                   <option value="">Elegí un producto</option>
                   {products.map((product) => (
-                    <option key={product.id} value={getProductUrl(product.id, product.name)}>
+                    <option key={product.id} value={productTarget(product)}>
                       {product.name}
                     </option>
                   ))}
@@ -523,7 +541,7 @@ function BannerProductPicker({
   onChange: (value: string) => void;
 }) {
   const products = useStoreCatalog();
-  const selected = products.find((product) => getProductUrl(product.id, product.name) === value);
+  const selected = productFromTarget(value, products);
   const label = selected ? `${selected.name} · ${selected.id}` : '';
   const [query, setQuery] = useState(label);
   useEffect(() => {
@@ -539,7 +557,7 @@ function BannerProductPicker({
       onChange={(text) => {
         setQuery(text);
         const product = products.find((product) => `${product.name} · ${product.id}` === text);
-        onChange(product ? getProductUrl(product.id, product.name) : '');
+        onChange(product ? productTarget(product) : '');
       }}
     />
   );

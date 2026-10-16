@@ -1,7 +1,7 @@
 // Menú único del celular y la tableta (DESIGN.md §10): explorar, pedidos y ayuda, personal y apariencia
 // en un solo lugar, para no adivinar entre dos menús. En escritorio lo reemplazan la fila de categorías,
 // «Menú» y el avatar.
-import { useId, useState, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { Link, useLocation } from '@remix-run/react';
 import { HugeIcon } from '~/components/ui/icon';
 import { ArrowRight01Icon, Logout03Icon, Moon02Icon } from '@hugeicons/core-free-icons';
@@ -44,23 +44,33 @@ export function StoreMenu({
   categories: Category[];
 }) {
   const [open, setOpen] = useState(false);
-  const { pathname } = useLocation();
+  const panelRef = useRef<HTMLDivElement>(null);
+  const { pathname, key } = useLocation();
   const { theme, toggleTheme } = useTheme();
   const staff = useStaffWorkspace();
   const activeCategory = categoryFromPath(pathname);
   const close = () => setOpen(false);
+  useEffect(() => setOpen(false), [key]);
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>{children}</SheetTrigger>
-      <SheetContent side="left" className="w-[min(88vw,22rem)] p-0">
+      {/* Misma variante que el ancho base (data-[side=left]): si no, el 75 % de la base le gana. */}
+      <SheetContent
+        side="left"
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+          panelRef.current?.querySelector<HTMLElement>('a')?.focus();
+        }}
+        className="p-0 data-[side=left]:w-[min(90vw,24rem)] md:data-[side=left]:w-3/4"
+      >
         {/* La línea bordó repite la del header: el menú es parte de la tienda. */}
         <SheetHeader className="border-b-2 border-primary-2 px-4 py-4">
           <SheetTitle className="font-heading text-lg font-bold">Menú</SheetTitle>
           <SheetDescription className="sr-only">Catálogo, pedidos, ayuda, personal y apariencia.</SheetDescription>
         </SheetHeader>
 
-        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain p-2 pb-6">
+        <div ref={panelRef} className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain p-2 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
           <MenuGroup title="Explorá la tienda">
             {/* El catálogo entero en tarjeta: es la puerta principal; las categorías cuelgan de él. */}
             <MenuRow
@@ -134,13 +144,20 @@ export function StoreMenu({
                 </button>
               </>
             ) : (
-              <MenuRow
-                label={STAFF_ACCESS.label}
-                hint={STAFF_ACCESS.hint}
-                icon={STAFF_ACCESS.icon}
+              // Discreto: es para el equipo, no para quien compra.
+              <>
+              <Link
                 to={STAFF_ACCESS.to}
-                onSelect={close}
-              />
+                onClick={close}
+                className="flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none md:hidden"
+              >
+                <HugeIcon icon={STAFF_ACCESS.icon} size={18} strokeWidth={2} aria-hidden className="shrink-0" />
+                {STAFF_ACCESS.label}
+              </Link>
+              <div className="hidden md:block">
+                <MenuRow label={STAFF_ACCESS.label} hint={STAFF_ACCESS.hint} icon={STAFF_ACCESS.icon} to={STAFF_ACCESS.to} onSelect={close} />
+              </div>
+              </>
             )}
           </MenuGroup>
 
