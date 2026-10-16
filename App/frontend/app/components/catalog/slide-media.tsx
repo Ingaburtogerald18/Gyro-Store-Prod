@@ -11,6 +11,11 @@ import { cn } from '~/lib/utils';
  */
 export const MOBILE_IMAGE_MEDIA = 'not all and (min-width: 48rem)';
 
+// Medidas de las imágenes que usa la tienda (principal 3:2, del celular 1080 × 600). Con ellas el navegador
+// reserva el lugar antes de que llegue la imagen; si una tiene otra proporción, el marco se ajusta al cargar.
+const MAIN_SIZE = { width: 1200, height: 800 };
+const MOBILE_SIZE = { width: 1080, height: 600 };
+
 const isAnimated = (url: string | undefined) => Boolean(url && /\.(gif|webp)($|\?)/i.test(url));
 
 export function SlideMedia({
@@ -51,16 +56,17 @@ export function SlideMedia({
 
   // React 18 requiere el atributo HTML en minúsculas para evitar un warning.
   const image = priority ? (
-    <img src={slide.mediaUrl} alt={alt} {...{ fetchpriority: 'high' }} loading="eager" width={1200} height={900} className={className} />
+    <img src={slide.mediaUrl} alt={alt} {...{ fetchpriority: 'high' }} loading="eager" {...MAIN_SIZE} className={className} />
   ) : (
-    <img src={slide.mediaUrl} alt={alt} loading="lazy" decoding="async" width={1200} height={900} className={className} />
+    <img src={slide.mediaUrl} alt={alt} loading="lazy" decoding="async" {...MAIN_SIZE} className={className} />
   );
   if (!mobile) return image;
 
   // El navegador elige y descarga una sola: la del celular debajo de md y la principal en el resto.
+  // `contents`: el <picture> no suma una caja; la imagen se ubica como si no estuviera envuelta.
   return (
-    <picture>
-      <source media={MOBILE_IMAGE_MEDIA} srcSet={mobile} />
+    <picture className="contents">
+      <source media={MOBILE_IMAGE_MEDIA} srcSet={mobile} {...MOBILE_SIZE} />
       {image}
     </picture>
   );
@@ -85,7 +91,7 @@ function FrozenImage({ src, mobileSrc, alt, className }: { src: string; mobileSr
         {mobileSrc && <source media={MOBILE_IMAGE_MEDIA} srcSet={mobileSrc} />}
         <img ref={source} src={src} alt="" onLoad={(event) => drawFrame(event.currentTarget, canvas.current)} />
       </picture>
-      <canvas ref={canvas} role="img" aria-label={alt || undefined} width={1200} height={900} className={className} />
+      <canvas ref={canvas} role="img" aria-label={alt || undefined} {...MAIN_SIZE} className={className} />
     </>
   );
 }

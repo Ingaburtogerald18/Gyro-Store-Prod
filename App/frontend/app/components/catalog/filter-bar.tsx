@@ -1,5 +1,5 @@
-// Barra del catálogo. El conteo sale del mismo hook que la grilla para que
-// nunca digan cifras distintas.
+// Barra del catálogo: filtros y orden. El conteo va junto al título (catalog-listing.tsx) y sale del
+// mismo hook que la grilla, para que nunca digan cifras distintas.
 import { HugeIcon } from '~/components/ui/icon';
 import { FilterHorizontalIcon, PackageSearchIcon, Tag01Icon, Tick01Icon } from '@hugeicons/core-free-icons';
 
@@ -50,11 +50,10 @@ export function FilterBar({ products, categories = [] }: { products: CatalogProd
   const onlyInStock = useAppSelector(selectOnlyInStock);
   const activeCount = useAppSelector(selectActiveFilterCount);
 
-  const { filtered, priceError } = useCatalogFilter(products, categories);
-  const count = filtered.length;
+  const { priceError } = useCatalogFilter(products, categories);
 
   return (
-    <Toolbar className="mb-4 gap-2 sm:gap-3 sm:px-4">
+    <Toolbar className="mb-3 flex-nowrap gap-2 sm:gap-3 sm:px-4 md:mb-4">
       {/* Móvil: un solo botón que abre el sheet. */}
       <Button
         variant="outline"
@@ -114,12 +113,6 @@ export function FilterBar({ products, categories = [] }: { products: CatalogProd
             ))}
           </SelectContent>
         </Select>
-
-        {/* En móvil no entra junto a Filtros y Orden. */}
-        <p className="hidden items-center gap-1.5 text-sm text-muted-foreground sm:flex">
-          <Chip variant="count" className="h-7 min-w-7 rounded-xl text-sm">{count}</Chip>
-          {count === 1 ? 'producto' : 'productos'}
-        </p>
       </div>
     </Toolbar>
   );

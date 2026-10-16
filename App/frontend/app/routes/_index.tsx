@@ -2,17 +2,16 @@
 import { json, redirect, type HeadersFunction, type LoaderFunctionArgs, type MetaFunction } from '@remix-run/node';
 import type { ShouldRevalidateFunction } from '@remix-run/react';
 import { getBrandName } from '~/lib/brand';
-import { CATALOG_PATH, legacyCatalogRedirect } from '~/lib/catalog-query';
+import { legacyCatalogRedirect } from '~/lib/catalog-query';
 import { canonicalLink, storeJsonLd } from '~/lib/seo';
 import { siteOrigin } from '~/lib/site-url.server';
 import { storeReader } from '~/lib/store-reader.server';
-import { Link, useLoaderData } from '@remix-run/react';
+import { useLoaderData } from '@remix-run/react';
 import { Hero } from '~/components/catalog/hero';
 import { HomeGuides } from '~/components/catalog/home-guides';
 import { Novedades } from '~/components/catalog/novedades';
 import { ProductGrid } from '~/components/catalog/product-grid';
 import { StorefrontShell } from '~/components/storefront/storefront-shell';
-import { Button } from '~/components/ui/button';
 import { useAppSelector } from '~/state/hooks';
 import { selectPreviewCatalog } from '~/state/slices/builder-slice';
 
@@ -94,7 +93,8 @@ export default function Index() {
   const products = useAppSelector(selectPreviewCatalog) ?? published;
   const categories = config?.categories;
 
-  // Orden de DESIGN.md §10: Presentación, Destacados y filas por categoría, Novedades, Cómo comprar y Mayoreo.
+  // Orden de DESIGN.md §10: Presentación, Destacados (con «Ver todo el catálogo») y categorías, Novedades,
+  // Cómo comprar y Mayoreo.
   return (
     <StorefrontShell>
       <main key="home">
@@ -102,11 +102,6 @@ export default function Index() {
         {/* `id="catalogo"`: los enlaces viejos a /#catalogo siguen bajando a los productos. */}
         <div data-landing-section="products" id="catalogo" className="scroll-below-header mx-auto max-w-7xl px-4 py-6 md:py-8">
           <ProductGrid products={products} categories={categories} error={catalogError} layout="home" />
-          {!catalogError && products.length > 0 && (
-            <Button variant="outline" asChild className="h-12 px-6">
-              <Link to={CATALOG_PATH}>Ver todo el catálogo</Link>
-            </Button>
-          )}
         </div>
         <Novedades initialLanding={landing} />
         <HomeGuides />

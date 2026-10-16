@@ -6,6 +6,11 @@ export function storeMapsUrl(config: Pick<StoreConfig, 'address' | 'locationUrl'
   return config?.locationUrl?.trim() || (address ? `https://maps.google.com/?q=${encodeURIComponent(address)}` : '');
 }
 
+/** Hay algo que consultar en «Ubicación y horarios»: sin dirección ni horarios cargados, no se ofrece. */
+export function hasLocationInfo(config: Pick<StoreConfig, 'address' | 'businessHours'> | undefined): boolean {
+  return Boolean(config?.address?.trim()) || (config?.businessHours?.length ?? 0) > 0;
+}
+
 // Rutas de las páginas informativas: header, footer, ficha, sitemap y las propias páginas las leen de acá.
 export const STORE_PAGES = {
   help: '/ayuda',
@@ -16,3 +21,7 @@ export const STORE_PAGES = {
   contact: '/contacto',
   orders: '/mis-pedidos',
 } as const;
+
+/** Dirección y horarios dentro de Contacto: el footer del celular lleva directo ahí. */
+export const LOCATION_ANCHOR = 'ubicacion';
+export const CONTACT_LOCATION = `${STORE_PAGES.contact}#${LOCATION_ANCHOR}`;

@@ -86,11 +86,13 @@ export function CatalogListing() {
   const { filtered } = useCatalogFilter(listing, categories);
   useSearchTelemetry(filtered.length);
 
+  const showFilters = !catalogError && listing.length > 0;
+
   return (
     <StorefrontShell>
       <CatalogUrlSync categories={categories} />
-      <main className="mx-auto max-w-7xl px-4 py-6 md:py-8">
-        <Breadcrumb className="mb-3">
+      <main className="mx-auto max-w-7xl px-4 py-4 md:py-8">
+        <Breadcrumb className="mb-2 md:mb-3">
           <BreadcrumbList>
             <BreadcrumbItem>
               <BreadcrumbLink asChild>
@@ -118,21 +120,24 @@ export function CatalogListing() {
           </BreadcrumbList>
         </Breadcrumb>
 
-        <h1 className="font-heading text-2xl font-bold tracking-tight text-foreground md:text-3xl">
-          {category?.name ?? 'Catálogo'}
-        </h1>
+        {/* Título y conteo en una fila; un título largo baja el conteo a la línea siguiente. El conteo va
+            solo acá: el de abajo de la grilla dice cuántos se están viendo. */}
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
+          <h1 className="min-w-0 font-heading text-2xl font-bold tracking-tight break-words text-foreground md:text-3xl">
+            {category?.name ?? 'Catálogo'}
+          </h1>
+          {showFilters && (
+            <p className="text-sm text-muted-foreground tabular-nums">
+              {filtered.length} {filtered.length === 1 ? 'producto' : 'productos'}
+            </p>
+          )}
+        </div>
         {category?.description?.trim() && (
-          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">{category.description}</p>
-        )}
-        {/* En pantallas anchas el conteo va en la barra de filtros. */}
-        {!catalogError && listing.length > 0 && (
-          <p className="mt-1 text-sm text-muted-foreground tabular-nums sm:hidden">
-            {filtered.length} {filtered.length === 1 ? 'producto' : 'productos'}
-          </p>
+          <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-muted-foreground">{category.description}</p>
         )}
 
-        <div className="mt-6">
-          {!catalogError && listing.length > 0 && (
+        <div className="mt-4 md:mt-6">
+          {showFilters && (
             <>
               <FilterBar products={listing} categories={categories} />
               <ActiveFilters categories={categories} />
@@ -143,7 +148,7 @@ export function CatalogListing() {
       </main>
 
       {/* Vive fuera del <main>: es un panel modal, no contenido de la página. */}
-      <FilterSheet />
+      <FilterSheet resultCount={filtered.length} />
     </StorefrontShell>
   );
 }

@@ -5,8 +5,9 @@ import { PackageSearchIcon, Tag01Icon } from '@hugeicons/core-free-icons';
 
 import { Button } from '~/components/ui/button';
 import { PriceInput } from '~/components/catalog/filter-bar';
-import { priceRangeError } from '~/lib/catalog-query';
+import { categoriesWithProducts, priceRangeError } from '~/lib/catalog-query';
 import { Label } from '~/components/ui/label';
+import { NativeSelect } from '~/components/ui/native-select';
 import {
   Sheet,
   SheetContent,
@@ -16,15 +17,17 @@ import {
   SheetTitle,
 } from '~/components/ui/sheet';
 import { Switch } from '~/components/ui/switch';
-import { useStoreConfig } from '~/hooks/use-store-config';
+import { useCategoryCounts, useStoreConfig } from '~/hooks/use-store-config';
 import { useAppDispatch, useAppSelector } from '~/state/hooks';
 import {
+  categorySet,
   filterSheetSet,
   filtersReset,
   onlyInStockSet,
   onlyOnSaleSet,
   priceMaxSet,
   priceMinSet,
+  selectActiveCategory,
   selectFilterSheetOpen,
   selectOnlyInStock,
   selectOnlyOnSale,
@@ -32,25 +35,51 @@ import {
   selectPriceMin,
 } from '~/state/slices/ui-slice';
 
-export function FilterSheet() {
+export function FilterSheet({ resultCount }: { resultCount: number }) {
   const dispatch = useAppDispatch();
   const config = useStoreConfig();
+  const counts = useCategoryCounts();
   const open = useAppSelector(selectFilterSheetOpen);
+  const activeCategory = useAppSelector(selectActiveCategory);
   const priceMin = useAppSelector(selectPriceMin);
   const priceMax = useAppSelector(selectPriceMax);
   const onlyOnSale = useAppSelector(selectOnlyOnSale);
   const onlyInStock = useAppSelector(selectOnlyInStock);
   const priceError = priceRangeError({ priceMin, priceMax });
+  // Las mismas que el menú: las que tienen productos, con su nombre completo.
+  const categories = categoriesWithProducts(config?.categories ?? [], counts);
 
   return (
     <Sheet open={open} onOpenChange={(next) => dispatch(filterSheetSet(next))}>
-      <SheetContent side="bottom" className="rounded-t-3xl">
+      <SheetContent side="bottom" className="max-h-[90dvh] rounded-t-3xl">
         <SheetHeader>
           <SheetTitle>Filtros</SheetTitle>
-          <SheetDescription>Afiná el catálogo por precio y disponibilidad.</SheetDescription>
+          <SheetDescription>Elegí la categoría y afiná por precio y disponibilidad.</SheetDescription>
         </SheetHeader>
 
-        <div className="space-y-6 px-4 pb-2">
+        <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-4 pb-2">
+          {categories.length > 0 && (
+            <div className="space-y-1.5">
+              <Label htmlFor="filter-category" className="text-sm font-semibold text-foreground">
+                Categoría
+              </Label>
+              {/* Elegir otra lleva a su página (CatalogUrlSync), con su listado completo y los demás filtros. */}
+              <NativeSelect
+                id="filter-category"
+                className="w-full"
+                value={activeCategory ?? ''}
+                onChange={(event) => dispatch(categorySet(event.target.value || null))}
+              >
+                <option value="">Todas las categorías</option>
+                {categories.map((c) => (
+                  <option key={c.id} value={c.slug}>
+                    {c.name}
+                  </option>
+                ))}
+              </NativeSelect>
+            </div>
+          )}
+
           <fieldset className="space-y-2">
             <legend className="text-sm font-semibold text-foreground">
               Rango de precio ({config?.currency ?? 'C$'})
@@ -95,13 +124,20 @@ export function FilterSheet() {
           </div>
         </div>
 
-        <SheetFooter className="flex-row gap-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
-          <Button variant="outline" onClick={() => dispatch(filtersReset())} className="h-12 flex-1">
-            Limpiar
-          </Button>
-          <Button onClick={() => dispatch(filterSheetSet(false))} className="h-12 flex-[2]">
-            Ver resultados
-          </Button>
+        <SheetFooter className="gap-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
+          {resultCount === 0 && (
+            <p role="status" className="text-sm font-medium text-foreground">
+              Ningún producto coincide. Probá con «Limpiar» o con otra categoría.
+            </p>
+          )}
+          <div className="flex gap-3">
+            <Button variant="outline" onClick={() => dispatch(filtersReset())} className="h-12 flex-1">
+              Limpiar
+            </Button>
+            <Button onClick={() => dispatch(filterSheetSet(false))} className="h-12 flex-[2]">
+              {resultCount === 0 ? 'Ver resultados' : `Ver ${resultCount} ${resultCount === 1 ? 'producto' : 'productos'}`}
+            </Button>
+          </div>
         </SheetFooter>
       </SheetContent>
     </Sheet>

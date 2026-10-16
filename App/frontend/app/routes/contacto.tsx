@@ -25,7 +25,7 @@ import { PaymentAccounts } from '~/components/storefront/payment-accounts';
 import { useSendContactMutation } from '~/state/api/storefront-api';
 import { useStoreConfig } from '~/hooks/use-store-config';
 import { BusinessHoursList } from '~/components/storefront/store-details';
-import { storeMapsUrl } from '~/lib/store-pages';
+import { LOCATION_ANCHOR, storeMapsUrl } from '~/lib/store-pages';
 
 export const meta: MetaFunction<typeof loader> = ({ data }) => [
   { title: pageTitle('Contacto') },
@@ -156,7 +156,7 @@ export default function Contacto() {
 
           <div className="space-y-4">
             {/* Punto de retiro coordinado, no un local abierto: la dirección y el horario salen de Configuración. */}
-            <div className="space-y-3 rounded-2xl border bg-card p-5 shadow-xs">
+            <div id={LOCATION_ANCHOR} className="scroll-below-header space-y-3 rounded-2xl border bg-card p-5 shadow-xs">
               <h2 className="font-heading text-lg font-bold text-foreground">Retiro y horario</h2>
               <a
                 href={storeMapsUrl({ address, locationUrl: config?.locationUrl })}
