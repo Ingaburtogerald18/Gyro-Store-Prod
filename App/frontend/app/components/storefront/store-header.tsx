@@ -91,7 +91,7 @@ export function StoreHeader() {
     >
       <div className="mx-auto flex h-14 max-w-7xl items-center gap-2 px-4 sm:gap-3 lg:h-16 lg:gap-4">
         {/* Hasta escritorio: en la tableta, categorías, buscador y menús en una fila quedaban apretados. */}
-        <StoreMenu categories={categories} counts={counts}>
+        <StoreMenu categories={categories}>
           <Button variant="ghost" size="icon" aria-label="Abrir menú" className="-ml-2 size-11 shrink-0 text-primary-2 lg:hidden">
             <HugeIcon icon={Menu01Icon} size={20} strokeWidth={2} aria-hidden />
           </Button>

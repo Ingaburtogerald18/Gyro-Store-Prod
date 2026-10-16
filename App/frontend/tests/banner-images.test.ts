@@ -53,9 +53,10 @@ test('se elige la del celular solo en banners de imagen y con una URL de verdad'
 
 test('la tienda deja elegir al navegador: una sola imagen según el ancho, la principal de respaldo', () => {
   const html = renderToString(createElement(SlideMedia, { slide: both }));
-  assert.match(html, /^<picture>/);
-  assert.match(html, /<source media="not all and \(min-width: 48rem\)" srcSet="https:\/\/cdn\.example\.com\/landing\/celular\.webp"\/>/);
-  assert.match(html, /<img src="https:\/\/cdn\.example\.com\/landing\/principal\.webp" alt="Audífonos KZ" fetchpriority="high" loading="eager"/);
+  assert.match(html, /^<picture class="contents">/);
+  // Cada fuente con su proporción: el navegador reserva el lugar antes de que llegue la imagen.
+  assert.match(html, /<source media="not all and \(min-width: 48rem\)" srcSet="https:\/\/cdn\.example\.com\/landing\/celular\.webp" width="1080" height="600"\/>/);
+  assert.match(html, /<img src="https:\/\/cdn\.example\.com\/landing\/principal\.webp" alt="Audífonos KZ" fetchpriority="high" loading="eager" width="1200" height="800"/);
 
   // Novedades: más abajo, se cargan cuando hacen falta.
   assert.match(renderToString(createElement(SlideMedia, { slide: both, priority: false })), /loading="lazy"/);

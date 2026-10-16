@@ -80,6 +80,10 @@ export function Hero({ initialLanding }: { initialLanding?: LandingConfig | null
     );
   }
 
+  // Una imagen va en el celular a todo el ancho, con su proporción. El video y el espacio vacío
+  // conservan el marco de altura fija de siempre.
+  const fluid = slide.mediaType === 'image' && Boolean(slide.mediaUrl);
+
   return (
     <section
       ref={sectionRef}
@@ -89,16 +93,17 @@ export function Hero({ initialLanding }: { initialLanding?: LandingConfig | null
       className="mx-auto w-full max-w-7xl px-4 pt-3 pb-2 sm:pt-5"
     >
       <div className="relative w-full overflow-hidden rounded-3xl border border-border bg-card">
-        {/* Altura contenida: los productos tienen que asomar antes. min-h y no h fija para que un título
-            largo no se salga de la tarjeta. */}
-        <div className={cn('flex min-h-[300px] flex-col items-stretch md:min-h-[360px]', slide.layout !== 'top' && 'md:flex-row')}>
+        {/* Altura contenida en escritorio: los productos tienen que asomar antes. min-h y no h fija para que
+            un título largo no se salga de la tarjeta. */}
+        <div className={cn('flex flex-col items-stretch md:min-h-[360px]', slide.layout !== 'top' && 'md:flex-row')}>
           <div
             data-landing-element="image"
             role={editing ? 'button' : undefined}
             tabIndex={editing ? 0 : undefined}
             aria-label={editing ? 'Editar imagen de la presentación' : undefined}
             className={cn(
-              'relative flex h-[150px] w-full items-center justify-center overflow-hidden border-b border-border bg-card sm:h-[240px]',
+              'relative flex w-full items-center justify-center overflow-hidden border-b border-border bg-card',
+              fluid ? 'p-2 md:p-0' : 'h-[150px] sm:h-[240px]',
               slide.layout === 'top' ? 'md:h-80' : 'md:h-auto md:w-1/2 md:border-b-0',
               slide.layout === 'right' ? 'md:order-2 md:border-l' : slide.layout !== 'top' && 'md:border-r',
             )}
@@ -108,37 +113,44 @@ export function Hero({ initialLanding }: { initialLanding?: LandingConfig | null
               slide={slide}
               paused={Boolean(reduce) || !visible}
               freeze={Boolean(reduce)}
-              className="absolute inset-0 h-full w-full object-contain p-2 sm:p-4"
+              className={
+                fluid
+                  ? // Completa (sin recortar el arte), con un tope para que una vertical no tape los productos.
+                    'block h-auto max-h-[min(80vw,20rem)] w-full object-contain sm:max-h-80 md:absolute md:inset-0 md:h-full md:max-h-none md:p-4'
+                  : 'absolute inset-0 h-full w-full object-contain p-2 sm:p-4'
+              }
             />
           </div>
 
-          <div className={cn('relative z-10 flex w-full flex-col justify-center p-5 text-left sm:p-8 md:px-10 md:py-10', slide.layout !== 'top' && 'md:w-1/2')}>
-            <div className="space-y-3 sm:space-y-4">
+          <div className={cn('relative z-10 flex w-full flex-col justify-center p-4 text-left sm:p-8 md:px-10 md:py-10', slide.layout !== 'top' && 'md:w-1/2')}>
+            <div className="space-y-2.5 sm:space-y-4">
               {/* Título y mensaje en HTML (no dentro de la imagen): se leen, se traducen y escalan. */}
               <h1
                 data-landing-element="title"
                 role={editing ? 'button' : undefined}
                 tabIndex={editing ? 0 : undefined}
-                className="font-heading text-3xl leading-[1.08] font-extrabold tracking-tight text-balance text-foreground lg:text-5xl"
+                className="font-heading text-2xl leading-[1.1] font-extrabold tracking-tight text-balance text-foreground md:text-3xl md:leading-[1.08] lg:text-5xl"
               >
                 {slide.title}
               </h1>
 
+              {/* Completa, sin límite de líneas: lo que escribe el dueño se lee entero. */}
               {slide.description && (
                 <p
                   data-landing-element="description"
                   role={editing ? 'button' : undefined}
                   tabIndex={editing ? 0 : undefined}
-                  className="line-clamp-3 max-w-lg text-sm leading-relaxed text-muted-foreground sm:line-clamp-none sm:text-base"
+                  className="max-w-lg text-sm leading-relaxed text-muted-foreground sm:text-base"
                 >
                   {slide.description}
                 </p>
               )}
 
-              {/* Una acción principal y WhatsApp como secundaria. A 320px se apilan: los nombres nunca se recortan. */}
-              <div className="flex flex-col gap-2 pt-1 min-[360px]:flex-row min-[360px]:flex-wrap sm:gap-3">
-                <SlideAction slide={slide} variant="default" />
-                <Button variant="whatsappOutline" asChild className="h-12 justify-center px-5 text-sm sm:text-base">
+              {/* Una acción principal y WhatsApp como secundaria. Se acomodan al ancho y un texto largo pasa
+                  a otra línea dentro del botón: los nombres nunca se recortan. */}
+              <div className="flex flex-wrap gap-2 pt-1 sm:gap-3">
+                <SlideAction slide={slide} variant="default" className="h-auto min-h-11 whitespace-normal py-2 md:min-h-12" />
+                <Button variant="whatsappOutline" asChild className="h-auto min-h-11 justify-center px-5 py-2 text-sm sm:text-base md:min-h-12">
                   <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" aria-label="Escribinos por WhatsApp" onClick={() => trackWhatsappOpen('consult')}>
                     <WhatsappIcon aria-hidden className="size-4 shrink-0" />
                     WhatsApp

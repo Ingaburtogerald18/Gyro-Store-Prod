@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { fittingCount, headerCategories, staffActions } from '../app/lib/store-navigation';
 import { roleLabel } from '../app/lib/roles';
+import { CONTACT_LOCATION, hasLocationInfo } from '../app/lib/store-pages';
 
 const cats = [
   { id: 'a', name: 'Audífonos' },
@@ -55,4 +56,12 @@ test('el rol se muestra con su nombre, nunca el valor interno', () => {
   assert.equal(roleLabel('logistics_customer'), 'Logística (lectura)');
   assert.equal(roleLabel('rol_nuevo'), 'Colaborador');
   assert.equal(roleLabel(null), 'Colaborador');
+});
+
+test('«Ubicación y horarios» solo se ofrece si hay dirección u horario, y lleva a Contacto', () => {
+  assert.equal(hasLocationInfo({ address: 'Managua', businessHours: [] }), true);
+  assert.equal(hasLocationInfo({ address: '', businessHours: [{ days: 'Lunes', hours: '9 a 5' }] }), true);
+  assert.equal(hasLocationInfo({ address: '   ', businessHours: [] }), false);
+  assert.equal(hasLocationInfo(undefined), false);
+  assert.equal(CONTACT_LOCATION, '/contacto#ubicacion');
 });

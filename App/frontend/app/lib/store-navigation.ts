@@ -4,15 +4,19 @@ import {
   CustomerSupportIcon,
   DashboardSquare01Icon,
   Edit02Icon,
+  GridViewIcon,
+  Login03Icon,
   Mail01Icon,
   PackageIcon,
   PackageMovingIcon,
   UserCircleIcon,
 } from '@hugeicons/core-free-icons';
 import { categoryMode, type LandingConfig } from '@shared/schemas';
-import { categoriesWithProducts } from './catalog-query';
+import { CATALOG_PATH, categoriesWithProducts } from './catalog-query';
 import { isAdminRole, isStaffRole } from './roles';
 import { STORE_PAGES } from './store-pages';
+
+export const CATALOG_LINK = { label: 'Todo el catálogo', to: CATALOG_PATH, icon: GridViewIcon } as const;
 
 // «Mis pedidos» no pide cuenta: lista los de este navegador y busca por número y teléfono.
 export const STORE_LINKS = [
@@ -21,6 +25,15 @@ export const STORE_LINKS = [
   { label: 'Compras por mayor', to: STORE_PAGES.wholesale, icon: PackageMovingIcon },
   { label: 'Contacto', to: STORE_PAGES.contact, icon: Mail01Icon },
 ] as const;
+
+// Solo sin sesión del personal; con sesión van sus herramientas. Dice que es del equipo para que nadie
+// crea que comprar o consultar un pedido pide cuenta.
+export const STAFF_ACCESS = {
+  label: 'Acceso del personal',
+  hint: 'Solo para el equipo de la tienda',
+  to: '/login',
+  icon: Login03Icon,
+} as const;
 
 export type StaffAction =
   | { id: 'admin' | 'profile'; label: string; to: string; icon: typeof PackageIcon }

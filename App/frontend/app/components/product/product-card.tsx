@@ -13,30 +13,29 @@ import { Badge } from '~/components/ui/badge';
 import { Chip } from '~/components/ui/chip';
 import { useStoreConfig } from '~/hooks/use-store-config';
 import { useThumbnail } from '~/hooks/use-thumbnail';
+import { cardOptions, cardSpecs } from '~/lib/card-summary';
+import { publicPrice } from '~/lib/catalog-products';
 import { AVAILABILITY_LABEL } from '~/lib/purchase';
 import { cn } from "~/lib/utils"
 import { formatCordobas, getProductUrl } from "~/lib/formatters";
 
-/**
- * Hasta dos datos de la ficha, CON su etiqueta ("Driver: 10 mm"). Los valores
- * largos son explicación, no dato: van a la ficha. Sin specs, nada.
- */
-export function cardSpecs(specs: CatalogProduct['specs'], max = 2) {
-  return specs
-    .map((s) => ({ label: s.label.trim(), value: s.value.trim() }))
-    .filter((s) => s.label && s.value && s.value.length <= 18 && s.label.length <= 22)
-    .slice(0, max);
-}
+const DEFAULT_SIZES = '(min-width: 1024px) 300px, (min-width: 640px) 33vw, 50vw';
 
 export function ProductCard({
   product,
   layout = 'grid',
   index = 0,
+  eager,
+  sizes = DEFAULT_SIZES,
 }: {
   product: CatalogProduct;
   layout?: 'grid' | 'list';
-  /** Posición en la grilla: las primeras 4 fotos cargan sin lazy. */
+  /** Posición en la grilla: sin `eager`, las primeras 4 fotos cargan sin lazy. */
   index?: number;
+  /** Lo decide la grilla: en la portada, solo las primeras del primer bloque. */
+  eager?: boolean;
+  /** Ancho de la tarjeta en la grilla que la contiene, para elegir miniatura u original. */
+  sizes?: string;
 }) {
   const config = useStoreConfig();
   const reduce = useReducedMotion();
@@ -54,17 +53,17 @@ export function ProductCard({
   const hoverImage = product.images[1];
   const available = product.availability === 'available';
   const soldOut = product.availability === 'sold_out';
-  const comingSoon = product.availability === 'coming_soon';
+  // «Próximamente» (y un producto sin precio cargado) no muestra precio: el estado de abajo lo dice.
+  const price = publicPrice(product);
   const compareAt = product.compareAtPrice ?? 0;
-  const onSale = compareAt > product.price;
-  const discountPct = onSale ? Math.round((1 - product.price / compareAt) * 100) : 0;
+  const onSale = price != null && compareAt > price;
+  const discountPct = onSale ? Math.round((1 - price / compareAt) * 100) : 0;
   const isList = layout === 'list';
   const currency = config?.currency;
   const productUrl = getProductUrl(product.id, product.name);
-  const specs = cardSpecs(product.specs);
-  const options = [product.colorCount > 1 ? `${product.colorCount} colores` : null, ...product.axesSummary.slice(0, 2)]
-    .filter(Boolean)
-    .join(' · ');
+  // En el celular, a lo sumo un dato además de las opciones; desde tableta, dos.
+  const specs = cardSpecs(product, 2);
+  const options = cardOptions(product);
   const Stage = (
     <div
       className={cn(
@@ -105,11 +104,11 @@ export function ProductCard({
           ref={imageRef}
           src={image}
           srcSet={thumb ? `${thumb} ${THUMBNAIL_WIDTH}w, ${image} 1200w` : undefined}
-          sizes={isList ? '180px' : '(min-width: 1024px) 300px, (min-width: 640px) 33vw, 50vw'}
+          sizes={isList ? '180px' : sizes}
           alt={product.name}
           width={400}
           height={400}
-          loading={index < 4 ? 'eager' : 'lazy'}
+          loading={(eager ?? index < 4) ? 'eager' : 'lazy'}
           decoding="async"
           onLoad={() => setImageLoaded(true)}
           // Sin miniatura se pide la original; si la foto falla, el blur permanente sería peor que mostrarla rota.
@@ -137,7 +136,7 @@ export function ProductCard({
     <div
       className={cn(
         'flex min-w-0 flex-col gap-1',
-        isList ? 'flex-1 justify-center gap-1.5 py-1' : 'flex-1 pt-3',
+        isList ? 'flex-1 justify-center gap-1.5 py-1' : 'flex-1 pt-2.5',
       )}
     >
       <h3 className="line-clamp-2 text-sm leading-snug font-semibold text-foreground sm:text-base">
@@ -146,40 +145,42 @@ export function ProductCard({
       {/* Qué opciones hay, sin abrir la ficha: es lo primero que preguntan por WhatsApp. */}
       {options && <p className="line-clamp-1 text-xs text-muted-foreground">{options}</p>}
       {specs.length > 0 && (
-        // Dato completo con su etiqueta, sin recortar; en móvil chico, uno solo.
-        <dl className="space-y-0.5 text-xs leading-snug text-muted-foreground sm:text-sm">
+        // Dato completo con su etiqueta, sin recortar; el segundo, solo desde tableta.
+        <dl className="space-y-0.5 text-xs leading-snug text-muted-foreground">
           {specs.map((s, i) => (
-            <div key={s.label} className={cn('break-words', i > 0 && 'hidden min-[400px]:block')}>
+            <div key={s.label} className={cn('break-words', i > 0 && 'hidden md:block')}>
               <dt className="inline">{s.label}: </dt>
               <dd className="inline font-medium text-foreground">{s.value}</dd>
             </div>
           ))}
         </dl>
       )}
-      {/* «Próximamente» no tiene precio todavía: el estado de abajo lo dice. */}
-      {!comingSoon && (
-        <div className="mt-1 flex flex-wrap items-baseline gap-x-2">
-          {product.priceFrom && <span className="text-xs font-medium text-muted-foreground">Desde</span>}
-          <span className="font-heading text-lg font-extrabold tracking-tight text-primary-2 tabular-nums">
-            {formatCordobas(product.price, currency)}
-          </span>
-          {onSale && (
-            <span className="text-xs text-muted-foreground line-through tabular-nums sm:text-sm">
-              <span className="sr-only">Antes </span>
-              {formatCordobas(compareAt, currency)}
+      {/* Al pie de la tarjeta: en una fila, precios y estados quedan a la misma altura. */}
+      <div className="mt-auto space-y-1 pt-1">
+        {price != null && (
+          <div className="flex flex-wrap items-baseline gap-x-2">
+            {product.priceFrom && <span className="text-xs font-medium text-muted-foreground">Desde</span>}
+            <span className="font-heading text-lg leading-tight font-extrabold tracking-tight text-primary-2 tabular-nums">
+              {formatCordobas(price, currency)}
             </span>
-          )}
-        </div>
-      )}
-      {available ? (
-        <Chip variant="status" tone="success" className="mt-1 self-start">
-          {AVAILABILITY_LABEL.available}
-        </Chip>
-      ) : (
-        <p className={cn('text-xs font-medium', soldOut ? 'text-destructive' : 'text-foreground')}>
-          {AVAILABILITY_LABEL[product.availability]}
-        </p>
-      )}
+            {onSale && (
+              <span className="text-xs text-muted-foreground line-through tabular-nums sm:text-sm">
+                <span className="sr-only">Antes </span>
+                {formatCordobas(compareAt, currency)}
+              </span>
+            )}
+          </div>
+        )}
+        {available ? (
+          <Chip variant="status" tone="success" className="self-start">
+            {AVAILABILITY_LABEL.available}
+          </Chip>
+        ) : (
+          <p className={cn('text-xs font-medium', soldOut ? 'text-destructive' : 'text-foreground')}>
+            {AVAILABILITY_LABEL[product.availability]}
+          </p>
+        )}
+      </div>
     </div>
   );
 

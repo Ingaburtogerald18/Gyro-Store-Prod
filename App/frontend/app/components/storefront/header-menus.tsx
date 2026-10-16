@@ -1,5 +1,6 @@
 // Menús del header en escritorio, sobre DropdownMenu de Radix (teclado, Escape y foco resueltos).
-// «Menú» es de quien compra; el avatar, solo del personal. Debajo de escritorio los reemplaza el ☰.
+// «Menú» es de quien compra (y, sin sesión, lleva el acceso del personal); el avatar, solo del personal
+// con sesión. Debajo de escritorio los reemplaza el ☰.
 import { Link, useLocation } from '@remix-run/react';
 import { Logout03Icon, Menu01Icon, Moon02Icon } from '@hugeicons/core-free-icons';
 
@@ -16,7 +17,7 @@ import { HugeIcon } from '~/components/ui/icon';
 import { Switch } from '~/components/ui/switch';
 import { useStaffWorkspace } from '~/hooks/use-staff-workspace';
 import { useTheme } from '~/hooks/use-theme';
-import { STORE_LINKS } from '~/lib/store-navigation';
+import { STAFF_ACCESS, STORE_LINKS } from '~/lib/store-navigation';
 import { cn } from '~/lib/utils';
 
 // Filas de 44 px y foco neutro: el amarillo queda para comprar. Lo elegido, como en DESIGN.md §5.
@@ -28,6 +29,8 @@ const CONTROL =
 
 export function HeaderMenu() {
   const { pathname } = useLocation();
+  // Con sesión del personal el acceso sobra: sus herramientas están en el avatar.
+  const staff = useStaffWorkspace();
 
   return (
     <DropdownMenu modal={false}>
@@ -45,6 +48,23 @@ export function HeaderMenu() {
             </Link>
           </DropdownMenuItem>
         ))}
+        {!staff && (
+          <>
+            <DropdownMenuSeparator className="my-2 bg-border" />
+            <DropdownMenuLabel className="px-3 pt-1 pb-1.5 text-2xs font-semibold tracking-wide text-muted-foreground uppercase">
+              Personal
+            </DropdownMenuLabel>
+            <DropdownMenuItem asChild className={MENU_ITEM}>
+              <Link to={STAFF_ACCESS.to}>
+                <HugeIcon icon={STAFF_ACCESS.icon} size={18} strokeWidth={2} className="text-muted-foreground" />
+                <span className="flex flex-col py-1.5">
+                  {STAFF_ACCESS.label}
+                  <span className="text-xs text-muted-foreground">{STAFF_ACCESS.hint}</span>
+                </span>
+              </Link>
+            </DropdownMenuItem>
+          </>
+        )}
         <DropdownMenuSeparator className="my-2 bg-border" />
         <ThemeMenuItem />
       </DropdownMenuContent>
