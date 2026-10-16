@@ -3,6 +3,7 @@
 import { HugeIcon } from '~/components/ui/icon';
 import { ArrowLeft01Icon, Share01Icon } from '@hugeicons/core-free-icons';
 import { Link, useLocation, useNavigate } from '@remix-run/react';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
 import { Button } from '~/components/ui/button';
@@ -34,7 +35,10 @@ export function ProductTopNav({
   const location = useLocation();
   const navigate = useNavigate();
   // Vino de un listado: volver es ir atrás (conserva búsqueda, filtros, orden y posición). Entró directo: a su categoría.
-  const back = readBackState(location.state);
+  // El servidor no conoce history.state: la primera renderización debe coincidir al recargar.
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => setHydrated(true), []);
+  const back = hydrated ? readBackState(location.state) : null;
   const backLinkClass =
     'inline-flex min-h-11 min-w-0 items-center gap-1.5 rounded-xl pr-2 text-sm font-semibold text-primary-2 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none';
 

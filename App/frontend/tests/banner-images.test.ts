@@ -45,6 +45,14 @@ test('la imagen del celular sobrevive al validar, guardar el borrador y publicar
   assert.equal(landingConfigSchema.safeParse(landing({ ...old, mobileImageUrl: `https://x/${'a'.repeat(2048)}` })).success, false);
 });
 
+test('ocultar texto repetido exige una decisión explícita y se conserva al publicar', () => {
+  assert.equal(landingConfigSchema.parse(landing(both)).heroSlides[0]?.mobileTextInImage, undefined);
+  const slide = { ...both, mobileTextInImage: true };
+  const draft = storeDraftInputSchema.parse({ session, landing: landing(slide), products: { items: {}, combos: {} } });
+  const published = storePublishInputSchema.parse({ session, landing: draft.landing, products: { items: {}, combos: {} } });
+  assert.equal(published.landing.heroSlides[0]?.mobileTextInImage, true);
+});
+
 test('se elige la del celular solo en banners de imagen y con una URL de verdad', () => {
   assert.equal(mobileImageOf(both), MOBILE);
   assert.equal(mobileImageOf({ ...both, mobileImageUrl: '  ' }), undefined);

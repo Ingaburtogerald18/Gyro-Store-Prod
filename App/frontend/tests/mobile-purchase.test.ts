@@ -6,11 +6,32 @@ import type { CatalogVariant } from '@shared/schemas';
 import { anyOrderable, priceDisplay, purchaseState } from '../app/lib/purchase';
 import { backLabel, backStateFor, readBackState } from '../app/lib/back-link';
 import { menuCategories } from '../app/lib/store-navigation';
+import { createElement } from 'react';
+import { renderToString } from 'react-dom/server';
+import { createMemoryRouter, RouterProvider } from 'react-router-dom';
+import { Provider } from 'react-redux';
+import { createAppStore } from '../app/state/store';
+import { ProductTopNav } from '../app/components/product/product-top-nav';
 
 const variant = (over: Partial<CatalogVariant>): CatalogVariant => ({
   variantName: 'Blanco', axisValues: ['Blanco'], price: 1200, isPromo: false, stock: 1, availability: 'available', ...over,
 });
 const colors = [{ key: 'color', label: 'Color', options: ['Blanco', 'Negro'], isColor: true }];
+
+test('recargar una ficha con historial conserva el mismo HTML inicial que el servidor', () => {
+  function initialHtml(state: unknown) {
+    const router = createMemoryRouter([
+      { id: 'product', path: '/producto/g3', element: createElement(ProductTopNav, { productName: 'G3' }) },
+    ], {
+      initialEntries: [{ pathname: '/producto/g3', state }],
+      hydrationData: { loaderData: { product: { config: { categories: [] } } } },
+    });
+    const html = renderToString(createElement(Provider, { store: createAppStore(), children: createElement(RouterProvider, { router }) }));
+    router.dispose();
+    return html;
+  }
+  assert.equal(initialHtml({ backTo: '/catalogo?q=mouse', steps: 1 }), initialHtml(null));
+});
 
 test('G3 Pro: la variante sin precio confirmado no se muestra como gratis', () => {
   const product = { availability: 'available' as const, price: 1200, priceFrom: false };
